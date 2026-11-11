@@ -1251,9 +1251,231 @@
     return clearPasses.get(key);
   };
   const tileLngLat = (z, x, y) => [(x + 0.5) / (1 << z) * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / (1 << z)))) * 180 / Math.PI];
+  // ---------- Live, sharper: Sentinel-2 at 10 m (alex 2026-11-11: friend's tip, picked "Yes, switch Live to 10 m") ----------
+  // The same satellites as half of NASA's HLS photos above, but at their full 10 m instead of 30 m. The phone reads the
+  // true-colour picture (TCI.tif) of each pass straight from AWS Open Data (sentinel-cogs, free, CORS *, Copernicus data
+  // that may be used commercially with the credit in credits.html): Element 84's Earth Search lists the passes, and each
+  // file is a cloud-optimised GeoTIFF, so only the 512-1024 px squares under the view are downloaded, at the smallest of
+  // its 5 sizes (10, 20, 40, 80, 160 m) that is still as sharp as the screen. No server, nothing to build or pay for.
+  // Zoom 10 and up; further out, or when Earth Search or AWS don't answer, NASA's HLS as before.
+  const S2_SEARCH = "https://earth-search.aws.element84.com/v1/search";
+  const S2_MINZ = 12;
+  const s2Lists = new Map();
+  // The clear passes over the ~40 km square around the point: [{day, items: [{id, href, bbox, zone, cloud}]}], newest first.
+  const s2PassesAt = (lng, lat) => {
+    const n = 512, gx = Math.floor((lng + 180) / 360 * n), gy = Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n), key = gx + "/" + gy;
+    if (!s2Lists.has(key)) {
+      if (s2Lists.size > 300) s2Lists.delete(s2Lists.keys().next().value);
+      const w = gx / n * 360 - 180, e = (gx + 1) / n * 360 - 180;
+      const s = Math.atan(Math.sinh(Math.PI * (1 - 2 * (gy + 1) / n))) * 180 / Math.PI, nn = Math.atan(Math.sinh(Math.PI * (1 - 2 * gy / n))) * 180 / Math.PI;
+      const since = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+      const body = { collections: ["sentinel-2-l2a"], bbox: [w, s, e, nn], datetime: `${since}T00:00:00Z/..`, limit: 40,
+        query: { "eo:cloud_cover": { lt: 60 } }, sortby: [{ field: "properties.datetime", direction: "desc" }] };
+      const p = fetch(S2_SEARCH, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then((j) => {
+          // One square of the grid (S2B_10UEA_...) can be processed twice (_0_, _1_): keep the newest processing.
+          const best = new Map();
+          for (const f of j.features || []) {
+            const m = /^S2[ABC]_(\d\d)([C-X])([A-Z]{2})_(\d{8})_(\d+)_L2A$/.exec(f.id), href = f.assets?.visual?.href;
+            if (!m || !href || !/^https:\/\/sentinel-cogs\./.test(href) || m[2] < "N") continue;   // northern half only (Canada)
+            const day = `${m[4].slice(0, 4)}-${m[4].slice(4, 6)}-${m[4].slice(6)}`, k = m[1] + m[2] + m[3] + day, old = best.get(k);
+            if (!old || +m[5] > old.rev) best.set(k, { id: f.id, href, bbox: f.bbox, zone: +m[1], cloud: +(f.properties?.["eo:cloud_cover"] ?? 100), day, rev: +m[5] });
+          }
+          // By day, each grid square judged on its own clouds: on 2026-10-16 the square east of Whistler was 6% cloud
+          // and the one west of it 60%, and the cloudy one was drawn over Whistler's west side.
+          const days = (max) => {
+            const byDay = new Map();
+            for (const it of best.values()) if (it.cloud <= max) { if (!byDay.has(it.day)) byDay.set(it.day, []); byDay.get(it.day).push(it); }
+            return [...byDay.entries()].map(([day, items]) => ({ day, items: items.sort((a, b) => a.cloud - b.cloud), cloud: Math.min(...items.map((i) => i.cloud)) }))
+              .sort((a, b) => (a.day < b.day ? 1 : -1));
+          };
+          // Like HLS above: the 3 newest mostly clear days, else the 2 clearest of the cloudier ones.
+          let got = days(30).slice(0, 3);
+          if (!got.length) got = days(60).sort((a, b) => a.cloud - b.cloud).slice(0, 2);
+          return got;
+        });
+      p.catch(() => s2Lists.delete(key));
+      s2Lists.set(key, p);
+    }
+    return s2Lists.get(key);
+  };
+  // WGS84 to UTM metres (Krüger series, northern half), for zone `zone`.
+  const utm = (lng, lat, zone) => {
+    const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, n = f / (2 - f), A = a / (1 + n) * (1 + n * n / 4 + n ** 4 / 64);
+    const al = [n / 2 - 2 * n * n / 3 + 5 * n ** 3 / 16, 13 * n * n / 48 - 3 * n ** 3 / 5, 61 * n ** 3 / 240];
+    const phi = lat * Math.PI / 180, lam = (lng - (zone * 6 - 183)) * Math.PI / 180, e2 = 2 * Math.sqrt(n) / (1 + n);
+    const t = Math.sinh(Math.atanh(Math.sin(phi)) - e2 * Math.atanh(e2 * Math.sin(phi)));
+    const xi = Math.atan(t / Math.cos(lam)), eta = Math.atanh(Math.sin(lam) / Math.sqrt(1 + t * t));
+    let E = eta, N = xi;
+    for (let j = 1; j <= 3; j++) { E += al[j - 1] * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta); N += al[j - 1] * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta); }
+    return [500000 + k0 * A * E, k0 * A * N];
+  };
+  // A GeoTIFF's layout: for the full picture and each smaller copy, its size, square size and where each square is
+  // in the file. All of it is in the first 16 KB of these files; one request each, kept for the session.
+  const s2Heads = new Map();
+  const s2Head = (href) => {
+    if (!s2Heads.has(href)) {
+      if (s2Heads.size > 40) s2Heads.delete(s2Heads.keys().next().value);
+      const stop = new AbortController();
+      const p = fetch(href, { headers: { Range: "bytes=0-16383" }, signal: stop.signal }).then((r) => { if (r.status !== 206) { stop.abort(); throw new Error(`HTTP ${r.status}`); } return r.arrayBuffer(); }).then((buf) => {
+        const d = new DataView(buf), le = d.getUint16(0) === 0x4949, u16 = (o) => d.getUint16(o, le), u32 = (o) => d.getUint32(o, le);
+        if (u16(2) !== 42) throw new Error("not a plain TIFF");
+        const SZ = { 3: 2, 4: 4, 12: 8 }, levels = [];
+        let ifd = u32(4), origin = null, px = null;
+        while (ifd && ifd + 2 < buf.byteLength) {
+          const n = u16(ifd), tag = {};
+          for (let i = 0; i < n; i++) {
+            const o = ifd + 2 + i * 12, t = u16(o), type = u16(o + 2), c = u32(o + 4), size = (SZ[type] || 1) * c;
+            const at = size <= 4 ? o + 8 : u32(o + 8);
+            const read = (k) => (type === 3 ? u16(at + k * 2) : type === 4 ? u32(at + k * 4) : type === 12 ? d.getFloat64(at + k * 8, le) : d.getUint8(at + k));
+            tag[t] = { c, read, at };
+          }
+          const get = (t) => tag[t] && tag[t].read(0), arr = (t) => { const x = tag[t], out = new Float64Array(x.c); for (let k = 0; k < x.c; k++) out[k] = x.read(k); return out; };
+          if (tag[33922]) origin = [tag[33922].read(3), tag[33922].read(4)];
+          if (tag[33550]) px = tag[33550].read(0);
+          if (get(259) !== 8 || get(277) !== 3 || !tag[324]) throw new Error("unexpected TIFF");
+          levels.push({ w: get(256), h: get(257), tw: get(322), th: get(323), pred: get(317) || 1, offs: arr(324), counts: arr(325) });
+          ifd = u32(ifd + 2 + n * 12);
+        }
+        if (!origin || !px || !levels.length) throw new Error("no position in TIFF");
+        for (const L of levels) L.res = px * levels[0].w / L.w;   // metres a pixel
+        return { origin, levels };
+      });
+      p.catch(() => s2Heads.delete(href));
+      s2Heads.set(href, p);
+    }
+    return s2Heads.get(href);
+  };
+  // A square's packed bytes. A pass's picture never changes, so the squares are kept on the phone (Cache API, the
+  // S2_KEEP newest, ~2.6 MB each at 10 m): coming back to an area costs no data. A view is ~6-15 MB the first time.
+  const S2_CACHE = "tf-s2-squares", S2_KEEP = PHONE ? 60 : 160;
+  let s2Puts = 0;
+  async function s2Bytes0(href, off, len) {
+    const key = `https://tf-s2.invalid/${encodeURIComponent(href)}/${off}`;
+    const store = await caches.open(S2_CACHE).catch(() => null);
+    const hit = store && await store.match(key).catch(() => null);
+    if (hit) return hit.arrayBuffer();
+    const stop = new AbortController(), r = await fetch(href, { headers: { Range: `bytes=${off}-${off + len - 1}` }, signal: stop.signal });
+    if (r.status !== 206) { stop.abort(); throw new Error(`HTTP ${r.status}`); }   // never the whole 300 MB file
+    const ab = await r.arrayBuffer();
+    if (store) {
+      store.put(key, new Response(ab)).then(async () => {
+        if (++s2Puts % 8) return;   // now and then, drop the oldest beyond S2_KEEP
+        const keys = await store.keys();
+        for (const k of keys.slice(0, Math.max(0, keys.length - S2_KEEP))) await store.delete(k);
+      }).catch(() => {});
+    }
+    return ab;
+  }
+  // Unpacked squares (RGB bytes), newest kept, up to a memory budget (phones crash on too much: [[iphone-crashes]]).
+  const s2Blocks = new Map(), S2_BUDGET = (PHONE ? 48 : 160) * 1048576;
+  let s2Bytes = 0;
+  const s2Block = (href, head, li, bx, by) => {
+    const key = `${href}|${li}|${bx}|${by}`;
+    if (s2Blocks.has(key)) { const v = s2Blocks.get(key); s2Blocks.delete(key); s2Blocks.set(key, v); return v.p; }
+    const L = head.levels[li], i = by * Math.ceil(L.w / L.tw) + bx, off = L.offs[i], len = L.counts[i];
+    const entry = { p: null, size: L.tw * L.th * 3 };
+    entry.p = !len ? Promise.resolve(null) : s2Bytes0(href, off, len)
+      .then((zb) => new Response(new Blob([zb]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer()).then((ab) => {
+        const b = new Uint8Array(ab), row = L.tw * 3;
+        if (L.pred === 2) for (let y = 0; y < L.th; y++) for (let x = y * row + 3, e = y * row + row; x < e; x++) b[x] = (b[x] + b[x - 3]) & 255;
+        return b;
+      });
+    entry.p.catch(() => { if (s2Blocks.get(key) === entry) { s2Blocks.delete(key); s2Bytes -= entry.size; } });
+    s2Blocks.set(key, entry); s2Bytes += entry.size;
+    while (s2Bytes > S2_BUDGET && s2Blocks.size > 1) { const [k, v] = s2Blocks.entries().next().value; s2Blocks.delete(k); s2Bytes -= v.size; }
+    return entry.p;
+  };
+  // One map tile (256 px) from the passes' pictures, newest on top, older ones only where it has no data (the edge of
+  // its strip). Returns [ImageData, metres a pixel of the source] or null when half the tile has nothing.
+  const LIFT = Uint8Array.from({ length: 256 }, (_, i) => Math.round(255 * Math.pow(i / 255, 0.85)));
+  async function s2Tile(z, x, y, sig) {
+    const [lng, lat] = tileLngLat(z, x, y), days = await s2PassesAt(lng, lat).catch(() => null);
+    if (!days || !days.length || sig.aborted) return null;
+    const W = 256, G = 16, n = 1 << z;
+    const lonAt = (px) => (x + px / W) / n * 360 - 180, latAt = (py) => Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + py / W) / n))) * 180 / Math.PI;
+    const west = lonAt(0), east = lonAt(W), north = latAt(0), south = latAt(W);
+    const mpp = 156543.034 * Math.cos(lat * Math.PI / 180) / n;   // the map tile's metres a pixel
+    const out = new Uint8ClampedArray(W * W * 4);
+    let srcRes = 0, left = W * W;
+    for (const d of days) {
+      for (const it of d.items) {
+        if (left < W * W * 0.002) break;
+        const [bw, bs, be, bn] = it.bbox;
+        if (be < west || bw > east || bn < south || bs > north) continue;
+        const head = await s2Head(it.href).catch(() => null);
+        if (!head || sig.aborted) continue;
+        // The smallest copy still about as sharp as the screen for close ground (looking straight down, or zoom 14+
+        // tiles); further off in a tilted view, a pixel up to twice the tile's. The 10 m squares are ~2.6 MB each:
+        // opening tilted 3D at Whistler was ~36-50 MB with 10 m everywhere, ~16 MB like this.
+        const near = z >= 14 || !gl || (gl.getPitch() < 30 && z >= Math.floor(gl.getZoom()));
+        let li = 0;
+        while (li + 1 < head.levels.length && head.levels[li + 1].res <= mpp * (near ? 1.2 : 2)) li++;
+        const L = head.levels[li], [ox, oy] = head.origin;
+        // Picture pixel (column, row) at a G x G grid over the tile; in between, straight lines (UTM is smooth here).
+        const gc = new Float64Array((G + 1) * (G + 1)), gr = new Float64Array((G + 1) * (G + 1));
+        let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+        for (let j = 0; j <= G; j++) for (let i = 0; i <= G; i++) {
+          const [E, N] = utm(lonAt(i * W / G), latAt(j * W / G), it.zone), c = (E - ox) / L.res - 0.5, r = (oy - N) / L.res - 0.5, k = j * (G + 1) + i;
+          gc[k] = c; gr[k] = r; c0 = Math.min(c0, c); c1 = Math.max(c1, c); r0 = Math.min(r0, r); r1 = Math.max(r1, r);
+        }
+        if (c1 < 0 || r1 < 0 || c0 > L.w - 1 || r0 > L.h - 1) continue;
+        const bx0 = Math.max(0, Math.floor(c0 / L.tw)), bx1 = Math.min(Math.ceil(L.w / L.tw) - 1, Math.floor((c1 + 1) / L.tw));
+        const by0 = Math.max(0, Math.floor(r0 / L.th)), by1 = Math.min(Math.ceil(L.h / L.th) - 1, Math.floor((r1 + 1) / L.th));
+        if ((bx1 - bx0 + 1) * (by1 - by0 + 1) > 6) continue;   // never more than a few squares for one tile
+        const nbx = bx1 - bx0 + 1, nby = by1 - by0 + 1, blocks = new Array(nbx * nby).fill(null);
+        await Promise.all(blocks.map(async (_, q) => { blocks[q] = await s2Block(it.href, head, li, bx0 + q % nbx, by0 + Math.floor(q / nbx)).catch(() => null); }));
+        if (sig.aborted) return null;
+        const tw = L.tw, th = L.th;
+        let hb = null, ho = 0;
+        const hit = (c, r) => {   // picture pixel c, r: its square in hb, its place in ho; false where there's no data
+          const i = Math.floor(c / tw) - bx0, j = Math.floor(r / th) - by0;
+          if (c < 0 || r < 0 || c >= L.w || r >= L.h || i < 0 || j < 0 || i >= nbx || j >= nby) return false;
+          hb = blocks[j * nbx + i];
+          if (!hb) return false;
+          ho = ((r % th) * tw + (c % tw)) * 3;
+          return (hb[ho] | hb[ho + 1] | hb[ho + 2]) !== 0;
+        };
+        const v = new Float64Array(3), step = W / G;
+        for (let py = 0; py < W; py++) {
+          const gj = Math.min(G - 1, Math.floor(py / step)), fy = py / step - gj;
+          for (let pxx = 0; pxx < W; pxx++) {
+            const o = (py * W + pxx) * 4;
+            if (out[o + 3]) continue;
+            const gi = Math.min(G - 1, Math.floor(pxx / step)), fx = pxx / step - gi, k = gj * (G + 1) + gi;
+            const c = (gc[k] * (1 - fx) + gc[k + 1] * fx) * (1 - fy) + (gc[k + G + 1] * (1 - fx) + gc[k + G + 2] * fx) * fy;
+            const r = (gr[k] * (1 - fx) + gr[k + 1] * fx) * (1 - fy) + (gr[k + G + 1] * (1 - fx) + gr[k + G + 2] * fx) * fy;
+            const ci = Math.floor(c), ri = Math.floor(r), ax = c - ci, ay = r - ri;
+            // Bilinear between the 4 picture pixels around the point; all 4 must have data.
+            if (!hit(ci, ri)) continue;
+            const w00 = (1 - ax) * (1 - ay); v[0] = hb[ho] * w00; v[1] = hb[ho + 1] * w00; v[2] = hb[ho + 2] * w00;
+            if (!hit(ci + 1, ri)) continue;
+            const w10 = ax * (1 - ay); v[0] += hb[ho] * w10; v[1] += hb[ho + 1] * w10; v[2] += hb[ho + 2] * w10;
+            if (!hit(ci, ri + 1)) continue;
+            const w01 = (1 - ax) * ay; v[0] += hb[ho] * w01; v[1] += hb[ho + 1] * w01; v[2] += hb[ho + 2] * w01;
+            if (!hit(ci + 1, ri + 1)) continue;
+            const w11 = ax * ay; v[0] += hb[ho] * w11; v[1] += hb[ho + 1] * w11; v[2] += hb[ho + 2] * w11;
+            // The satellite's true colour is darker than Esri's photos in the shadows: a gentle lift.
+            for (let ch = 0; ch < 3; ch++) out[o + ch] = LIFT[Math.round(v[ch])];
+            out[o + 3] = 255; left--;
+          }
+        }
+        if (!srcRes) srcRes = L.res;   // the newest pass's sharpness
+      }
+    }
+    if (!srcRes || left > W * W * 0.5) return null;
+    return [new ImageData(out, W, W), srcRes];
+  }
   let liveDay = "";   // the photo's day at the middle of the view, for the note under the buttons
   async function liveRecent(z, x, y, raw, sig) {
     if (!navigator.onLine) return null;
+    if (z >= S2_MINZ) {   // Sentinel-2 at 10 m first (s2Tile above)
+      const s2 = await s2Tile(z, x, y, sig).catch((e) => { if (sig.aborted) throw e; return null; });
+      if (s2) {
+        const ratio = s2[1] / (156543.034 * Math.cos(tileLngLat(z, x, y)[1] * Math.PI / 180) / (1 << z));   // > 1: the picture is blurrier than the screen
+        return withDetail(s2[0], raw, ratio > 1.25 ? Math.max(1, Math.round(256 / ratio)) : 0, Math.min(0.85, 0.3 * Math.log2(Math.max(1, ratio))), false);
+      }
+    }
     const [lng, lat] = tileLngLat(z, x, y), passes = await passesAt(lng, lat).catch(() => null);
     if (!passes || !passes.length) return null;
     const hz = Math.min(z, 12), k = z - hz;
@@ -1274,24 +1496,29 @@
     let filled = 0;
     for (let i = 3; i < P.length; i += 4) if (P[i] > 200) filled++;
     if (filled < P.length / 4 * 0.5) return null;   // mostly outside every clear pass: the old way for this tile
-    // The sharp photo, whole and blurred to the satellite's 30 m: what it adds is its fine detail (sharp - blurred).
+    return withDetail(H, raw, k > 0 ? Math.max(1, W >> k) : 0, Math.min(0.85, 0.3 * k), true);
+  }
+  // The satellite picture H (ImageData 256 px) with the sharp photo's fine detail laid over it: the sharp photo, whole
+  // and blurred to the satellite's size (lo px across, 0 = no blur needed), adds what it has more (sharp - blurred),
+  // amt of it. Where H has no data, the sharp photo itself. nasa: NASA's colours, a little dark beside Esri's.
+  async function withDetail(H, raw, lo, amt, nasa) {
+    const W = 256, P = H.data, cv = new OffscreenCanvas(W, W), cx = cv.getContext("2d");
     const photo = await createImageBitmap(new Blob([raw])).catch(() => null);
     let S = null, B = null;
     if (photo) {
       const pc = new OffscreenCanvas(W, W), px = pc.getContext("2d", { willReadFrequently: true });
       px.drawImage(photo, 0, 0, W, W); S = px.getImageData(0, 0, W, W).data;
-      if (k > 0) {
-        const lo = Math.max(1, W >> k), sc = new OffscreenCanvas(lo, lo), sx = sc.getContext("2d");
+      if (lo) {
+        const sc = new OffscreenCanvas(lo, lo), sx = sc.getContext("2d");
         sx.imageSmoothingQuality = "high"; sx.drawImage(photo, 0, 0, lo, lo);
         px.imageSmoothingQuality = "high"; px.clearRect(0, 0, W, W); px.drawImage(sc, 0, 0, W, W); B = px.getImageData(0, 0, W, W).data;
       }
       photo.close();
     }
-    const amt = Math.min(0.85, 0.3 * k);   // more detail the closer the view
     for (let i = 0; i < P.length; i += 4) {
       if (P[i + 3] < 128) { if (S) { P[i] = S[i]; P[i + 1] = S[i + 1]; P[i + 2] = S[i + 2]; } P[i + 3] = 255; continue; }   // no data: the sharp photo
       for (let c = 0; c < 3; c++) {
-        let v = P[i + c] * 1.08 + 4;   // NASA's colours are a little dark beside Esri's
+        let v = nasa ? P[i + c] * 1.08 + 4 : P[i + c];
         if (B) v += Math.max(-45, Math.min(45, (S[i + c] - B[i + c]) * amt));
         P[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
       }
@@ -1301,10 +1528,18 @@
     return createImageBitmap(cv);
   }
   // "Photo of Oct 11" under the buttons, for the middle of the view.
+  // Which satellite it is too (liveSource), so the note always says where the photo comes from and when.
+  let liveSource = "";
   async function liveDayHere() {
     if (!gl) return "";
-    const c = gl.getCenter(), p = await passesAt(c.lng, c.lat).catch(() => null);
-    liveDay = p && p.length ? p[0].day : "";
+    const c = gl.getCenter();
+    if (gl.getZoom() >= S2_MINZ - 1) {
+      const d = await s2PassesAt(c.lng, c.lat).catch(() => null);
+      const hit = d && d.find((p) => p.items.some((i) => c.lng >= i.bbox[0] && c.lng <= i.bbox[2] && c.lat >= i.bbox[1] && c.lat <= i.bbox[3]));
+      if (hit) { liveSource = "Sentinel-2"; liveDay = hit.day; return liveDay; }
+    }
+    const p = await passesAt(c.lng, c.lat).catch(() => null);
+    liveSource = "NASA HLS"; liveDay = p && p.length ? p[0].day : "";
     return liveDay;
   }
 
@@ -2233,7 +2468,7 @@
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
           winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
-            attribution: "Live: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> HLS (Landsat, Sentinel-2), MODIS snow" },
+            attribution: "Live: contains modified Copernicus Sentinel data (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>; <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> HLS (Landsat, Sentinel-2), MODIS snow" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
@@ -2518,7 +2753,7 @@
         if (photos !== "live") return;
         if (day) {
           const d = new Date(day + "T12:00:00Z"), mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
-          noWinter.textContent = `Satellite photo of ${mon} ${d.getUTCDate()}`; noWinter.style.display = ""; return;
+          noWinter.textContent = `${liveSource} photo of ${mon} ${d.getUTCDate()}`; noWinter.style.display = ""; return;
         }
         if (liveTiles) { noWinter.textContent = "No clear photo lately: today's snow"; noWinter.style.display = ""; }
         return;

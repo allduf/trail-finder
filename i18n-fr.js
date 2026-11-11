@@ -2270,6 +2270,7 @@
     "Cabin trips: each meal has its own full-width box that grows with what you write, so the whole meal is always easy to read.":"Séjours en refuge : chaque repas a sa propre case pleine largeur qui s'agrandit avec ce que vous écrivez, pour que tout le repas reste facile à lire.",
     "Search: the first letter you type shows at once now, even right after opening Find.":"Recherche : la première lettre tapée s'affiche tout de suite, même juste après avoir ouvert Trouver.",
     "3D: going back to the flat map no longer freezes the phone for a moment, and the short pause a few seconds later is gone.":"3D : revenir à la carte plate ne fige plus le téléphone un instant, et la courte pause quelques secondes plus tard a disparu.",
+    "3D Live photo: now Sentinel-2 at 10 m, three times sharper than before, from the newest mostly clear pass of the last 60 days. The note under the buttons gives the satellite and the photo's date; clouds or snow in the photo are as the satellite saw them that day.":"Photo Live en 3D : maintenant Sentinel-2 à 10 m, trois fois plus nette qu'avant, du passage le plus récent surtout dégagé des 60 derniers jours. La note sous les boutons donne le satellite et la date de la photo; les nuages ou la neige sur la photo sont tels que le satellite les a vus ce jour-là.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
@@ -2542,6 +2543,7 @@
     [/^Was called (.+)$/, "Autrefois appelé $1"],
     [/^Photos on (.+) ↗$/, "Photos sur $1 ↗"],
     [/^Satellite photo of (.+)$/, function (m, d) { return "Photo satellite du " + dt(d); }],
+    [/^(Sentinel-2|NASA HLS) photo of (.+)$/, function (m, w, d) { return "Photo " + w + " du " + dt(d); }],   // map3d.js Live note
     [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],
     [/^⚠ Saved: (.+)$/, "⚠ Enregistré : $1"],
     [/^Biggest square allowed \((?:about )?(.+) of map\)$/, function (m, n) { return "Le plus grand carré permis (" + (/^\d/.test(n) ? "environ " : "") + n.replace("under 1 MB", "moins de 1 Mo").replace(" MB", " Mo").replace(" GB", " Go") + " de carte)"; }],
