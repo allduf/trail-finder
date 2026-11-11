@@ -19,6 +19,9 @@
   var R = [
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
+    [/^added by (.+)$/, function (m, n) { return "ajouté par " + n; }],
+    [/^Got it: what you add shows "added by (.+)"\.$/, function (m, n) { return "C'est noté : ce que vous ajoutez affiche « ajouté par " + n + " »."; }],
+    [/^Added you to the group as (.+)\.$/, function (m, n) { return "Vous êtes ajouté au groupe : " + n + "."; }],
     [/^Open Trail Finder: update your (.+) trip$/, function (m, h) { return "Ouvrez Trail Finder : mettez à jour votre séjour " + h; }],
     // liability-safe wording (2026-11-11)
     [/^Smokiest (.+): (.+), (\d+) µg\/m³\.(?: (Very little smoke the rest of the time\.|Smoke the whole time in the forecast\.|Next with very little smoke: (.+)\.))?$/, function (m, w, r, n, tail, nx) {

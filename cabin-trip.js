@@ -120,6 +120,12 @@
 #skiPane .tp-mine { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 #skiPane .tp-mine input, #skiPane .tp-meal input, #skiPane .tp-costadd input, #skiPane .tp-note textarea { font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); min-width: 0; box-sizing: border-box; }
 #skiPane .tp-mine input { text-transform: none; letter-spacing: 0; font-weight: 400; }
+#skiPane .tp-mine select { font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); text-transform: none; letter-spacing: 0; font-weight: 400; }
+#skiPane .tp-iam { margin: 8px 0; padding: 10px 12px; border-radius: 12px; border: 2px solid ${COL}; background: color-mix(in srgb, ${COL} 8%, var(--panel)); }
+#skiPane .tp-iam h4 { margin: 0 0 2px; }
+#skiPane .tp-iamn { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+#skiPane .tp-iamn button { font: inherit; font-size: .95rem; font-weight: 700; padding: 10px 16px; border-radius: 999px; border: 1px solid ${COL}; background: var(--bg); color: var(--fg); cursor: pointer; }
+#skiPane .tp-by { display: block; font-size: .72rem; color: var(--muted); font-weight: 400; }
 #skiPane .sk-trip select { font: inherit; font-size: 16px; padding: 7px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; }
 #skiPane .tp-plan-form select { width: 100%; }
 #skiPane .tp-pkrow { display: flex; align-items: center; gap: 6px; }
@@ -464,7 +470,8 @@
   function addLine(t, x) {
     const ls = x.ls.map(thin).filter((l) => l.length > 1);
     if (!ls.length) return;
-    const y = { id: x.rid || x.tour || "l" + Date.now().toString(36), rid: x.rid || "", tour: x.tour || "", name: String(x.name || "Ski line").slice(0, 80), label: x.label || "", ls, km: +lineKm(ls).toFixed(1), c: x.c ? r5(x.c) : ls[0][0] };
+    const y = { id: x.rid || x.tour || "l" + Date.now().toString(36), rid: x.rid || "", tour: x.tour || "", name: String(x.name || "Ski line").slice(0, 80), label: x.label || "", ls, km: +lineKm(ls).toFixed(1), c: x.c ? r5(x.c) : ls[0][0] }, old = linesOf(t).find((z) => sameLine(z, y)), ab = (old && old.ab) || meOf(t);
+    if (ab) y.ab = ab;
     t.lines = [...linesOf(t).filter((z) => !sameLine(z, y)), y];
     putTrip(t);
     if (cur === t) { renderLines(); renderTours(); drawWay(); }
@@ -499,7 +506,7 @@
   function linesHtml(t) {
     const l = linesOf(t), w = t.way;
     const way = w ? `<li><button type="button" data-tl="way"><span><i class="tp-sw way"></i>The way in <small>${w.km.toFixed(1)} km · ↑ ${fmtM(w.up)}</small></span></button></li>` : "";
-    const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small></span></button>${x.tour ? `<button type="button" class="tp-rm" data-tledit="${esc(x.tour)}" aria-label="Change ${esc(x.name)}: its points">✎</button>` : ""}<button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
+    const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small>${byHtml(t, x)}</span></button>${x.tour ? `<button type="button" class="tp-rm" data-tledit="${esc(x.tour)}" aria-label="Change ${esc(x.name)}: its points">✎</button>` : ""}<button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
     return `${way || rows ? `<ul class="tp-list tp-tours">${way}${rows}</ul>` : ""}
       ${l.length ? "" : `<p class="sk-note">No lines yet. Tap any ski line on the map and then <b>🏕 Add to cabin trip</b>, ${t.hut ? "★ a tour near the cabin below, " : ""}or draw your own.</p>`}
       <div class="tp-btns"><button type="button" data-tp="drawline">✏️ ${t.hut ? "Draw a tour from the cabin" : "Draw a tour"}</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || w ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
@@ -644,7 +651,7 @@
   function packHtml(t) {
     const G = packList(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
     // Every row: tick it, ✕ to take it off, hold ☰ and drag it up or down, or into another section (alex 2026-11-11).
-    const body = G.map(([h, items]) => `<h5 data-h="${esc(h)}">${esc(h)}</h5>${items.map(([k, label, home]) => `<div class="tp-pkrow" data-k="${esc(k)}" data-home="${esc(home)}" data-sec="${esc(h)}"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who brings?") : ""}<button type="button" class="tp-pkx" data-pkrm="${esc(k)}" aria-label="Take ${esc(label)} off the list">✕</button>${window.tfGrip || ""}</div>`).join("")}`).join("");
+    const body = G.map(([h, items]) => `<h5 data-h="${esc(h)}">${esc(h)}</h5>${items.map(([k, label, home]) => `<div class="tp-pkrow" data-k="${esc(k)}" data-home="${esc(home)}" data-sec="${esc(h)}"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}${home === "Your own items" ? byHtml(t, (t.own || []).find((y) => y.k === k)) : ""}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who brings?") : ""}<button type="button" class="tp-pkx" data-pkrm="${esc(k)}" aria-label="Take ${esc(label)} off the list">✕</button>${window.tfGrip || ""}</div>`).join("")}`).join("");
     const pct = all.length ? Math.round((n / all.length) * 100) : 0;
     return `<details class="tp-pack" ${t.packOpen ? "open" : ""}><summary>🎒 Packing list <small>${n} of ${all.length} packed</small></summary>
       <div class="tp-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Packed"><i style="width:${pct}%"></i></div>
@@ -662,6 +669,20 @@
   // that rings at the "call for help" time, with what to do in it: it works with no signal on your side, and no server.
   // On your phone the trip turns red once your out time has passed, until you tap We're out safe.
   const me = () => store.get("tripMe", {});
+  // Who you are in a shared trip (alex 2026-11-11): your name from its group, picked the first time you open it
+  // ("Who are you?"). t.me (the group key) stays on this phone. A group name the same as your usual name counts as you.
+  const myKey = (t) => { const g = t.group || [], m = (me().name || "").toLowerCase(); return (t.me && g.some((x) => x.k === t.me)) ? t.me : ((m && g.find((x) => x.n.toLowerCase() === m)) || {}).k || ""; };
+  const meOf = (t) => { const k = myKey(t), x = k && (t.group || []).find((y) => y.k === k); return x ? x.n : (me().name || ""); };
+  // "added by Sam" on what someone added, only in a shared trip (where it matters).
+  const byHtml = (t, x) => (t.share && x && x.ab ? `<small class="tp-by">added by ${esc(x.ab)}</small>` : "");
+  function iamHtml(t) {
+    if (!t.share || myKey(t) || t.meSkip) return "";
+    const g = t.group || [];
+    return `<div class="tp-iam" id="tpIam"><h4>Who are you?</h4><p class="sk-note">Pick your name so the group sees what you add.</p>
+      ${g.length ? `<div class="tp-iamn" role="group" aria-label="Your name">${g.map((x) => `<button type="button" data-iam="${esc(x.k)}">${esc(x.n)}</button>`).join("")}</div>` : ""}
+      <form class="tp-addf" data-iamadd="1"><input type="text" maxlength="30" placeholder="${g.length ? "Not on the list? Your name" : "Your name"}" autocomplete="off" enterkeyhint="done" aria-label="Your name"><button type="submit">Add me</button></form>
+      <div class="tp-btns"><button type="button" data-iamskip="1">Not now</button></div></div>`;
+  }
   const outDay = (t) => addDays(t.date, t.nights);
   const planOf = (t) => {
     const m = me(), pl = t.plan || {};
@@ -765,7 +786,8 @@
       <p class="sk-note">Their names are used for who brings what, who cooks, who booked and who paid.</p>
       <ul class="tp-names">${l.map((x) => `<li>${esc(x.n)}<button type="button" data-grm="${esc(x.k)}" aria-label="Take ${esc(x.n)} off the group">✕</button></li>`).join("")}</ul>
       <form class="tp-addf" data-gadd="1"><input type="text" maxlength="30" placeholder="Add a name" autocomplete="off" enterkeyhint="done" aria-label="Add a name to the group"><button type="submit">Add</button></form>
-      <label class="tp-mine">Your name<input type="text" data-me="name" maxlength="30" value="${esc(my)}" placeholder="So the group sees who changed what" autocomplete="off"></label>
+      ${sh && l.length ? `<label class="tp-mine">You are<select data-iamsel="1" aria-label="Who you are in this group"><option value="">Pick your name</option>${l.map((x) => `<option value="${esc(x.k)}" ${x.k === myKey(t) ? "selected" : ""}>${esc(x.n)}</option>`).join("")}</select></label>`
+        : `<label class="tp-mine">Your name<input type="text" data-me="name" maxlength="30" value="${esc(my)}" placeholder="So the group sees who changed what" autocomplete="off"></label>`}
       ${st}
       <div class="tp-btns">${sh ? `<button type="button" class="go" data-tp="sharelink">📤 Send the link again</button><button type="button" data-tp="syncnow">↻ Sync now</button>`
         : `<button type="button" class="go" data-tp="share">📤 Share this trip with your group</button>`}</div>
@@ -822,7 +844,7 @@
   function costHtml(t) {
     const l = t.costs || [], s = settle(t), g = (t.hut && t.hut.tags) || {};
     return `<details class="tp-pack tp-cost" ${t.costOpen ? "open" : ""}><summary>💵 Costs <small>${l.length ? `${money(s.total)}${s.even ? ` · ${money(s.each)} each` : ""}` : ""}</small></summary>
-      ${l.length ? `<ul class="tp-costs">${l.map((x) => { const f = splitOf(t, x), all = f.length === names(t).length; return `<li><span>${esc(x.what)}<small>${x.by ? `paid by ${esc(x.by)}` : "who paid?"}${names(t).length ? ` · ${all ? "split with everyone" : `split with ${esc(f.join(", "))}`}` : ""}</small></span><b>${money(+x.amt || 0)}</b><button type="button" data-crm="${esc(x.id)}" aria-label="Delete ${esc(x.what)}">✕</button>${names(t).length > 1 ? `<div class="tp-split" role="group" aria-label="Who shares ${esc(x.what)}">${chips(t, f, (n) => `data-csplit="${esc(x.id)}" data-n="${esc(n)}"`, `data-callsplit="${esc(x.id)}"`)}</div>` : ""}</li>`; }).join("")}</ul>` : `<p class="sk-note">Add the cabin fee, gas, food and anything else the group shares.${g.charge ? ` The cabin's fee: ${esc(g.charge)}.` : ""}</p>`}
+      ${l.length ? `<ul class="tp-costs">${l.map((x) => { const f = splitOf(t, x), all = f.length === names(t).length; return `<li><span>${esc(x.what)}<small>${x.by ? `paid by ${esc(x.by)}` : "who paid?"}${names(t).length ? ` · ${all ? "split with everyone" : `split with ${esc(f.join(", "))}`}` : ""}</small>${x.ab && x.ab !== x.by ? byHtml(t, x) : ""}</span><b>${money(+x.amt || 0)}</b><button type="button" data-crm="${esc(x.id)}" aria-label="Delete ${esc(x.what)}">✕</button>${names(t).length > 1 ? `<div class="tp-split" role="group" aria-label="Who shares ${esc(x.what)}">${chips(t, f, (n) => `data-csplit="${esc(x.id)}" data-n="${esc(n)}"`, `data-callsplit="${esc(x.id)}"`)}</div>` : ""}</li>`; }).join("")}</ul>` : `<p class="sk-note">Add the cabin fee, gas, food and anything else the group shares.${g.charge ? ` The cabin's fee: ${esc(g.charge)}.` : ""}</p>`}
       <form class="tp-costadd" data-cadd="1"><input type="text" maxlength="40" placeholder="What (gas, food…)" autocomplete="off" aria-label="What it was for"><input type="number" inputmode="decimal" min="0" step="any" placeholder="$" aria-label="Amount">${whoSel(t, "", "", "Paid by")}<button type="submit">Add</button>${names(t).length > 1 ? `<div class="tp-split" role="group" aria-label="Split between"><small>Split between</small>${chips(t, names(t), (n) => `data-fsplit="${esc(n)}"`, "data-fall=\"1\"")}</div>` : ""}</form>
       ${l.length ? `<p class="tp-sum">${s.even ? `<b>${money(s.total)}</b> in all, <b>${money(s.each)}</b> each for ${s.n} ${s.n > 1 ? "people" : "person"}${names(t).length ? "" : " (add names in Your group to split it)"}.` : `<b>${money(s.total)}</b> in all. Each one's share: ${names(t).map((w) => `${esc(w)} <b>${money(s.share[w])}</b>`).join(" · ")}`}</p>
         ${s.pay.length ? `<ul class="tp-pay">${s.pay.map(([a, b, v]) => `<li>${esc(a)} pays ${esc(b)} <b>${money(v)}</b></li>`).join("")}</ul>` : ""}
@@ -928,8 +950,8 @@
           if (!same(merged, mine)) { applyDoc(t, merged); changed = true; }
           Object.assign(sh, { rev: r.rev, base: r.data, by: r.by || "" });
           if (same(merged, r.data)) { sh.err = ""; sh.at = Date.now(); break; }
-          const w = await rpc("trip_put", { p_id: sh.id, p_key: sh.key, p_data: merged, p_rev: r.rev, p_by: me().name || "" });
-          if (w && w.ok) { Object.assign(sh, { rev: w.rev, base: merged, err: "", at: Date.now(), by: me().name || "" }); break; }
+          const w = await rpc("trip_put", { p_id: sh.id, p_key: sh.key, p_data: merged, p_rev: r.rev, p_by: meOf(t) });
+          if (w && w.ok) { Object.assign(sh, { rev: w.rev, base: merged, err: "", at: Date.now(), by: meOf(t) }); break; }
         }
       } catch (e) { sh.err = e.message || "no signal"; if (!quiet) toast(`Couldn't sync the trip: ${sh.err}.`); }
       putTrip(t, true);
@@ -948,8 +970,8 @@
     if (!t.share) {
       const key = crypto.randomUUID ? crypto.randomUUID() : uid("k"), doc = docOf(t);
       try {
-        const id = await rpc("trip_new", { p_key: key, p_data: doc, p_by: me().name || "" });
-        t.share = { id, key, rev: 1, base: doc, at: Date.now(), by: me().name || "", err: "" };
+        const id = await rpc("trip_new", { p_key: key, p_data: doc, p_by: meOf(t) });
+        t.share = { id, key, rev: 1, base: doc, at: Date.now(), by: meOf(t), err: "" };
         putTrip(t, true);
         if (cur === t) render();
       } catch (e) { toast(`Couldn't share the trip: ${e.message || e}.`); return; }
@@ -1019,12 +1041,12 @@
       const [w, a] = f.querySelectorAll("input"), by = f.querySelector("select").value, amt = parseFloat(a.value);
       if (!w.value.trim() || !(amt > 0)) { toast("Add what it was for and how much."); return; }
       const on = [...f.querySelectorAll("[data-fsplit][aria-pressed=true]")].map((b) => b.dataset.fsplit);
-      t.costs = [...(t.costs || []), { id: uid("c"), what: w.value.trim().slice(0, 40), amt: Math.round(amt * 100) / 100, by, ...(on.length && on.length < names(t).length ? { for: on } : {}) }];
+      t.costs = [...(t.costs || []), { id: uid("c"), what: w.value.trim().slice(0, 40), amt: Math.round(amt * 100) / 100, by, ...(meOf(t) ? { ab: meOf(t) } : {}), ...(on.length && on.length < names(t).length ? { for: on } : {}) }];
       putTrip(t); renderOrg("tpCost", costHtml); return;
     }
     const text = f.querySelector("textarea").value.trim().slice(0, 1000);
     if (!text) return;
-    t.notes = [...(t.notes || []), { id: uid("n"), at: Date.now(), by: me().name || "", text }];
+    t.notes = [...(t.notes || []), { id: uid("n"), at: Date.now(), by: meOf(t), text }];
     putTrip(t); renderOrg("tpJour", journalHtml); renderPhotos();
   });
   card.addEventListener("click", (e) => {
@@ -1148,6 +1170,7 @@
     const t = cur;
     if (!t) return;
     card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>🏕 ${esc(hutName(t))} <small>cabin trip</small></h3></div>
+      ${iamHtml(t)}
       <label class="tp-mine">Trip name<input type="text" data-set="name" maxlength="40" value="${esc(t.name || "")}" placeholder="${esc(t.hut ? t.hut.name || "Cabin trip" : "Like: Spearhead hut trip")}" autocomplete="off"></label>
       <div class="tp-form">
         <label>Go in<input type="date" data-tp="date" value="${esc(t.date)}"></label>
@@ -1235,6 +1258,33 @@
     putTrip(t); renderPack();
     toast("Taken off. It stays off your next trips too.");
   });
+  // "Who are you?" in a shared trip: tap your name, or add yourself to the group. Kept on this phone (t.me).
+  const iam = (t, k) => { const x = (t.group || []).find((y) => y.k === k); if (!x) return; t.me = k; delete t.meSkip; store.set("tripMe", { ...me(), name: x.n }); putTrip(t, true); render(); renderPhotos(); };
+  card.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-iam],[data-iamskip]"), t = cur;
+    if (!b || !t) return;
+    if (b.dataset.iam) { iam(t, b.dataset.iam); toast(`Got it: what you add shows "added by ${(t.group.find((y) => y.k === t.me) || {}).n}".`); return; }
+    t.meSkip = 1; putTrip(t, true); const el = $("tpIam"); if (el) el.remove();
+  });
+  card.addEventListener("change", (e) => {
+    const el = e.target, t = cur;
+    if (!el.dataset.iamsel || !t) return;
+    if (el.value) iam(t, el.value); else { delete t.me; t.meSkip = 1; putTrip(t, true); }
+  });
+  card.addEventListener("submit", (e) => {
+    if (!e.target.dataset.iamadd || !cur) return;
+    e.preventDefault();
+    const t = cur, n = e.target.querySelector("input").value.trim().replace(/\s+/g, " ").slice(0, 30);
+    if (!n) return;
+    const have = (t.group || []).find((x) => x.n.toLowerCase() === n.toLowerCase());
+    if (have) { iam(t, have.k); return; }
+    const k = uid("g");
+    t.group = [...(t.group || []), { k, n }];
+    if (t.group.length > t.people) t.people = t.group.length;
+    putTrip(t);   // the new name goes to the group
+    iam(t, k);
+    toast(`Added you to the group as ${n}.`);
+  });
   card.addEventListener("submit", (e) => {   // + Add an item: on this trip and the next ones
     if (!e.target.dataset.pkadd || !cur) return;
     e.preventDefault();
@@ -1242,7 +1292,7 @@
     if (!label) return;
     if ((t.own || []).some((y) => y.label.toLowerCase() === lab)) { toast("It's on the list already."); return; }
     const x = { k: "my_" + Date.now().toString(36), label };
-    t.own = [...(t.own || []), x];
+    t.own = [...(t.own || []), meOf(t) ? { ...x, ab: meOf(t) } : x];
     tplSet((v) => ({ ...v, own: v.own.some((y) => y.label.toLowerCase() === lab) ? v.own : [...v.own, x] }));
     putTrip(t); renderPack();
     const i = card.querySelector("[data-pkadd] input"); if (i) i.focus();   // ready for the next one

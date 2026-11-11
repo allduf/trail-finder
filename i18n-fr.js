@@ -2295,6 +2295,14 @@
     "Some of your trip is outside the saved area":"Une partie de votre séjour est hors de la zone enregistrée",
     "(a line or the way in added since). Tap Change the saved area to take it in.":"(une ligne ou l'accès ajouté depuis). Touchez Changer la zone enregistrée pour l'inclure.",
     "Cabin trips: Save the trip offline opens a square on the map around the trip, to move and resize before saving (it shows the size). It works for a trip with no cabin yet, and from the day before the trip the weather, avalanche danger and offline copy update by themselves each time you open the app, with the time they were checked. ⏰ Remind me the day before adds a calendar alert to open it.":"Séjours en refuge : Enregistrer le séjour hors ligne ouvre un carré sur la carte autour du séjour, à déplacer et redimensionner avant d'enregistrer (il indique la taille). Ça fonctionne pour un séjour sans refuge, et à partir de la veille du séjour la météo, le danger d'avalanche et la copie hors ligne se mettent à jour d'eux-mêmes chaque fois que vous ouvrez l'application, avec l'heure de la vérification. ⏰ Me le rappeler la veille ajoute une alerte de calendrier pour l'ouvrir.",
+    "Who are you?":"Qui êtes-vous?",
+    "Pick your name so the group sees what you add.":"Choisissez votre nom pour que le groupe voie ce que vous ajoutez.",
+    "Not on the list? Your name":"Pas dans la liste? Votre nom",
+    "Add me":"M'ajouter",
+    "You are":"Vous êtes",
+    "Pick your name":"Choisissez votre nom",
+    "Who you are in this group":"Qui vous êtes dans ce groupe",
+    "Shared cabin trips: the first time you open one, Who are you? asks you to pick your name from the group (or add yourself). Lines, packing items and costs then show who added them, and notes carry your name.":"Séjours en refuge partagés : la première fois que vous en ouvrez un, Qui êtes-vous? vous demande de choisir votre nom dans le groupe (ou de vous ajouter). Les lignes, les articles à emporter et les dépenses montrent ensuite qui les a ajoutés, et les notes portent votre nom.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
@@ -2516,6 +2524,9 @@
   var R = [
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
+    [/^added by (.+)$/, function (m, n) { return "ajouté par " + n; }],
+    [/^Got it: what you add shows "added by (.+)"\.$/, function (m, n) { return "C'est noté : ce que vous ajoutez affiche « ajouté par " + n + " »."; }],
+    [/^Added you to the group as (.+)\.$/, function (m, n) { return "Vous êtes ajouté au groupe : " + n + "."; }],
     [/^Open Trail Finder: update your (.+) trip$/, function (m, h) { return "Ouvrez Trail Finder : mettez à jour votre séjour " + h; }],
     // liability-safe wording (2026-11-11)
     [/^Smokiest (.+): (.+), (\d+) µg\/m³\.(?: (Very little smoke the rest of the time\.|Smoke the whole time in the forecast\.|Next with very little smoke: (.+)\.))?$/, function (m, w, r, n, tail, nx) {
