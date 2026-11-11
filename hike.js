@@ -357,7 +357,9 @@ out center tags qt;`;
     return out;
   }
   const places = new Map();   // id -> { id, k, ll: [lat, lon], n, x }
-  function absorbPlaces(list) { (list || []).forEach((p) => { if (PLACES[p[1]] && !places.has(p[0])) places.set(p[0], { id: p[0], k: p[1], ll: [p[2], p[3]], n: p[4], x: p[5] || {} }); }); }
+  // Places taken off by hand (hidden-places.js: Tom's Hut) never come in.
+  const gonePlace = (p) => !!window.tfHiddenPlace && window.tfHiddenPlace({ id: p[0], n: p[4], lat: p[2], lon: p[3] });
+  function absorbPlaces(list) { (list || []).forEach((p) => { if (PLACES[p[1]] && !places.has(p[0]) && !gonePlace(p)) places.set(p[0], { id: p[0], k: p[1], ll: [p[2], p[3]], n: p[4], x: p[5] || {} }); }); }
   function absorb(j) {
     absorbPlaces(j.p);
     j.w.forEach((w) => ways.set(w.id, w));
@@ -674,7 +676,7 @@ out center tags qt;`;
     if (!hutsP) hutsP = getJ("data/huts.json").then((d) => {
       const list = (d && d.huts) || [];
       list.forEach((e) => { e.keys = [e.name, ...(e.aka || [])].map(hutKey).filter(Boolean); });
-      clubHuts = list.filter((e) => e.lat != null).map((e) => ({ id: "j" + hutKey(e.name), k: "hut", ll: [e.lat, e.lon], n: e.name, x: { ...(e.tags || {}) }, club: e }));
+      clubHuts = list.filter((e) => e.lat != null && !(window.tfHiddenPlace && window.tfHiddenPlace(e))).map((e) => ({ id: "j" + hutKey(e.name), k: "hut", ll: [e.lat, e.lon], n: e.name, x: { ...(e.tags || {}) }, club: e }));
       drawPlaces();
       return list;
     }).catch(() => []);

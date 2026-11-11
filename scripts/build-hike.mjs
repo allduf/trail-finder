@@ -20,6 +20,9 @@
 // Run: node scripts/build-hike.mjs   (Node 18 or newer, no packages; FORCE=1 refreshes every zone, ZONES=wh,sqm some)
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
+// Places taken off the app by hand (hidden-places.js: Tom's Hut) are left out of the data too.
+const hiddenPlace = createRequire(import.meta.url)("../hidden-places.js");
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -151,7 +154,7 @@ function buildPlaces(els, trailWays) {
     const t = e.tags || {}, k = placeKind(t), lat = e.lat != null ? e.lat : e.center && e.center.lat, lon = e.lon != null ? e.lon : e.center && e.center.lon;
     if (!k || lat == null) continue;
     const id = e.type[0] + e.id;
-    if (seen.has(id)) continue;
+    if (seen.has(id) || hiddenPlace({ id, name: t.name, lat, lon })) continue;
     if ((NEAR_TRAIL.has(k) || (k === "camp" && !t.name)) && !near(lat, lon)) continue;
     if (t.access && /^(private|no)$/.test(t.access)) continue;
     seen.add(id);

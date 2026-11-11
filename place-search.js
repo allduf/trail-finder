@@ -114,6 +114,8 @@ ul.ps-hits:empty { display: none; }
         hits = [...(hits || []), ...(more || [])];
       }
       const kept = [];
+      // Places taken off by hand (hidden-places.js: Tom's Hut) aren't found either.
+      if (window.tfHiddenPlace) hits = hits.filter((h) => !window.tfHiddenPlace(h));
       return hits.map((h, i) => {
         const far = Math.hypot(h.lat - c.lat, (h.lon - c.lng) * Math.cos((c.lat * Math.PI) / 180));
         const where = h.where.filter((x) => x && x !== h.name).slice(-2);

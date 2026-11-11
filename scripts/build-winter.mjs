@@ -29,6 +29,9 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { buildJapanAvalanche } from "./japan-avalanche.mjs";
+import { createRequire } from "node:module";
+// Places taken off the app by hand (hidden-places.js: Tom's Hut) are left out of the data too.
+const hiddenPlace = createRequire(import.meta.url)("../hidden-places.js");
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -359,7 +362,7 @@ function osmRoutes(els) {
     let lat = el.lat, lon = el.lon;
     const pts = el.geometry || (el.members || []).flatMap((m) => m.geometry || []).filter(Boolean);
     if (lat == null && pts.length) { lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length; lon = pts.reduce((s, p) => s + p.lon, 0) / pts.length; }
-    if (lat == null) continue;
+    if (lat == null || hiddenPlace({ id: el.type[0] + el.id, name: t.name, lat, lon })) continue;
     huts.push({ id: el.type[0] + el.id, name: t.name || "", kind: t.tourism || "shelter", lat: round(lat), lon: round(lon), tags: keepTags(t) });
   }
   resortTerrain(routes, resorts);
@@ -596,7 +599,7 @@ async function buildCanadaOsm(old) {
   canadaT0.t = Date.now();
   const keepOld = (pv) => {
     routes.push(...old.routes.filter((r) => r.src === "osm" && r.pv === pv));
-    huts.push(...old.huts.filter((h) => h.pv === pv));
+    huts.push(...old.huts.filter((h) => h.pv === pv && !hiddenPlace(h)));
   };
   for (const pv of [...PROVINCES].sort((a, b) => (osmPv[a] || "").localeCompare(osmPv[b] || ""))) {
     if (canadaLate()) { skipped.push(pv); keepOld(pv); continue; }
