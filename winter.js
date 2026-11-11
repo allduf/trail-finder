@@ -17,6 +17,55 @@
 // through, riders' avalanche reports near it (data/avalanche-reports.json, Avalanche Canada's Mountain Information
 // Network, made by winter-data.yml), and the weather at its top (Open-Meteo, free, no key).
 // Terrain heights: AWS Terrain Tiles (Mapzen, open, no key).
+// Hold ☰ and drag a row up or down a list (alex 2026-11-11: "click and hold to drag up and down in the list with the 3
+// bar icon"): the packing list of a cabin trip and the points of a tour. One listener on root; o.list: the list a row is
+// in, o.row: the rows that move, o.head: titles a row can be dropped under (sections), o.done(rows): the new order.
+// Pointer events with touch-action: none on the handle, so on an iPhone the finger moves the row, not the page.
+window.tfGrip = '<span class="tf-grip" role="button" tabindex="-1" aria-label="Hold and drag to move"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h12M3 9h12M3 13h12"/></svg></span>';
+window.tfDragSort = (root, o) => {
+  const scrollerOf = (el) => { for (let p = el.parentElement; p; p = p.parentElement) { const v = getComputedStyle(p).overflowY; if ((v === "auto" || v === "scroll") && p.scrollHeight > p.clientHeight) return p; } return document.scrollingElement; };
+  const stop = (e) => { if (e.target.closest && e.target.closest(".tf-grip")) e.stopPropagation(); };
+  root.addEventListener("touchstart", stop, { passive: true });   // the panel's own swipe stays out of it
+  root.addEventListener("pointerdown", (e) => {
+    const g = e.target.closest(".tf-grip"), row = g && g.closest(o.row), list = row && row.closest(o.list);
+    if (!list || !root.contains(list) || (e.pointerType === "mouse" && e.button)) return;
+    e.preventDefault(); e.stopPropagation();
+    try { g.setPointerCapture(e.pointerId); } catch (_) {}
+    const sc = scrollerOf(list), before = [...list.querySelectorAll(o.row)];
+    let y = e.clientY, raf = 0;
+    row.classList.add("tf-dragging");
+    if (navigator.vibrate) try { navigator.vibrate(10); } catch (_) {}
+    const place = () => {
+      const all = [...list.querySelectorAll(o.head ? `${o.row}, ${o.head}` : o.row)].filter((x) => x !== row);
+      let at = null;
+      for (const it of all) { const r = it.getBoundingClientRect(); if (y < r.top + r.height / 2) { at = it; break; } }
+      if (at && o.head && at === all[0] && at.matches(o.head)) at = all[1] || null;   // never above the first title
+      if (at) { if (row.nextElementSibling !== at) at.before(row); }
+      else { const last = all[all.length - 1]; if (last && last.nextElementSibling !== row) last.after(row); }
+    };
+    const tick = () => {   // near the top or bottom of the panel: it scrolls along
+      const r = sc === document.scrollingElement ? { top: 0, bottom: innerHeight } : sc.getBoundingClientRect();
+      const d = y < r.top + 60 ? -Math.ceil((r.top + 60 - y) / 6) : y > r.bottom - 60 ? Math.ceil((y - r.bottom + 60) / 6) : 0;
+      if (d) { sc.scrollTop += d; place(); }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const move = (ev) => { if (ev.pointerId !== e.pointerId) return; ev.preventDefault(); y = ev.clientY; place(); };
+    const end = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      cancelAnimationFrame(raf);
+      removeEventListener("pointermove", move); removeEventListener("pointerup", end); removeEventListener("pointercancel", end);
+      row.classList.remove("tf-dragging");
+      const after = [...list.querySelectorAll(o.row)];
+      const eat = (ev) => { ev.stopPropagation(); ev.preventDefault(); };   // the tap at the end isn't a tap on the row
+      root.addEventListener("click", eat, true); setTimeout(() => root.removeEventListener("click", eat, true), 350);
+      const sec = (r) => { if (!o.head) return ""; let p = r.previousElementSibling; while (p && !p.matches(o.head)) p = p.previousElementSibling; return p ? (p.dataset.h || p.textContent) : ""; };
+      if (after.some((r, i) => r !== before[i]) || (o.head && sec(row) !== row.dataset.sec)) o.done(after, row);
+    };
+    // On the window, not the handle: moving the row in the page drops the handle's pointer capture.
+    addEventListener("pointermove", move, { passive: false }); addEventListener("pointerup", end); addEventListener("pointercancel", end);
+  });
+};
 (() => {
   "use strict";
   const map = window.tfLeaflet, sel = document.getElementById("sport"), avyBtn = document.getElementById("avyBtn"), T = window.tfTerrain;
@@ -276,6 +325,10 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane .sk-days span { flex: 1; text-align: center; }
 .sk-snow { display: inline-block; transform: translate(-50%, -100%); white-space: nowrap; font: 700 11px/1 system-ui, sans-serif; color: #fff; background: #0b7285; border: 2px solid #fff; border-radius: 10px; padding: 3px 6px; box-shadow: 0 1px 3px #0006; }
 .sk-snow.on { outline: 3px solid #ffe14d; }
+.tf-grip { flex: none; width: 34px; height: 34px; padding: 0; border: 0; background: none; color: var(--muted); display: grid; place-items: center; cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.tf-grip svg { width: 18px; height: 18px; pointer-events: none; }
+.tf-dragging { position: relative; z-index: 3; background: var(--panel, #fff); border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.22); }
+.tf-dragging .tf-grip { cursor: grabbing; color: var(--fg); }
 .sk-snow.none { background: #6b7787; }
 .sk-safe-pt { position: absolute; transform: translate(-50%, -50%); background: #1a1a1a; color: #fff; font: 800 11px/1 system-ui, sans-serif; padding: 4px 7px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 3px #0006; white-space: nowrap; }
 .sk-safe-pt.gl { position: static; transform: none; }
@@ -319,6 +372,7 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 #skiPane ol.ss-list .ss-mv button svg { width: 13px; height: 13px; }
 #skiPane ol.ss-list .ss-mv button:active { background: var(--line); }
 #skiPane ol.ss-list .ss-mv button.ss-del { margin-left: 4px; }
+#skiPane ol.ss-list .ss-mv .tf-grip { width: 32px; height: 30px; margin-right: -4px; }
 #skiPane .ss-add { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin: 8px 0 0; font: inherit; font-weight: 700; font-size: .92rem; border-radius: 12px; border: 1.5px dashed var(--line); background: none; color: #1f5fe0; cursor: pointer; }
 #skiPane .ss-add span { font-size: 1.1rem; line-height: 1; }
 #skiPane ol.ss-list .ss-mv button.ss-del:hover { color: #e03131; border-color: #e03131; }
@@ -2883,14 +2937,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const ag = $("skSafeAgain"); if (ag) ag.addEventListener("click", () => { plan.path = null; planChanged(); });
     // Reorder the points from the list (alex 2026-11-04: "make it so we can change the other way"): swap a point with
     // the one above or below, or reverse the whole tour; the safest way is found again in the new order.
-    card.querySelectorAll("[data-mv]").forEach((b) => b.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const [i, d] = b.dataset.mv.split(",").map(Number), j = i + d;
-      if (j < 0 || j >= plan.pts.length) return;
-      snap();
-      [plan.pts[i], plan.pts[j]] = [plan.pts[j], plan.pts[i]];
-      planChanged();
-    }));
+    // Now by holding ☰ and dragging the point up or down the list (alex 2026-11-11), same as the cabin trip packing list.
+    if (!card.dataset.drag) {
+      card.dataset.drag = "1";
+      window.tfDragSort(card, { list: "ol.ss-list", row: "li.ss-pt", done: (rows) => {
+        const ix = rows.map((r) => +r.querySelector("[data-del]").dataset.del);
+        if (ix.length !== plan.pts.length || !ix.some((v, k) => v !== k)) return;
+        snap();
+        const old = plan.pts.slice();
+        plan.pts = ix.map((v) => old[v]);
+        planChanged();
+      } });
+    }
     // Delete a point (alex 2026-11-04: "make it so i can delete point"); the way is found again without it.
     card.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -3388,7 +3446,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     };
     const pt = (i) => {
       const q = plan.pts[i], mid = i && i < n - 1;
-      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(ptName(i, n))} up">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 13V3M4 7l4-4 4 4")}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(ptName(i, n))} down">${IC.up.replace("M4 12 12 4M6 4h6v6", "M8 3v10M4 9l4 4 4-4")}</button>` : ""}<button type="button" class="ss-del" data-del="${i}" aria-label="Delete ${esc(ptName(i, n))}">${IC.up.replace("M4 12 12 4M6 4h6v6", "M4 4l8 8M12 4l-8 8")}</button></span></li>`;
+      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : IC.flag}</span><span class="ss-t"><b>${esc(ptName(i, n))}</b>${i === 0 && sp.park ? `<small>${esc(sp.park)}</small>` : ""}</span><span class="ss-mv"><button type="button" class="ss-del" data-del="${i}" aria-label="Delete ${esc(ptName(i, n))}">${IC.up.replace("M4 12 12 4M6 4h6v6", "M4 4l8 8M12 4l-8 8")}</button>${n > 1 ? window.tfGrip : ""}</span></li>`;
     };
     let html = pt(0), m = 0, up = 0, down = 0;
     legs.forEach((l, k) => { html += l.steps.filter((s) => s.m >= 40 || l.steps.length === 1).map(row).join("") + pt(k + 1); for (const s of l.steps) { m += s.m; up += s.up || 0; down += s.down || 0; } });
@@ -3411,12 +3469,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const n = plan.pts.length;
     if (!n) return "";
     const svg = (d) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-    const up = svg('<path d="M8 13V3M4 7l4-4 4 4"/>'), dn = svg('<path d="M8 3v10M4 9l4 4 4-4"/>'), del = svg('<path d="M4 4l8 8M12 4l-8 8"/>'), flag = svg('<path d="M4 14V2.5h8l-2 3 2 3H4"/>');
+    const del = svg('<path d="M4 4l8 8M12 4l-8 8"/>'), flag = svg('<path d="M4 14V2.5h8l-2 3 2 3H4"/>');
     const km = (m) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
     const rows = plan.pts.map((q, i) => {
       const mid = i > 0 && i < n - 1, name = ptName(i, n), o = q[2];
       const leg = i ? (o && o.via ? `along ${o.name || "the line"}` : `${km(map.distance([plan.pts[i - 1][0], plan.pts[i - 1][1]], [q[0], q[1]]))} from ${ptName(i - 1, n)}`) : "";
-      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : flag}</span><span class="ss-t"><b>${esc(name)}</b>${leg ? `<small>${esc(leg)}</small>` : ""}</span><span class="ss-mv">${i > 0 ? `<button type="button" data-mv="${i},-1" aria-label="Move ${esc(name)} up">${up}</button>` : ""}${i < n - 1 ? `<button type="button" data-mv="${i},1" aria-label="Move ${esc(name)} down">${dn}</button>` : ""}<button type="button" class="ss-del" data-del="${i}" aria-label="Delete ${esc(name)}">${del}</button></span></li>`;
+      return `<li class="ss-pt" data-safe-at="${q[0]},${q[1]}"><span class="ss-pin${mid ? "" : " end"}">${mid ? i : flag}</span><span class="ss-t"><b>${esc(name)}</b>${leg ? `<small>${esc(leg)}</small>` : ""}</span><span class="ss-mv"><button type="button" class="ss-del" data-del="${i}" aria-label="Delete ${esc(name)}">${del}</button>${n > 1 ? window.tfGrip : ""}</span></li>`;
     }).join("");
     return `<div class="sk-sec sk-pts"><h4>Your points</h4><ol class="ss-list">${rows}</ol>${plan.on ? "" : '<button type="button" class="ss-add" data-add-pt><span aria-hidden="true">＋</span> Add a point</button>'}</div>`;
   }

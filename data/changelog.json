@@ -1,6 +1,8 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-11", "text": "Cabin trips: each meal has its own full-width box that grows with what you write, so the whole meal is always easy to read."},
+    {"date": "2026-11-11", "text": "Cabin trips: hold ☰ and drag to move an item up or down the packing list, or into another section, and ✕ takes it off. Tour points move the same way. The trip's sections have simple line icons instead of emoji."},
     {"date": "2026-11-11", "text": "Avalanche: problems Avalanche Canada lists for below treeline now show on the card and in the darker slope shading. Before, the app read them as treeline and dropped them."},
     {"date": "2026-11-11", "text": "Skiing: the panel no longer has a long list of routes. Find routes on the map, or type a name in the search box."},
     {"date": "2026-11-11", "text": "Cabin trips: while you draw a tour for a trip, tap any ski line to add it all. Your points are listed on the tour card to move up or down or delete, and ✎ on a drawn tour in the trip opens its points again."},

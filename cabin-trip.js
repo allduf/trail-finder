@@ -109,9 +109,6 @@
 #skiPane .tp-addf { display: flex; gap: 6px; margin-top: 8px; }
 #skiPane .tp-addf input { flex: 1; font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); min-width: 0; }
 #skiPane .tp-addf button { font: inherit; font-size: .86rem; font-weight: 800; padding: 8px 14px; border-radius: 10px; border: 0; background: ${COL}; color: #fff; cursor: pointer; }
-#skiPane .tp-edit-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: .86rem; }
-#skiPane .tp-edit-row span { flex: 1; }
-#skiPane .tp-edit-row button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: #c92a2a; border-radius: 9px; width: 40px; height: 34px; cursor: pointer; flex: none; }
 #skiPane .tp-addto { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 #skiPane .tp-addto > button, #skiPane .tp-addto li button { font: inherit; font-size: .86rem; font-weight: 800; padding: 10px; border-radius: 11px; border: 1.5px solid ${COL}; background: color-mix(in srgb, ${COL} 7%, var(--panel)); color: var(--fg); cursor: pointer; width: 100%; }
 #skiPane .tp-addto .tp-in { display: flex; align-items: center; gap: 8px; font-size: .84rem; padding: 8px 10px; border-radius: 11px; background: color-mix(in srgb, ${COL} 10%, var(--panel)); }
@@ -127,14 +124,21 @@
 #skiPane .tp-plan-form select { width: 100%; }
 #skiPane .tp-pkrow { display: flex; align-items: center; gap: 6px; }
 #skiPane .tp-pkrow .tp-check { flex: 1; min-width: 0; }
-#skiPane .tp-pkrow .tp-who { flex: none; width: 118px; font-size: 13px; padding: 5px 4px; color: var(--muted); }
+#skiPane .tp-pkrow .tp-pkx { flex: none; width: 30px; height: 30px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 14px; cursor: pointer; border-radius: 8px; }
+#skiPane .tp-pkrow .tp-pkx:hover { color: #c92a2a; }
+#skiPane .tp-pkrow .tf-grip { width: 30px; margin-right: -6px; }
+#skiPane .tp-pkrow .tp-who { flex: none; width: 104px; font-size: 13px; padding: 5px 4px; color: var(--muted); }
 #skiPane .tp-pkrow .tp-who.set { color: var(--fg); font-weight: 700; border-color: ${COL}; background: color-mix(in srgb, ${COL} 8%, var(--bg)); }
 #skiPane .tp-bar { height: 10px; border-radius: 999px; background: var(--chip); overflow: hidden; margin: 4px 0 6px; border: 1px solid var(--line); }
 #skiPane .tp-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, ${COL}, #20c997); transition: width .4s ease; }
 #skiPane .tp-ready { margin: 4px 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #20c997 16%, var(--panel)); font-weight: 800; font-size: .9rem; animation: tppop .5s ease; }
 @keyframes tppop { 0% { transform: scale(.9); opacity: 0; } 60% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1); } }
-#skiPane .tp-meal { display: grid; grid-template-columns: 74px 1fr 104px; gap: 6px; align-items: center; margin: 4px 0; font-size: .84rem; font-weight: 700; }
+/* The meal on its own full-width line under the meal's name and who cooks, growing with the text so all of it shows
+   (alex 2026-11-11: "when you click on it you see everything you write"). */
+#skiPane .tp-meal { display: grid; grid-template-columns: 1fr 120px; gap: 4px 6px; align-items: center; margin: 6px 0 10px; font-size: .84rem; font-weight: 700; }
 #skiPane .tp-meal select { font-size: 13px; padding: 7px 4px; }
+#skiPane .tp-meal textarea { grid-column: 1 / -1; font: inherit; font-size: 16px; font-weight: 400; line-height: 1.35; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; resize: none; overflow: hidden; min-height: 40px; field-sizing: content; }
+#skiPane .tp-meal textarea:focus { border-color: ${COL}; outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, ${COL} 18%, transparent); }
 #skiPane .tp-costs, #skiPane .tp-pay { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 #skiPane .tp-costs li { display: flex; align-items: center; gap: 8px; padding: 6px 4px 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: .88rem; }
 #skiPane .tp-costs li span { flex: 1; display: flex; flex-direction: column; }
@@ -180,7 +184,6 @@
     if (!snapOnly && t.share) pushSoon(t);   // a shared trip: the change goes to the group
   };
   const infos = new Map();   // trip id -> the way in's heights and slopes (ski-terrain.js info), for its route card
-  let packEdit = false;   // the packing list showing ✕ to take items off
   let cur = null, seq = 0, view = null;   // cur: the trip on the card; view: its forecast rows as last worked out
   const wayRun = { n: 0 };
 
@@ -212,7 +215,7 @@
     start(t);
   }
   function start(t) {
-    cur = t; view = null; packEdit = false;
+    cur = t; view = null;
     try { sessionStorage.setItem("tf:tripOpen", t.id); } catch {}   // back on the same trip if the page reloads (signing in)
     if (!t.own) Object.assign(t, packTpl());   // a trip from before your own items: starts with your usual ones
     if (!trips().some((x) => x.id === t.id)) putTrip(t);   // kept from the first tap, so nothing started is ever lost
@@ -566,27 +569,31 @@
   const tplSet = (f) => { const v = store.get("tripPack", {}); store.set("tripPack", f({ own: v.own || [], hide: v.hide || [] })); };
   function packList(t) {
     const hide = new Set(t.hide || []);
-    const G = packItems(t).map(([h, items]) => [h, items.filter((x) => !hide.has(x[0]))]).filter((x) => x[1].length);
-    const own = (t.own || []).map((x) => [x.k, x.label]);
-    if (own.length) { const i = G.findIndex((x) => x[0] === "Before you go"); G.splice(i < 0 ? G.length : i, 0, ["Your own items", own]); }
-    return G;
+    const G = packItems(t).map(([h, items]) => [h, items.filter((x) => !hide.has(x[0])).map((x) => [x[0], x[1], h])]);
+    const own = (t.own || []).map((x) => [x.k, x.label, "Your own items"]);
+    const into = (h) => { let g = G.find((y) => y[0] === h); if (!g) { g = [h, []]; const i = G.findIndex((y) => y[0] === "Before you go"); G.splice(i < 0 ? G.length : i, 0, g); } return g; };
+    if (own.length) into("Your own items")[1].push(...own);
+    // Where you dragged things (☰, alex 2026-11-11): t.pk.sec, an item moved to another section; t.pk.order, the order.
+    // Items the trip adds later (crampons once the way in is known) go at the end of their section.
+    const pk = t.pk || {}, sec = pk.sec || {}, moved = [];
+    G.forEach((g) => { g[1] = g[1].filter((x) => { const to = sec[x[0]]; if (to && to !== g[0]) { moved.push([to, x]); return false; } return true; }); });
+    moved.forEach(([to, x]) => into(to)[1].push(x));
+    if ((pk.order || []).length) { const at = new Map(pk.order.map((k, i) => [k, i])), o = (x) => (at.has(x[0]) ? at.get(x[0]) : 1e9); G.forEach((g) => g[1].sort((a, b) => o(a) - o(b))); }
+    return G.filter((x) => x[1].length);
   }
   function packHtml(t) {
     const G = packList(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
-    const body = packEdit
-      ? G.map(([h, items]) => `<h5>${esc(h)}</h5>${items.map(([k, label]) => `<div class="tp-edit-row"><span>${esc(label)}</span><button type="button" data-pkrm="${k}" aria-label="Take ${esc(label)} off the list">✕</button></div>`).join("")}`).join("")
-      : G.map(([h, items]) => `<h5>${esc(h)}</h5>${items.map(([k, label]) => `<div class="tp-pkrow"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who brings?") : ""}</div>`).join("")}`).join("");
+    // Every row: tick it, ✕ to take it off, hold ☰ and drag it up or down, or into another section (alex 2026-11-11).
+    const body = G.map(([h, items]) => `<h5 data-h="${esc(h)}">${esc(h)}</h5>${items.map(([k, label, home]) => `<div class="tp-pkrow" data-k="${esc(k)}" data-home="${esc(home)}" data-sec="${esc(h)}"><label class="tp-check"><input type="checkbox" data-pk="${k}" ${done[k] ? "checked" : ""} ${auto[k] ? "disabled" : ""}> <span>${esc(label)}</span></label>${isGroupGear(k) && names(t).length ? whoSel(t, `data-gear="${k}" class="tp-who${(t.gear || {})[k] ? " set" : ""}"`, (t.gear || {})[k], "Who brings?") : ""}<button type="button" class="tp-pkx" data-pkrm="${esc(k)}" aria-label="Take ${esc(label)} off the list">✕</button>${window.tfGrip || ""}</div>`).join("")}`).join("");
     const pct = all.length ? Math.round((n / all.length) * 100) : 0;
-    return `<details class="tp-pack" ${t.packOpen || packEdit ? "open" : ""}><summary>🎒 Packing list <small>${n} of ${all.length} packed</small></summary>
+    return `<details class="tp-pack" ${t.packOpen ? "open" : ""}><summary>🎒 Packing list <small>${n} of ${all.length} packed</small></summary>
       <div class="tp-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Packed"><i style="width:${pct}%"></i></div>
       ${n && n === all.length ? `<p class="tp-ready">🎉 Your bag is ready. Have a great trip!</p>` : ""}
       ${names(t).length ? "" : `<p class="sk-note">Add your group's names (👥 Your group) to put a name on shared gear like the stove, so nobody brings two.</p>`}
       ${body}
       <form class="tp-addf" data-pkadd="1"><input type="text" maxlength="80" placeholder="Add an item" autocomplete="off" enterkeyhint="done" aria-label="Add an item to the packing list"><button type="submit">Add</button></form>
-      ${packEdit ? `<p class="sk-note">What you take off or add stays that way for your next trips too.</p>` : ""}
-      <div class="tp-btns">${packEdit
-        ? `<button type="button" class="go" data-tp="packedit">✓ Done</button>${(t.hide || []).length ? `<button type="button" data-tp="packback">Put back what you took off</button>` : ""}`
-        : `<button type="button" data-tp="packshare">📤 Send the list to the group</button><button type="button" data-tp="packedit">✎ Edit the list</button>${n ? `<button type="button" data-tp="packclear">Untick all</button>` : ""}`}</div></details>`;
+      <p class="sk-note">Hold ☰ to drag an item up or down. What you take off (✕) or add stays that way for your next trips too.</p>
+      <div class="tp-btns"><button type="button" data-tp="packshare">📤 Send the list to the group</button>${n ? `<button type="button" data-tp="packclear">Untick all</button>` : ""}${(t.hide || []).length ? `<button type="button" data-tp="packback">Put back what you took off</button>` : ""}</div></details>`;
   }
 
   // ---------- trip plan for a friend, and the late alert ----------
@@ -726,7 +733,7 @@
     const m = t.meals || {}, dates = tripDates(t), n = Object.values(m).filter((x) => x && x.what).length;
     return `<details class="tp-pack tp-meals" ${t.mealOpen ? "open" : ""}><summary>🍲 Meals <small>${n ? `${n} planned` : ""}</small></summary>
       ${dates.map((date, i) => `<h5>${esc(dayWord(date))}${i === 0 ? " · going in" : i === dates.length - 1 ? " · out" : ""}</h5>
-        ${MEALS.filter(([k]) => !(i === 0 && k === "b") && !(i === dates.length - 1 && k === "d")).map(([k, label]) => { const x = m[`${date}:${k}`] || {}; return `<div class="tp-meal"><span>${label}</span><input type="text" maxlength="60" data-meal="${date}:${k}" value="${esc(x.what || "")}" placeholder="What" autocomplete="off" aria-label="${label} ${esc(dayWord(date))}">${whoSel(t, `data-mealwho="${date}:${k}"`, x.who, "Who?")}</div>`; }).join("")}`).join("")}
+        ${MEALS.filter(([k]) => !(i === 0 && k === "b") && !(i === dates.length - 1 && k === "d")).map(([k, label]) => { const x = m[`${date}:${k}`] || {}; return `<div class="tp-meal"><span>${label}</span>${whoSel(t, `data-mealwho="${date}:${k}"`, x.who, "Who?")}<textarea rows="1" maxlength="200" data-meal="${date}:${k}" placeholder="What's for ${label.toLowerCase()}?" autocomplete="off" enterkeyhint="done" aria-label="${label} ${esc(dayWord(date))}">${esc(x.what || "")}</textarea></div>`; }).join("")}`).join("")}
       <div class="tp-btns"><button type="button" data-tp="mealshare">📤 Send the meal plan</button></div></details>`;
   }
 
@@ -800,7 +807,7 @@
   // phone keeps its copy (works with no signal) and the copy it last synced (share.base): a sync merges the group's
   // changes with yours item by item (an added line or item, a deleted one, a meal typed), so two people editing at once
   // both keep their changes. Ticks, the trip plan for a friend, offline saves and photos stay on each phone.
-  const SHARED = ["hut", "name", "date", "nights", "people", "way", "lines", "own", "hide", "gear", "meals", "book", "costs", "notes", "group"];
+  const SHARED = ["hut", "name", "date", "nights", "people", "way", "lines", "own", "hide", "pk", "gear", "meals", "book", "costs", "notes", "group"];
   const docOf = (t) => JSON.parse(JSON.stringify(Object.fromEntries(SHARED.filter((k) => t[k] !== undefined).map((k) => [k, t[k]]))));
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
@@ -962,6 +969,13 @@
     if (f) cur[f] = e.target.open;
     if (f === "jourOpen" && e.target.open) renderPhotos();
   }, true);
+  // Meal boxes grow with their text (field-sizing where the browser has it, this everywhere else). Enter is done.
+  const grow = (el) => { if (!el.offsetParent) return; el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; };
+  const growAll = () => card.querySelectorAll(".tp-meal textarea").forEach(grow);
+  card.addEventListener("input", (e) => { if (e.target.matches(".tp-meal textarea")) grow(e.target); });
+  card.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches(".tp-meal textarea")) { e.preventDefault(); e.target.blur(); } });
+  card.addEventListener("toggle", (e) => { if (e.target.open && e.target.classList.contains("tp-meals")) growAll(); }, true);
+  new MutationObserver(() => requestAnimationFrame(growAll)).observe(card, { childList: true, subtree: true });
   function renderOrg(id, f, notTyping) { const el = $(id); if (el && cur && !(notTyping && el.contains(document.activeElement))) el.innerHTML = f(cur); }
   let needRender = false;
   const typing = () => { const a = document.activeElement; return !!(a && card.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
@@ -1094,7 +1108,18 @@
     else if (e.target.classList.contains("tp-plan")) cur.planOpen = e.target.open;
   }, true);
 
-  card.addEventListener("click", (e) => {   // ✕ on a packing list item (✎ Edit the list)
+  // ☰ on a packing list item: drag it up or down, or into another section (alex 2026-11-11).
+  if (window.tfDragSort) window.tfDragSort(card, { list: ".tp-pack", row: ".tp-pkrow", head: "h5", done: (rows) => {
+    const t = cur; if (!t) return;
+    const order = [], sec = {};
+    rows.forEach((r) => {
+      order.push(r.dataset.k);
+      let p = r.previousElementSibling; while (p && !p.matches("h5")) p = p.previousElementSibling;
+      const h = p && p.dataset.h; if (h && h !== r.dataset.home) sec[r.dataset.k] = h;
+    });
+    t.pk = { order, sec }; putTrip(t); renderPack();
+  } });
+  card.addEventListener("click", (e) => {   // ✕ on a packing list item
     const b = e.target.closest("[data-pkrm]");
     if (!b || !cur) return;
     const t = cur, k = b.dataset.pkrm;
@@ -1107,6 +1132,7 @@
       tplSet((v) => ({ ...v, hide: [...new Set([...v.hide, k])] }));
     }
     putTrip(t); renderPack();
+    toast("Taken off. It stays off your next trips too.");
   });
   card.addEventListener("submit", (e) => {   // + Add an item: on this trip and the next ones
     if (!e.target.dataset.pkadd || !cur) return;
@@ -1161,7 +1187,6 @@
       if (!rows.length) { toast("No meals typed in yet."); return; }
       shareText(`Meals for ${hutName(t)}`, `Meals for ${hutName(t)}:\n` + rows.map(([d, l]) => `\n${dayWord(d)}\n${l.map(([lab, x]) => `- ${lab}: ${x.what || "?"}${x.who ? ` (${x.who})` : ""}`).join("\n")}`).join("\n"));
     }
-    else if (k === "packedit") { packEdit = !packEdit; t.packOpen = true; renderPack(); }
     else if (k === "packback") { t.hide = []; tplSet((v) => ({ ...v, hide: [] })); putTrip(t); renderPack(); }
     else if (k === "fitall") { const b = tripBounds(t); if (b) map.fitBounds(b, { padding: [30, 30], maxZoom: 15 }); if (window.tfSnapTo) window.tfSnapTo("peek"); }
     else if (k === "drawline") {
