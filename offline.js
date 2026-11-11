@@ -408,7 +408,30 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   }
   let sqShrunk = false;   // made smaller by zooming out: it grows back (to its first size at most) when zooming in
   const sqSide = () => { const a = freeArea(); return Math.min(a.w - 64, a.bottom - a.top - 24, 460); };
+  // A square to start from (tfOffline.pickBox): the map is fitted to it and the square drawn on it.
+  let pendingBox = null, replaceNext = null;
   function startSq() {
+    if (pendingBox) {
+      const b = pendingBox, a = freeArea(), wrap = frame.getBoundingClientRect(), gl = gl3d();
+      pendingBox = null;
+      const pad = { top: a.top + 16, bottom: Math.max(16, wrap.height - a.bottom + 16), left: 36, right: 36 };
+      let pts;
+      if (gl) {
+        gl.fitBounds([[b[1], b[0]], [b[3], b[2]]], { padding: pad, animate: false, pitch: gl.getPitch() });
+        const m = gl.getContainer().getBoundingClientRect();
+        pts = [[b[1], b[2]], [b[3], b[2]], [b[1], b[0]], [b[3], b[0]]].map((ll) => gl.project(ll)).map((p) => [p.x + m.left - wrap.left, p.y + m.top - wrap.top]);
+      } else {
+        map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { paddingTopLeft: [pad.left, pad.top], paddingBottomRight: [pad.right, pad.bottom], animate: false });
+        const m = map.getContainer().getBoundingClientRect();
+        pts = [[b[2], b[1]], [b[2], b[3]], [b[0], b[1]], [b[0], b[3]]].map((ll) => map.latLngToContainerPoint(ll)).map((p) => [p.x + m.left - wrap.left, p.y + m.top - wrap.top]);
+      }
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      Object.assign(sqPos, { l: Math.max(4, Math.min(...xs)), r: Math.min(a.w - 4, Math.max(...xs)), t: Math.max(a.top, Math.min(...ys)), b: Math.min(a.bottom, Math.max(...ys)) });
+      fitSq(sqMid());
+      sqShrunk = false;
+      sqSize();
+      return;
+    }
     const a = freeArea(), side = sqSide();
     const cx = a.w / 2, cy = (a.top + a.bottom) / 2;
     Object.assign(sqPos, { l: cx - side / 2, r: cx + side / 2, t: cy - side / 2, b: cy + side / 2 });
@@ -529,9 +552,9 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   // Where each save stands, for other scripts (cabin-trip.js: "Save the trip offline"): "saving", "saved" or "missing".
   let savingName = null;
   const statusOf = (name) => {
-    if (busy && savingName === name) return { state: "saving", pct: busy.pct || 0 };
+    if (busy && savingName === name) return { state: "saving", pct: busy.pct || 0, box: busy.box };
     const a = load().find((x) => x.name === name);
-    return a ? { state: a.missing ? "missing" : "saved", missing: a.missing || 0, at: a.at } : null;
+    return a ? { state: a.missing ? "missing" : "saved", missing: a.missing || 0, at: a.at, box: a.box } : null;
   };
   const tell = (name) => window.dispatchEvent(new CustomEvent("tf:offline", { detail: { name, ...statusOf(name) } }));
   // Finish areas that are missing files, one at a time, with no tap. Each area gets a few of these per visit, so a
@@ -561,7 +584,8 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     // always work with no signal, signed in or not.
     if (!auto && !id && !(await needAccount())) return;
     if (busy) return;
-    busy = { stop: false, pct: 0 };
+    busy = { stop: false, pct: 0, box, replace: replaceNext === name };
+    replaceNext = null;
     savingName = name;
     $("[data-save]").disabled = true;
     const stop = `<button class="btn" type="button" data-stop>Stop</button>`;
@@ -619,6 +643,9 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       else if (failed.length) showState("bad", `⚠ Not saved yet: ${files(failed.length)} missing`, `Missing: ${whatsMissing(failed)}. The rest is saved. It tries again by itself when you have signal.`, null, retry);
       else showState("bad", "⚠ Not saved", `${sources ? "The save stopped" : "Couldn't reach the map"} (${e.message}). Try again with signal.`, null, retry);
     }
+    // A cabin trip saved again with a new square: the old save under its name goes once the new one is in the list,
+    // finished or not (its tiles the new one shares stay).
+    if (busy.replace && id) for (;;) { const areas = load(), o = areas.find((x) => x.name === name && x.id !== id); if (!o) break; await remove(o, areas).catch(() => {}); if (load().includes(o) || load().some((x) => x.id === o.id)) break; }
     busy = null; savingName = null;
     if (drawn) setDrawn(null);   // the square is in the list now (Try again uses its own box)
     tell(name);
@@ -641,6 +668,18 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       const nm = $("[data-name]");
       nm.value = name; nm.dataset.typed = "1";
       if (countTiles(tileRanges(b, 0, MAX_Z)) <= MAX_TILES && navigator.onLine) saveArea(b, name);
+    },
+    // The square to save, ready to change before saving (alex 2026-11-11, cabin trips: "make the user chose the area he
+    // wants to save"): starts on box with a margin, the corners drag, the bar says the size, ✓ Save this square saves
+    // it under name. replace: a save already under that name is swapped for the new one once it's done.
+    pickBox(box, name, opts) {
+      const ex = opts && opts.exact, latM = ex ? 0 : (box[2] - box[0]) * 0.15 + 0.004, lonM = ex ? 0 : (box[3] - box[1]) * 0.15 + 0.006;
+      pendingBox = [box[0] - latM, box[1] - lonM, box[2] + latM, box[3] + lonM].map((v) => +v.toFixed(5));
+      replaceNext = opts && opts.replace ? name : null;
+      if (card.hidden) open(true);
+      const nm = $("[data-name]");
+      nm.value = name; nm.dataset.typed = "1";
+      if (!frame.hidden) startSq(); else sqMode(true);
     },
     // A route and the land either side of it (moto.js: a long ride, where a box around it would be far too big).
     // line: [[lat, lon], ...]. Narrower when the corridor would pass the tile limit. Returns false when it's still too big.

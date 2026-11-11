@@ -2288,6 +2288,13 @@
     "Couldn't load the video. Try again with signal.":"Impossible de charger la vidéo. Réessayez avec du réseau.",
     "All tutorials":"Tous les tutoriels",
     "New: Tutorials, short videos that show how to use each feature. Open them from More › Tutorials, from the top of How it works, or from the Watch how button in a feature. The first one shows how to plan a cabin trip. A video only downloads when you tap it.":"Nouveau : Tutoriels, de courtes vidéos qui montrent comment utiliser chaque fonction. Ouvrez-les depuis Plus › Tutoriels, en haut de Comment ça marche, ou avec le bouton Voir comment ça marche dans une fonction. La première montre comment planifier un séjour en refuge. Une vidéo ne se télécharge que quand vous la touchez.",
+    "Change the saved area":"Changer la zone enregistrée",
+    "Save the trip offline":"Enregistrer le séjour hors ligne",
+    "Remind me the day before":"Me le rappeler la veille",
+    "From the day before the trip, each time you open the app with signal, the trip's weather, avalanche danger and offline copy update by themselves. The app can't do it while it's closed: the reminder is a calendar alert the evening before that tells you to open it.":"À partir de la veille du séjour, chaque fois que vous ouvrez l'application avec du réseau, la météo, le danger d'avalanche et la copie hors ligne du séjour se mettent à jour d'eux-mêmes. L'application ne peut pas le faire quand elle est fermée : le rappel est une alerte de calendrier la veille au soir qui vous dit de l'ouvrir.",
+    "Some of your trip is outside the saved area":"Une partie de votre séjour est hors de la zone enregistrée",
+    "(a line or the way in added since). Tap Change the saved area to take it in.":"(une ligne ou l'accès ajouté depuis). Touchez Changer la zone enregistrée pour l'inclure.",
+    "Cabin trips: Save the trip offline opens a square on the map around the trip, to move and resize before saving (it shows the size). It works for a trip with no cabin yet, and from the day before the trip the weather, avalanche danger and offline copy update by themselves each time you open the app, with the time they were checked. ⏰ Remind me the day before adds a calendar alert to open it.":"Séjours en refuge : Enregistrer le séjour hors ligne ouvre un carré sur la carte autour du séjour, à déplacer et redimensionner avant d'enregistrer (il indique la taille). Ça fonctionne pour un séjour sans refuge, et à partir de la veille du séjour la météo, le danger d'avalanche et la copie hors ligne se mettent à jour d'eux-mêmes chaque fois que vous ouvrez l'application, avec l'heure de la vérification. ⏰ Me le rappeler la veille ajoute une alerte de calendrier pour l'ouvrir.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
@@ -2509,6 +2516,7 @@
   var R = [
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
+    [/^Open Trail Finder: update your (.+) trip$/, function (m, h) { return "Ouvrez Trail Finder : mettez à jour votre séjour " + h; }],
     // liability-safe wording (2026-11-11)
     [/^Smokiest (.+): (.+), (\d+) µg\/m³\.(?: (Very little smoke the rest of the time\.|Smoke the whole time in the forecast\.|Next with very little smoke: (.+)\.))?$/, function (m, w, r, n, tail, nx) {
       return "Le plus enfumé " + tt(w) + " : " + tt(r) + ", " + n + " µg/m³." + (!tail ? "" : /^Very/.test(tail) ? " Très peu de fumée le reste du temps." : /^Smoke/.test(tail) ? " De la fumée tout le temps dans la prévision." : " Prochaine période avec très peu de fumée : " + tt(nx) + "."); }],

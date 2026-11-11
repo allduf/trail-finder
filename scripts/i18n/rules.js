@@ -19,6 +19,7 @@
   var R = [
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
+    [/^Open Trail Finder: update your (.+) trip$/, function (m, h) { return "Ouvrez Trail Finder : mettez à jour votre séjour " + h; }],
     // liability-safe wording (2026-11-11)
     [/^Smokiest (.+): (.+), (\d+) µg\/m³\.(?: (Very little smoke the rest of the time\.|Smoke the whole time in the forecast\.|Next with very little smoke: (.+)\.))?$/, function (m, w, r, n, tail, nx) {
       return "Le plus enfumé " + tt(w) + " : " + tt(r) + ", " + n + " µg/m³." + (!tail ? "" : /^Very/.test(tail) ? " Très peu de fumée le reste du temps." : /^Smoke/.test(tail) ? " De la fumée tout le temps dans la prévision." : " Prochaine période avec très peu de fumée : " + tt(nx) + "."); }],
