@@ -1936,6 +1936,7 @@
     "where the road comes closest (no snow on the roads in the forecast)":"là où la route passe le plus près (pas de neige sur les routes dans les prévisions)",
     "Turn Google's AI back on":"Réactiver l'IA de Google",
     "Ask: when Google's AI is turned off, the note in Ask now has a Turn Google's AI back on button, so a No tapped by accident is quick to undo.":"Demander : quand l'IA de Google est désactivée, la note dans Demander a maintenant un bouton Réactiver l'IA de Google, pour annuler vite un Non touché par erreur.",
+    "3D: tilting no longer zooms in or out. The camera stays at the same height and only the angle changes, so tilting up looks out to the horizon instead of dropping down to the snow.":"3D : incliner la vue ne fait plus de zoom avant ou arrière. La caméra reste à la même hauteur et seul l'angle change : en inclinant vers le haut, on regarde vers l'horizon au lieu de descendre jusqu'à la neige.",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
     "Open today":"Ouvert aujourd'hui",
