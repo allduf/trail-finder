@@ -2196,6 +2196,17 @@
     "Draw a tour":"Tracer une sortie",
     "Tap the map along your tour, then ✓ Done. It goes in this trip.":"Touchez la carte le long de votre sortie, puis ✓ Terminé. Elle s'ajoute à ce séjour.",
     "Cabin trips: start a new trip without picking a cabin first (Cabin trip, then ＋ Start a new trip). Add the cabin when you know it, from the list or a cabin on the map.":"Séjours en refuge : commencez un nouveau séjour sans choisir de refuge d'abord (Séjour en refuge, puis ＋ Commencer un nouveau séjour). Ajoutez le refuge quand vous le savez, depuis la liste ou un refuge sur la carte.",
+    "Start where you park. Tap a ski line to add it all.":"Partez de votre stationnement. Touchez une ligne de ski pour l'ajouter en entier.",
+    "Ski touring: add the whole line to your tour?":"Ski de randonnée : ajouter toute la ligne à votre sortie?",
+    "Approach trails: add the whole line to your tour?":"Sentier d'approche : ajouter toute la ligne à votre sortie?",
+    "Other winter routes: add the whole line to your tour?":"Itinéraire d'hiver : ajouter toute la ligne à votre sortie?",
+    "Nordic / cross-country: add the whole line to your tour?":"Ski de fond : ajouter toute la ligne à votre sortie?",
+    "Snowshoe: add the whole line to your tour?":"Raquette : ajouter toute la ligne à votre sortie?",
+    "Snowmobile trails: add the whole line to your tour?":"Sentier de motoneige : ajouter toute la ligne à votre sortie?",
+    "Ski resort runs: add the whole line to your tour?":"Piste de station : ajouter toute la ligne à votre sortie?",
+    "Resort off-piste and bowls: add the whole line to your tour?":"Hors-piste de station : ajouter toute la ligne à votre sortie?",
+    "That tour isn't in your saved tours any more. Draw it again with ✏️ Draw a tour.":"Cette sortie n'est plus dans vos sorties enregistrées. Tracez-la de nouveau avec ✏️ Tracer une sortie.",
+    "Cabin trips: while you draw a tour for a trip, tap any ski line to add it all. Your points are listed on the tour card to move up or down or delete, and ✎ on a drawn tour in the trip opens its points again.":"Séjours en refuge : pendant que vous tracez une sortie pour un séjour, touchez une ligne de ski pour l'ajouter en entier. Vos points sont listés sur la fiche de la sortie pour les monter, les descendre ou les supprimer, et ✎ sur une sortie tracée du séjour rouvre ses points.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",
@@ -2465,6 +2476,7 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     // liability-safe wording (2026-11-11)
     [/^Smokiest (.+): (.+), (\d+) µg\/m³\.(?: (Very little smoke the rest of the time\.|Smoke the whole time in the forecast\.|Next with very little smoke: (.+)\.))?$/, function (m, w, r, n, tail, nx) {
       return "Le plus enfumé " + tt(w) + " : " + tt(r) + ", " + n + " µg/m³." + (!tail ? "" : /^Very/.test(tail) ? " Très peu de fumée le reste du temps." : /^Smoke/.test(tail) ? " De la fumée tout le temps dans la prévision." : " Prochaine période avec très peu de fumée : " + tt(nx) + "."); }],

@@ -436,7 +436,7 @@
   function linesHtml(t) {
     const l = linesOf(t), w = t.way;
     const way = w ? `<li><button type="button" data-tl="way"><span><i class="tp-sw way"></i>The way in <small>${w.km.toFixed(1)} km · ↑ ${fmtM(w.up)}</small></span></button></li>` : "";
-    const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small></span></button><button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
+    const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small></span></button>${x.tour ? `<button type="button" class="tp-rm" data-tledit="${esc(x.tour)}" aria-label="Change ${esc(x.name)}: its points">✎</button>` : ""}<button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
     return `${way || rows ? `<ul class="tp-list tp-tours">${way}${rows}</ul>` : ""}
       ${l.length ? "" : `<p class="sk-note">No lines yet. Tap any ski line on the map and then <b>🏕 Add to cabin trip</b>, ${t.hut ? "★ a tour near the cabin below, " : ""}or draw your own.</p>`}
       <div class="tp-btns"><button type="button" data-tp="drawline">✏️ ${t.hut ? "Draw a tour from the cabin" : "Draw a tour"}</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || w ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
@@ -486,17 +486,29 @@
     offerAdd(d.querySelector(".sk-rc-btns"), () => (r.src === "plan" ? planItem() : item || (item = routeItem(r))));
   });
   // A tour drawn from the cabin with Plan a tour (✏️ Draw a tour from the cabin) goes in the trip once it's ✓ Done.
+  // While drawing, the trip card steps aside so the tour card (its points: move up, down, delete) is right there at the
+  // top (alex 2026-11-11 scrolled down past the trip looking for them); it comes back on ✓ Done with the line in it.
   let drawingLine = null;
+  const tuckCard = () => { card.hidden = true; setTimeout(() => { const p = $("skPlan"); if (p && window.tfPanelScrollTo) window.tfPanelScrollTo(p); }, 120); };
   window.addEventListener("tf:ski-plan", (e) => {
     if (e.detail.on || !drawingLine) return;
     const t = drawingLine; drawingLine = null;
-    setTimeout(() => { const x = planItem(); if (x) { addLine(t, x); toast(`Added to your trip to ${hutName(t)}.`); } }, 80);
+    setTimeout(() => {
+      const x = planItem();
+      if (x) { addLine(t, x); toast(`Added to your trip to ${hutName(t)}.`); }
+      if (cur && cur.id === t.id) { card.hidden = false; render(); drawWay(); }
+      const p = $("skPlan"); if (p && !p.hidden && window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo(p), 120);
+    }, 80);
   });
   card.addEventListener("click", (e) => {
-    const a = e.target.closest("[data-tl], [data-tlrm]");
+    const a = e.target.closest("[data-tl], [data-tlrm], [data-tledit]");
     if (!a || !cur) return;
     const t = cur;
     if (a.dataset.tlrm) { dropLine(t, a.dataset.tlrm); return; }
+    if (a.dataset.tledit) {   // your own tour: back on the map with its points, then ✓ Done puts the new shape in the trip
+      if (!(S.editTour && S.editTour(a.dataset.tledit))) { toast("That tour isn't in your saved tours any more. Draw it again with ✏️ Draw a tour."); return; }
+      drawingLine = t; tuckCard(); return;
+    }
     const toCard = () => setTimeout(() => window.tfPanelScrollTo && $("skDetail") && window.tfPanelScrollTo($("skDetail")), 80);
     if (a.dataset.tl === "way") { if (t.way) { S.select(S.route(t.way.line, `Way in to ${hutName(t)}`, infos.get(t.id) || null)); toCard(); } return; }
     const x = linesOf(t).find((y) => y.id === a.dataset.tl);
@@ -1156,6 +1168,7 @@
       if (S.planPts().length > 1 && !confirm("Start a new tour from the cabin? The tour on the map now stays in Saved tours.")) return;
       drawingLine = t;
       S.plan(t.hut ? [[t.hut.lat, t.hut.lon]] : []);
+      tuckCard();
       toast(t.hut ? "Tap the map along your tour from the cabin, then ✓ Done. It goes in this trip." : "Tap the map along your tour, then ✓ Done. It goes in this trip.");
     }
     else if (k === "plansend" || k === "planics") {

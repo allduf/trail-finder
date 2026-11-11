@@ -17,6 +17,7 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     // liability-safe wording (2026-11-11)
     [/^Smokiest (.+): (.+), (\d+) µg\/m³\.(?: (Very little smoke the rest of the time\.|Smoke the whole time in the forecast\.|Next with very little smoke: (.+)\.))?$/, function (m, w, r, n, tail, nx) {
       return "Le plus enfumé " + tt(w) + " : " + tt(r) + ", " + n + " µg/m³." + (!tail ? "" : /^Very/.test(tail) ? " Très peu de fumée le reste du temps." : /^Smoke/.test(tail) ? " De la fumée tout le temps dans la prévision." : " Prochaine période avec très peu de fumée : " + tt(nx) + "."); }],
