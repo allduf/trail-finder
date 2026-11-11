@@ -1026,7 +1026,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   // A tap on a route, hut or start: its details, or, while planning a tour, the next point of the plan.
   // A tap on the map opens the card and brings it up on phones, as a tap on an empty spot does (alex 2026-10-30).
-  const tap = (e, it) => { L.DomEvent.stopPropagation(e); if (plan.on) planAdd(e.latlng); else { select(it); cardInView($("skDetail"), it.lat, it.lon); } };
+  // A named ski line tapped while drawing asks first, like a freeride line: add the whole line, or just a point there
+  // (alex 2026-11-11: "make it so we can add a line when you draw your own line").
+  const tap = (e, it) => {
+    L.DomEvent.stopPropagation(e);
+    if (plan.on && it.lines && !it.area && it.lat == null && nameOf(it)) { planOffer({ name: nameOf(it), kind: (TYPES[it.type] || TYPES.other).label, at: e.latlng, lines: it.lines, add: () => planRouteLine(it) }); return; }
+    if (plan.on) planAdd(e.latlng); else { select(it); cardInView($("skDetail"), it.lat, it.lon); }
+  };
   function drawSki() {
     skiLayer.clearLayers(); hutLayer.clearLayers();
     if (!ski) return;
@@ -1044,7 +1050,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           continue;
         }
         skiLayer.addLayer(L.polyline(line, { renderer: skiRenderer, color: sel ? "#ffe14d" : "#fff", weight: t.weight + (sel ? 6 : 3), opacity: sel ? 1 : 0.8, interactive: false }));
-        const l = L.polyline(line, { renderer: skiRenderer, color: t.color, weight: t.weight + (sel ? 1.5 : 0), opacity: 1, dashArray: t.dashArray, label: r.name || "" });
+        const l = L.polyline(line, { renderer: skiRenderer, color: t.color, weight: t.weight + (sel ? 1.5 : 0), opacity: 1, dashArray: t.dashArray, label: r.name || "", planOffer: !!r.name });   // map3d.js: a tap while drawing reaches it
         l.bindTooltip(esc(nameOf(r) || t.label), { sticky: true });
         l.on("click", (e) => tap(e, r));
         skiLayer.addLayer(l);
@@ -2792,7 +2798,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const o = plan.offer;
       const msg = o ? `<b>${esc(o.name)}</b> <small>${esc(o.kind)}: add the whole line to your tour?</small>`
         : n === 0 && plan.seeding ? `<b>Putting ${esc(plan.seeding)} in your tour…</b><small>Then tap the map to go on from its end.</small>`
-        : n === 0 ? `<b>Tap the map where you start</b><small>Start where you park. Tap a freeride or slackcountry line to add it all.</small>`
+        : n === 0 ? `<b>Tap the map where you start</b><small>Start where you park. Tap a ski line to add it all.</small>`
         : n === 1 ? `<b>Now tap where you want to go</b><small>Drag a point to move it.</small>`
         : `<b>${plan.wait ? esc(plan.wait) : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
       // Or typed in plain words (alex 2026-11-07: "When I click plan a route I want to be able to ask what I want to plan"):
@@ -5404,6 +5410,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Draw your own way in with Plan a tour, from pts (the hut's end of it, or what was there).
     plan: (pts) => { if (pts) { plan.pts = pts.map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); setTour(null); planChanged(); } setPlanning(true); },
     planPts: () => plan.pts.slice(),
+    // A cabin trip's own tour opened again to change it (cabin-trip.js ✎): on the map, drawing, its points on the card.
+    editTour: (id) => { if (!tours().some((t) => t.id === id)) return false; openTour(id); setPlanning(true); return true; },
     // A cabin trip's lines (cabin-trip.js): the planned tour as drawn (the less exposed way when it's on), its saved name and id.
     planLine: () => { const r = planRoute(); if (!r) return null; const t = tourOf(); return { line: r.lines[0].map((p) => [p[0], p[1]]), name: t ? t.n : tourName(), tour: t ? t.id : "" }; },
     planning: () => plan.on,
