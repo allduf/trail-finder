@@ -844,7 +844,6 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (stale()) return true;
     const st = await carStart(top.p, later, 15).catch(() => null);
     if (stale()) return true;
-    const pts = st ? [st.p, [+top.p[0].toFixed(6), +top.p[1].toFixed(6)]] : [];
     const hd = dlg.querySelector(".ask-head .ask-said"), ch = dlg.querySelector(".ask-head .ask-chips");
     if (hd) hd.textContent = `A tour to ${at.name}`;
     if (ch) ch.innerHTML = `<li>🗺 Plan a tour</li><li>📍 ${esc(at.name)}</li>${later ? `<li>📅 ${esc(dayName(later))}</li>` : ""}`;
@@ -854,18 +853,19 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     // the less exposed way in from the plowed road that gives it (ski-route.js fromRoad, the This spot card's Safest
     // way here: it picks the road too, within 9 km). Which is shorter is only known once both are worked out (Microwave
     // Ridge: 19.7 km from Pemberton Portage Road, 15.8 km from the road picked), so neither is named shorter here.
-    const both = !!(S.safeTo && top.e != null);
-    out.innerHTML = `<p class="ask-note">No ski tour is mapped on ${esc(at.name)} in the app yet. Pick how to go:</p>
+    const two = !!(st && S.twoWays), one = !two && !!S.safeTo;
+    // alex 2026-11-11: "could be nice to see both option on the map and let the user chose directly on the map".
+    out.innerHTML = `<p class="ask-note">No ski tour is mapped on ${esc(at.name)} in the app yet.</p>
       ${st ? `<ol class="ask-plan"><li><b>Start</b> at ${esc(st.name)} <small>${esc(st.what)}</small> <small>${fmtKm(far)} from the top in a straight line</small></li>
-        <li><b>Finish</b> <span>at the top of ${esc(at.name)}</span>${ht ? ` <small>${ht}</small>` : ""}</li></ol>
-        <button type="button" class="ask-act" data-plan-safe>🗺 From the closest road, ${esc(st.name)}</button>
-        <p class="ask-note">The less exposed way from this road to the top. It goes around steep ground, so it can be much longer than the straight line.</p>` : ""}
-      ${both ? `<button type="button" class="ask-act${st ? " ask-act2" : ""}" data-from-road>🛡 From the road the app picks</button>
-        <p class="ask-note">The least exposed way to the top from any plowed road or parking lot within 9 km. The start can be farther away.</p>` : ""}
-      ${st || both ? `<p class="ask-note">Both weigh today's avalanche danger, slope angle, which way slopes face and what's above you. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.</p>`
+        <li><b>Finish</b> <span>at the top of ${esc(at.name)}</span>${ht ? ` <small>${ht}</small>` : ""}</li></ol>` : ""}
+      ${two ? `<button type="button" class="ask-act" data-two>🗺 Show both ways on the map</button>
+        <p class="ask-note">Two less exposed ways are worked out: from the closest road, ${esc(st.name)}, and from the plowed road or parking lot within 9 km that gives the least exposed way in. Both are drawn on the map: tap the one you want.</p>`
+        : one ? `<button type="button" class="ask-act" data-from-road>🛡 Find the least exposed way in</button>` : ""}
+      ${two || one ? `<p class="ask-note">The ways weigh today's avalanche danger, slope angle, which way slopes face and what's above you. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.</p>`
         : `<p class="ask-note ask-warn">No drivable road is mapped within 15 km of ${esc(at.name)}. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest.</p>`}
       ${others ? `<button type="button" class="ask-more" data-others>Show the ${others} ski tours nearby instead</button>` : ""}`;
-    wirePlan(out, pts, later);
+    const tb = out.querySelector("[data-two]");
+    if (tb) tb.addEventListener("click", () => { logUse("pick", "Ask spot two ways"); close(); S.twoWays(top.p, st.p, st.name, at.name); });
     const fr = out.querySelector("[data-from-road]");
     if (fr) fr.addEventListener("click", () => { logUse("pick", "Ask spot from road"); close(); S.safeTo(top.p[0], top.p[1]); });
     return true;
