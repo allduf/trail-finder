@@ -584,6 +584,14 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     return list.length ? JSON.stringify(list) : null;
   };
   const MERGE = {
+    // Your own packing items and the ones you leave out (cabin-trip.js): both devices' kept, so signing in never drops one.
+    tripPack: (a, b) => {
+      const x = jparse(a, null) || {}, y = jparse(b, null) || {};
+      if (!a && !b) return null;
+      const own = [], seen = new Set();
+      [...(x.own || []), ...(y.own || [])].forEach((o) => { const k = o && String(o.label || "").toLowerCase(); if (k && !seen.has(k)) { seen.add(k); own.push(o); } });
+      return JSON.stringify({ own, hide: [...new Set([...(x.hide || []), ...(y.hide || [])])] });
+    },
     listGone: (a, b) => {
       const all = {};
       [...jparse(a, []), ...jparse(b, [])].forEach((g) => { const id = g && g.k && g.id != null && g.k + "\n" + g.id; if (id && !(all[id] && all[id].at >= g.at)) all[id] = g; });

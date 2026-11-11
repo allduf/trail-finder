@@ -187,6 +187,7 @@
   const scrollTo = () => { if (window.tfSnapTo) window.tfSnapTo("half"); setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(card); else card.scrollIntoView({ block: "start" }); }, 60); };
   function close() {
     seq++; cur = null; view = null; card.hidden = true; card.innerHTML = ""; layer.clearLayers();
+    try { sessionStorage.removeItem("tf:tripOpen"); } catch {}
     btn.setAttribute("aria-pressed", "false");
   }
 
@@ -201,7 +202,9 @@
   }
   function start(t) {
     cur = t; view = null; packEdit = false;
+    try { sessionStorage.setItem("tf:tripOpen", t.id); } catch {}   // back on the same trip if the page reloads (signing in)
     if (!t.own) Object.assign(t, packTpl());   // a trip from before your own items: starts with your usual ones
+    if (!trips().some((x) => x.id === t.id)) putTrip(t);   // kept from the first tap, so nothing started is ever lost
     card.hidden = false; btn.setAttribute("aria-pressed", "true");
     render();
     drawWay();
@@ -1234,5 +1237,10 @@
     if (!t) close();
     else if ((t.ed || 0) > (cur.ed || 0)) { cur = t; view = null; render(); drawWay(); loadDays(t); }
   });
+  // Signing in reloads the page once to show the account's settings: the trip you were planning opens again, with
+  // everything you'd done (trips are saved as you go, and the account keeps both this phone's and its own trips).
+  { let o = null; try { o = sessionStorage.getItem("tf:tripOpen"); } catch {}
+    const t = o && trips().find((x) => x.id === o);
+    if (t && isSki()) setTimeout(() => { if (!cur && isSki()) start(t); }, 1500); }
   window.tfCabinTrip = { open, list: showList, close, count: () => trips().length, join: (id, key) => join(id, key), addPlan: (el) => offerAdd(el, planItem) };
 })();
