@@ -2139,8 +2139,12 @@
       const d = args.deltasForHelper, tilting = (tilt || mouse) && tiltFrame(d);
       // The middle's height stays put while tilting (else each frame re-reads the ground there and the camera bobs).
       if (tilting && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
-      if (tilting) piv = null;   // a tilt goes around the middle; the next turn picks the spot under the mouse again
-      else if (piv === null && !tilt && (mouse || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
+      // A tilt goes around the middle; the spot picked for turning is kept (it moves on the screen with the tilt, see
+      // below). Picking it again after every tilt frame (#726) read the ground under the mouse back from the graphics
+      // card each time: MapLibre redraws its whole depth and position pictures of the mountains and waits for the
+      // card to hand one pixel back, which stalled every other frame of a turn (alex 2026-11-11: "it lag when i
+      // rotate", ~15 frames a second with pauses). Now it is read once per drag.
+      if (!tilting && piv === null && !tilt && (mouse || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
         // The ground under the point as it was drawn before this move (the fingers' point has already slid by panDelta).
         const p = mouse ? down : fingers === 2 && mid ? (args.panDelta ? mid.sub(args.panDelta) : mid) : null;
         const g = p && ground(p, args.tr);
@@ -2166,6 +2170,8 @@
       // Tilting up lowers the camera: not into the ground below it.
       if (before !== null) { try { if (aboveGround(args.tr) < FLOOR) args.tr.setPitch(Math.max(before, args.tr.pitch - d.pitchDelta)); } catch {} }
       if (piv && !tilting) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
+      // After a tilt frame the turning spot sits somewhere else on the screen: turning goes on around it from there.
+      else if (piv && tilting) { try { const q = args.tr.locationToScreenPoint(new M(piv.g.x, piv.g.y).toLngLat(), gl.terrain || undefined); if (q && isFinite(q.x) && isFinite(q.y)) piv.p = q; } catch {} }
       return r;
     };
   }

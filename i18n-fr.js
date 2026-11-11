@@ -2207,6 +2207,7 @@
     "Resort off-piste and bowls: add the whole line to your tour?":"Hors-piste de station : ajouter toute la ligne à votre sortie?",
     "That tour isn't in your saved tours any more. Draw it again with ✏️ Draw a tour.":"Cette sortie n'est plus dans vos sorties enregistrées. Tracez-la de nouveau avec ✏️ Tracer une sortie.",
     "Cabin trips: while you draw a tour for a trip, tap any ski line to add it all. Your points are listed on the tour card to move up or down or delete, and ✎ on a drawn tour in the trip opens its points again.":"Séjours en refuge : pendant que vous tracez une sortie pour un séjour, touchez une ligne de ski pour l'ajouter en entier. Vos points sont listés sur la fiche de la sortie pour les monter, les descendre ou les supprimer, et ✎ sur une sortie tracée du séjour rouvre ses points.",
+    "3D: turning the view with the mouse is smooth again. It no longer stutters while you turn.":"3D : tourner la vue avec la souris est de nouveau fluide, sans à-coups pendant la rotation.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",
