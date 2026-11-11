@@ -148,6 +148,8 @@
 #skiPane .tp-split button.tp-chip { width: auto; height: auto; font: inherit; font-size: .8rem; font-weight: 700; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); cursor: pointer; text-decoration: line-through; }
 #skiPane .tp-split button.tp-chip[aria-pressed="true"] { background: color-mix(in srgb, ${COL} 14%, var(--panel)); border-color: ${COL}; color: var(--fg); text-decoration: none; }
 #skiPane .tp-split button.tp-chip[aria-pressed="true"]::before { content: "✓ "; }
+#skiPane .tp-split button.tp-all { text-decoration: none; color: ${COL}; border-color: ${COL}; background: var(--panel); }
+#skiPane .tp-split button.tp-all[aria-pressed="true"] { background: ${COL}; color: #fff; }
 #skiPane .tp-costs li small { color: var(--muted); font-size: .76rem; }
 #skiPane .tp-costs li button, #skiPane .tp-notei button { font: inherit; border: 0; background: none; color: var(--muted); width: 34px; height: 34px; cursor: pointer; }
 #skiPane .tp-costadd { display: grid; grid-template-columns: 1fr 72px; gap: 6px; margin-top: 6px; }
@@ -762,12 +764,14 @@
     return { total, each: who.length ? v[0] : total, even, share, n: Math.max(who.length, 1), pay, noPayer: l.filter((x) => !x.by || !who.includes(x.by)).length };
   }
   // The group's names as buttons to tap in or out of a cost.
-  const chips = (t, on, attr) => names(t).map((n) => `<button type="button" class="tp-chip" ${attr(n)} aria-pressed="${on.includes(n)}">${esc(n)}</button>`).join("");
+  // "All" at the end puts everyone back in at once (alex 2026-11-11: "add all").
+  const chips = (t, on, attr, all) => names(t).map((n) => `<button type="button" class="tp-chip" ${attr(n)} aria-pressed="${on.includes(n)}">${esc(n)}</button>`).join("")
+    + `<button type="button" class="tp-chip tp-all" ${all} aria-pressed="${on.length >= names(t).length}">All</button>`;
   function costHtml(t) {
     const l = t.costs || [], s = settle(t), g = (t.hut && t.hut.tags) || {};
     return `<details class="tp-pack tp-cost" ${t.costOpen ? "open" : ""}><summary>💵 Costs <small>${l.length ? `${money(s.total)}${s.even ? ` · ${money(s.each)} each` : ""}` : ""}</small></summary>
-      ${l.length ? `<ul class="tp-costs">${l.map((x) => { const f = splitOf(t, x), all = f.length === names(t).length; return `<li><span>${esc(x.what)}<small>${x.by ? `paid by ${esc(x.by)}` : "who paid?"}${names(t).length ? ` · ${all ? "split with everyone" : `split with ${esc(f.join(", "))}`}` : ""}</small></span><b>${money(+x.amt || 0)}</b><button type="button" data-crm="${esc(x.id)}" aria-label="Delete ${esc(x.what)}">✕</button>${names(t).length > 1 ? `<div class="tp-split" role="group" aria-label="Who shares ${esc(x.what)}">${chips(t, f, (n) => `data-csplit="${esc(x.id)}" data-n="${esc(n)}"`)}</div>` : ""}</li>`; }).join("")}</ul>` : `<p class="sk-note">Add the cabin fee, gas, food and anything else the group shares.${g.charge ? ` The cabin's fee: ${esc(g.charge)}.` : ""}</p>`}
-      <form class="tp-costadd" data-cadd="1"><input type="text" maxlength="40" placeholder="What (gas, food…)" autocomplete="off" aria-label="What it was for"><input type="number" inputmode="decimal" min="0" step="any" placeholder="$" aria-label="Amount">${whoSel(t, "", "", "Paid by")}<button type="submit">Add</button>${names(t).length > 1 ? `<div class="tp-split" role="group" aria-label="Split between"><small>Split between</small>${chips(t, names(t), (n) => `data-fsplit="${esc(n)}"`)}</div>` : ""}</form>
+      ${l.length ? `<ul class="tp-costs">${l.map((x) => { const f = splitOf(t, x), all = f.length === names(t).length; return `<li><span>${esc(x.what)}<small>${x.by ? `paid by ${esc(x.by)}` : "who paid?"}${names(t).length ? ` · ${all ? "split with everyone" : `split with ${esc(f.join(", "))}`}` : ""}</small></span><b>${money(+x.amt || 0)}</b><button type="button" data-crm="${esc(x.id)}" aria-label="Delete ${esc(x.what)}">✕</button>${names(t).length > 1 ? `<div class="tp-split" role="group" aria-label="Who shares ${esc(x.what)}">${chips(t, f, (n) => `data-csplit="${esc(x.id)}" data-n="${esc(n)}"`, `data-callsplit="${esc(x.id)}"`)}</div>` : ""}</li>`; }).join("")}</ul>` : `<p class="sk-note">Add the cabin fee, gas, food and anything else the group shares.${g.charge ? ` The cabin's fee: ${esc(g.charge)}.` : ""}</p>`}
+      <form class="tp-costadd" data-cadd="1"><input type="text" maxlength="40" placeholder="What (gas, food…)" autocomplete="off" aria-label="What it was for"><input type="number" inputmode="decimal" min="0" step="any" placeholder="$" aria-label="Amount">${whoSel(t, "", "", "Paid by")}<button type="submit">Add</button>${names(t).length > 1 ? `<div class="tp-split" role="group" aria-label="Split between"><small>Split between</small>${chips(t, names(t), (n) => `data-fsplit="${esc(n)}"`, "data-fall=\"1\"")}</div>` : ""}</form>
       ${l.length ? `<p class="tp-sum">${s.even ? `<b>${money(s.total)}</b> in all, <b>${money(s.each)}</b> each for ${s.n} ${s.n > 1 ? "people" : "person"}${names(t).length ? "" : " (add names in Your group to split it)"}.` : `<b>${money(s.total)}</b> in all. Each one's share: ${names(t).map((w) => `${esc(w)} <b>${money(s.share[w])}</b>`).join(" · ")}`}</p>
         ${s.pay.length ? `<ul class="tp-pay">${s.pay.map(([a, b, v]) => `<li>${esc(a)} pays ${esc(b)} <b>${money(v)}</b></li>`).join("")}</ul>` : ""}
         ${s.noPayer ? `<p class="sk-note">${s.noPayer} cost${s.noPayer > 1 ? "s have" : " has"} no one from the group as the payer: they're in the total but not in who pays whom.</p>` : ""}` : ""}</details>`;
@@ -972,12 +976,16 @@
     putTrip(t); renderOrg("tpJour", journalHtml); renderPhotos();
   });
   card.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-grm], [data-crm], [data-nrm], [data-prm], [data-csplit], [data-fsplit]"), t = cur;
+    const b = e.target.closest("[data-grm], [data-crm], [data-nrm], [data-prm], [data-csplit], [data-fsplit], [data-callsplit], [data-fall]"), t = cur;
     if (!b || !t) return;
+    if (b.dataset.fall) { b.closest(".tp-split").querySelectorAll(".tp-chip").forEach((c) => c.setAttribute("aria-pressed", "true")); return; }
+    if (b.dataset.callsplit) { t.costs = (t.costs || []).map((y) => { if (y.id !== b.dataset.callsplit) return y; const z = { ...y }; delete z.for; return z; }); putTrip(t); renderOrg("tpCost", costHtml); return; }
     if (b.dataset.fsplit) {   // the new cost's split: at least one person stays in
       const f = b.closest(".tp-split"), on = b.getAttribute("aria-pressed") === "true";
-      if (on && f.querySelectorAll("[aria-pressed=true]").length < 2) { toast("At least one person shares it."); return; }
-      b.setAttribute("aria-pressed", String(!on)); return;
+      if (on && f.querySelectorAll("[data-fsplit][aria-pressed=true]").length < 2) { toast("At least one person shares it."); return; }
+      b.setAttribute("aria-pressed", String(!on));
+      const al = f.querySelector(".tp-all"); if (al) al.setAttribute("aria-pressed", String(!f.querySelector("[data-fsplit][aria-pressed=false]")));
+      return;
     }
     if (b.dataset.csplit) {   // a cost already in: tap a name in or out
       const x = (t.costs || []).find((y) => y.id === b.dataset.csplit); if (!x) return;

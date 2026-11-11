@@ -2274,6 +2274,7 @@
     "At least one person shares it.":"Au moins une personne doit la partager.",
     "in all. Each one's share":"en tout. La part de chacun",
     "Cabin trips: each cost can be split between only some of the group. Tap the names under a cost to take people in or out, and who pays whom follows.":"Séjours en refuge : chaque dépense peut être partagée entre une partie du groupe seulement. Touchez les noms sous une dépense pour ajouter ou retirer des gens, et qui paie qui suit.",
+    "All":"Tous",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
