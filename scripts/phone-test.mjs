@@ -171,6 +171,18 @@ for (const sport of SPORTS) {
     await wait(500);
   }
 
+  // More › Tutorials (tutorials.js, alex 2026-11-11): the list of videos opens; no video loads until one is tapped.
+  if (sport === "mtb" && tabs.some((t) => t.nav === "more") && await page.evaluate(() => !!(window.tfTutorials && window.tfTutorials.list.length))) {   // once there is a video
+    await step(p, sport, "More → Tutorials", async () => {
+      await tap(page, "#tabbar [data-nav=more]");
+      await tap(page, '#hub [data-hub="tutorials"]');
+      await page.waitForSelector("dialog.tut[open] .tut-row", { state: "visible", timeout: 5000 });
+    });
+    await page.keyboard.press("Escape").catch(() => {});
+    await back(page);
+    await wait(500);
+  }
+
   // Map buttons: Layers, then 3D (on and off).
   if (await visible(page, "#layersBtn")) {
     await step(p, sport, "Layers", () => tap(page, "#layersBtn"));

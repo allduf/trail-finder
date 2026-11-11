@@ -1,0 +1,12 @@
+# Tutorials (tutorials.js), 2026-11-11
+Tutorials ||| Tutoriels
+Short videos: how to use each feature ||| Courtes vidéos : comment utiliser chaque fonction
+Watch the tutorial videos ||| Voir les vidéos tutoriels
+Watch how it works ||| Voir comment ça marche
+Plan a cabin trip ||| Planifier un séjour en refuge
+Pick a hut, the way in, your group, packing, meals and costs, then share the trip ||| Choisissez un refuge, le chemin d'accès, votre groupe, le matériel, les repas et les coûts, puis partagez le séjour
+The whole app ||| Toute l'appli
+Short videos showing how the app works, with example trips. The app may look a little different from the video. ||| Courtes vidéos qui montrent comment fonctionne l'appli, avec des sorties d'exemple. L'appli peut être un peu différente de la vidéo.
+Couldn't load the video. Try again with signal. ||| Impossible de charger la vidéo. Réessayez avec du réseau.
+All tutorials ||| Tous les tutoriels
+New: Tutorials, short videos that show how to use each feature. Open them from More › Tutorials, from the top of How it works, or from the Watch how button in a feature. The first one shows how to plan a cabin trip. A video only downloads when you tap it. ||| Nouveau : Tutoriels, de courtes vidéos qui montrent comment utiliser chaque fonction. Ouvrez-les depuis Plus › Tutoriels, en haut de Comment ça marche, ou avec le bouton Voir comment ça marche dans une fonction. La première montre comment planifier un séjour en refuge. Une vidéo ne se télécharge que quand vous la touchez.
