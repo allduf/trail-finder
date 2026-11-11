@@ -1,0 +1,1 @@
+3D: turning the view zoomed out over many mountains is smoother. New ground no longer makes the map stop to resend the tiles next to it. ||| 3D : tourner la vue de loin au-dessus de nombreuses montagnes est plus fluide. Le nouveau terrain ne fait plus s'arrêter la carte pour renvoyer les tuiles voisines.
