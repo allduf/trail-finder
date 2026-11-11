@@ -1940,6 +1940,7 @@
     "Everything in the phone's More menu: settings, saved, record and more":"Tout le menu Plus du téléphone : réglages, enregistrés, enregistrer et plus",
     "Close the menu":"Fermer le menu",
     "On a computer, the new ☰ Menu button at the top of the side panel has everything the phone's More menu has: sport, language, Google's AI, account, offline maps, saved tours, help and more. Ask also finds a place typed in one word, like microwaveridge.":"Sur un ordinateur, le nouveau bouton ☰ Menu en haut du panneau de côté a tout ce que le menu Plus du téléphone a : sport, langue, IA de Google, compte, cartes hors ligne, sorties enregistrées, aide et plus. Demander trouve aussi un lieu tapé en un seul mot, comme microwaveridge.",
+    "3D: scrolling with a mouse wheel or trackpad zooms steadily now. With the view tilted up and the mouse near the horizon, it no longer jumps the camera far off toward that spot and down close to the snow.":"3D : défiler avec la molette ou le pavé tactile fait maintenant un zoom régulier. Avec la vue inclinée et la souris près de l'horizon, la caméra ne saute plus loin vers cet endroit ni jusqu'à la neige.",
     "Backcountry access gondola · not a ski resort":"Télécabine d'accès à l'arrière-pays · pas une station de ski",
     "Backcountry access gondola":"Télécabine d'accès à l'arrière-pays",
     "Open today":"Ouvert aujourd'hui",

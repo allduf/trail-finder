@@ -2148,6 +2148,20 @@
         piv = g ? { g, p, follow: twist && !tilt } : false;   // false: this gesture keeps the middle
         if (g && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
       }
+      // Scrolling zooms toward the middle of the view when the spot under the mouse is far off (alex 2026-11-11, desktop
+      // recording, mouse wheel / trackpad: "it still does it"). Zooming in toward the mouse moves the camera toward the
+      // ground under it; tilted up, with the mouse up near the horizon, that ground is 50-300 km away, so each scroll
+      // flew the camera tens of kilometres sideways and down, landing it close over the snow in one or two frames. Now a
+      // far spot (more than twice as far from the camera as the middle of the view) zooms straight ahead instead.
+      if (live("scrollZoom") && args.deltasForHelper && args.deltasForHelper.zoomDelta && args.preZoomAroundLoc) {
+        try {
+          const tr = args.tr, cam = M.fromLngLat(tr.getCameraLngLat()), c = M.fromLngLat(tr.center), a = M.fromLngLat(args.preZoomAroundLoc);
+          if (Math.hypot(a.x - cam.x, a.y - cam.y) > 2 * Math.max(Math.hypot(c.x - cam.x, c.y - cam.y), 1e-9)) {
+            args.deltasForHelper.around = tr.centerPoint;
+            args.preZoomAroundLoc = tr.center;
+          }
+        } catch {}
+      }
       const r = orig.apply(this, arguments);
       // A pinch while tilting zooms as usual: the height to keep moves with it.
       if (hold !== null && args.deltasForHelper && args.deltasForHelper.zoomDelta) hold = null;
@@ -2553,6 +2567,10 @@
       };
     }
     pivotOnPointer();
+    // Gentler trackpad scrolling than MapLibre's own (made for flat maps): a swipe keeps sending scrolls for a second after
+    // the fingers lift, each zooming in the same frame, so the 3D view lurched toward the ground (alex 2026-11-11). Half
+    // the rate; a mouse wheel notch stays as it was.
+    try { gl.scrollZoom.setZoomRate(1 / 200); } catch {}
     new ResizeObserver(() => gl.resize()).observe(box);
 
     // Taps go to the same Leaflet trail lines (opening the same details panel); anywhere else is a
