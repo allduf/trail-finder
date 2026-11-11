@@ -2174,6 +2174,84 @@
     send(s - 1, 0, 1, s, col(s - 1));
     return true;
   }
+  // ---------- smooth turning while new photos arrive ----------
+  // MapLibre paints the photos and lines for each piece of ground into its own big buffer (2048 px on a computer)
+  // and drapes it over the mountains. Each photo that arrives, and any change to a line, has every piece of ground it
+  // touches painted again in the next frame; a wide photo (the far-view winter ones, the blurry ones under Winter)
+  // touches all of them. While turning over new ground in Skiing 3D with Winter on, pieces of ground were painted
+  // again 13 times a frame on average with 11 in view (headless test near Metal Dome, 2026-11-11): all of the ground,
+  // every frame, so the map dropped to 6-11 frames a second with stops up to 0.3 s (alex's computer recording). Now at
+  // most PAINTS_PER_FRAME pieces are painted again in one frame, nearest first; the others keep showing the picture
+  // they had (a photo a few frames late) and get their turn in the next frames. Ground never painted before (new in
+  // view) is always painted at once. MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
+  const PAINTS_PER_FRAME = PHONE ? 4 : 3;
+  function spreadPaints() {
+    const rtt = gl && gl.painter && gl.painter.renderToTexture, tm = gl && gl.terrain && gl.terrain.tileManager;
+    if (!rtt || !tm || rtt.tfSpread || typeof rtt.prepareForRender !== "function" || typeof tm.freeRtt !== "function") return;
+    rtt.tfSpread = true;
+    const old = new WeakMap();   // piece of ground -> the painted picture it showed before MapLibre let it go
+    if (!tm.tfSpread) {
+      tm.tfSpread = true;
+      const free = tm.freeRtt;
+      tm.freeRtt = function () {
+        try { for (const k in this._tiles) { const t = this._tiles[k]; if (t && t.rtt && t.rtt.length) old.set(t, t.rtt); } } catch {}
+        return free.apply(this, arguments);
+      };
+    }
+    const prep = rtt.prepareForRender;
+    rtt.prepareForRender = function () {
+      let before = null;
+      try {
+        before = tm.getRenderableTiles().filter(Boolean).map((t) => {
+          if (t.tfWait) t.rtt = [];   // put off last frame: its turn again
+          return [t, t.rtt.length ? t.rtt : old.get(t)];
+        });
+        // Only pictures still in MapLibre's buffers (the phone code makes fewer or smaller ones when the map is still).
+        const objs = this.pool && this.pool._objects;
+        for (const e of before) if (e[1] && !(objs && e[1].every((r) => r && objs[r.id]))) e[1] = null;
+      } catch {}
+      const out = prep.apply(this, arguments);
+      try {
+        if (!before) return out;
+        const redo = [];
+        for (const [t, had] of before) {
+          if (t.rtt.length || !had || !had.length) { t.tfWait = false; old.delete(t); continue; }
+          redo.push([t, had]);
+        }
+        if (redo.length > PAINTS_PER_FRAME) {
+          redo.sort((a, b) => b[0].tileID.overscaledZ - a[0].tileID.overscaledZ);   // closer ground first
+          redo.forEach(([t, had], i) => {
+            if (i < PAINTS_PER_FRAME) { t.tfWait = false; old.delete(t); return; }
+            t.rtt = had; t.tfWait = true; old.set(t, had);
+          });
+          gl.triggerRepaint();
+        } else for (const [t] of redo) { t.tfWait = false; old.delete(t); }
+      } catch {}
+      return out;
+    };
+  }
+  // And a piece of ground is only painted again when what arrived can change its picture. MapLibre did it for every
+  // tile of every source, also the ones only written over the ground (the trail names, ~37 tiles a frame while
+  // turning, as the names are placed again after each move) and the ones of a hidden layer: they are not in the
+  // painted picture at all. The ground heights (the terrain's own source) go through as before.
+  const PAINTED = { background: true, fill: true, line: true, raster: true, hillshade: true, "color-relief": true };
+  function quietSources() {
+    const cb0 = gl && gl._terrainDataCallback;
+    if (!cb0 || cb0.tfQuiet || !gl.style || !gl.terrain) return;
+    const painted = (id) => {
+      try {
+        const z = gl.getZoom();
+        return gl.style._order.some((k) => { const l = gl.style._layers[k]; return l && l.source === id && PAINTED[l.type] && !l.isHidden(z); });
+      } catch { return true; }
+    };
+    const cb = function (e) {
+      try { if (e && e.dataType === "source" && e.tile && e.sourceId !== gl.terrain.options.source && !painted(e.sourceId)) return; } catch {}
+      return cb0.apply(this, arguments);
+    };
+    cb.tfQuiet = true;
+    try { gl.style.off("data", cb0); gl.style.on("data", cb); gl._terrainDataCallback = cb; } catch {}
+  }
+  window.tf3dSpreadPaints = () => PAINTS_PER_FRAME;   // for tests
   let demFixed = false;
   function fixDemLeak() {
     if (demFixed || !gl.terrain) return;
@@ -2773,6 +2851,7 @@
     } else gl.on("idle", warmPaintBuffers);
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
+    gl.on("render", () => { spreadPaints(); quietSources(); });   // once its paint buffers exist (and again if the terrain is set up anew)
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
     gl.on("movestart", (e) => { byHand = !!e.originalEvent; if (byHand) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
@@ -3002,6 +3081,24 @@
     };
     inner.addEventListener("mouseover", skipCrossing, true);
     inner.addEventListener("mouseout", skipCrossing, true);
+    // The same ground lookup ran on every mouse move and every finger move too. Each one made MapLibre draw the
+    // mountains twice more off screen (for the depth and the ground under the pointer) and then wait for the graphics
+    // card to finish all its drawing before going on: with a finger on a phone, 59 such waits in a 30-move drag,
+    // 5 now (headless test, 2026-11-11; see also spreadPaints). Nothing needs that ground while the map moves (the trail-name tip under the mouse waits
+    // for a still map, and no finger-move map event is listened to), so it's skipped then. Panning, turning and
+    // tilting don't use these map events: they keep their own (MapLibre's handlers, untouched).
+    // MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
+    try {
+      const byId = gl.handlers && gl.handlers._handlersById, mapEv = byId && byId.mapEvent, hover = byId && byId.blockableMapEvent;
+      if (hover && typeof hover.mousemove === "function") {
+        const move = hover.mousemove;
+        hover.mousemove = function (e) { if (gl.isMoving() || (e && e.buttons)) return; return move.apply(this, arguments); };
+      }
+      if (mapEv && typeof mapEv.touchmove === "function") {
+        const move = mapEv.touchmove;
+        mapEv.touchmove = function () { if (gl.listens("touchmove")) return move.apply(this, arguments); };
+      }
+    } catch {}
   }
 
   // Each sport opens on the map it was last left on, 3D or flat, also after the app is closed. Skiing starts on 3D

@@ -2449,6 +2449,7 @@
     "Cabin trips: a trip with no cabin keeps its list of cabins nearby after you add a name or change the dates, Booked no longer shows crossed out, and the way in isn't listed again under Day tours.":"Séjours en refuge : un séjour sans refuge garde sa liste de refuges proches quand vous ajoutez un nom ou changez les dates, Réservé ne s'affiche plus barré, et l'accès n'est plus répété dans les sorties à la journée.",
     "Pick a hut, the way in, your crew, ski lines, packing, meals and costs, then share the trip":"Choisissez un refuge, le chemin d'accès, votre groupe, les lignes de ski, le matériel, les repas et les coûts, puis partagez le séjour",
     "Skiing, Winter map: last winter's satellite photos (Sentinel-2) now cover all of Canada when zoomed out, under the more detailed photos around ski spots.":"Ski, carte Hiver : les photos satellite de l'hiver dernier (Sentinel-2) couvrent maintenant tout le Canada en vue éloignée, sous les photos plus détaillées autour des sites de ski.",
+    "3D map: turning and tilting are smoother while new photos come in. The ground is no longer repainted all at once on every frame, and a finger move no longer makes the map wait for the graphics chip.":"Carte 3D : tourner et incliner sont plus fluides pendant que les nouvelles photos arrivent. Le terrain n'est plus repeint en entier à chaque image, et un mouvement du doigt ne fait plus attendre la carte après la puce graphique.",
     "Your tour":"Votre sortie",
     "Finish":"Arrivée",
     "Up":"Montée",
