@@ -12,12 +12,15 @@ name: Build Winter photos, all of Canada (far view)
 # Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/project-thread-ow8ie4]   # the first build, from the pull request's branch
-    paths: [.github/workflows/winter-wide.yml]
+    inputs:
+      from_run:
+        description: "Only publish: the tiles a past run built (its run number in the address, kept 3 days)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  actions: read     # from_run: another run's tiles
 
 concurrency:
   group: winter-wide
@@ -25,6 +28,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event.inputs.from_run == ''
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
@@ -57,11 +61,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q pillow
+      - run: pip install -q rasterio pillow numpy   # wide.py --low imports what the build uses
       - uses: actions/download-artifact@v4
         with:
           pattern: wide-*
           path: parts
+          run-id: ${{ github.event.inputs.from_run || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Join the parts, zooms 3-6, list, split into three sites
         run: |
           mkdir -p out
