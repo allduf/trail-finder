@@ -758,7 +758,48 @@
     start([lat, lon], h ? h.textContent.trim() : "", null);
   });
   window.addEventListener("tf:sport", () => { if (!isFish()) clear(); });
-  window.tfFishRoute = { button, clear, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe, _buildGrid: buildGrid, _boxAround: boxAround, _warm: warm,
+  // Public roads near a point, for Skiing's Ask (ask.js carStart: alex 2026-11-11, the Microwave Ridge tour started
+  // on a forest road 4.4 km away while Pemberton Portage Road, the paved road up the valley, passes about 3 km from
+  // it: "is that road close? why you dont use it"). The forest roads files hold only resource roads, so the paved
+  // public roads come from the same OpenFreeMap tiles as above, at zoom 12 (a few tiles for 10 km around):
+  // highways and main roads, and smaller roads tagged paved. [{ name, cls, geom: [[lat, lon], ...] }]
+  const PUB_Z = 12, pubTiles = new Map();
+  function pubTile(x, y) {
+    const k = `${x}/${y}`;
+    if (!pubTiles.has(k)) pubTiles.set(k, tileTemplate().then((t) => {
+      if (!t) return null;
+      return fetch(t.replace("{z}", PUB_Z).replace("{x}", x).replace("{y}", y), { signal: AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined })
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then(readTile);
+    }).catch(() => { pubTiles.delete(k); return null; }));
+    return pubTiles.get(k);
+  }
+  async function publicRoads(lat, lon, km) {
+    const n = 2 ** PUB_Z, dy = km / 111.32, dx = dy / Math.cos(lat * RAD);
+    const x0 = Math.floor(mx(lon - dx) * n), x1 = Math.floor(mx(lon + dx) * n), y0 = Math.floor(my(lat + dy) * n), y1 = Math.floor(my(lat - dy) * n);
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 16) return [];
+    const jobs = [];
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) jobs.push(pubTile(x, y).then((t) => ({ x, y, t })));
+    const out = [];
+    for (const { x, y, t } of await Promise.all(jobs)) {
+      if (!t || !t.transportation) continue;
+      const ll = (p) => [+uny((y + p[1]) / n).toFixed(6), +(((x + p[0]) / n) * 360 - 180).toFixed(6)];
+      const names = (t.transportation_name || []).filter((f) => f.type === 2 && f.tags.name).map((f) => ({ name: String(f.tags.name), pts: f.geom.flat() }));
+      for (const f of t.transportation) {
+        const c = f.tags.class, sf = f.tags.surface;
+        if (f.type !== 2 || f.tags.brunnel === "tunnel" || c === "motorway" || sf === "unpaved") continue;
+        if (!(/^(trunk|primary|secondary|tertiary)$/.test(c) || (sf === "paved" && /^(minor|service)$/.test(c)))) continue;
+        for (const r of f.geom) {
+          // Its name: the named line that runs along it (the name layer holds the same lines).
+          const m = r[Math.floor(r.length / 2)];
+          let best = null, bd = 0.0004;
+          for (const nm of names) for (const q of nm.pts) { const d = Math.abs(q[0] - m[0]) + Math.abs(q[1] - m[1]); if (d < bd) { bd = d; best = nm.name; } }
+          out.push({ name: best || "", cls: c, geom: r.map(ll) });
+        }
+      }
+    }
+    return out;
+  }
+  window.tfFishRoute = { button, clear, publicRoads, start: (lat, lon, name, from) => start([lat, lon], name || "", from || null), _build: build, _describe: describe, _buildGrid: buildGrid, _boxAround: boxAround, _warm: warm,
     groundName: (k) => (GROUND[k] ? GROUND[k][0] : "the bush"),
     // ski-route.js (Skiing's safest way): the grid's parts it reads.
     _grid: { G, F_PAVED, F_WAY, L_MOTOR, L_STEPS, F_STREAM, F_RIVER, F_BRIDGE, F_PARK, L_PATH, L_TRACK, blocked, cellLL, cellAt, simplify, mx, my, unx, uny } };   // cabin-trip.js: the way in to a hut

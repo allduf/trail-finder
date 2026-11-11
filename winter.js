@@ -457,6 +457,12 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 .sk-hutpin.on { box-shadow: 0 0 0 3px #ffe14d, 0 1px 4px #0008; }
 .sk-hutgl { z-index: 3; }
 .sk-plangl { z-index: 5; }
+.sk-way { position: absolute; transform: translate(-50%, -50%); background: var(--c); color: #fff; font: 800 13px/1 system-ui, sans-serif; padding: 9px 12px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 1px 4px #0008; white-space: nowrap; cursor: pointer; }
+.sk-way.gl { position: static; transform: none; }
+.sk-ways { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.sk-way-btn { display: block; width: 100%; text-align: left; white-space: normal; border: 2px solid var(--c) !important; }
+.sk-way-btn b { color: var(--c); }
+.sk-way-btn small { display: block; }
 .sk-book { display: grid; gap: 4px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 10px; background: #f6efe9; border: 1px solid #e3d3c6; color: #3b1d0d; }
 .sk-hutphs { margin: 8px 0 2px; }
 .sk-hutph { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--chip, #eee); cursor: zoom-in; }
@@ -2660,11 +2666,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // The plan's labels on the 3D map too (it doesn't show Leaflet markers): Start, 1, 2 ... End and the !n watch-outs
   // (alex 2026-11-04: "put point on map in the route").
   let planGl = [];
-  function planGlPin(ll, html, z, onDrag) {
+  function planGlPin(ll, html, z, onDrag, onTap) {
     const gl = window.trailMap3d;
     if (!gl || !window.maplibregl) return;
     const el = document.createElement("div");
-    el.className = "sk-plangl"; el.style.zIndex = z; el.style.pointerEvents = onDrag ? "auto" : "none"; el.innerHTML = html;
+    el.className = "sk-plangl"; el.style.zIndex = z; el.style.pointerEvents = onDrag || onTap ? "auto" : "none"; el.innerHTML = html;
+    if (onTap) el.addEventListener("click", (e) => { e.stopPropagation(); onTap(); });
     const m = new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1, draggable: !!onDrag }).setLngLat([ll[1], ll[0]]).addTo(gl);
     if (onDrag) {
       // A tap on a point isn't a new point there; a drag moves it (alex 2026-11-04: "I want to move it on the map").
@@ -2702,6 +2709,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     routeFocus(sport === "ski" && (plan.on || (plan.show && plan.pts.length > 1)));
     plan.layer.clearLayers();
     planGl.forEach((m) => m.remove()); planGl = [];
+    if (sport === "ski" && plan.choice) { drawChoice(); return; }
     if (sport !== "ski" || (!plan.pts.length && !plan.offer)) return;
     // The tour is on the map only while it's being planned or edited, or after Show on map (alex 2026-11-04: "are we
     // always seeing the ski route on the map? i dont want to always see it"). It stays saved either way.
@@ -2795,8 +2803,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     $("skNewBtn").hidden = plan.on || n < 2;
     $("skToursBtn").hidden = !cnt;
     $("skToursBtn").textContent = `📂 Saved tours (${cnt})`;
-    card.hidden = !plan.on && n < 2 && !plan.wait && !plan.fail;
+    card.hidden = !plan.on && n < 2 && !plan.wait && !plan.fail && !plan.choice;
     if (card.hidden) return;
+    if (plan.choice && !plan.wait) { choiceCard(card); return; }
     if (n > 1 && !info && !plan.wait) warmPlanNow();
     if (info && !plan.on && plan.tour) { const t = tourOf(); if (t && t.km == null && tourSame(t)) { keepTour(false); return; } }   // its length and climb, now known
     const sum = n < 2 ? "" : !info ? `<p>Working out heights and slopes…</p>`
@@ -3167,6 +3176,100 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     } catch (e) {
       if (my !== plan.run) return;
       plan.wait = ""; plan.fail = "net"; drawPlan(); renderPlan();
+    }
+  }
+  // ---------- two ways to a place, picked on the map (ask.js) ----------
+  // alex 2026-11-11 (Ask, a ridge with no tour on it): "could be nice to see both option on the map and let the user
+  // chose directly on the map". Both less exposed ways are worked out, one after the other: from the closest road
+  // (start) and from the plowed road or parking lot the finder picks (fromRoad, as Safest way here). Both are drawn,
+  // each in its own colour with its length and time on it; a tap on a line (2D or 3D) or on its button keeps it as the
+  // tour. One way only (the other failed, or both start at the same spot): that one, as before.
+  const WAY_C = ["#1c6fe0", "#c2255c"];
+  function drawChoice() {
+    const ws = plan.choice;
+    if (!map.getPane("skiChoice")) { map.createPane("skiChoice").style.zIndex = 455; map.createPane("skiWayPt").style.zIndex = 665; }
+    ws.forEach((w, i) => {
+      const pick = () => pickWay(i);
+      for (const r of w.out.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "skiChoice", color: "#111", weight: 13, opacity: 0.45, lineCap: "round", lineJoin: "round", interactive: false }));
+      for (const r of w.out.runs) plan.layer.addLayer(L.polyline(r.pts, { pane: "skiChoice", color: "#fff", weight: 9, opacity: 1, lineCap: "round", lineJoin: "round", interactive: false }));
+      // One line over the whole way to tap (wide on a phone), named in 3D.
+      const all = w.out.runs.flatMap((r) => r.pts);
+      plan.layer.addLayer(L.polyline(all, { pane: "skiChoice", color: WAY_C[i], weight: 5, opacity: 1, lineCap: "round", lineJoin: "round", label: `${"AB"[i]}: ${w.sum}` }).on("click", (e) => { L.DomEvent.stop(e); pick(); }));
+      plan.layer.addLayer(L.polyline(all, { pane: "skiChoice", color: WAY_C[i], weight: 28, opacity: 0, interactive: true }).on("click", (e) => { L.DomEvent.stop(e); pick(); }));
+      // Its letter and length at its middle, a button on the flat map.
+      const mid = all[Math.floor(all.length * (i ? 0.5 : 0.35))];
+      const m = L.marker(mid, { pane: "skiWayPt", keyboard: false, icon: L.divIcon({ className: "", html: `<button type="button" class="sk-way" style="--c:${WAY_C[i]}">${"AB"[i]} · ${esc(w.sum)}</button>`, iconSize: [0, 0], iconAnchor: [0, 0] }) });
+      m.on("click", (e) => { L.DomEvent.stop(e); pick(); });
+      plan.layer.addLayer(m);
+      planGlPin(mid, `<button type="button" class="sk-way gl" style="--c:${WAY_C[i]}">${"AB"[i]} · ${esc(w.sum)}</button>`, 6, null, pick);
+    });
+    if (!map.hasLayer(plan.layer)) plan.layer.addTo(map);
+  }
+  function choiceCard(card) {
+    const ws = plan.choice;
+    card.innerHTML = `<p><b>Two ways to ${esc(plan.choiceName)}</b></p><p>Tap one on the map, or here, to keep it as your tour.</p>
+      <div class="sk-ways">${ws.map((w, i) => `<button type="button" class="btn sk-way-btn" data-way="${i}" style="--c:${WAY_C[i]}"><b>${"AB"[i]}: ${esc(w.label)}</b><small>${esc(w.sum)}</small></button>`).join("")}</div>
+      <div class="sk-row"><button type="button" class="btn" id="skWayCancel">Cancel</button></div>`;
+    card.querySelectorAll("[data-way]").forEach((b) => b.addEventListener("click", () => pickWay(+b.dataset.way)));
+    $("skWayCancel").addEventListener("click", () => { plan.choice = null; drawPlan(); renderPlan(); });
+  }
+  function pickWay(i) {
+    const w = plan.choice && plan.choice[i];
+    if (!w) return;
+    plan.choice = null;
+    plan.pts = w.pts; store.set("skiPlan", plan.pts);
+    plan.show = true;
+    gotSafe(w.out, planKey());
+    keepTour(true);
+  }
+  async function twoWays(top, start, startName, name) {
+    if (sport !== "ski") setSport("ski");
+    if (plan.on) setPlanning(false);
+    const my = ++plan.run;
+    clearTimeout(plan.timer);
+    plan.safe = true; store.set("skiSafe", true);
+    plan.pts = []; store.set("skiPlan", plan.pts); plan.fail = ""; plan.choice = null; setTour(null);
+    if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; aboveLayer.clearLayers(); }
+    const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
+    say("Working out two ways…");
+    drawPlan();
+    if (window.tfSnapTo) window.tfSnapTo("half");
+    if (window.tfPanelScrollTo) window.tfPanelScrollTo($("skPlan"));
+    if (window.tfRiskOk && !(await window.tfRiskOk("avy"))) { if (my === plan.run) { plan.wait = ""; renderPlan(); } return; }
+    try {
+      await loadJs("ski-route");
+      const av = await avyFor(top[0], top[1]);
+      const gate = avyGate(av);
+      if (gate) { if (my === plan.run) { plan.wait = ""; plan.fail = gate; plan.failAv = av; renderPlan(); } return; }
+      if (!av.none) av.wx = await routeWx(top, av);
+      // One after the other: both share the route finder's grids.
+      say("Way A: from " + startName + "…");
+      const a = await window.tfSkiRoute.route([start, top], av, () => {}).catch(() => ({ fail: "net" }));
+      if (my !== plan.run) return;
+      say("Way B: from the road the finder picks…");
+      const b = await window.tfSkiRoute.fromRoad(top, av, () => {}).catch(() => ({ fail: "net" }));
+      if (my !== plan.run) return;
+      const r6 = (p) => [+p[0].toFixed(6), +p[1].toFixed(6)];
+      // The length as the tour card gives it once kept: along the line drawn.
+      const lenOf = (o) => o.runs.reduce((t, r) => t + r.pts.reduce((u, p, i) => (i ? u + map.distance(r.pts[i - 1], p) : 0), 0), 0);
+      const sumOf = (o) => `${(lenOf(o) / 1000).toFixed(1)} km${o.stats.sec ? ` · about ${Math.max(1, Math.round(o.stats.sec / 1800) / 2)} h` : ""}`;
+      const ws = [];
+      if (!a.fail) ws.push({ out: a, pts: [r6(start), r6(top)], label: "from " + startName, sum: sumOf(a) });
+      if (!b.fail && !(ws.length && map.distance(b.start, start) < 300)) {
+        let label = b.park ? b.park.replace(/^Park (at|beside) /, "from ") : "from the road the finder picks";
+        if (ws.length && label === ws[0].label) label = `from another spot on ${label.slice(5)}, ${(map.distance(b.start, start) / 1000).toFixed(1)} km from A's start`;
+        ws.push({ out: b, pts: [r6(b.start), r6(top)], label, sum: sumOf(b) });
+      }
+      plan.wait = "";
+      if (!ws.length) { plan.fail = a.fail === "net" && b.fail === "net" ? "net" : b.fail || a.fail; renderPlan(); return; }
+      if (ws.length === 1) { plan.pts = ws[0].pts; store.set("skiPlan", plan.pts); plan.show = true; gotSafe(ws[0].out, planKey()); return; }
+      plan.choice = ws; plan.choiceName = name || "the top";
+      drawPlan(); renderPlan();
+      const bb = L.latLngBounds(ws.flatMap((w) => w.out.runs.flatMap((r) => r.pts)));
+      if (bb.isValid()) map.fitBounds(bb, { padding: [30, 30], maxZoom: 14 });
+    } catch (e) {
+      if (my !== plan.run) return;
+      plan.wait = ""; plan.fail = "net"; renderPlan();
     }
   }
   // The "This spot" card's 🛡 Safest way here: from the best plowed parking within 9 km.
@@ -5307,6 +5410,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo($("skPlan")), 50);
     },
     loadJs: (n) => loadJs(n),
+    // Ask (ask.js): the less exposed way in to a spot from the plowed road that gives it (as This spot's Safest way here).
+    safeTo: (lat, lon) => { if (sport !== "ski") setSport("ski"); if (plan.on) setPlanning(false); safeTo(lat, lon); },
+    // Ask (ask.js): the two ways to a place, drawn to pick from on the map.
+    twoWays: (top, start, startName, name) => twoWays(top, start, startName, name),
     KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS,
   };
   window.tfSkiOffline = (box) => {
