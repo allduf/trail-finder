@@ -1,0 +1,105 @@
+name: Build Winter photos, all of Canada (far view)
+
+# Last winter's Sentinel-2 photos over ALL of Canada south of 70 N, for the 3D and flat maps' far view (alex
+# 2026-11-11: "can we add winter map there", "should we do the same for the rest of Canada?"). The detailed Winter
+# photos only cover squares around ski spots; these go under them (map3d.js winwide / wideBytes).
+# scripts/winter-photos/wide.py draws each zoom-7 tile in data/winter-wide-tiles.json (~480) at zoom 10 (about 80 m a
+# pixel at 55 N) from the satellite's own smaller copies, in 24 jobs (~1 min a tile), then one job draws zooms 3-6,
+# lists the tiles that came out (wide.json) and publishes them on three Cloudflare Pages sites,
+# trailfinder-wide-k, k = (x * 31 + y) % 3 of the zoom-7 tile (zooms under 7 and wide.json on -0).
+# Free: the photos are open data on AWS, the build runs on GitHub's free minutes, Pages is free.
+# Runs by hand (Run workflow); the photos are last winter's, so they don't change until it's run again next spring.
+# Needs the repository secret CLOUDFLARE_API_TOKEN (Cloudflare Pages: Edit), as pages.yml.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/project-thread-ow8ie4]   # the first build, from the pull request's branch
+    paths: [.github/workflows/winter-wide.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: winter-wide
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 24
+      matrix:
+        part: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q rasterio pillow numpy
+      - name: Draw this part's zoom-7 tiles
+        run: |
+          python3 -c "
+          import json; k = ${{ matrix.part }}
+          t = json.load(open('data/winter-wide-tiles.json'))[k::24]
+          json.dump(t, open('mine.json', 'w')); print(len(t), 'tiles')"
+          # A tile that fails (network) is tried again on the second pass; done/ remembers the finished ones.
+          for pass in 1 2; do python3 scripts/winter-photos/wide.py out mine.json || true; done
+          echo "$(ls out/done | wc -l) of $(python3 -c "import json;print(len(json.load(open('mine.json'))))") done, $(find out -name '*.webp' | wc -l) tiles"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wide-${{ matrix.part }}
+          path: out
+          retention-days: 3
+
+  publish:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q pillow
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wide-*
+          path: parts
+      - name: Join the parts, zooms 3-6, list, split into three sites
+        run: |
+          mkdir -p out
+          for d in parts/*; do cp -r $d/. out/; done
+          python3 scripts/winter-photos/wide.py --low out
+          python3 - <<'EOF'
+          import json, os, shutil
+          have = sorted([int(x), int(y)] for x, y in (f.split("_") for f in os.listdir("out/done")) if os.path.getsize(f"out/done/{x}_{y}"))
+          todo = json.load(open("data/winter-wide-tiles.json"))
+          print(len(have), "of", len(todo), "zoom-7 tiles have photos")
+          for k in range(3):
+              os.makedirs(f"site{k}/trail-finder-wide", exist_ok=True)
+              open(f"site{k}/_headers", "w").write("/*\n  Access-Control-Allow-Origin: *\n")
+              open(f"site{k}/404.html", "w").write("Not found")
+          json.dump(have, open("site0/trail-finder-wide/wide.json", "w"), separators=(",", ":"))
+          for z in os.listdir("out"):
+              if not z.isdigit(): continue
+              z = int(z)
+              for x in os.listdir(f"out/{z}"):
+                  for f in os.listdir(f"out/{z}/{x}"):
+                      y = int(f[:-5]); xi = int(x)
+                      k = 0 if z < 7 else ((xi >> (z - 7)) * 31 + (y >> (z - 7))) % 3
+                      d = f"site{k}/trail-finder-wide/{z}/{x}"
+                      os.makedirs(d, exist_ok=True)
+                      shutil.move(f"out/{z}/{x}/{f}", f"{d}/{f}")
+          for k in range(3):
+              n = sum(len(fs) for _, _, fs in os.walk(f"site{k}"))
+              print("site", k, n, "files")
+              assert n < 19900, "more than Cloudflare Pages' 20,000 files"
+          EOF
+          du -sh site0 site1 site2
+      - name: Publish to Cloudflare Pages (trailfinder-wide-0..2)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 9ad76bdf11abb4440ad064451cf06d9a
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret (Settings > Secrets and variables > Actions)."; exit 1; fi
+          for k in 0 1 2; do
+            npx --yes wrangler@4 pages project create trailfinder-wide-$k --production-branch main || true
+            for try in 1 2 3; do npx --yes wrangler@4 pages deploy site$k --project-name trailfinder-wide-$k --branch main --commit-dirty=true && break; [ $try = 3 ] && exit 1; sleep 30; done
+          done
