@@ -133,8 +133,12 @@
 #skiPane .tp-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, ${COL}, #20c997); transition: width .4s ease; }
 #skiPane .tp-ready { margin: 4px 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #20c997 16%, var(--panel)); font-weight: 800; font-size: .9rem; animation: tppop .5s ease; }
 @keyframes tppop { 0% { transform: scale(.9); opacity: 0; } 60% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1); } }
-#skiPane .tp-meal { display: grid; grid-template-columns: 74px 1fr 104px; gap: 6px; align-items: center; margin: 4px 0; font-size: .84rem; font-weight: 700; }
+/* The meal on its own full-width line under the meal's name and who cooks, growing with the text so all of it shows
+   (alex 2026-11-11: "when you click on it you see everything you write"). */
+#skiPane .tp-meal { display: grid; grid-template-columns: 1fr 120px; gap: 4px 6px; align-items: center; margin: 6px 0 10px; font-size: .84rem; font-weight: 700; }
 #skiPane .tp-meal select { font-size: 13px; padding: 7px 4px; }
+#skiPane .tp-meal textarea { grid-column: 1 / -1; font: inherit; font-size: 16px; font-weight: 400; line-height: 1.35; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; resize: none; overflow: hidden; min-height: 40px; field-sizing: content; }
+#skiPane .tp-meal textarea:focus { border-color: ${COL}; outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, ${COL} 18%, transparent); }
 #skiPane .tp-costs, #skiPane .tp-pay { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 #skiPane .tp-costs li { display: flex; align-items: center; gap: 8px; padding: 6px 4px 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: .88rem; }
 #skiPane .tp-costs li span { flex: 1; display: flex; flex-direction: column; }
@@ -729,7 +733,7 @@
     const m = t.meals || {}, dates = tripDates(t), n = Object.values(m).filter((x) => x && x.what).length;
     return `<details class="tp-pack tp-meals" ${t.mealOpen ? "open" : ""}><summary>🍲 Meals <small>${n ? `${n} planned` : ""}</small></summary>
       ${dates.map((date, i) => `<h5>${esc(dayWord(date))}${i === 0 ? " · going in" : i === dates.length - 1 ? " · out" : ""}</h5>
-        ${MEALS.filter(([k]) => !(i === 0 && k === "b") && !(i === dates.length - 1 && k === "d")).map(([k, label]) => { const x = m[`${date}:${k}`] || {}; return `<div class="tp-meal"><span>${label}</span><input type="text" maxlength="60" data-meal="${date}:${k}" value="${esc(x.what || "")}" placeholder="What" autocomplete="off" aria-label="${label} ${esc(dayWord(date))}">${whoSel(t, `data-mealwho="${date}:${k}"`, x.who, "Who?")}</div>`; }).join("")}`).join("")}
+        ${MEALS.filter(([k]) => !(i === 0 && k === "b") && !(i === dates.length - 1 && k === "d")).map(([k, label]) => { const x = m[`${date}:${k}`] || {}; return `<div class="tp-meal"><span>${label}</span>${whoSel(t, `data-mealwho="${date}:${k}"`, x.who, "Who?")}<textarea rows="1" maxlength="200" data-meal="${date}:${k}" placeholder="What's for ${label.toLowerCase()}?" autocomplete="off" enterkeyhint="done" aria-label="${label} ${esc(dayWord(date))}">${esc(x.what || "")}</textarea></div>`; }).join("")}`).join("")}
       <div class="tp-btns"><button type="button" data-tp="mealshare">📤 Send the meal plan</button></div></details>`;
   }
 
@@ -965,6 +969,13 @@
     if (f) cur[f] = e.target.open;
     if (f === "jourOpen" && e.target.open) renderPhotos();
   }, true);
+  // Meal boxes grow with their text (field-sizing where the browser has it, this everywhere else). Enter is done.
+  const grow = (el) => { if (!el.offsetParent) return; el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; };
+  const growAll = () => card.querySelectorAll(".tp-meal textarea").forEach(grow);
+  card.addEventListener("input", (e) => { if (e.target.matches(".tp-meal textarea")) grow(e.target); });
+  card.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches(".tp-meal textarea")) { e.preventDefault(); e.target.blur(); } });
+  card.addEventListener("toggle", (e) => { if (e.target.open && e.target.classList.contains("tp-meals")) growAll(); }, true);
+  new MutationObserver(() => requestAnimationFrame(growAll)).observe(card, { childList: true, subtree: true });
   function renderOrg(id, f, notTyping) { const el = $(id); if (el && cur && !(notTyping && el.contains(document.activeElement))) el.innerHTML = f(cur); }
   let needRender = false;
   const typing = () => { const a = document.activeElement; return !!(a && card.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
