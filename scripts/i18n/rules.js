@@ -71,6 +71,7 @@
     [/^Was called (.+)$/, "Autrefois appelé $1"],
     [/^Photos on (.+) ↗$/, "Photos sur $1 ↗"],
     [/^Satellite photo of (.+)$/, function (m, d) { return "Photo satellite du " + dt(d); }],
+    [/^(Sentinel-2|NASA HLS) photo of (.+)$/, function (m, w, d) { return "Photo " + w + " du " + dt(d); }],   // map3d.js Live note
     [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],
     [/^⚠ Saved: (.+)$/, "⚠ Enregistré : $1"],
     [/^Biggest square allowed \((?:about )?(.+) of map\)$/, function (m, n) { return "Le plus grand carré permis (" + (/^\d/.test(n) ? "environ " : "") + n.replace("under 1 MB", "moins de 1 Mo").replace(" MB", " Mo").replace(" GB", " Go") + " de carte)"; }],
