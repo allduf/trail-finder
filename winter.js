@@ -4851,6 +4851,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const RAIN_MM = [[1, "#d3f9d8"], [5, "#8ce99a"], [10, "#51cf66"], [25, "#2f9e44"], [50, "#1b6e30"]];
   const RAIN_RGB = RAIN_MM.map(([v, c]) => [v, ...rgb(c)]);
   const MIX = "#ffe066", MIX_RGB = rgb(MIX);   // snow and rain mixed, each under its first step (paintSnowBy)
+  const LOW = "#dee2e6", LOW_RGB = rgb(LOW);   // under 1 cm of snow and under 1 mm of rain
   // Tiles stop at zoom 10 (maxNative): the grid is 7-11 km between points, so closer tiles only drew the same colours
   // with 4x as many pieces, and every piece arriving repaints the 3D ground under it (half the 3D map's lag with Snow
   // forecast on, measured over Whistler).
@@ -5055,10 +5056,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (!(e >= 0)) e = 0;
         let sn = 0, rn = 0;
         for (let m = 0; m < 4; m++) { const [a, b] = atHeight(vals[q[m]], e); sn += a * ws[m]; rn += b * ws[m]; }
-        // Under 1 cm of snow and under 1 mm of rain, but 1 mm of water or more as both: the band where snow turns to
-        // rain. It was left bare, a dark hole in the tint (alex 2026-11-11, by Pemberton); it gets its own colour, "mix".
-        const col = snowColor(sn) || snowColor(rn, RAIN_RGB) || (sn > 0.05 && rn > 0.05 && sn / CM_PER_MM + rn >= 1 ? MIX_RGB : null);
-        if (!col) continue;
+        // Under 1 cm of snow and under 1 mm of rain was left bare, and the dark valley photo under it looked like a hole
+        // in the layer (alex 2026-11-11, by Pemberton: a dry patch in a wet day). Now: 1 mm of water or more as both
+        // (where snow turns to rain) is "mix", and less than that is a pale "<1", so every spot shows an answer.
+        const col = snowColor(sn) || snowColor(rn, RAIN_RGB) || (sn > 0.05 && rn > 0.05 && sn / CM_PER_MM + rn >= 1 ? MIX_RGB : LOW_RGB);
         const k = (py * 256 + px) * 4;
         o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 150;
       }
@@ -5109,7 +5110,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (shown.has("flats")) out.push(bar(map.getZoom() < 11 ? "Flats: zoom in" : "Flats", [[`rgba(${FLAT_RGB.join(",")},.6)`, `under ${FLAT_DEG}°`]]));
       if (shown.has("elev")) out.push(bar("Elevation bands", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
       const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
-      const mm = [[MIX, "mix"], ...RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)])];
+      const mm = [[LOW, "<1"], [MIX, "mix"], ...RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)])];
       if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm), bar("Rain instead, last 24 h (mm)", mm));
       if (shown.has("snowfc1")) out.push(bar("Snow coming, next 24 h (cm)", cm), bar("Rain instead, next 24 h (mm)", mm));
       if (shown.has("snowfc2")) out.push(bar("Snow coming, next 2 days (cm)", cm), bar("Rain instead, next 2 days (mm)", mm));
