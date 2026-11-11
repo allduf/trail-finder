@@ -584,6 +584,14 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     return list.length ? JSON.stringify(list) : null;
   };
   const MERGE = {
+    // Your own packing items and the ones you leave out (cabin-trip.js): both devices' kept, so signing in never drops one.
+    tripPack: (a, b) => {
+      const x = jparse(a, null) || {}, y = jparse(b, null) || {};
+      if (!a && !b) return null;
+      const own = [], seen = new Set();
+      [...(x.own || []), ...(y.own || [])].forEach((o) => { const k = o && String(o.label || "").toLowerCase(); if (k && !seen.has(k)) { seen.add(k); own.push(o); } });
+      return JSON.stringify({ own, hide: [...new Set([...(x.hide || []), ...(y.hide || [])])] });
+    },
     listGone: (a, b) => {
       const all = {};
       [...jparse(a, []), ...jparse(b, [])].forEach((g) => { const id = g && g.k && g.id != null && g.k + "\n" + g.id; if (id && !(all[id] && all[id].at >= g.at)) all[id] = g; });
@@ -657,13 +665,22 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     huntAlarms: [(v) => { const x = jparse(v, null); return x && x.on ? Object.values(x.on).filter(Boolean).length : 0; }, "your alerts"],
   };
   const NUDGE_KEY = "tf:signNudge", DAY = 864e5;
+  // Only right after a tap on a Save button (alex 2026-11-11: "i want it to pop just if a user that is not already
+  // signed in clicks on save"): never when something is kept by itself (a cabin trip as you plan it, a tour on ✓ Done)
+  // or when an alert is turned on.
+  let saveTap = 0;
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("button, [role=button], a");
+    if (b && /\b(save|saved)\b|enregistr|sauvegard/i.test(b.textContent || b.getAttribute("aria-label") || "")) saveTap = Date.now();
+  }, true);
   function nudgeCheck(prev, cur) {
     if (api.user || api.savedSession) return;
+    if (Date.now() - saveTap > 4000) return;
     let what = "";
     for (const k in NUDGE) {
       if (cur[k] === prev[k]) continue;
       const [count, name] = NUDGE[k];
-      try { if (count(cur[k]) > count(prev[k])) { what = name; break; } } catch {}
+      try { if (count(cur[k]) >= count(prev[k])) { what = name; break; } } catch {}   // added or saved again (a trip saved offline)
     }
     if (!what) return;
     const st = jparse(lsGet(NUDGE_KEY), null) || {}, now = Date.now();
