@@ -2334,6 +2334,14 @@
         sky: { "sky-color": "#5d9be0", "horizon-color": "#d8e6f2", "fog-color": "#bfd2e4", "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.7, "atmosphere-blend": 0.9 },
       },
     });
+    // Hidden behind the flat map, the 3D map draws nothing: it kept drawing the tiles still arriving (and asking for
+    // more), ~0.5 s of a slowed phone in the moment after "▭ 2D map" was tapped, and the phone's memory saver
+    // (sleep3d, 10 s later) then waited ~8 s for those drawings to finish (app test 2026-11-11, alex: "fix").
+    // Shown again, the first move or resize draws it where it is now.
+    {
+      const render = gl._render;
+      if (typeof render === "function") gl._render = function () { if (!on && box.hidden) { this._frameRequest = null; return this; } return render.apply(this, arguments); };
+    }
     // How sharp the photos are, near and far (alex, 2026-10-18: "it lag" and "i dont like the resolution make it
     // better"). The photos come one zoom deeper than MapLibre would pick for their size (tileSize 128 below), so
     // up close they're as sharp as the screen, and the far ones get a little softer with distance (6 zoom levels
