@@ -171,7 +171,7 @@
   //  - Challenging: any real stretch (0.1 km) on 30°+, under steep slopes above, or in a terrain trap.
   //  - Simple: none of that.
   const CLASSES = [null,
-    { key: "simple", label: "Simple", color: "#2f9e44", what: "Mostly gentle ground or open slopes, with little avalanche terrain seen above or below." },
+    { key: "simple", label: "Simple", color: "#2f9e44", what: "Mostly gentle ground or open slopes, with little avalanche terrain." },
     { key: "challenging", label: "Challenging", color: "#1971c2", what: "Some avalanche paths or steep slopes to cross or pass under: choose the way carefully." },
     { key: "complex", label: "Complex", color: "#1a1a1a", what: "Long stretches on or under steep slopes, with few ways to avoid them." }];
   function terrainClass(i) {
@@ -179,11 +179,14 @@
     const above = i.above || 0, traps = i.traps || 0, why = [];
     if (i.km35 >= 0.05) why.push(`${i.km35.toFixed(1)} km on slopes of 35° or more`);
     else if (i.km30 >= 0.05) why.push(`${i.km30.toFixed(1)} km on slopes of 30° or more`);
-    if (above >= 0.05) why.push(`${above.toFixed(1)} km under steep slopes`);
-    if (traps >= 0.05) why.push(`${traps.toFixed(1)} km in gullies or creek beds (terrain traps)`);
     const c = i.km35 >= 0.25 || i.km30 >= 1 || above >= 1 || (above >= 0.3 && traps >= 0.2) ? 3
       : i.km30 >= 0.1 || above >= 0.1 || traps >= 0.1 ? 2 : 1;
-    if (!why.length) why.push("no slopes of 30° or more seen on or above the route on the terrain map (it can miss small slopes)");
+    // Steep slopes above and terrain traps still count (the class never reads lower for leaving them out), but they're
+    // not named (alex 2026-11-11: "Don't show the terrain traps and what is above you because the data is not accurate
+    // enough"): when they raised it, only "the ground around the route".
+    const bySlope = i.km35 >= 0.25 || i.km30 >= 1 ? 3 : i.km30 >= 0.1 ? 2 : 1;
+    if (c > bySlope) why.push("the shape of the ground around the route on the terrain map");
+    if (!why.length) why.push("no slopes of 30° or more seen on the route on the terrain map (it can miss small slopes)");
     return { c, ...CLASSES[c], why };
   }
   // Avaluator trip planner chart: rows = danger rating 1 Low to 5 Extreme, columns = Simple, Challenging, Complex.
