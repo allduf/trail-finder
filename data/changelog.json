@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-11", "text": "On a computer, the new ☰ Menu button at the top of the side panel has everything the phone's More menu has: sport, language, Google's AI, account, offline maps, saved tours, help and more. Ask also finds a place typed in one word, like microwaveridge."},
     {"date": "2026-11-10", "text": "3D: tilting no longer zooms in or out. The camera stays at the same height and only the angle changes, so tilting up looks out to the horizon instead of dropping down to the snow."},
     {"date": "2026-11-10", "text": "Ask: when Google's AI is turned off, the note in Ask now has a Turn Google's AI back on button, so a No tapped by accident is quick to undo."},
     {"date": "2026-11-10", "text": "Skiing: Ask goes to the mountain or ridge you name (it used to land on a peak nearby), and when no ski tour is mapped on it, it plans one from the closest road to it. The tours nearby stay one tap away."},
