@@ -203,6 +203,18 @@ body:not(.sport-ski) #avyBtn, body:not(.sport-ski) #skiPane { display: none !imp
 #skiPane .sk-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 #skiPane .sk-act { font: inherit; font-size: .88rem; font-weight: 700; padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
 #skiPane #skSaveBtn { display: none; }
+/* Simple at first (alex 2026-11-11, "over information for just opening the app"): Record a tour has its home on the map
+   (computer) and in the Track tab (phones); the lists across Canada are one row of small buttons, not 3-4 big ones. */
+#skiPane #skRecBtn { display: none !important; }
+#skiPane .sk-explore { display: flex; flex-wrap: wrap; gap: 6px; }
+#skiPane .sk-explore:not(:has(> :not([hidden]))) { display: none !important; }
+#skiPane .sk-explore > button { width: auto !important; min-height: 34px !important; margin: 0 !important; padding: 6px 12px !important; border-radius: 999px !important; font-size: .82rem !important; font-weight: 600 !important; text-align: center !important; }
+#skiPane .sk-explore > button::after { content: none !important; }
+#skiPane .sk-explore > .sa-open { order: 1 !important; } #skiPane .sk-explore > .hc-open { order: 2 !important; } #skiPane .sk-explore > .sc-open { order: 3 !important; } #skiPane .sk-explore > .fr-open { order: 4 !important; }
+#skiPane details.av-wxd > summary { cursor: pointer; font-weight: 700; font-size: .86rem; margin: 6px 0 2px; }
+#skiPane .av-wxn { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: #f08c00; color: #fff; font-size: .72rem; text-align: center; }
+#skiPane details.sk-est-why > summary { cursor: pointer; font-weight: 700; margin-top: 6px; }
+#skiPane details.sk-est-why > p { margin: 4px 0 0; }
 @media (max-width: 760px) {
   #skiPane .sk-acts { grid-template-columns: repeat(3, 1fr); }
   #skiPane .sk-act { font-size: .8rem; padding: 10px 4px; }
@@ -651,6 +663,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Search results"></ul>
     <button type="button" class="sk-now" id="skNow" hidden></button>
     <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button><button type="button" class="sk-act" id="skNewBtn" hidden>＋ Plan a new tour</button><button type="button" class="sk-act" id="skToursBtn" hidden>📂 Saved tours</button></div>
+    <div class="sk-explore" id="skExplore" role="group" aria-label="Explore"></div>
     <div class="sk-slopekey" id="skSlopeKey" hidden></div>
     <div class="sk-slopekey" id="skLayerKey" hidden></div>
     <div class="sk-card sk-plan" id="skPlan" hidden></div>
@@ -3456,11 +3469,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     };
     // Top of every planned tour (Safest way liability review 2026-11-06, alex picked "Rename + safer wording"): what it
     // is, that it can't see today's snowpack, that the call is theirs, and today's danger, before any step of the way.
-    const topWarn = `<div class="sk-warn sk-est"><b>A computer's estimate, not a safe route.</b> It can't see today's snowpack, cornices or wind loading. You decide whether and where to go.
-      <span class="sk-est-dg">${av.none ? "" : `<span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${chip(v)}</span>`).join("")}`}</span></div>`;
-    // No forecast (alex 2026-11-09): the way is still drawn, from the terrain only, with this first and why there's none.
+    // One box, the essentials in view (alex 2026-11-11: too much to read when the app opens): both headlines, "you decide",
+    // today's danger and "a forecast is in now"; why there's no forecast and the link to the forecast folded under Why.
+    // The wording itself is unchanged (Safest way liability review 2026-11-06; no forecast, alex 2026-11-09).
     const fcNow = av.none && avyFor.has(sp.line[0][0], sp.line[0][1]);
-    const noFc = av.none ? `<div class="sk-warn sk-est sk-nofc"><b>No avalanche forecast included.</b> <span>${esc(noFcWhy(av, sp.line[0]))}</span> <span>This way is from the terrain only: slope angle and steep slopes above. It doesn't know today's avalanche danger or avalanche problems. Check</span> ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}.${fcNow ? ` <b>A forecast is in now: tap ↻ Find again below to use it.</b>` : ""}</div>` : "";
+    const topWarn = `<div class="sk-warn sk-est${av.none ? " sk-nofc" : ""}">${av.none ? `<b>No avalanche forecast included.</b> ` : ""}<b>A computer's estimate, not a safe route.</b> It can't see today's snowpack, cornices or wind loading. You decide whether and where to go.
+      ${av.none ? "" : `<span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${chip(v)}</span>`).join("")}</span>`}${fcNow ? ` <b>A forecast is in now: tap ↻ Find again below to use it.</b>` : ""}
+      ${av.none ? `<details class="sk-est-why"><summary>Why no forecast</summary><p><span>${esc(noFcWhy(av, sp.line[0]))}</span> <span>This way is from the terrain only: slope angle and steep slopes above. It doesn't know today's avalanche danger or avalanche problems. Check</span> ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}.</p></details>` : ""}</div>`;
+    const noFc = "";
     return `<div class="sk-safe">
       ${noFc}
       ${topWarn}
@@ -4173,14 +4189,20 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let avMore = false;
   // The avalanche weather on the card: at the alpine height of the forecast area in the middle of the map.
   let cardWx = { key: "", html: "" };
+  let wxOpen = false;
   function cardWeather(c, ele) {
     const lat = Math.round(c.lat * 10) / 10, lon = Math.round(c.lng * 10) / 10, key = `${lat},${lon},${ele}`;
-    if (cardWx.key === key) return cardWx.html;
+    const opened = (h) => (wxOpen ? h.replace('<details class="av-wxd">', '<details class="av-wxd" open>') : h);
+    if (cardWx.key === key) return opened(cardWx.html);
     cardWx = { key, html: `<p class="sk-note">Loading the avalanche weather…</p>` };
-    const put = (html) => { if (cardWx.key !== key) return; cardWx.html = html; const el = $("avWx"); if (el) el.innerHTML = html; };
-    weather(lat, lon, ele).then((w) => put(`<h5>Avalanche weather at ${fmtM(ele)}</h5>${signsHtml(avyWeather(w, ele), ele)}`), () => put(""));
+    const put = (html) => { if (cardWx.key !== key) return; cardWx.html = html; const el = $("avWx"); if (el) el.innerHTML = opened(html); };
+    // Folded under its title (alex 2026-11-11: keep the panel simple at first); the orange number says how many warning
+    // signs are inside. The danger ratings above stay in view.
+    weather(lat, lon, ele).then((w) => { const a = avyWeather(w, ele), n = a && a.signs ? a.signs.length : 0;
+      put(`<details class="av-wxd"><summary>Avalanche weather at ${fmtM(ele)}${n ? `<span class="av-wxn">${n}</span>` : ""}</summary>${signsHtml(a, ele)}</details>`); }, () => put(""));
     return cardWx.html;
   }
+  $("avCard").addEventListener("toggle", (e) => { if (e.target.classList && e.target.classList.contains("av-wxd")) wxOpen = e.target.open; }, true);
   function renderForecast() {
     const card = $("avCard");
     card.hidden = !(sport === "ski" && (avyOn || shown.has("tour")) && $("skDetail").hidden);   // a route's details have their own

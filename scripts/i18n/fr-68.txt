@@ -1,3 +1,6 @@
+Backcountry areas ||| Secteurs hors-piste
+Why no forecast ||| Pourquoi pas de bulletin
+Skiing opens simpler: the tour buttons sit two by two, the lists across Canada are one row of small buttons, the avalanche weather folds under its title (the orange number counts its warning signs) and a tour's two warnings are one box, with why there's no forecast a tap away. ||| Le ski s'ouvre plus simplement : les boutons de sortie sont deux par deux, les listes partout au Canada tiennent sur une rangée de petits boutons, la météo avalanche se replie sous son titre (le chiffre orange compte ses signes d'alerte) et les deux avertissements d'une sortie tiennent dans une seule boîte, avec la raison de l'absence de bulletin à un toucher.
 Start a new trip ||| Commencer un nouveau séjour
 Trip name ||| Nom du séjour
 My trip ||| Mon séjour
