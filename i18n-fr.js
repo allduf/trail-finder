@@ -2453,6 +2453,7 @@
     "Type their name and tap Add: it goes on that item.":"Tapez son nom et touchez Ajouter : il ira sur cet article.",
     "Tap Who? beside a shared item (stove, first aid, your own items) to say who brings it, so nobody brings two.":"Touchez Qui ? à côté d'un article commun (réchaud, trousse de premiers soins, vos propres articles) pour dire qui l'apporte, pour que personne n'en apporte deux.",
     "Packing list: Who? is beside every shared item and your own items, even before you add the group's names (Add a name… adds one), and Who brings what at the top lists each person's items.":"Liste à emporter : Qui ? est à côté de chaque article commun et de vos propres articles, même avant d'ajouter les noms du groupe (Ajouter un nom… en ajoute un), et Qui apporte quoi en haut liste les articles de chacun.",
+    "Skiing, Winter map: last winter's satellite photos (Sentinel-2) now cover all of Canada when zoomed out, under the more detailed photos around ski spots.":"Ski, carte Hiver : les photos satellite de l'hiver dernier (Sentinel-2) couvrent maintenant tout le Canada en vue éloignée, sous les photos plus détaillées autour des sites de ski.",
     "Your tour":"Votre sortie",
     "Finish":"Arrivée",
     "Up":"Montée",
