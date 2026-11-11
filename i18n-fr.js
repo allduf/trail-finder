@@ -2268,6 +2268,8 @@
     "What's for lunch?":"Quoi pour le dîner?",
     "What's for dinner?":"Quoi pour le souper?",
     "Cabin trips: each meal has its own full-width box that grows with what you write, so the whole meal is always easy to read.":"Séjours en refuge : chaque repas a sa propre case pleine largeur qui s'agrandit avec ce que vous écrivez, pour que tout le repas reste facile à lire.",
+    "Search: the first letter you type shows at once now, even right after opening Find.":"Recherche : la première lettre tapée s'affiche tout de suite, même juste après avoir ouvert Trouver.",
+    "3D: going back to the flat map no longer freezes the phone for a moment, and the short pause a few seconds later is gone.":"3D : revenir à la carte plate ne fige plus le téléphone un instant, et la courte pause quelques secondes plus tard a disparu.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
     "Sign in so your alerts follow you to a new phone. Free, and the app works the same without it.":"Connectez-vous pour que vos alertes vous suivent sur un nouveau téléphone. C'est gratuit, et l'appli fonctionne pareil sans compte.",
