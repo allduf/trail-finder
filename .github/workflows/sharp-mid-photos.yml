@@ -54,6 +54,6 @@ jobs:
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret (Settings > Secrets and variables > Actions)."; exit 1; fi
           for k in 0 1 2 3 4 5 6 7 8 9; do
-            npx --yes wrangler@4 pages project create trailfinder-sharp-$k --production-branch main || true
-            for try in 1 2 3; do npx --yes wrangler@4 pages deploy sites/sharp-$k --project-name trailfinder-sharp-$k --branch main --commit-dirty=true && break; [ $try = 3 ] && exit 1; sleep 20; done
+            npx --yes wrangler@4.160.1 pages project create trailfinder-sharp-$k --production-branch main || true
+            for try in 1 2 3; do npx --yes wrangler@4.160.1 pages deploy sites/sharp-$k --project-name trailfinder-sharp-$k --branch main --commit-dirty=true && break; [ $try = 3 ] && exit 1; sleep 20; done
           done

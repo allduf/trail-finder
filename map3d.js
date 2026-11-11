@@ -6,7 +6,7 @@
   "use strict";
   const map = window.tfLeaflet, btn = document.getElementById("btn3d");
   if (!map || !btn || !window.L) return;
-  const LIB = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl";
+  const LIB = "vendor/maplibre-gl-5.24.0";
   // Town, peak and lake names in letters the user can read (alex 2026-10-30, in Japan: "Can we have the map in
   // English"): a name written in another script (Japanese, Korean, Russian...) shows its English name, or the
   // Latin-letter one from OpenMapTiles; French users get the French name first. Names already in Latin letters stay as
