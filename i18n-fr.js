@@ -2446,6 +2446,7 @@
     "km left":"km restants",
     "Then turn left":"Puis tournez à gauche",
     "Then turn right":"Puis tournez à droite",
+    "Cabin trips: a trip with no cabin keeps its list of cabins nearby after you add a name or change the dates, Booked no longer shows crossed out, and the way in isn't listed again under Day tours.":"Séjours en refuge : un séjour sans refuge garde sa liste de refuges proches quand vous ajoutez un nom ou changez les dates, Réservé ne s'affiche plus barré, et l'accès n'est plus répété dans les sorties à la journée.",
     "Your tour":"Votre sortie",
     "Finish":"Arrivée",
     "Up":"Montée",
