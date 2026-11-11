@@ -2084,6 +2084,7 @@
     "The spot card's avalanche lines are now worded as what the terrain map shows, never a promise that a slope is safe: for example \"no steep slopes above\" now says it's an estimate within 350 m uphill that can miss small slopes, cornices and long avalanche paths.":"Les lignes d'avalanche de la fiche « Cet endroit » disent maintenant ce que montre la carte du relief, jamais une promesse qu'une pente est sécuritaire : par exemple « aucune pente raide au-dessus » dit maintenant que c'est une estimation à moins de 350 m en amont, qui peut manquer de petites pentes, des corniches et de longs couloirs d'avalanche.",
     "Skiing: the Shredder line in Ruby Bowl at Whistler is gone from the map, since it doesn't exist anymore.":"Ski : la ligne Shredder dans Ruby Bowl à Whistler n'est plus sur la carte, puisqu'elle n'existe plus.",
     "Tom's Hut is off the map, the cabin trip planner, Ask and search.":"Tom's Hut a été retiré de la carte, du planificateur de séjour en refuge, de Demander et de la recherche.",
+    "Search: typing a name in the search box (MTB and Skiing) keeps up with your fingers now. The list updates once you pause instead of after every letter.":"Recherche : quand vous tapez un nom dans la boîte de recherche (vélo de montagne et ski), l'app suit maintenant vos doigts. La liste se met à jour dès que vous faites une pause au lieu d'après chaque lettre.",
     "Safest way here":"Trajet le plus sûr jusqu'ici",
     "Find the safest way":"Trouver le trajet le plus sûr",
     "Safest way: on":"Trajet le plus sûr : activé",
