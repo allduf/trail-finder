@@ -1765,7 +1765,10 @@
       const m = await fillTile(z, x, y, covered(have, z, x, y), abort, winterSite(have, z, x, y), sharp).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
       if (m.miss14) { const b = (x >> 3) + "/" + (y >> 3); missing14.set(b, (missing14.get(b) || 0) + 1); }
       if (m.data) return { data: m.data };
-      // No winter photo here after all, or it couldn't be read: the summer photo rather than a hole to the sky.
+      // No winter photo here after all, or it couldn't be read: the summer photo rather than a hole to the sky. But
+      // not where the far-view winter photos of all of Canada are under it: a summer square over them (zoomed far out
+      // over the Yukon and northern BC, 2026-11-11 test) looked like the gap alex had asked to fill.
+      if (z <= WIDE_TOP && hasWide(await loadWide(), z, x, y)) return noTile();
       return covered(have, z, x, y) ? { data: await photoBytes(z, x, y, abort.signal) } : noTile();
     });
   }
