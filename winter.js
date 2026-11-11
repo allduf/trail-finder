@@ -1399,7 +1399,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const t = e.target.closest("[data-tab]"); if (!t) return;
     listTab = t.dataset.tab; store.set("skiTab", listTab); renderList();
   });
-  $("skFind").addEventListener("input", (e) => { findText = e.target.value; renderList(); renderPlaces(); });
+  // The list and places are redrawn once the typing pauses (120 ms), like MTB's search: redrawn on every letter, the
+  // letters lagged 130-390 ms each behind the fingers on a slowed phone (app test 2026-11-11). An emptied box is at once.
+  let findTimer = 0;
+  const findNow = () => { clearTimeout(findTimer); findTimer = 0; renderList(); renderPlaces(); };
+  $("skFind").addEventListener("input", (e) => { findText = e.target.value; clearTimeout(findTimer); if (!findText.trim()) findNow(); else findTimer = setTimeout(findNow, 120); });
   // One search box at the top of Skiing, like every other sport (alex 2026-11-03: "can we add a search option like
   // every sport"). While typing, what matches shows right under the box: ski resorts, backcountry areas, heli and cat
   // skiing (ski-areas.js, helicat.js), slackcountry and freeride lines, routes and huts, then Canadian towns
@@ -1518,7 +1522,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       renderPlaces();
     } catch { msg.textContent = "Couldn't reach the place search. Check your signal, or move the map yourself."; }
   }
-  $("skFindForm").addEventListener("submit", (e) => { e.preventDefault(); askPlaces(); });
+  $("skFindForm").addEventListener("submit", (e) => { e.preventDefault(); if (findTimer) findNow(); askPlaces(); });
   $("skPlaces").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.hasAttribute("data-more")) { askPlaces(); return; }
