@@ -369,7 +369,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     const rs = on && isSki() ? near()[0] : null;
     listBtn.hidden = !rs;
     if (rs) listBtn.textContent = `⛷ Slackcountry at ${rs.name}`;
-    if (!listBtn.isConnected) { const acts = document.querySelector("#skiPane .sk-acts"); if (acts) acts.after(listBtn); }
+    if (!listBtn.isConnected) { const ex = document.getElementById("skExplore"), acts = document.querySelector("#skiPane .sk-acts"); if (ex) ex.append(listBtn); else if (acts) acts.after(listBtn); }
   }
   listBtn.addEventListener("click", () => { const rs = near()[0]; if (rs) openList(rs); });
   btn.addEventListener("click", () => { on = !on; try { localStorage.setItem("tf:skiSlack", String(on)); } catch {} sync(); });
