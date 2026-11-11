@@ -424,7 +424,17 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   const inThe = (q) => { const m = norm(q).match(/\b(?:in|at|to|around) the ([a-z][a-z ]{2,30})$/); return m ? m[1] : ""; };
 
   // The place named: a riding area or zone by its name, else the place search (OpenStreetMap), else the AI's own spot.
+  // A place typed glued together, "microwaveridge", "mountrohr" (alex 2026-11-11: "i wan to ski on microwaveridge"
+  // landed on Kafir Peak): the ridge, peak, lake or the like apart, so the place search finds Microwave Ridge.
+  const GLUED = /([a-zà-ÿ]{3,}?)(ridge|peak|mountain|glacier|icefield|lake|creek|basin|valley|bowl|couloir|pass|col|hut|cabin)$/i;
+  const unglue = (place) => String(place || "").split(/\s+/).map((w) => {
+    let m = w.match(/^(mount)(?!ain)([a-zà-ÿ]{3,})$/i);
+    if (m) return m[1] + " " + m[2][0].toUpperCase() + m[2].slice(1);
+    m = !/(bridge|tridge|rridge|flake|tocol|compass|bypass|overpass|underpass|trespass)$/i.test(w) && w.match(GLUED);
+    return m ? m[1] + " " + (w[0] === w[0].toUpperCase() ? m[2][0].toUpperCase() + m[2].slice(1) : m[2]) : w;
+  }).join(" ");
   async function whereOf(p) {
+    if (p.place) p.place = unglue(p.place);
     if (p.sport === "ski" && !p.near_me && !p.place && inThe(p.q)) { const a = await skiAreaOf(inThe(p.q)); if (a) { p.place = a.name; return a; } }
     if (p.near_me || !p.place) return youOr();
     const n = norm(p.place);
@@ -450,7 +460,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       const ok = (x) => p.sport !== "ski" || !/\bbike|\bjump park|\bskate|\bpump track|\bbmx\b/i.test(x.name + " " + (x.sub || ""));
       // The place by the name typed before the service's first hit (alex 2026-11-10: "ski on microwave ridge" looked
       // near Kafir Peak, the peak on that ridge, which the search lists first).
-      const same = (x) => norm(x.name) === n;
+      const same = (x) => norm(x.name) === n || norm(x.name).replace(/ /g, "") === n.replace(/ /g, "");
       const h = hits && (hits.find((x) => x.ca && ok(x) && same(x)) || hits.find((x) => x.ca && ok(x)) || (!p.ll && (hits.find((x) => ok(x) && same(x)) || hits.find(ok))));
       // A mountain, ridge, pass, glacier or the like: a spot to ski on, not a town to look around.
       if (h) return { c: [h.lat, h.lon], name: h.name, bb: h.bb, kind: h.kind, spot: /^(Mountain|Ridge|Pass|Glacier|Plateau|Valley|Mountain range)$/.test(h.kind || "") };
