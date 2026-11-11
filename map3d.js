@@ -2097,6 +2097,28 @@
   // A 10-minute Blackcomb session piled up ~110 of them and the graphics memory kept climbing (120 -> 435 MB)
   // until the iPhone app restarted (phone test, 2026-10-27). So the new heights go into the tile's own picture.
   // MapLibre internals: any surprise just skips it.
+  //
+  // Only the edges are sent again (alex 2026-11-11, "rotation lag more by the second end of the video": turning
+  // zoomed out over Whistler). A height tile already on the graphics card that gets a neighbour only changes in its
+  // 1-pixel border (MapLibre's backfillBorder), but the whole 1 MB tile was sent again, up to 8 tiles for every new
+  // one, and that happened in the middle of a frame, while the screen's tiles were being picked. 31 such re-sends in a
+  // 60-step turn took 25 s of an 87 s test (software graphics). Now the four border lines go up (~8 KB); a tile
+  // whose heights were replaced (reloaded) still goes up whole.
+  function edgesOnly(t) {
+    const tex = t.demTexture, s = t.dem.stride, data = t.dem.data;
+    if (!tex.size || tex.size[0] !== s || tex.size[1] !== s || !data || !data.buffer) return false;
+    const px = new Uint8Array(data.buffer, data.byteOffset, s * s * 4), col = (x) => {
+      const out = new Uint8Array(s * 4);
+      for (let y = 0; y < s; y++) out.set(px.subarray((y * s + x) * 4, (y * s + x) * 4 + 4), y * 4);
+      return out;
+    };
+    const send = (x, y, w, h, bytes) => tex.update({ width: w, height: h, data: bytes }, { premultiply: false }, { x, y });
+    send(0, 0, s, 1, px.subarray(0, s * 4));
+    send(0, s - 1, s, 1, px.subarray((s - 1) * s * 4, s * s * 4));
+    send(0, 0, 1, s, col(0));
+    send(s - 1, 0, 1, s, col(s - 1));
+    return true;
+  }
   let demFixed = false;
   function fixDemLeak() {
     if (demFixed || !gl.terrain) return;
@@ -2109,12 +2131,14 @@
           const t = this.tileManager.getSourceTile(tileID, true);
           if (t && t.dem && t.demTexture && t.needsTerrainPrepare) {
             const gl2 = this.painter.context.gl;
-            t.demTexture.update(t.dem.getPixels(), { premultiply: false });
+            if (t.tfDemSent === t.dem && !edgesOnly(t)) t.tfDemSent = null;
+            if (t.tfDemSent !== t.dem) t.demTexture.update(t.dem.getPixels(), { premultiply: false });
             t.demTexture.bind(gl2.NEAREST, gl2.CLAMP_TO_EDGE);
             t.needsTerrainPrepare = false;
           }
         } catch {}
         const out = orig.apply(this, arguments);
+        try { const t = this.tileManager.getSourceTile(tileID, true); if (t && t.dem && t.demTexture && !t.needsTerrainPrepare) t.tfDemSent = t.dem; } catch {}
         if (!texFixed && this._emptyDemTexture) closeUploaded(Object.getPrototypeOf(this._emptyDemTexture));
         return out;
       };

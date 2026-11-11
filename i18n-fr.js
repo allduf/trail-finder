@@ -2275,6 +2275,7 @@
     "in all. Each one's share":"en tout. La part de chacun",
     "Cabin trips: each cost can be split between only some of the group. Tap the names under a cost to take people in or out, and who pays whom follows.":"Séjours en refuge : chaque dépense peut être partagée entre une partie du groupe seulement. Touchez les noms sous une dépense pour ajouter ou retirer des gens, et qui paie qui suit.",
     "All":"Tous",
+    "3D: turning the view zoomed out over many mountains is smoother. New ground no longer makes the map stop to resend the tiles next to it.":"3D : tourner la vue de loin au-dessus de nombreuses montagnes est plus fluide. Le nouveau terrain ne fait plus s'arrêter la carte pour renvoyer les tuiles voisines.",
     "3D Live photo: now Sentinel-2 at 10 m, three times sharper than before, from the newest mostly clear pass of the last 60 days. The note under the buttons gives the satellite and the photo's date; clouds or snow in the photo are as the satellite saw them that day.":"Photo Live en 3D : maintenant Sentinel-2 à 10 m, trois fois plus nette qu'avant, du passage le plus récent surtout dégagé des 60 derniers jours. La note sous les boutons donne le satellite et la date de la photo; les nuages ou la neige sur la photo sont tels que le satellite les a vus ce jour-là.",
     "Saved on this phone only":"Enregistré sur ce téléphone seulement",
     "Keep your alerts":"Gardez vos alertes",
