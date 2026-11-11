@@ -343,12 +343,21 @@
   async function loadDays(t) {
     if (!t.hut) return;
     const my = ++seq;
+    const r = await snapOf(t);
+    if (my !== seq || cur !== t) return;
+    if (r.err) { view = t.snap ? { ...t.snap, old: true, err: r.err } : { err: r.err }; renderDays(); return; }
+    view = r.snap;
+    t.snap = view;
+    putTrip(t, true);
+    renderDays();
+  }
+  // The forecast rows for a trip, worked out fresh: { snap } or { err }.
+  async function snapOf(t) {
     const ele = t.way ? t.way.hut : parseFloat(t.hut.tags.ele) || null;
     let w = null, err = "";
     try { w = await S.weather(t.hut.lat, t.hut.lon, ele); } catch (e) { err = e.message || "no signal"; }
     await S.avy().catch(() => {});
-    if (my !== seq || cur !== t) return;
-    if (!w) { view = t.snap ? { ...t.snap, old: true, err } : { err }; renderDays(); return; }
+    if (!w) return { err: err || "no signal" };
     const dd = w.daily, lo = t.way ? t.way.min : (ele || 1500) - 300, hi = t.way ? t.way.max : (ele || 1500) + 300;
     const cls = t.way ? t.way.cls : 0;
     const rows = tripDates(t).map((date, j) => {
@@ -365,10 +374,53 @@
     const bi = [-3, -2, -1].map((k) => dd.time.indexOf(addDays(t.date, k))).filter((i) => i >= 0);
     const before = bi.length ? { snow: bi.reduce((s, i) => s + (dd.snowfall_sum[i] || 0), 0), wind: Math.max(...bi.map((i) => dd.wind_speed_10m_max[i] || 0)), n: bi.length } : null;
     const end = dd.time.at(-1);
-    view = { at: Date.now(), rows, before, end, ele: Math.round(ele || w.elevation || 0), example: S.example() };
-    t.snap = view;
-    putTrip(t, true);
-    renderDays();
+    return { snap: { at: Date.now(), rows, before, end, ele: Math.round(ele || w.elevation || 0), example: S.example() } };
+  }
+
+  // ---------- the day before: everything that changes, updated by itself (alex 2026-11-11) ----------
+  // A web page (and the iPhone app) can't run while it's closed, so this runs each time the app is opened or comes
+  // back to the screen, from the day before the trip to its last day (winter.js loads this file for it even when
+  // another sport is on): the weather and avalanche danger for each day go into the trip (t.snap, with the time they
+  // were fetched), and the trip's offline save gets the latest ski, avalanche and snow files (the service worker
+  // keeps the saved copy as fresh as each download). At most every 2 hours a trip. The calendar reminder below
+  // (⏰ Remind me the day before) is what gets the app opened.
+  const inWindow = (t, today) => t.hut && addDays(t.date, -1) <= today && today <= addDays(t.date, t.nights);
+  let refreshing = false;
+  async function refreshAhead() {
+    if (refreshing || !navigator.onLine) return;
+    const today = localDate(new Date()), due = trips().filter((t) => inWindow(t, today) && Date.now() - (t.autoAt || 0) > 2 * 3600e3);
+    if (!due.length) return;
+    refreshing = true;
+    try {
+      for (const t0 of due) {
+        const r = await snapOf(t0);
+        if (r.err) continue;
+        const t = tripById(t0.id) || t0;
+        t.snap = r.snap; t.autoAt = Date.now();
+        const st = offSt(t);
+        if (st && st.box && window.tfSkiOffline) {   // the saved copy's changing files, downloaded again
+          const urls = window.tfSkiOffline(st.box).data;
+          let ok = 0;
+          for (let i = 0; i < urls.length; i += 6) ok += (await Promise.all(urls.slice(i, i + 6).map((u) => fetch(u, { cache: "no-cache" }).then((x) => x.ok, () => false)))).filter(Boolean).length;
+          if (ok) t.offFresh = Date.now();
+        }
+        putTrip(t, true);
+        if (cur && cur.id === t.id) { cur.snap = t.snap; cur.autoAt = t.autoAt; cur.offFresh = t.offFresh; view = t.snap; renderDays(); const el = $("tpOff"); if (el) el.innerHTML = offHtml(cur); }
+      }
+    } finally { refreshing = false; }
+  }
+  setTimeout(refreshAhead, 4000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshAhead(); });
+  window.addEventListener("online", () => refreshAhead());
+  // A calendar event the evening before: open the app so the trip updates (forecast, avalanche, offline copy).
+  function dayBeforeIcs(t) {
+    const at = new Date(addDays(t.date, -1) + "T18:00"), url = location.protocol === "https:" ? location.origin + location.pathname : "https://trailfinderapp.ca/";
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Trail Finder//Cabin trip//EN", "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT", `UID:tf-before-${t.id}@trail-finder`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(at)}`, `DTEND:${stamp(new Date(at.getTime() + 15 * 60000))}`,
+      `SUMMARY:${icsEsc(`Open Trail Finder: update your ${hutName(t)} trip`)}`,
+      `DESCRIPTION:${icsEsc(`Your trip starts tomorrow. Open Trail Finder with signal: the trip's weather, avalanche danger and offline copy update by themselves.\n${url}`)}`,
+      "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEsc(`Open Trail Finder to update your ${hutName(t)} trip`)}`, "TRIGGER:PT0M", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR"].map((l) => (l.match(/.{1,60}/gu) || [""]).join("\r\n ")).join("\r\n");
   }
 
   // ---------- day tours from the cabin ----------
@@ -1090,7 +1142,7 @@
     const far = v.rows.some((r) => r.code == null && r.date > v.end);
     return `${b ? `<p class="sk-note">Before you go in (${b.n} days): ${b.snow >= 0.5 ? `<b>${Math.round(b.snow)} cm of new snow</b>` : "no new snow"}, wind up to ${Math.round(b.wind)} km/h.${b.snow >= 30 || b.wind >= 40 ? " Fresh slabs likely on the way in." : ""}</p>` : ""}
       <ul class="tp-days">${rows}</ul>
-      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(new Date(v.at).toLocaleString("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit" }))}</b> (no signal now). ` : ""}Weather at the cabin (${fmtM(v.ele)}), Open-Meteo${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>`;
+      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}. ` : ""}Weather at the cabin (${fmtM(v.ele)}), Open-Meteo${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>`;
   }
   function render() {
     const t = cur;
@@ -1115,23 +1167,36 @@
       <div class="sk-sec" id="tpCost">${costHtml(t)}</div>
       <div class="sk-sec" id="tpPlan">${planHtml(t)}</div>
       <div class="sk-sec" id="tpJour">${journalHtml(t)}</div>
-      <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${t.way ? "" : "disabled"}>⤓ Save the trip offline</button>${t.hut ? `<button type="button" data-tp="hut">Cabin details</button>` : ""}<button type="button" data-tp="del">🗑 Delete</button></div>
-        <p class="sk-note" id="tpOff">${offHtml(t)}</p></div>`;
+      <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${offPts(t).length ? "" : "disabled"}>⤓ ${offSaved(t) ? "Change the saved area" : "Save the trip offline"}</button>${t.hut ? `<button type="button" data-tp="hut">Cabin details</button>` : ""}<button type="button" data-tp="del">🗑 Delete</button></div>
+        <p class="sk-note" id="tpOff">${offHtml(t)}</p>
+        ${t.hut && localDate(new Date()) < t.date ? `<div class="tp-btns"><button type="button" data-tp="beforeics">⏰ Remind me the day before</button></div><p class="sk-note">From the day before the trip, each time you open the app with signal, the trip's weather, avalanche danger and offline copy update by themselves. The app can't do it while it's closed: the reminder is a calendar alert the evening before that tells you to open it.</p>` : ""}</div>`;
   }
   // Where the trip's offline save is, from Offline maps itself (offline.js status, PR #544): saving, saved, or not
   // finished with files missing (alex saw "Saved offline" with 2 files missing). Missing files retry on their own.
   const offName = (t) => `Cabin trip: ${(t.hut && t.hut.name) || hutName(t)}`;   // the cabin's name: renaming the trip keeps its offline save
   const day = (ms) => esc(new Date(ms).toLocaleDateString("en-CA", { month: "short", day: "numeric" }));
+  // What the save starts around: the way in, the cabin and every line of the trip (a trip with no cabin yet: its lines).
+  const offPts = (t) => [...(t.way ? t.way.line : []), ...(t.hut ? [[t.hut.lat, t.hut.lon]] : []), ...linesOf(t).flatMap((x) => x.ls.flat())];
+  const offSt = (t) => (window.tfOffline && window.tfOffline.status ? window.tfOffline.status(offName(t)) : null);
+  const offSaved = (t) => { const st = offSt(t); return !!(st && st.state !== "saving"); };
+  // Lines, the way in or the cabin added after the save that go past the saved square.
+  const offOut = (t, b) => !!b && offPts(t).some(([la, lo]) => la < b[0] || lo < b[1] || la > b[2] || lo > b[3]);
   function offHtml(t) {
-    const st = window.tfOffline && window.tfOffline.status ? window.tfOffline.status(offName(t)) : null;
-    const what = "the map, ski routes, slopes and avalanche forecast around the cabin and the way in";
+    const st = offSt(t);
+    const what = "the map, ski routes, slopes and avalanche forecast in the square you pick (it starts around the cabin, the way in and your lines)";
+    if (st && st.state !== "saving" && offOut(t, st.box)) return `<b style="color:#c92a2a">Some of your trip is outside the saved area</b> (a line or the way in added since). Tap Change the saved area to take it in.`;
     if (st && st.state === "saving") return `<b>Saving offline… ${Math.round(st.pct || 0)}%</b> Keep the app open until it's done.`;
     if (st && st.state === "missing") return `<b style="color:#c92a2a">Not finished: ${st.missing} file${st.missing === 1 ? "" : "s"} still missing.</b> They download again by themselves when you have signal; don't count on this trip offline until it says Saved.`;
-    if (st && st.state === "saved") return `<b>Saved offline ${day(st.at || t.offAt)}</b>: ${what} work with no signal; the forecast above is kept as it was then. The trip stays on this phone.`;
+    if (st && st.state === "saved") return `<b>Saved offline ${day(st.at || t.offAt)}</b>: the map, ski routes, slopes and avalanche forecast in the square you picked work with no signal${t.offFresh ? `; avalanche, ski and snow files updated ${esc(when(t.offFresh))}` : ""}; the forecast above is kept as it was when last checked. The trip stays on this phone.`;
     if (t.offAt && window.tfOffline && window.tfOffline.status) return `Not saved offline any more (it was deleted from Offline maps). Save it again for no signal.`;
     return `Saves ${what}, and keeps this forecast, for no signal. The trip stays on this phone.`;
   }
-  window.addEventListener("tf:offline", (e) => { const el = $("tpOff"); if (el && cur && e.detail && e.detail.name === offName(cur)) el.innerHTML = offHtml(cur); });
+  window.addEventListener("tf:offline", (e) => {
+    const d = e.detail || {};
+    // The save started (not just the square opened): the trip counts as saved offline from here (✓ in the packing list).
+    if (d.state === "saving") { const t = trips().find((x) => offName(x) === d.name); if (t && !t.offAt) { t.offAt = Date.now(); putTrip(t); if (cur && cur.id === t.id) cur.offAt = t.offAt; } }
+    if (cur && d.name === offName(cur)) { const el = $("tpOff"); if (el) el.innerHTML = offHtml(cur); const b = card.querySelector('[data-tp="off"]'); if (b) b.textContent = `⤓ ${offSaved(cur) ? "Change the saved area" : "Save the trip offline"}`; }
+  });
   const renderWay = () => { const el = $("tpWay"); if (el && cur) el.innerHTML = `<h4>The way in</h4>${wayHtml(cur)}`; renderLines(); };
   const renderDays = () => { const el = $("tpDays"); if (el && cur) el.innerHTML = `<h4>Each day</h4>${daysHtml()}`; renderPack(); };
   const renderLines = () => { const el = $("tpLines"); if (el && cur) el.innerHTML = `<h4>Your lines for this trip</h4>${linesHtml(cur)}`; };
@@ -1217,6 +1282,7 @@
     else if (k === "share" || k === "sharelink") shareTrip(t);
     else if (k === "syncnow") syncTrip(t.id);
     else if (k === "gpx") shareFile(tripGpx(t), `${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}-trip.gpx`, "application/gpx+xml", `Saved the GPX of your ${hutName(t)} trip.`);
+    else if (k === "beforeics") shareFile(dayBeforeIcs(t), `before-${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}.ics`, "text/calendar", `Saved the reminder: open it to add it to your calendar.`);
     else if (k === "bookics") shareFile(bookIcs(t), `book-${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}.ics`, "text/calendar", `Saved the reminder: open it to add it to your calendar.`);
     else if (k === "mealshare") {
       const m = t.meals || {}, rows = tripDates(t).map((d) => [d, MEALS.map(([mk, lab]) => [lab, m[`${d}:${mk}`]]).filter((x) => x[1] && (x[1].what || x[1].who))]).filter((x) => x[1].length);
@@ -1259,12 +1325,13 @@
       if (!confirm(t.share ? `Take the ${hutName(t)} trip off your phone? The rest of the group keeps it.` : `Delete your trip to ${hutName(t)}?`)) return;
       if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiTrips", t.id);   // so the account doesn't bring it back
       store.set("skiTrips", trips().filter((x) => x.id !== t.id)); close();
-    } else if (k === "off" && t.way) {
-      if (!window.tfOffline || !window.tfOffline.saveBox) { if (window.tfToast) window.tfToast("Offline maps aren't available in this browser."); return; }
-      const ll = [...t.way.line, [t.hut.lat, t.hut.lon], ...linesOf(t).flatMap((x) => x.ls.flat())];
-      const box = [Math.min(...ll.map((p) => p[0])), Math.min(...ll.map((p) => p[1])), Math.max(...ll.map((p) => p[0])), Math.max(...ll.map((p) => p[1]))];
-      t.offAt = Date.now(); putTrip(t); render();
-      window.tfOffline.saveBox(box, offName(t));
+    } else if (k === "off") {
+      // The square to save opens on the map, around the trip, to move and resize before saving (alex 2026-11-11).
+      if (!window.tfOffline || !window.tfOffline.pickBox) { if (window.tfToast) window.tfToast("Offline maps aren't available in this browser."); return; }
+      const ll = offPts(t); if (!ll.length) return;
+      const st = offSt(t), b0 = [Math.min(...ll.map((p) => p[0])), Math.min(...ll.map((p) => p[1])), Math.max(...ll.map((p) => p[0])), Math.max(...ll.map((p) => p[1]))];
+      const box = st && st.box && !offOut(t, st.box) ? st.box : b0;   // changing it: start from the square saved, if the trip still fits in it
+      window.tfOffline.pickBox(box, offName(t), { replace: true, exact: box !== b0 });
     }
   });
 

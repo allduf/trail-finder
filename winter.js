@@ -5571,6 +5571,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   const loadSport = (s) => Promise.all(SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n)).map(loadJs));
   window.tfLoadSport = loadSport;
+  // A cabin trip starting tomorrow or under way: Skiing's files load a few seconds after the app opens, whatever the
+  // sport, so the trip's forecast and offline copy update by themselves (cabin-trip.js refreshAhead, alex 2026-11-11).
+  setTimeout(() => {
+    try {
+      const today = new Date().toLocaleDateString("en-CA"), day = (d, n) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() + n); return x.toLocaleDateString("en-CA"); };
+      const soon = (JSON.parse(localStorage.getItem("tf:skiTrips")) || []).some((t) => t && t.hut && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
+      if (soon) loadSport("ski").catch(() => {});
+    } catch (_) {}
+  }, 6000);
   window.tfLoadMoto = () => loadSport("moto");
   function setSport(s) {
     sport = SPORTS.includes(s) ? s : "mtb";
