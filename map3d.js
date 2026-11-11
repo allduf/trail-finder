@@ -1610,7 +1610,7 @@
     const s = new Set();
     for (const [x, y] of a) for (let z = 3; z <= 7; z++) s.add(`${z}/${x >> (7 - z)}/${y >> (7 - z)}`);
     return s;
-  }).catch(() => { wideList = null; return new Set(); }));   // asked again next time
+  }).catch(() => { setTimeout(() => { wideList = null; }, 60000); return new Set(); }));   // asked again a minute later
   const hasWide = (s, z, x, y) => z >= 3 && z <= WIDE_TOP && s.has(z <= 7 ? `${z}/${x}/${y}` : `7/${x >> (z - 7)}/${y >> (z - 7)}`);
   // Tile z/x/y's far-view winter photo (zooms 3-10), as bytes, or null (none there, or it couldn't come).
   const wideBytes = async (z, x, y, signal) => {
