@@ -1,7 +1,6 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
-    {"date": "2026-11-11", "text": "New: Tutorials, short videos that show how to use each feature. Open them from More › Tutorials, from the top of How it works, or from the Watch how button in a feature. The first one shows how to plan a cabin trip. A video only downloads when you tap it."},
     {"date": "2026-11-11", "text": "3D Live photo: now Sentinel-2 at 10 m, three times sharper than before, from the newest mostly clear pass of the last 60 days. The note under the buttons gives the satellite and the photo's date; clouds or snow in the photo are as the satellite saw them that day."},
     {"date": "2026-11-11", "text": "3D: turning the view zoomed out over many mountains is smoother. New ground no longer makes the map stop to resend the tiles next to it."},
     {"date": "2026-11-11", "text": "Cabin trips: each cost can be split between only some of the group. Tap the names under a cost to take people in or out, and who pays whom follows."},

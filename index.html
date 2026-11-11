@@ -5687,7 +5687,7 @@ out body;`;
       ${acct ? card("account", "👤", signedIn ? "Account" : "Sign in", signedIn ? "Your saves follow you to every device" : "Keep your saves on every device") : ""}
       ${window.tfFriends && window.tfFriends.admin() ? card("friends", "🤝", "Friends", "Who sees unofficial trails") : ""}
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
-      ${window.tfTutorials ? card("tutorials", "▶", "Tutorials", "Short videos: how to use each feature") : ""}
+      ${window.tfTutorials && window.tfTutorials.list.length ? card("tutorials", "▶", "Tutorials", "Short videos: how to use each feature") : ""}
       ${card("about", "?", "How it works", "")}
       ${card("support", "✉", "Help and support", "Questions, problems, ideas")}
       ${card("privacy", "🔒", "Privacy", "What the app keeps and how to delete it")}

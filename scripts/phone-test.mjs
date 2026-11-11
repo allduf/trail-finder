@@ -172,7 +172,7 @@ for (const sport of SPORTS) {
   }
 
   // More › Tutorials (tutorials.js, alex 2026-11-11): the list of videos opens; no video loads until one is tapped.
-  if (sport === "mtb" && tabs.some((t) => t.nav === "more")) {
+  if (sport === "mtb" && tabs.some((t) => t.nav === "more") && await page.evaluate(() => !!(window.tfTutorials && window.tfTutorials.list.length))) {   // once there is a video
     await step(p, sport, "More → Tutorials", async () => {
       await tap(page, "#tabbar [data-nav=more]");
       await tap(page, '#hub [data-hub="tutorials"]');

@@ -11,8 +11,10 @@
   "use strict";
   if (window.tfTutorials) return;
   // sport: the line icon and heading it's listed under (mtb, ski, hunt, fish, moto, hike, or all for the whole app).
+  // Empty until alex picks the videos (2026-11-11: "dont put any video in until i tell you which one to put"). While it's
+  // empty, nothing shows: no More › Tutorials, no button in How it works, no Watch how in a feature. A line looks like:
+  //   { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your group, packing, meals and costs, then share the trip", src: "videos/cabin-trip.mp4", poster: "videos/cabin-trip.jpg", secs: 92 },
   const LIST = [
-    { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your group, packing, meals and costs, then share the trip", src: "videos/cabin-trip.mp4", poster: "videos/cabin-trip.jpg", secs: 92 },
   ];
   const SPORTS = { all: ["The whole app", "✨"], mtb: ["MTB", "🚵"], ski: ["Skiing", "⛷"], hunt: ["Hunting", "🦌"], fish: ["Fishing", "🎣"], moto: ["Adventure moto", "🏍"], hike: ["Hiking", "🥾"] };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -108,8 +110,8 @@ dialog.tut .tut-sub { color: var(--muted); font-size: .88rem; line-height: 1.3; 
     if (a && !a.hidden && a.contains(b)) a.hidden = true;   // from How it works: the list takes its place
     open(b.dataset.tutOpen || undefined);
   }, true);
-  // How it works' own button (index.html #about): shown now that the videos can open, with the same line ▶.
+  // How it works' own button (index.html #about): shown once there is a video, with the same line ▶.
   const ab = document.querySelector("#about .about-tut");
-  if (ab) { ab.hidden = false; ab.querySelector("button").insertAdjacentHTML("afterbegin", line("▶", 18)); }
+  if (ab && LIST.length) { ab.hidden = false; ab.querySelector("button").insertAdjacentHTML("afterbegin", line("▶", 18)); }
   window.tfTutorials = { list: LIST, open, button };
 })();
