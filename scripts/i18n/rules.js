@@ -17,6 +17,13 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // liability-safe wording (2026-11-11)
+    [/^Smokiest (.+): (.+), (\d+) µg\/m³\.(?: (Very little smoke the rest of the time\.|Smoke the whole time in the forecast\.|Next with very little smoke: (.+)\.))?$/, function (m, w, r, n, tail, nx) {
+      return "Le plus enfumé " + tt(w) + " : " + tt(r) + ", " + n + " µg/m³." + (!tail ? "" : /^Very/.test(tail) ? " Très peu de fumée le reste du temps." : /^Smoke/.test(tail) ? " De la fumée tout le temps dans la prévision." : " Prochaine période avec très peu de fumée : " + tt(nx) + "."); }],
+    [/^In season today: (.+)$/, function (m, l) { return "En saison aujourd'hui : " + tl(l); }],
+    [/^(\d+) in season today$/, "$1 en saison aujourd'hui"],
+    [/^No avalanches in these reports, (\d+) reports? in all\.$/, function (m, n) { return "Aucune avalanche dans ces rapports, " + n + " rapport" + (n === "1" ? "" : "s") + " en tout."; }],
+    [/^(.+): the closest paved road or lot \(usually plowed\) for a less exposed way in\. Logging roads past it are usually not plowed, so they're part of the ski\.$/, function (m, p) { return tt(p) + " : la route asphaltée ou le stationnement le plus proche (habituellement déneigé) pour un chemin moins exposé. Les chemins forestiers au-delà ne sont habituellement pas déneigés : ils font partie de la sortie à ski."; }],
     // ask.js: a mountain or ridge with no tour mapped on it, planned from the closest road (2026-11-10)
     [/^No tour mapped on (.+): finding the closest road to it…$/, "Aucune sortie tracée sur $1 : recherche de la route la plus proche…"],
     [/^No ski tour is mapped on (.+) in the app yet, so this one starts from the closest road to it\.$/, "Aucune sortie de ski n'est encore tracée sur $1 dans l'appli : celle-ci part donc de la route la plus proche."],

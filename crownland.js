@@ -144,7 +144,7 @@
     },
     async sk(lat, lon) {
       const [pf, fw, ag] = await Promise.all([q(`${SK}/Forestry/MapServer/0`, lat, lon, "*"), q(`${SK}/Planning/MapServer/7`, lat, lon, "*"), q(`${SK}/Agriculture/CrownLand_AG/MapServer/2`, lat, lon, "LLD")]);
-      if (fw) return crown("Fish and Wildlife Development Fund land", "Public land bought for wildlife: open to hunting and walking in season, no vehicles off the trails.");
+      if (fw) return crown("Fish and Wildlife Development Fund land", "Public land bought for wildlife: usually open to hunting and walking in season, no vehicles off the trails.");
       if (ag) return { k: "lease", t: "Agricultural Crown land (leased)", d: "Crown pasture or hay land rented to a farmer or rancher: on foot it's usually open to hunting, but contact the leaseholder first and leave gates as you find them." };
       if (pf) return crown("Crown land (Saskatchewan provincial forest)");
       if (pf === undefined && ag === undefined) return null;

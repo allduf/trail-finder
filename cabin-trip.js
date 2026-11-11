@@ -423,7 +423,7 @@
       ${status}
       <div class="tp-btns"><button type="button" class="go" data-tp="plansend">📤 Send the trip plan</button><button type="button" data-tp="planics">⏰ Late alert for their calendar</button>
         ${window.tfLive ? `<button type="button" data-tp="live">📍 Live location</button>` : ""}${pl.sent && !pl.safe ? `<button type="button" data-tp="safe">✅ We're out safe</button>` : ""}</div>
-      <p class="sk-note">The late alert is a calendar event: it rings on their phone at "Call for help at" with what to do. Live location only sends where you have signal.</p></details>`;
+      <p class="sk-note">The late alert is a calendar event: it rings on their phone at "Call for help at" with what to do. Live location only sends where you have signal.</p><p class="sk-note">Trail Finder doesn't call for help itself: your friend does.</p></details>`;
   }
 
   // ---------- drawing the card ----------
@@ -477,7 +477,7 @@
       ${w.winter && w.winter.length ? `<p class="sk-note">✓ Starts at the winter parking and follows the mapped winter route (${esc(w.winter.join(", "))}).</p>`
         : w.known ? `<p class="sk-note">✓ Starts at the winter parking from the winter access below.</p>` : ""}
       ${winterHtml(t)}
-      ${w.src === "auto" && !w.known ? `<p class="sk-note">Starts where the plowed road is: check the pullout is plowed, and the road report, before you drive.</p>` : ""}
+      ${w.src === "auto" && !w.known ? `<p class="sk-note">Starts at the closest paved road (usually plowed): the map can't tell if it's plowed today or if parking there is allowed.</p>` : ""}
       <div class="tp-btns"><button type="button" class="go" data-tp="show">Show the way in + conditions</button><a href="${drive}" target="_blank" rel="noopener">🚗 Drive</a><button type="button" data-tp="draw">✎ Draw my own</button></div>`;
   }
   function daysHtml() {

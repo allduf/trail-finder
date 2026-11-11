@@ -99,7 +99,7 @@
     creeks: { g: "Highlight on the map", tile: true, label: "Creeks and streams", sub: "Small creeks in light blue, dashed when they dry up in summer", minZoom: 11 },
     ocean: { g: "Highlight on the map", tile: true, label: "Ocean and bays", sub: "Salt water in blue, where you need a tidal licence" },
     depth: { g: "Highlight on the map", tile: true, label: "Lake depth lines", sub: "Over 8,000 surveyed lakes in Ontario, Quebec and Manitoba, a few in BC, soundings in New Brunswick: zoom in on a lake. BC: tap a lake for its depth map", minZoom: 12, icon: [C.depth, "line"] },
-    crown: { g: "Highlight on the map", tile: true, label: "Crown land", sub: "Public land you can walk to the water on: green; private: yellow (BC, AB, ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
+    crown: { g: "Highlight on the map", tile: true, label: "Crown land", sub: "Public (Crown) land: green; private: yellow, from provincial maps that can be out of date (BC, AB, ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for, tap one for its rules", icon: [C.zone, "dash"] },
     areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "Red: ecological reserves, no fishing. National parks (Parks Canada permit), Quebec zecs, wildlife reserves and parks (fishing allowed with an access fee)", on: true, minZoom: 5, icon: [C.park, "dot"] },
@@ -1730,7 +1730,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     });
     // One "Safe to eat" line, with each sampled spot nearby inside it.
     const nFish = new Set(ws.flatMap(([w]) => w.f.map((r) => r[0]))).size;
-    out.html = fold("eat", IC.fish, "Safe to eat", `${nFish} fish${ws.length > 1 ? ` · ${ws.length} places` : ""}`, `<p class="fs-note">Meals a month by size; fewer for children and pregnancy.</p>${out.html.join("")}`);
+    out.html = fold("eat", IC.fish, "Eating guide", `${nFish} fish${ws.length > 1 ? ` · ${ws.length} places` : ""}`, `<p class="fs-note">The province's advice on meals a month, by size; fewer for children and pregnancy.</p>${out.html.join("")}`);
     return out;
   }
 
@@ -2159,8 +2159,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const air = t.length ? t.reduce((a, x) => a + x, 0) / t.length : null;
     const winter = m === 12 || m <= 3, shoulder = m === 11 || m === 4;
     if ((winter && (air == null ? spot.lat > 49.4 : air < 2)) || (shoulder && air != null && air < -3))
-      return { k: "ice", lake: "Ice likely: ice fishing only where the ice is safe (10 cm of clear ice to walk on)", w: 0.45,
-        note: "Lakes here are likely frozen or freezing. Rivers and the coast stay open; check the ice before you walk on it." };
+      return { k: "ice", lake: "Ice likely (a guess from the air temperature): the app can't see how thick the ice is", w: 0.45,
+        note: "Lakes here are likely frozen or freezing (a guess from the air temperature). Rivers and the coast usually stay open water. The app can't see how thick the ice is." };
     if (winter || shoulder || m === 10 && air != null && air < 6)
       return { k: "cold", lake: "Cold water: fish slow and deep, midday is best", w: 0.8,
         note: "The water is cold this time of year. Trout feed slowly and deep, best in the warmest hours; stocking from months ago still holds fish. Check in-season closures for rivers." };

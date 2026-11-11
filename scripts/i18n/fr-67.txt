@@ -1,0 +1,41 @@
+Very muddy and very slippery. Riding it now leaves deep ruts. ||| Très boueux et très glissant. Y rouler maintenant laisse de profondes ornières.
+Very little wildfire smoke in the forecast here. ||| Très peu de fumée de feux de forêt dans la prévision ici.
+No snow or closures found today ||| Pas de neige ni de fermeture trouvée aujourd'hui
+Snow from a weather model; closures, warnings and fires from the feeds the app reads. Not a trail report. ||| Neige selon un modèle météo; fermetures, avertissements et feux selon les sources que l'appli lit. Pas un rapport de sentier.
+Snow from a weather model, not a trail report. ||| Neige selon un modèle météo, pas un rapport de sentier.
+Eating guide ||| Guide de consommation
+The province's advice on meals a month, by size; fewer for children and pregnancy. ||| Les conseils de la province sur le nombre de repas par mois, selon la taille; moins pour les enfants et pendant la grossesse.
+Public (Crown) land: green; private: yellow, from provincial maps that can be out of date (BC, AB, ON, QC, NB, NS, SK, NL; zoom in) ||| Terres publiques : vert; privées : jaune, selon des cartes provinciales qui peuvent être périmées (C.-B., Alb., Ont., Qc, N.-B., N.-É., Sask., T.-N.-L.; zoomez)
+The app can't see how thick the ice is: check it yourself. ||| L'appli ne peut pas voir l'épaisseur de la glace : vérifiez-la vous-même.
+Ice likely (a guess from the air temperature): the app can't see how thick the ice is ||| Glace probable (une estimation selon la température de l'air) : l'appli ne peut pas voir l'épaisseur de la glace
+Lakes here are likely frozen or freezing (a guess from the air temperature). Rivers and the coast usually stay open water. The app can't see how thick the ice is. ||| Les lacs d'ici sont sans doute gelés ou en train de geler (une estimation selon la température de l'air). Les rivières et la côte restent habituellement en eau libre. L'appli ne peut pas voir l'épaisseur de la glace.
+In season · ||| En saison ·
+In season ||| En saison
+none in season today ||| aucune en saison aujourd'hui
+No general season today ||| Aucune saison générale aujourd'hui
+Graded gravel or packed dirt: usually fine on ADV bikes ||| Gravier nivelé ou terre tassée : habituellement correct pour les motos d'aventure
+Loose gravel, potholes, a rough track: easier on a light bike than a big one ||| Gravier meuble, nids-de-poule, piste rugueuse : plus facile sur une moto légère que sur une grosse
+Rocks, ruts, sand or mud: usually ridden on light bikes by skilled riders ||| Roches, ornières, sable ou boue : habituellement roulé en moto légère par des pilotes habiles
+Big rocks, steep, washed out or deactivated: usually only plated dirt bikes and expert riders ||| Grosses roches, pentes raides, emporté ou désaffecté : habituellement seulement des motos hors route immatriculées et des pilotes experts
+Within your bike's grade ||| Dans la cote de votre moto
+A grade above your bike ||| Une cote au-dessus de votre moto
+Well above your bike's grade ||| Bien au-dessus de la cote de votre moto
+Dry ||| Sec
+Dry and firm in the weather model ||| Sec et ferme selon le modèle météo
+Dry and dusty in the weather model ||| Sec et poussiéreux selon le modèle météo
+Wet: mud and ruts, can ride a grade harder ||| Mouillé : boue et ornières, peut rouler une cote plus difficile
+Your bike must be plated and insured. Crown land roads are generally open unless they're posted closed; many logging roads are gated, and private forests often ban motorcycles. No 400-series highways off a road bike's plate. ||| Votre moto doit être immatriculée et assurée. Les routes des terres publiques sont généralement ouvertes sauf si elles sont affichées fermées; beaucoup de chemins forestiers ont une barrière, et les forêts privées interdisent souvent les motos. Pas d'autoroutes de la série 400 sans plaque de moto routière.
+Hurley River FSR (Pemberton to Gold Bridge): snowed in (it isn't plowed, so snow closes it from about November to June; Highway 99 by Duffey Lake and Highway 40 by Lillooet are kept open in winter (check DriveBC)) ||| Hurley River FSR (Pemberton à Gold Bridge) : enneigée (elle n'est pas déneigée, donc la neige la ferme d'environ novembre à juin; la route 99 par Duffey Lake et la route 40 par Lillooet sont entretenues l'hiver (vérifiez DriveBC))
+Hurley River FSR (Pemberton to Gold Bridge): may be snowed in (it isn't plowed, so snow closes it from about November to June; Highway 99 by Duffey Lake and Highway 40 by Lillooet are kept open in winter (check DriveBC)) ||| Hurley River FSR (Pemberton à Gold Bridge) : peut-être enneigée (elle n'est pas déneigée, donc la neige la ferme d'environ novembre à juin; la route 99 par Duffey Lake et la route 40 par Lillooet sont entretenues l'hiver (vérifiez DriveBC))
+Starts at the closest paved road (usually plowed): the map can't tell if it's plowed today or if parking there is allowed. ||| Part de la route asphaltée la plus proche (habituellement déneigée) : la carte ne peut pas dire si elle est déneigée aujourd'hui ni si on peut s'y stationner.
+mapped as allowed ||| indiqué comme permis sur la carte
+mapped as allowed (signed for it) ||| indiqué comme permis sur la carte (balisé pour ça)
+mapped as not allowed ||| indiqué comme interdit sur la carte
+mapped as private ||| indiqué comme privé sur la carte
+Avalanche Canada lists no problems for its bands ||| Avalanche Canada n'indique aucun problème pour ses étages
+It needs signal and isn't an emergency service. ||| Il faut du signal, et ce n'est pas un service d'urgence.
+Trail Finder doesn't call for help itself: your friend does. ||| Trail Finder n'appelle pas les secours lui-même : c'est votre ami qui le fait.
+Public land bought for wildlife: usually open to hunting and walking in season, no vehicles off the trails. ||| Terres publiques achetées pour la faune : habituellement ouvertes à la chasse et à la marche en saison, pas de véhicules hors des sentiers.
+terrain estimate ||| terrain estimé
+Estimated from the terrain map (ATES-style), not an official rating ||| Estimé selon la carte du relief (style ATES), pas une cote officielle
+Wording across every sport now says what the map, forecast or source shows instead of promising anything: no "safe" ice, "clean air" or "good today", hunting seasons say "in season", moto grades say "usually", plowed roads say "usually plowed". The Skiing spot card's long terrain class note is gone: the badge says "terrain estimate". ||| Dans tous les sports, les textes disent maintenant ce que montrent la carte, la prévision ou la source au lieu de promettre quoi que ce soit : plus de glace « sûre », d'« air propre » ni de « bien aujourd'hui »; les saisons de chasse disent « en saison », les cotes de moto disent « habituellement », les routes déneigées disent « habituellement déneigées ». La longue note sur la classe de terrain de la fiche d'un endroit en ski est retirée : le badge dit « terrain estimé ».

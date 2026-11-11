@@ -1664,7 +1664,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const seen = list.filter((x) => x.m.av?.seen).length;
     const head = `<h5>Reported by riders within ${MIN_KM} km, last ${days} days</h5>`;
     if (!list.length) return `${head}<p class="sk-note">None near here (few people post, so that doesn't mean no avalanches).</p>`;
-    return `${head}<p>${seen ? `<b>${seen} report${seen === 1 ? "" : "s"} of avalanches</b>` : "No avalanches reported"}, ${list.length} report${list.length === 1 ? "" : "s"} in all.</p>
+    return `${head}<p>${seen ? `<b>${seen} report${seen === 1 ? "" : "s"} of avalanches</b>` : "No avalanches in these reports"}, ${list.length} report${list.length === 1 ? "" : "s"} in all.</p>
       <ul class="sk-min">${list.slice(0, 8).map(({ m, km }) => {
         const a = m.av || {}, what = [a.what, a.signs && a.signs.length && (a.what ? "also " : "") + a.signs.join(", ")].filter(Boolean).join("; ");
         const extra = [a.trigger && "trigger: " + a.trigger, a.aspect && "aspect " + a.aspect].filter(Boolean).join(", ");
@@ -1866,7 +1866,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const GROOM = { backcountry: "Not groomed (backcountry)", no: "Not groomed", classic: "Groomed for classic", skating: "Groomed for skate", "classic+skating": "Groomed for classic and skate", "classic;skating": "Groomed for classic and skate", scooter: "Packed by snowmobile", mogul: "Moguls" };
   const DIFF = { novice: "Novice", easy: "Easy", intermediate: "Intermediate", advanced: "Advanced", expert: "Expert", freeride: "Freeride (off-piste)", extreme: "Extreme" };
   const ON = { track: "a forest road or track", path: "a trail", footway: "a footpath", service: "a road", unclassified: "a road", bridleway: "a trail" };
-  const yesNo = (v) => ({ yes: "allowed", designated: "allowed (signed for it)", permissive: "allowed", no: "not allowed", private: "private" }[v] || v);
+  const yesNo = (v) => ({ yes: "mapped as allowed", designated: "mapped as allowed (signed for it)", permissive: "mapped as allowed", no: "mapped as not allowed", private: "mapped as private" }[v] || v);
   const PLAIN = {
     "piste:grooming": (v) => ["Grooming", GROOM[v] || v], "piste:difficulty": null, highway: (v) => ON[v] && ["Follows", ON[v]],
     description: (v) => ["Description", v], "winter:access": (v) => ["Winter access", v.replace(/^Winter: /, "")], "winter:closure": (v) => ["⚠️ Closures", v], "winter:closure:website": (v) => ["Closure notices", v], note: (v) => ["Note", v], operator: (v) => ["Run by", v], fee: (v, t) => !t.charge && ["Fee", v === "yes" ? "yes, a fee to use it" : v === "no" ? "free" : v],
@@ -2200,7 +2200,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       avTile = tile("skAvy", DANGER[dg.r].color, "Avalanche", esc(DANGER[dg.r].label.replace(/^\d /, "")) + (example ? " (example)" : ""), [
         `in the ${bandName} on this route`,
         `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span> · ${esc(T.CLASSES[cls].label)} terrain`,
-        probs.length ? `⚠ ${esc([...new Set(probs)].slice(0, 3).join(", "))}` : { m: "No avalanche problems listed for its bands" },
+        probs.length ? `⚠ ${esc([...new Set(probs)].slice(0, 3).join(", "))}` : { m: "Avalanche Canada lists no problems for its bands" },
       ]);
     }
 
@@ -3440,7 +3440,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (parts.length) why.push(`Keeps off today's problem aspects where it can: ${parts.join("; ")}.${st.hit >= 5 ? ` Still ${fmtM(st.hit)} on them.` : ""}`);
       if ((av.probs || []).some((p) => p.aspects.length >= 8)) why.push("One of today's problems is on every aspect, so slope angle and what's above matter most.");
     }
-    if (sp.park) why.push(`${esc(sp.park)}: the closest plowed road for a less exposed way in (logging roads past it aren't plowed, they're part of the ski).`);
+    if (sp.park) why.push(`${esc(sp.park)}: the closest paved road or lot (usually plowed) for a less exposed way in. Logging roads past it are usually not plowed, so they're part of the ski.`);
     const watch = safeWatch(sp);
     const say = (r) => {
       const asp = r.asp >= 0 ? `${SAFE_ASP[r.asp]}-facing` : "";
@@ -3784,9 +3784,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (shb) shb.dataset.about = `${fmtM(g.e)}, ${flat ? "flat" : `faces ${ASPECTS[g.asp].toUpperCase()}, ${Math.round(g.slope)}°`}`;
     fill("skSpotGround", `<div class="sk-stats sk-spotg"><div class="sk-spotslope" style="--c:${slopeCol(g.slope)}"><b>${Math.round(g.slope)}°</b><span>slope</span></div>
         <div><b>${flat ? "flat" : ASPECTS[g.asp].toUpperCase()}</b><span>faces</span></div><div><b>${fmtM(g.e)}</b><span>height</span></div>
-        <div class="sk-spotates" style="--c:${cls.color}"><b>${cls.label}</b><span>terrain</span></div></div>
-      <ul class="sk-signs">${cls.why.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>
-      <p class="sk-note">${esc(cls.what)} <span>Terrain class is an estimate from the terrain map (ATES-style), not an official rating. The map can miss forest, cornices, glaciers and small slopes.</span></p>`);
+        <div class="sk-spotates" style="--c:${cls.color}" title="Estimated from the terrain map (ATES-style), not an official rating"><b>${cls.label}</b><span>terrain estimate</span></div></div>
+      <ul class="sk-signs">${cls.why.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>`);
     fillSpotAvy();
     const near = () => { if (!live()) return; fill("skSpotNear", spotNearHtml(lat, lon)); bindSpotNear(); };
     near();
