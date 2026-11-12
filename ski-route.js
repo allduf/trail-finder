@@ -15,8 +15,10 @@
 //    line back up to its top is under 24°, the alpha angle used for runout), and twice that in a gully or creek bed
 //    under it (a terrain trap).
 // Every step's cost is its time x (1 + the risk there), so the route goes round avalanche terrain when there's a way
-// round, and when there isn't it crosses at the least bad place. The pieces of the route keep why they're there
-// (gentle, steep, under steep slopes, terrain trap) for the card and the colours on the map.
+// round, and when there isn't it crosses at the least bad place. The pieces of the route keep their slope (gentle,
+// 25° to 30°, 30°+) for the card and the colours on the map. What's above them and terrain traps still weigh in the
+// search, but are never shown (alex 2026-11-11: "Don't show the terrain traps and what is above you because the data
+// is not accurate enough").
 (() => {
   "use strict";
   if (!window.tfLeaflet) return;
@@ -45,8 +47,6 @@
     ok: { color: "#2f9e44", label: "Gentle ground" },
     mid: { color: "#f2b705", label: "25° to 30°" },
     steep: { color: "#e03131", label: "30°+ slope" },
-    under: { color: "#e8590c", label: "Under steep slopes" },
-    trap: { color: "#a61e4d", label: "Terrain trap" },
   };
 
   // Today's weather signs (winter.js avyWeather, Open-Meteo at the alpine height; alex 2026-11-05: "feed recent snowfall,
@@ -180,7 +180,8 @@
     const e = h[c], ridge = (at(r - k, col) < e - 3 && at(r + k, col) < e - 3) || (at(r, col - k) < e - 3 && at(r, col + k) < e - 3);
     return ridge ? "ridge" : g.ground[c] === 1 ? "trees" : "flat";
   }
-  const clsOf = (sk, c) => (sk.expo[c] > 0 ? (sk.trap[c] ? "trap" : "under") : sk.deg[c] >= 30 ? "steep" : sk.deg[c] >= 25 ? "mid" : "ok");
+  // What the card and the map show for a cell: its own slope only.
+  const clsOf = (sk, c) => (sk.deg[c] >= 30 ? "steep" : sk.deg[c] >= 25 ? "mid" : "ok");
   // Cells to pieces of one kind, with what's around them.
   function pieces(FR, g, cells, av) {
     const { cellLL, simplify, mx, my, unx, uny } = FR._grid, sk = g.sk;
@@ -244,7 +245,7 @@
     let cur = null;
     // A new stretch where the road or trail changes, and where the ground turns from safe (under 30°, nothing above) to
     // steep or exposed and back, so each one has one reason.
-    const hz = (c) => { const k = clsOf(sk, c); return k === "steep" || k === "under" || k === "trap"; };
+    const hz = (c) => clsOf(sk, c) === "steep";
     cells.forEach((c, i) => {
       const kind = kindOf(c), name = kind === "off" ? "" : g.names[g.name[c]] || "", h = hz(c);
       if (!cur || cur.kind !== kind || cur.hz !== h || (name && cur.name && name !== cur.name)) {
@@ -280,12 +281,12 @@
   // The straight line between the same points, for "Straight across: x m on 30°+ slopes".
   function straight(FR, g, a, b) {
     const { cellAt } = FR._grid, sk = g.sk, L = window.tfLeaflet.distance(a, b), n = Math.max(2, Math.ceil(L / g.cellM));
-    const out = { total: L, steep: 0, under: 0 };
+    const out = { total: L, steep: 0 };
     for (let i = 0; i < n; i++) {
       const u = (i + 0.5) / n, c = cellAt(g, a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u);
       if (c < 0) continue;
       const k = clsOf(sk, c);
-      if (k === "steep") out.steep += L / n; else if (k === "under" || k === "trap") out.under += L / n;
+      if (k === "steep") out.steep += L / n;
     }
     return out;
   }
@@ -312,21 +313,21 @@
     // Where each run starts and ends along the whole tour (m), and the regroup places on the way (for the map and the card).
     const safe = [];
     { let D = 0; for (const l of legs) for (const r of l.runs) { r.at0 = Math.round(D); for (const q of r.safe || []) safe.push({ d: Math.round(D + q.off), at: [+q.at[0].toFixed(6), +q.at[1].toFixed(6)], kind: q.kind }); D += r.m; r.at1 = Math.round(D); delete r.safe; } }
-    const runs = legs.flatMap((l) => l.runs), st = { total: 0, ok: 0, mid: 0, steep: 0, under: 0, trap: 0, hit: 0, maxDeg: 0, sec: 0, steepSec: 0, underSec: 0 };
+    const runs = legs.flatMap((l) => l.runs), st = { total: 0, ok: 0, mid: 0, steep: 0, hit: 0, maxDeg: 0, sec: 0, steepSec: 0 };
     for (const r of runs) {
       st.total += r.m; st[r.cls] += r.m; if (r.hit && r.cls === "steep") st.hit += r.m; st.maxDeg = Math.max(st.maxDeg, r.maxDeg);
-      st.sec += r.sec || 0; if (r.cls === "steep") st.steepSec += r.sec || 0; else if (r.cls === "under" || r.cls === "trap") st.underSec += r.sec || 0;
+      st.sec += r.sec || 0; if (r.cls === "steep") st.steepSec += r.sec || 0;
     }
-    const sl = legs.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep, under: s.under + l.straight.under }), { total: 0, steep: 0, under: 0 });
+    const sl = legs.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep }), { total: 0, steep: 0 });
     const line = [];
     for (const r of runs) for (const p of r.pts) { const q = [+p[0].toFixed(6), +p[1].toFixed(6)], l = line[line.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) line.push(q); }
     // Each leg (Point i to Point i+1): its length, climb, the straight line's steep metres, and its steps.
     const legOut = legs.map((l) => ({ m: l.runs.reduce((s, r) => s + r.m, 0), up: l.steps.reduce((s, x) => s + x.up, 0), down: l.steps.reduce((s, x) => s + x.down, 0),
-      steep: l.runs.filter((r) => r.cls === "steep").reduce((s, r) => s + r.m, 0), under: l.runs.filter((r) => r.cls === "under" || r.cls === "trap").reduce((s, r) => s + r.m, 0), straight: l.straight, steps: l.steps }));
+      steep: l.runs.filter((r) => r.cls === "steep").reduce((s, r) => s + r.m, 0), straight: l.straight, steps: l.steps }));
     // What a minute in each kind of terrain weighs on the way up today, in minutes on gentle ground (the card's "how it
     // weighs it"): the alpine rating, an aspect that isn't named in the problems.
     const sk = { kUp: LEVEL_K.strict, kDown: LEVEL_K[levelOf(av)] }, w = av.none ? 1 : WD[(av.r && (av.r.alp || av.r.tln || av.r.btl)) || 0];
-    const weigh = { s30: mult(sk, w * slopeTerm(32), true, false), s35: mult(sk, w * slopeTerm(37), true, false), side35: mult(sk, w * slopeTerm(37), true, true), under: mult(sk, w * 1.5, true, false) };
+    const weigh = { s30: mult(sk, w * slopeTerm(32), true, false), s35: mult(sk, w * slopeTerm(37), true, false), side35: mult(sk, w * slopeTerm(37), true, true) };
     // A documented skin track the search left (wayOf): what it would have been, for "why this way".
     const alts = legs.map((l) => l.alt).filter(Boolean);
     return { line, runs, stats: st, straight: sl, av, legs: legOut, level: levelOf(av), weigh, alts, safe, ...extra };
@@ -376,7 +377,7 @@
         got.push(leg);
       }
       const one = got.length === 1 ? got[0] : { runs: got.flatMap((l) => l.runs), steps: got.flatMap((l) => l.steps),
-        straight: got.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep, under: s.under + l.straight.under }), { total: 0, steep: 0, under: 0 }) };
+        straight: got.reduce((s, l) => ({ total: s.total + l.straight.total, steep: s.steep + l.straight.steep }), { total: 0, steep: 0 }) };
       // The documented approach next to the one found: told on the card when the found one is less time exposed.
       if (cx && cx.app && got[0] && !got[0].line) {
         const me = expoOf(got[0].runs), it = cx.app;
@@ -461,7 +462,7 @@
     await prep(g, av);
     return g;
   };
-  // Time, and time exposed (on 30°+ ground or under it), on some runs; m on 30°+ slopes.
+  // Time, and time exposed (on 30°+ ground), on some runs; m on 30°+ slopes.
   const expoOf = (runs) => runs.reduce((o, r) => { o.sec += r.sec || 0; o.m += r.m; if (r.cls !== "ok" && r.cls !== "mid") o.expo += r.sec || 0; if (r.cls === "steep") o.steep += r.m; return o; }, { sec: 0, expo: 0, steep: 0, m: 0 });
   // A documented way's crux: from the bottom of its last steep climb to its top (the Stairmaster: the ~180 m bootpack up
   // the couloir), where there's no other way up. The steep climb is the last stretch that gains 60 m+ at 24°+ on

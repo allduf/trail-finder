@@ -7,7 +7,7 @@
 //  - The way in: the easiest walk from a parking lot (or a road) to the cabin, worked out by fish-route.js (the same
 //    search as Fishing's Route, with the ski routes added as trails; a logging road counts as a start but costs more,
 //    as most aren't plowed). Then its heights and slopes (ski-terrain.js): km, climb, Munter time in and out, steepest,
-//    30°+ slopes, steep slopes above, the terrain class. "Show on map" opens it as a tour, with the route card's
+//    30°+ slopes, the terrain class. "Show on map" opens it as a tour, with the route card's
 //    Conditions, Avalanche check, Flyover, GPX and Go. "Draw my own" uses Plan a tour.
 //  - Each day of the trip: the avalanche danger on the way in (Avalanche Canada, about 3 days ahead) with the
 //    Avaluator light for the way in's terrain, and the weather at the cabin (Open-Meteo, about a week ahead); the snow
@@ -266,6 +266,12 @@
   // hut's own winter route (alex 2026-11-06, Keith's Hut: "are you basing ... the route to the cabin on the winter access
   // information?"): the mapped ski routes named in "winter:route" (";" between names), or named after the hut with
   // "winter" in the name ("Keith's Hut Winter Access"), cost half as much as any other trail (fish-route.js WAY_X).
+  // A way worked out before 2026-11-11 kept "km under steep slopes" and "terrain traps" in its reasons: not shown any more
+  // (alex: "Don't show the terrain traps and what is above you because the data is not accurate enough").
+  const whyShown = (why) => {
+    const w = (why || []).filter((x) => !/under steep slopes|terrain trap/i.test(x)).map((x) => x.replace(" on or above the route", " on the route"));
+    return (w.length ? w : (why || []).length ? ["the shape of the ground around the route on the terrain map"] : []).join("; ");
+  };
   const WAY_V = 3;   // ways worked out before the winter parking and winter routes are worked out again
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function winterWay(hut) {
@@ -1170,7 +1176,7 @@
     return `<p><b>${esc(w.from)}</b>${w.names && w.names.length ? ` <span class="sk-note">· via ${esc(w.names.join(", "))}</span>` : ""}</p>
       <div class="tp-stats"><span><b>${w.km.toFixed(1)}</b> km</span><span>↗ ${fmtM(w.up)}</span><span>↘ ${fmtM(w.down)}</span><span title="Munter estimate: 4 km or 400 m of climb an hour up, 10 km or 1000 m an hour down">⏱ ${fmtH(w.hIn)} in · ${fmtH(w.hOut)} out</span></div>
       <div class="tp-stats"><span>${fmtM(w.park)} at the car → ${fmtM(w.hut)} at the cabin</span><span>steepest ${w.steep}°</span></div>
-      <p><span class="sk-ates" style="--c:${C.color}">${C.label}</span> <span class="sk-note">avalanche terrain, estimated: ${esc((w.why || []).join("; "))}</span></p>
+      <p><span class="sk-ates" style="--c:${C.color}">${C.label}</span> <span class="sk-note">avalanche terrain, estimated: ${esc(whyShown(w.why))}</span></p>
       ${w.offM >= 50 ? `<p class="sk-note">${fmtM(w.offM)} of it isn't on a mapped trail or road: it follows the terrain.</p>` : ""}
       ${w.unplowed >= 200 ? `<p class="sk-note"><b>${(w.unplowed / 1000).toFixed(1)} km of it is on gravel or logging roads</b>: not plowed in winter, so you ski it (counted in the km, climb and time).</p>` : ""}
       ${w.winter && w.winter.length ? `<p class="sk-note">✓ Starts at the winter parking and follows the mapped winter route (${esc(w.winter.join(", "))}).</p>`

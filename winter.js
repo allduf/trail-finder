@@ -138,14 +138,14 @@ window.tfDragSort = (root, o) => {
   const GROUPS = [
     { g: "Backcountry", keys: ["tour", "access", "park", "other", "hut"], routes: true },
     // Picture tiles, 3 to a row, like FATMAP's terrain layers: what each one looks like on the mountains.
-    { g: "Avalanche and terrain", slot: "avy", keys: ["slope", "aspect", "runout", "flats", "elev"], tiles: true },
+    { g: "Avalanche and terrain", slot: "avy", keys: ["slope", "aspect", "flats", "elev"], tiles: true },
     { g: "Snow and weather", keys: ["snow", "fresh", "snowfc1", "snowfc2", "snowfc"], slot: "wx", slotAfter: true },
     { g: "Nordic and snowmobile", keys: ["nordic", "snowshoe", "snowmobile", "club"], routes: true },
     { g: "Resorts", keys: ["resort", "offpiste"], routes: true, slot: "resort", slotAfter: true },
     { g: "Places and tracks", slot: "places", keys: ["heat", "mine"] },
   ];
   const SNOW = { label: "Snow stations", color: "#0b7285" };
-  const LABEL = (k) => (TYPES[k] || { hut: HUT, park: PARK, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" }, runout: { label: "Runout zones and traps" },
+  const LABEL = (k) => (TYPES[k] || { hut: HUT, park: PARK, heat: HEAT, mine: MINE, club: CLUB, snow: SNOW, slope: { label: "Slope angle" }, aspect: { label: "Slope direction" },
     flats: { label: "Flats" }, elev: { label: "Elevation bands" }, fresh: { label: "New snow and rain (24 h)" }, snowfc1: { label: "Snow and rain forecast (24 h)" }, snowfc2: { label: "Snow and rain forecast (2 days)" }, snowfc: { label: "Snow and rain forecast (3 days)" } }[k]).label;
   // Avalanche Canada's danger scale colours.
   const DANGER = [
@@ -808,11 +808,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     ["other", "snow", "hut"].forEach((k) => shown.delete(k));
     store.set("skiSnowAdded", true); store.set("skiParkAdded", true); store.set("skiShort", true); store.set("skiLayers2", [...shown]);
   }
+  // Runout zones and terrain traps taken out (alex 2026-11-11: "Don't show the terrain traps and what is above you
+  // because the data is not accurate enough"): a phone that had the layer on drops it.
+  if (shown.delete("runout")) store.set("skiLayers2", [...shown]);
   if (!store.get("skiMineOff", false)) { shown.delete("mine"); store.set("skiMineOff", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiSnowAdded", false)) { if (shown.has("tour")) shown.add("snow"); store.set("skiSnowAdded", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiParkAdded", false)) { if (shown.has("access")) shown.add("park"); store.set("skiParkAdded", true); store.set("skiLayers2", [...shown]); }
   // The ground colours (Avalanche risk and the shaded terrain and snow layers): one at a time (window.tfOneGround).
-  const GROUND = ["avy", "slope", "aspect", "runout", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];
+  const GROUND = ["avy", "slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];
   // k just went on: the other ground colours go off. Returns the keys turned off (the caller redraws them).
   function oneGround(k) {
     const s = new Set(shown);
@@ -863,29 +866,28 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   try { if (localStorage.getItem("tf:demoAvy") != null) { localStorage.removeItem("tf:demoAvy"); plan.path = null; store.set("skiPlanPath", null); } } catch {}
   const SAFE_CLS = {
     ok: { color: "#2f9e44", label: "Gentle ground" }, mid: { color: "#f2b705", label: "25° to 30°" }, steep: { color: "#e03131", label: "30°+ slope" },
-    under: { color: "#e8590c", label: "Under steep slopes" }, trap: { color: "#a61e4d", label: "Terrain trap" },
   };
+  // A way found before 2026-11-11 kept "under steep slopes" and "terrain trap" pieces, which aren't shown any more (alex:
+  // "the data is not accurate enough"): it's found again.
+  try { if (plan.path && JSON.stringify([plan.path.runs, plan.path.legs]).match(/"(cls|worst|safeWorst)":"(under|trap)"/)) { plan.path = null; store.set("skiPlanPath", null); } } catch {}
   const SAFE_ASP = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"], SAFE_BAND = ["alpine", "treeline", "below treeline"];
-  // The places to watch on a found way: its steep, exposed and trap pieces, those less than 150 m apart as one stretch.
+  // The places to watch on a found way: its 30°+ pieces, those less than 150 m apart as one stretch.
   function safeWatch(sp) {
     const out = [];
     let cur = null, gap = 0;
     for (const r of sp.runs || []) {
-      if (r.cls !== "steep" && r.cls !== "under" && r.cls !== "trap") { if (cur) gap += r.m; continue; }
+      if (r.cls !== "steep") { if (cur) gap += r.m; continue; }
       if (cur && gap < 150) {
         cur.m += gap + r.m; cur.by[r.cls] = (cur.by[r.cls] || 0) + r.m; cur.hit = cur.hit || r.hit;
         if (r.maxDeg > cur.maxDeg) { cur.maxDeg = r.maxDeg; cur.asp = r.asp; cur.band = r.band; }
-        if (r.src && (!cur.src || r.src.deg + (r.src.hit ? 10 : 0) > cur.src.deg + (cur.src.hit ? 10 : 0))) cur.src = r.src;
         if (r.m > cur.big) { cur.big = r.m; cur.mid = r.mid; }
         cur.at1 = r.at1;
       } else { cur = { ...r, by: { [r.cls]: r.m }, big: r.m }; out.push(cur); }
       gap = 0;
     }
-    for (const w of out) w.cls = w.by.trap >= 20 ? "trap" : (w.by.steep || 0) >= (w.by.under || 0) ? "steep" : "under";
     const res = out.filter((w) => w.m >= 40);
     return res;
   }
-  const aboveLayer = L.layerGroup();   // drawAbove()
   const pinLayer = L.layerGroup();     // drawPins(): the opened tour's start and top
   const lineOf = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
   const km = (r) => {
@@ -1253,7 +1255,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     snow: `background:${SNOW.color}`,
     slope: "background:linear-gradient(135deg, #f2e14c, #f59f00 35%, #e8392f 60%, #9c36b5 80%, #1c3faa)",
     aspect: "background:conic-gradient(#1c7ed6, #0ca678, #74b816, #fab005, #f76707, #e03131, #ae3ec9, #5c5fd6, #1c7ed6)",
-    runout: "background:repeating-linear-gradient(135deg, #8c28a0 0 3px, #d6336c99 3px 7px)",
     flats: "background:#38d9a9",
     elev: "background:linear-gradient(180deg, #9775fa, #ffd43b 50%, #51cf66)",
     fresh: "background:linear-gradient(135deg, #d0ebff, #748ffc 50%, #e64980)",
@@ -1277,7 +1278,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     slope: "Colours the slopes by steepness: 27° and up, where avalanches start",
     snow: "Snow stations (BC snow pillows, Quebec's climate network, Environment Canada elsewhere): snow depth, new snow and temperature, every 2 hours",
     aspect: "Colours the slopes of 25° and more by the way they face, to match the forecast's problem aspects",
-    runout: "Where avalanches from steep slopes above can reach, and the gullies and creek beds where snow piles up deep",
     flats: "Nearly flat ground (under 5°): where you'll have to skate, pole or skin out, and where a splitboard has to switch to walk mode",
     elev: "The three heights of the avalanche forecast: below treeline, treeline and alpine, at the heights used for that area",
     fresh: "Snow that fell in the last 24 hours, in centimetres; where it rained instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
@@ -1685,7 +1685,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const fmtM = (m) => Math.round(m).toLocaleString() + " m";
   // Heights, slopes, steep ground above and terrain traps along a route: ski-terrain.js, shared with the nightly job
   // that rates every route (scripts/build-ski-terrain.mjs), so both work a route out the same way.
-  const { ABOVE_M } = T;
   const chain = (group) => T.chain(group.flatMap((r) => r.lines));
   const DEFAULT_BANDS = { lo: 1500, hi: 1900 };
   const bandOf = (e, b) => (e >= b.hi ? "alp" : e >= b.lo ? "tln" : "btl");
@@ -1757,9 +1756,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <dl><dt>Ground</dt><dd>steepest about ${Math.round(info.maxSlope)}°${info.km30 >= 0.05 ? `; ${info.km30.toFixed(1)} km on slopes of 30° or more${info.km35 >= 0.05 ? ` (${info.km35.toFixed(1)} km of 35°+)` : ""}` : "; no slopes of 30° or more under the route"}</dd>
       ${asp ? `<dt>Steep parts face</dt><dd>${asp}</dd>` : ""}
       <dt>Bands</dt><dd>${BANDS.filter(([b]) => bk[b] >= 0.05).map(([b, n]) => `${n} ${bk[b].toFixed(1)} km`).join(" · ")}</dd></dl>
-      ${info.above == null ? "" : info.above >= 0.05
-        ? `<div class="sk-warn"><b>⚠ Steep slopes above:</b> ${info.above.toFixed(1)} km of the route is under ground of 30° or more that could slide onto it (red dashes on the map).</div>`
-        : `<p class="sk-note">No steep slopes found above the route (within ${ABOVE_M} m).</p>`}
       ${onCard ? "" : `<p class="sk-note">Orange on the profile is 30° and steeper.</p>`}`;
   }
 
@@ -2455,14 +2451,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Close the details and drop the highlight: the ✕, or a tap on the map away from any route (alex 2026-10-24).
   function unselect() {
     if (!selected) return;
-    selected = null; selToken++; $("skDetail").hidden = true; hoverLayer.clearLayers(); aboveLayer.clearLayers(); pinLayer.clearLayers(); stopFly();
+    selected = null; selToken++; $("skDetail").hidden = true; hoverLayer.clearLayers(); pinLayer.clearLayers(); stopFly();
     drawSki(); renderList(); renderForecast(); renderSkiKey();
   }
   function select(it, fly) {
     if (spot) closeSpot();
     const group = Array.isArray(it) ? it : [it];
     const r = group[0];
-    if (selected !== r) { hoverLayer.clearLayers(); aboveLayer.clearLayers(); pinLayer.clearLayers(); stopFly(); }
+    if (selected !== r) { hoverLayer.clearLayers(); pinLayer.clearLayers(); stopFly(); }
     const was = selected;
     selGroup = group;
     selected = r;
@@ -2644,7 +2640,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       showAvy(info);
       showWx(info.top.lat, info.top.lon, info.max, info.min);
       showPh(info);
-      drawAbove(info);
       if (isRoute) { drawPins(info); showCond(info); }
       if (mine) renderPlan();
       if (r.src === "plan") warmPlanOther();
@@ -2876,7 +2871,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       planGlPin(q, `<div class="${cls} gl">${name}</div>`, 5, drag ? (ll) => movePt(i, ll) : null);
     });
     if (!map.hasLayer(plan.layer)) plan.layer.addTo(map);
-    aboveLayer.eachLayer((l) => l.bringToFront());   // the red "steep slopes above" dashes stay on top of the plan
   }
   window.addEventListener("tf:map3d", () => setTimeout(drawPlan, 0));
   // Its points come back in close (zoom 12) and go zoomed out.
@@ -2934,7 +2928,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (info && !plan.on && plan.tour) { const t = tourOf(); if (t && t.km == null && tourSame(t)) { keepTour(false); return; } }   // its length and climb, now known
     const sum = n < 2 ? "" : !info ? `<p>Working out heights and slopes…</p>`
       : `<p><b>${(info.total / 1000).toFixed(1)} km</b> · ↑ ${fmtM(info.up)} · ↓ ${fmtM(info.down)} · top ${fmtM(info.max)}</p>
-        <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : info.maxSlope >= 30 ? "only short bits on 30°+ slopes" : "no 30°+ slopes under it"}${info.above >= 0.05 && !safePath() ? ` · <b>${info.above.toFixed(1)} km under steep slopes</b>` : ""}</p>`;
+        <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : info.maxSlope >= 30 ? "only short bits on 30°+ slopes" : "no 30°+ slopes under it"}</p>`;
     card.innerHTML = `${plan.on ? `<p><b>Tap the map</b> to add each point of your tour: ${plan.safe ? "where you start, then where you want to go (add more points to go a certain way). The Less exposed way finds a line between them." : "up the skin track, then the way down."} ${n ? "" : "Start where you park."}</p>` : `<p><b>${safePath() ? "Your tour, less exposed way" : "Your planned tour"}</b></p>`}
       ${sum}
       ${tourRow(n)}
@@ -3209,7 +3203,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     drawPlan();
     const r = planRoute();
     if (!r) {
-      if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; aboveLayer.clearLayers(); renderForecast(); }
+      if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; renderForecast(); }
       renderPlan(); return;
     }
     renderPlan();
@@ -3359,7 +3353,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     clearTimeout(plan.timer);
     plan.safe = true; store.set("skiSafe", true);
     plan.pts = []; store.set("skiPlan", plan.pts); plan.fail = ""; plan.choice = null; setTour(null);
-    if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; aboveLayer.clearLayers(); }
+    if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; }
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
     say("Working out two ways…");
     drawPlan();
@@ -3408,7 +3402,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     clearTimeout(plan.timer);
     plan.safe = true; store.set("skiSafe", true);
     plan.pts = []; store.set("skiPlan", plan.pts); plan.fail = ""; setTour(null);
-    if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; aboveLayer.clearLayers(); }
+    if (selected && selected.src === "plan") { selected = null; selToken++; $("skDetail").hidden = true; }
     const say = (t) => { if (my === plan.run) { plan.wait = t; renderPlan(); } };
     say("Looking for a less exposed way in from a plowed road…");
     drawPlan();
@@ -3462,7 +3456,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     };
     const hz = (s) => {
       if (s.worst === "ok" || s.worst === "mid") return "";
-      const w = s.worst === "steep" ? `${s.maxDeg}° slope` : s.worst === "trap" ? "Terrain trap" : "Under steep slopes";
+      const w = `${s.maxDeg}° slope`;
       const no = watchNo(s);
       return `<span class="ss-hz" style="--c:${C[s.worst].color}"><i>${no ? `!${no}` : "!"}</i>${w}${s.hzM && s.hzM < s.m * 0.6 ? ` · ${D(s.hzM)}` : ""}</span>`;
     };
@@ -3519,33 +3513,32 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.fail) return `<div class="sk-safe"><p>${esc({ water: "That point is out on open water: move it to the shore.", noway: "Couldn't find a way between these points (cliffs or open water in the way, or too far apart). Move a point or add one between.",
       noroad: "No plowed road or parking within 9 km of this spot that the map knows of. Use ✎ Plan a tour and tap where you start.", net: "Couldn't get the terrain for this area. Check your connection and try again." }[plan.fail] || "")}</p></div>`;
     const sp = safePath();
-    if (!sp) return plan.pts.length < 2 ? `<p class="sk-note">Tap where you start and where you want to go: the way between them stays off steep slopes, avoids today's avalanche problem aspects and keeps out from under slopes that could slide.</p>`
+    if (!sp) return plan.pts.length < 2 ? `<p class="sk-note">Tap where you start and where you want to go: the way between them stays off steep slopes and avoids today's avalanche problem aspects where it can.</p>`
       : `<div class="sk-row"><button type="button" class="btn" id="skSafeAgain">Find a less exposed way between my points</button></div>`;
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
     const chip = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
-    const K = { ok: "#ced4da", mid: "#868e96", steep: "#e03131", under: "#ffa8a8", trap: "#a61e4d" };   // card bar: greys + reds only
+    const K = { ok: "#ced4da", mid: "#868e96", steep: "#e03131" };   // card bar: greys + reds only
     const LV = av.none ? ["#868e96", "Terrain only", "No avalanche forecast in it"] : { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Most careful", "High or Extreme danger"] }[sp.level || "balanced"];
-    const lvTxt = av.none ? "Slope angle and steep slopes above only, weighed the same at every height and on every aspect. The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't." : { direct: "The way up takes the least exposed line it finds. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground and out from under big slopes where it can.",
-      balanced: "The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes and steep slopes above when there's a sensible way, and takes the shortest steep section when there isn't.",
-      strict: "Stays off 30°+ slopes and out from under steep slopes, however much longer that makes it. If there's no way round, reconsider the trip." }[sp.level || "balanced"];
+    const lvTxt = av.none ? "The terrain map only, weighed the same at every height and on every aspect. The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes when there's a sensible way, and takes the shortest steep section when there isn't." : { direct: "The way up takes the least exposed line it finds. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground where it can.",
+      balanced: "The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes when there's a sensible way, and takes the shortest steep section when there isn't.",
+      strict: "Stays off 30°+ slopes, however much longer that makes it. If there's no way round, reconsider the trip." }[sp.level || "balanced"];
     const lvHtml = `<div class="sk-mode" style="--c:${LV[0]}"><div class="sk-mode-h"><b>${LV[1]} route</b><span>${LV[2]}</span></div><p>${lvTxt}</p></div>`;
     const fc = av.none ? `<p class="sk-lbl">Avalanche forecast</p><p class="sk-fc-r"><b>None in this way.</b> <span>${esc(noFcWhy(av, sp.line[0]))}</span></p>`
       : `<p class="sk-lbl">Avalanche forecast${av.example ? " · Example" : ""}</p><div class="sk-fc-g"><div>Alpine${chip(av.r.alp)}</div><div>Treeline${chip(av.r.tln)}</div><div>Below treeline${chip(av.r.btl)}</div></div><p class="sk-fc-r">${esc(av.title)}${av.day ? ` · ${esc(av.day)}` : ""}</p>`;
-    const kinds = ["ok", "mid", "steep", "under", "trap"].filter((k) => st[k] >= 5);
+    const kinds = ["ok", "mid", "steep"].filter((k) => st[k] >= 5);
     const why = [];
     why.push(`<b>${pct(st.ok + st.mid, tot)}%</b> of the way is under 30°${st.ok / tot > 0.5 ? `, ${pct(st.ok, tot)}% under 25°` : ""}.`);
-    const now = st.steep + st.under + st.trap, then = sl.steep + sl.under;
-    if (sl.total && then - now >= 50) why.push(`Straight across would be ${fmtM(sl.steep)} on 30°+ slopes and ${fmtM(sl.under)} under steep slopes. This way: ${now >= 5 ? `${fmtM(st.steep)} and ${fmtM(st.under + st.trap)}` : "none"}.`);
+    if (sl.total && sl.steep - st.steep >= 50) why.push(`Straight across would be ${fmtM(sl.steep)} on 30°+ slopes. This way: ${st.steep >= 5 ? fmtM(st.steep) : "none"}.`);
     // Time exposed, and how the search weighs it against a longer way (alex 2026-11-05: "sometime it safer to go down
     // traverse on flat and go up again instead to stay expose on a slope").
     const mins = (sec) => { const m = Math.max(1, Math.round(sec / 60)); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`; };
     if (st.sec > 0) {
-      const ex = st.steepSec + st.underSec;
-      why.push(ex >= 30 ? `<b>About ${mins(ex)} exposed</b> of ${mins(st.sec)} on the move: ${[st.steepSec >= 30 ? `${mins(st.steepSec)} on 30°+ slopes` : "", st.underSec >= 30 ? `${mins(st.underSec)} under steep slopes` : ""].filter(Boolean).join(", ")}. Time on or under a slope that could slide is what it keeps short.`
-        : `<b>Next to no time exposed</b> in ${mins(st.sec)} on the move: ${st.steep + st.under + st.trap >= 5 ? "only short bits on or under steep slopes" : "no 30°+ slopes and nothing steep above"}, as far as the terrain map can see.`);
+      const ex = st.steepSec;
+      why.push(ex >= 30 ? `<b>About ${mins(ex)} on 30°+ slopes</b> of ${mins(st.sec)} on the move. Time on a slope that could slide is what it keeps short.`
+        : `<b>Next to no time on 30°+ slopes</b> in ${mins(st.sec)} on the move: ${st.steep >= 5 ? "only short bits" : "none"}, as far as the terrain map can see.`);
     }
     const wg = sp.weigh;
-    if (wg) why.push(`How it weighs it today, on skins: 1 min on a 30-35° slope counts like ${Math.round(wg.s30)} min on gentle ground, 35-40° like ${Math.round(wg.s35)} min (${Math.round(wg.side35)} min sidehilling across it), under a steep slope like ${Math.round(wg.under)} min. So it drops to flatter ground, crosses and climbs back when that's less time exposed, even if it's longer.`);
+    if (wg) why.push(`How it weighs it today, on skins: 1 min on a 30-35° slope counts like ${Math.round(wg.s30)} min on gentle ground, 35-40° like ${Math.round(wg.s35)} min (${Math.round(wg.side35)} min sidehilling across it). So it drops to flatter ground, crosses and climbs back when that's less time exposed, even if it's longer.`);
     // Today's weather in the risk (routeWx).
     const wx = av.wx;
     if (wx && !wx.none) {
@@ -3561,19 +3554,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!av.none && (av.probs || []).length) {
       const parts = (av.probs || []).filter((p) => p.aspects.length && p.aspects.length < 8).map((p) => `${p.aspects.map((x) => x.toUpperCase()).join(" ")} in the ${p.elevations.map((b) => ({ alp: "alpine", tln: "treeline", btl: "below treeline" }[b] || b)).join(", ")} (${esc(p.type)})`);
       if (parts.length) why.push(`Keeps off today's problem aspects where it can: ${parts.join("; ")}.${st.hit >= 5 ? ` Still ${fmtM(st.hit)} on them.` : ""}`);
-      if ((av.probs || []).some((p) => p.aspects.length >= 8)) why.push("One of today's problems is on every aspect, so slope angle and what's above matter most.");
+      if ((av.probs || []).some((p) => p.aspects.length >= 8)) why.push("One of today's problems is on every aspect, so slope angle matters most.");
     }
     if (sp.park) why.push(`${esc(sp.park)}: the closest paved road or lot (usually plowed) for a less exposed way in. Logging roads past it are usually not plowed, so they're part of the ski.`);
     const watch = safeWatch(sp);
     const say = (r) => {
       const asp = r.asp >= 0 ? `${SAFE_ASP[r.asp]}-facing` : "";
-      const also = r.cls === "steep" && (r.by.under || 0) >= 30 ? ` Part of it is also under steeper slopes${r.src ? ` (${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing above)` : ""}.` : r.cls === "under" && (r.by.steep || 0) >= 30 ? ` About ${fmtM(r.by.steep)} of it is on 30°+ ground itself.` : "";
-      return say1(r, asp) + also;
-    };
-    const say1 = (r, asp) => {
-      if (r.cls === "steep") return `<b>${fmtM(r.m)} on slopes up to ${r.maxDeg}°</b>${asp ? `, ${asp}` : ""} (${SAFE_BAND[r.band]})${r.hit ? ", <b>on an aspect in today's avalanche problems</b>" : ""}..`;
-      if (r.cls === "trap") return `<b>${fmtM(r.m)} in a gully or creek bed under steep slopes</b>${r.src ? ` (${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing, ${r.src.up > 0 ? `${r.src.up} m above` : "above"})` : ""}: a terrain trap.`;
-      return `<b>${fmtM(r.m)} under steep slopes</b>${r.src ? `: a ${r.src.deg}° ${SAFE_ASP[r.src.asp]}-facing slope ${r.src.up > 0 ? `${r.src.up} m above` : "above"}${r.src.hit ? ", on a problem aspect today" : ""}` : ""}.`;
+      return `<b>${fmtM(r.m)} on slopes up to ${r.maxDeg}°</b>${asp ? `, ${asp}` : ""} (${SAFE_BAND[r.band]})${r.hit ? ", <b>on an aspect in today's avalanche problems</b>" : ""}.`;
     };
     // Top of every planned tour (Safest way liability review 2026-11-06, alex picked "Rename + safer wording"): what it
     // is, that it can't see today's snowpack, that the call is theirs, and today's danger, before any step of the way.
@@ -3583,7 +3570,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const fcNow = av.none && avyFor.has(sp.line[0][0], sp.line[0][1]);
     const topWarn = `<div class="sk-warn sk-est${av.none ? " sk-nofc" : ""}">${av.none ? `<b>No avalanche forecast included.</b> ` : ""}<b>A computer's estimate, not a safe route.</b> It can't see today's snowpack, cornices or wind loading. You decide whether and where to go.
       ${av.none ? "" : `<span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${chip(v)}</span>`).join("")}</span>`}${fcNow ? ` <b>A forecast is in now: tap ↻ Find again below to use it.</b>` : ""}
-      ${av.none ? `<details class="sk-est-why"><summary>Why no forecast</summary><p><span>${esc(noFcWhy(av, sp.line[0]))}</span> <span>This way is from the terrain only: slope angle and steep slopes above. It doesn't know today's avalanche danger or avalanche problems. Check</span> ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}.</p></details>` : ""}</div>`;
+      ${av.none ? `<details class="sk-est-why"><summary>Why no forecast</summary><p><span>${esc(noFcWhy(av, sp.line[0]))}</span> <span>This way is from the terrain map only. It doesn't know today's avalanche danger or avalanche problems. Check</span> ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}.</p></details>` : ""}</div>`;
     const noFc = "";
     return `<div class="sk-safe">
       ${noFc}
@@ -3597,12 +3584,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <div class="sk-safe-key">${kinds.map((k) => `<span style="--c:${K[k]}">${C[k].label}<b>${fmtM(st[k])}</b></span>`).join("")}</div>
         <ul class="sk-safe-why">${why.map((t) => `<li>${t}</li>`).join("")}</ul>
       </details>
-      ${watch.length ? `<details class="sk-sec sk-fold"><summary><h4>Watch out</h4><span style="--c:${C[watch.some((r) => r.cls === "steep" || r.cls === "trap") ? "steep" : "under"].color}">${watch.length} ${watch.length === 1 ? "spot" : "spots"}</span></summary><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol></details>`
-        : (sp.legs || []).some((l) => l.steps.some((s) => s.worst === "steep" || s.worst === "under" || s.worst === "trap"))
+      ${watch.length ? `<details class="sk-sec sk-fold"><summary><h4>Watch out</h4><span style="--c:${C.steep.color}">${watch.length} ${watch.length === 1 ? "spot" : "spots"}</span></summary><ol class="sk-safe-watch">${watch.map((r, i) => `<li style="--c:${(C[r.cls] || C.ok).color}" data-safe-at="${r.mid[0]},${r.mid[1]}"><i>!${i + 1}</i><span>${say(r)}</span></li>`).join("")}</ol></details>`
+        : (sp.legs || []).some((l) => l.steps.some((s) => s.worst === "steep"))
           // Short bits (under 40 m) still show "!" on their step: the card says so instead of "no 30°+ slopes" (alex's
           // recording 2026-11-05: a step read "33° slope · 30 m" over "No 30°+ slopes on this route").
-          ? `<div class="sk-sec"><p class="sk-safe-ok">Only short steep bits (under 40 m each), marked ! in the steps above. Nothing longer on 30°+ slopes or under steep slopes, as far as the terrain map can see.</p></div>`
-          : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes and no steep slopes above on this route, as far as the terrain map can see.</p></div>`}
+          ? `<div class="sk-sec"><p class="sk-safe-ok">Only short steep bits (under 40 m each), marked ! in the steps above. Nothing longer on 30°+ slopes, as far as the terrain map can see.</p></div>`
+          : `<div class="sk-sec"><p class="sk-safe-ok">No 30°+ slopes on this route, as far as the terrain map can see.</p></div>`}
       <div class="sk-row"><button type="button" class="btn" id="skSafeRev">⇅ Reverse the tour</button><button type="button" class="btn" id="skSafeAgain">↻ Find again</button></div>
       <p class="sk-safe-dis"><b>Not a substitute for avalanche training.</b> This is a planning aid based on a terrain model (10 to 30 m)${av.none ? "" : " and the regional forecast"}. It can't see cornices, wind loading, small slopes, trees or today's snowpack, and a forecast covers a whole region. How much a minute on a steep slope weighs against a longer way is judgment taken from avalanche course rules of thumb, not measured odds. Take an avalanche course (AST 1), carry a transceiver, probe and shovel with partners who know how to use them, read the full forecast on ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}, and make your own decisions in the field.</p>
       
@@ -3728,11 +3715,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     else if (s <= 45) why.push(["hi", `${Math.round(s)}°: prime avalanche angle (30° to 45°, where most slab avalanches start).`]);
     else why.push(["hi", `${Math.round(s)}°: very steep. Sluffs run often and a fall here is serious.`]);
     if (g.max >= 30 && g.max - s >= 4) why.push([g.max >= 35 ? "hi" : "", `Steeper ground close by: up to ${Math.round(g.max)}° within ${SPOT_RING} m.`]);
-    if (g.above) why.push(["hi", "Steep slopes above: ground of 30° or more within 350 m uphill could slide down onto this spot."]);
-    // Never a promise that nothing can reach the spot (alex 2026-11-11, liability): only what the terrain map shows, and
-    // what it can't see (it looks 350 m uphill on ~15 m terrain tiles).
-    else if (g.above === false && s < 30) why.push(["info", "The terrain map shows no slopes of 30° or more within 350 m uphill. It's an estimate: it can miss small slopes, cornices and avalanche paths that start farther up."]);
-    if (g.trap) why.push(["hi", "Terrain trap: a gully or creek bed. Even a small slide piles up deep here."]);
+    // What's above the spot and terrain traps aren't shown (alex 2026-11-11: "Don't show the terrain traps and what is
+    // above you because the data is not accurate enough"). They still never let the class read lower; when they're what
+    // raised it, the card only says it comes from the ground around the spot.
+    if (c > (s >= 35 ? 3 : s >= 30 || g.max >= 30 ? 2 : 1)) why.push(["", "The class also counts the shape of the ground around this spot on the terrain map (an estimate)."]);
     return { c, ...T.CLASSES[c], why };
   }
   function spotAvyHtml(lat, lon, g, cls) {
@@ -3967,21 +3953,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.on) setPlanning(false);
     window.tfRide.start();
   });
-
-  // Red dashes over the stretches of the selected route that have steep slopes above them (aboveLayer).
-  function drawAbove(info) {
-    aboveLayer.clearLayers();
-    if (!info || !info.above) return;
-    if (selected && selected.src === "plan" && safePath()) return;   // the 🛡 safest way colours its own exposed pieces
-    let run = [];
-    const flush = () => { if (run.length > 1) aboveLayer.addLayer(L.polyline(run, { color: "#c92a2a", weight: 7, opacity: 0.85, dashArray: "4 7", lineCap: "round", interactive: false, pane: "ski" })); run = []; };
-    info.pts.forEach((p, i) => {
-      if (p.above && (!run.length || i === 0 || info.pts[i - 1].seg === p.seg)) run.push([p.lat, p.lon]);
-      else { if (p.above) { flush(); run.push([p.lat, p.lon]); } else flush(); }
-    });
-    flush();
-    if (!map.hasLayer(aboveLayer)) aboveLayer.addTo(map);
-  }
 
   // ---------- snowmobile clubs and their grooming reports ----------
   // Pins at each club's staging areas; the card lists every club with its latest grooming report when the nightly
@@ -4617,7 +4588,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (want && !key.innerHTML) key.innerHTML = `<b>Slope angle</b>${SLOPE.map((x) => `<span><i style="background:${x[2]}"></i>${x[1]}</span>`).join("")}`;
   }
 
-  // ---------- slope direction, runout zones and terrain traps ----------
+  // ---------- slope direction ----------
   // A map layer painted tile by tile from the terrain, on the flat map and on the 3D map (the same tiles as pictures).
   function paintedLayer(id, paintFn, o) {
     map.createPane(id).style.zIndex = o.z;
@@ -4695,91 +4666,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     return out;
   }
-  // Runout zones: ground below steep slopes (30° and more, at least 50 m higher) that an avalanche from them could
-  // reach: a line 24° down from a start zone (a typical avalanche path's "alpha angle"), up to 1 km away, with no
-  // ridge in between. A start zone is a 100 m block with at least a quarter of its ground at 30° or more, so a few
-  // steep pixels in the forest don't count. Terrain traps: in a runout zone, a gully or creek bed (ground 5 m or more higher on at least 5 of 8 sides
-  // about 75 m away), where even a small slide piles up deep. Worked out on zoom 12 tiles (about 25 m pixels) with the
-  // 8 tiles around for slopes just off the edge; closer zooms are cut from them. 0 = nothing, 1 = runout, 2 = trap.
-  const RUN_M = 1000, RUN_DEG = 24, RZ = 12;
-  const runCache = new Map();
-  function runoutTile(x, y) {
-    const key = x + "/" + y;
-    if (runCache.has(key)) return runCache.get(key);
-    const p = (async () => {
-      const tiles = await Promise.all([-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => dem(RZ, x + dx, y + dy).catch(() => null))));
-      if (!tiles[4]) throw new Error("no terrain");
-      const lat = tileLat(y + 0.5, RZ), m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** RZ);
-      const M = Math.ceil(RUN_M / m) + 4, W = 256 + 2 * M, H = new Float32Array(W * W).fill(NaN);
-      for (let yy = 0; yy < W; yy++) for (let xx = 0; xx < W; xx++) {
-        const gx = xx - M + 256, gy = yy - M + 256, t = tiles[Math.floor(gy / 256) * 3 + Math.floor(gx / 256)];
-        if (t) H[yy * W + xx] = t[(gy & 255) * 256 + (gx & 255)];
-      }
-      // Start zones, per 4 x 4 pixel block: the highest steep pixel in it.
-      const B = 4, NB = Math.ceil(W / B), src = new Float32Array(NB * NB).fill(-Infinity), cnt = new Uint8Array(NB * NB), k30 = Math.tan((30 * Math.PI) / 180) / (25 / minSlope(RZ));
-      for (let yy = 1; yy < W - 1; yy++) for (let xx = 1; xx < W - 1; xx++) {
-        const i = yy * W + xx, e = H[i];
-        if (!(e > -100)) continue;
-        const g = Math.hypot(H[i + 1] - H[i - 1], H[i + W] - H[i - W]) / (2 * m);
-        if (g >= k30) { const b = Math.floor(yy / B) * NB + Math.floor(xx / B); cnt[b]++; if (e > src[b]) src[b] = e; }
-      }
-      for (let b = 0; b < src.length; b++) if (cnt[b] < 4) src[b] = -Infinity;
-      const out = new Uint8Array(65536), tanA = Math.tan((RUN_DEG * Math.PI) / 180), RB = Math.ceil(RUN_M / (B * m)), rr = Math.round(75 / m);
-      // Every 2 x 2 pixels (about 50 m): enough for a map, four times quicker.
-      for (let py = 0; py < 256; py += 2) for (let px = 0; px < 256; px += 2) {
-        const yy = py + M, xx = px + M, i = yy * W + xx, e = H[i];
-        if (!(e > -100)) continue;
-        const g = Math.hypot(H[i + 1] - H[i - 1], H[i + W] - H[i - W]) / (2 * m);
-        if (g >= k30) continue;   // a start zone itself: Slope angle shows those
-        const bx = Math.floor(xx / B), by = Math.floor(yy / B);
-        let hit = false;
-        for (let dy = -RB; dy <= RB && !hit; dy++) for (let dx = -RB; dx <= RB && !hit; dx++) {
-          const sb = src[(by + dy) * NB + bx + dx];
-          if (!(sb - e >= 50)) continue;
-          const sx = (bx + dx) * B + B / 2, sy = (by + dy) * B + B / 2, d = Math.hypot((sx - xx) * m, (sy - yy) * m);
-          if (d > RUN_M || sb - e < tanA * d) continue;
-          // No ridge in between: the ground halfway is lower than the start zone and not well above the line down.
-          const mid = H[Math.round((sy + yy) / 2) * W + Math.round((sx + xx) / 2)];
-          if (mid <= sb && mid <= (sb + e) / 2 + 40) hit = true;
-        }
-        if (!hit) continue;
-        let higher = 0;
-        for (let a = 0; a < 8; a++) { const v = H[(yy + Math.round(-Math.cos(a * Math.PI / 4) * rr)) * W + xx + Math.round(Math.sin(a * Math.PI / 4) * rr)]; if (v - e >= 5) higher++; }
-        const val = higher >= 5 ? 2 : 1;
-        out[py * 256 + px] = out[py * 256 + px + 1] = out[(py + 1) * 256 + px] = out[(py + 1) * 256 + px + 1] = val;
-      }
-      return out;
-    })();
-    p.catch(() => runCache.delete(key));
-    runCache.set(key, p);
-    if (runCache.size > 60) runCache.delete(runCache.keys().next().value);
-    return p;
-  }
-  async function paintRunout(z, x, y) {
-    const out = new ImageData(256, 256), o = out.data;
-    if (z < RZ) return out;
-    const s = 2 ** (z - RZ), R = await runoutTile(x >> (z - RZ), y >> (z - RZ)), ox = (x % s) * (256 / s), oy = (y % s) * (256 / s);
-    for (let py = 0; py < 256; py++) for (let px = 0; px < 256; px++) {
-      const v = R[Math.floor(oy + py / s) * 256 + Math.floor(ox + px / s)];
-      if (!v) continue;
-      const j = (py * 256 + px) * 4;
-      if (v === 2) { const st = ((px + py) >> 2) % 2; o[j] = st ? 88 : 140; o[j + 1] = st ? 24 : 40; o[j + 2] = st ? 110 : 160; o[j + 3] = 200; }
-      else { o[j] = 214; o[j + 1] = 51; o[j + 2] = 108; o[j + 3] = 80; }
-    }
-    return out;
-  }
   const aspectLayer = paintedLayer("skiaspect", paintAspect, { z: 356, minZoom: 9, attribution: 'Slope direction: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
-  const runoutLayer = paintedLayer("skirunout", paintRunout, { z: 357, minZoom: RZ, attribution: 'Runout zones (estimate): <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
   function refreshTerrainLayers() {
-    const a = sport === "ski" && shown.has("aspect"), r = sport === "ski" && shown.has("runout");
-    aspectLayer(a); runoutLayer(r);
+    const a = sport === "ski" && shown.has("aspect");
+    aspectLayer(a);
     const key = $("skLayerKey");
-    key.hidden = !a && !r;
-    key.innerHTML = (a ? `<div class="sk-keyrow"><b>Slope faces</b>${ASPECTS.map((s2, i) => `<span><i style="background:${ASPECT_COLORS[i]}"></i>${s2.toUpperCase()}</span>`).join("")}</div>` : "")
-      + (r ? `<div class="sk-keyrow"><b>Runout</b><span><i style="background:rgba(214,51,108,.45)"></i>avalanches can reach</span><span><i style="background:repeating-linear-gradient(135deg,#8c28a0 0 3px,#58186e 3px 6px)"></i>terrain trap</span>${map.getZoom() < RZ ? `<span class="sk-note">zoom in to see it</span>` : ""}</div>
-        <p class="sk-note">A rough estimate from the terrain, for planning: big avalanches can run further.</p>` : "");
+    key.hidden = !a;
+    key.innerHTML = a ? `<div class="sk-keyrow"><b>Slope faces</b>${ASPECTS.map((s2, i) => `<span><i style="background:${ASPECT_COLORS[i]}"></i>${s2.toUpperCase()}</span>`).join("")}</div>` : "";
   }
-  map.on("zoomend", () => { if (sport === "ski" && shown.has("runout")) refreshTerrainLayers(); });
 
   // ---------- flats and elevation bands (FATMAP's Flats and Elevation layers) ----------
   // Flats: ground under 5°, where you skate, pole or skin out (and a splitboard goes back to walk mode).
@@ -5106,7 +5000,6 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (avyOn) out.push(bar("Avalanche danger, slopes 25°+", DANGER.slice(1).map((d, i) => [`linear-gradient(${d.color} 50%,${DARK[i + 1]} 50%)`, d.label.replace(/^\d /, "").replace("Considerable", "Consid.")])).replace("</button>", `<span class="bt">Darker: today's problems</span></button>`));
       if (shown.has("slope")) out.push(bar(slopePal === "fatmap" ? "Slope angle (FATMAP)" : "Slope angle", SLOPE.map((s) => [s[2], s[3]])));
       if (shown.has("aspect")) out.push(bar("Slope direction, 25°+", ASPECTS.map((s, i) => [ASPECT_COLORS[i], s.toUpperCase()])));
-      if (shown.has("runout")) out.push(bar(map.getZoom() < RZ ? "Runout zones: zoom in" : "Runout zones", [["rgba(214,51,108,.6)", "can reach"], ["repeating-linear-gradient(135deg,#8c28a0 0 3px,#58186e 3px 6px)", "trap"]]));
       if (shown.has("flats")) out.push(bar(map.getZoom() < 11 ? "Flats: zoom in" : "Flats", [[`rgba(${FLAT_RGB.join(",")},.6)`, `under ${FLAT_DEG}°`]]));
       if (shown.has("elev")) out.push(bar("Elevation bands", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
       const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
@@ -5174,7 +5067,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (thumbsOn) return;
     thumbsOn = true;
     const jobs = [["avy", (E, x, y) => avyThumb(E, y)], ["slope", (E, x, y) => paintSlope(THUMB_Z, x, y)], ["aspect", (E, x, y) => paintAspect(THUMB_Z, x, y)],
-      ["runout", (E, x, y) => paintRunout(THUMB_Z, x, y)], ["flats", (E, x, y) => paintFlats(THUMB_Z, x, y)], ["elev", (E, x, y) => paintElev(THUMB_Z, x, y)]];
+      ["flats", (E, x, y) => paintFlats(THUMB_Z, x, y)], ["elev", (E, x, y) => paintElev(THUMB_Z, x, y)]];
     jobs.reduce((p, [k, f]) => p.then(() => thumbOf(k, f)).then(renderSwitches, () => {}), Promise.resolve());   // one at a time, each shown when ready
   }
   document.getElementById("layersBtn")?.addEventListener("click", () => { if (sport === "ski") makeThumbs(); });
@@ -5628,7 +5521,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (sport === "mtb") mtb.forEach((l) => { if (!map.hasLayer(l)) l.addTo(map); });
     else mtb.forEach((l) => map.removeLayer(l));
     if (sport === "ski") {
-      skiLayer.addTo(map); hutLayer.addTo(map); hutNames.addTo(map); hutPins.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map); aboveLayer.addTo(map);
+      skiLayer.addTo(map); hutLayer.addTo(map); hutNames.addTo(map); hutPins.addTo(map); pinLayer.addTo(map); parkLayer.addTo(map); mineLayer.addTo(map); clubLayer.addTo(map); snowLayer.addTo(map);
       loadSki(); loadMine(); loadClubs(); if (shown.has("snow")) loadSnow(); renderSwitches(); renderList(); drawPlan(); renderPlan();
       if (plan.safe && plan.pts.length > 1 && !safePath() && !plan.wait && !plan.fail) planChanged();   // a way from another day (or the old demo forecast): today's
     } else {
@@ -5636,7 +5529,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       routeFocus(false);
       drawParking();
       drawHutPins();
-      [skiLayer, hutLayer, hutNames, hutPins, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, aboveLayer, plan.layer].forEach((l) => map.removeLayer(l));
+      [skiLayer, hutLayer, hutNames, hutPins, pinLayer, parkLayer, mineLayer, clubLayer, hoverLayer, snowLayer, plan.layer].forEach((l) => map.removeLayer(l));
     }
     // The map's ▶ Ride button records a ski tour in Skiing (navigate.js). The same word as the phone's tab: Ride in
     // the riding sports, Record in the others (interface review 2026-11-02 item 6; Hunting and Fishing said Ride).

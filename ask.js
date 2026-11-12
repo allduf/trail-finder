@@ -803,7 +803,6 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
         <li><b>${later ? esc(dayName(later)).replace(/^./, (c) => c.toUpperCase()) + "'s" : "Today's"} avalanche danger</b> where you are${later ? " (when the forecast covers that day)" : ""}: alpine, treeline or below treeline (Avalanche Canada)</li>
         <li><b>Slope angle</b>: it keeps off 30° to 45°, where most slab avalanches start</li>
         <li><b>Which way slopes face</b>: more care on the aspects of today's avalanche problems</li>
-        <li><b>What's above you</b>: where a slide from steeper ground could run, and gullies or creeks (terrain traps)</li>
         <li><b>Time</b>: about 430 m an hour up, slower in forest; open water and cliffs can't be crossed</li>
       </ul>
       <p class="ask-note">Your tour is kept in Saved. Its card shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.</p>`
@@ -861,7 +860,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       ${two ? `<button type="button" class="ask-act" data-two>🗺 Show both ways on the map</button>
         <p class="ask-note">Two less exposed ways are worked out: from the closest road, ${esc(st.name)}, and from the plowed road or parking lot within 9 km that gives the least exposed way in. Both are drawn on the map: tap the one you want.</p>`
         : one ? `<button type="button" class="ask-act" data-from-road>🛡 Find the least exposed way in</button>` : ""}
-      ${two || one ? `<p class="ask-note">The ways weigh today's avalanche danger, slope angle, which way slopes face and what's above you. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.</p>`
+      ${two || one ? `<p class="ask-note">The ways weigh today's avalanche danger, slope angle and which way slopes face. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.</p>`
         : `<p class="ask-note ask-warn">No drivable road is mapped within 15 km of ${esc(at.name)}. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest.</p>`}
       ${others ? `<button type="button" class="ask-more" data-others>Show the ${others} ski tours nearby instead</button>` : ""}`;
     const tb = out.querySelector("[data-two]");
