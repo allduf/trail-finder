@@ -14,9 +14,9 @@
   const TILE_KB = 25;          // rough average vector tile in the mountains, for the estimate
   const DATA = ["trails", "names", "mtb", "heights", "roads", "unmapped"];
   const LIBS = [
-    "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js",
-    "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css",
-    "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js",
+    "vendor/maplibre-gl-5.24.0.js",
+    "vendor/maplibre-gl-5.24.0.css",
+    "vendor/maplibre-gl-leaflet-0.1.3.js",
   ];
   const GLYPH_RANGES = ["0-255", "256-511", "512-767", "768-1023", "8192-8447"]; // Latin, accents, punctuation
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -532,7 +532,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   // opens, and once more a couple of minutes after a save that missed some.
   const files = (n) => `${n.toLocaleString()} file${n === 1 ? "" : "s"}`;
   const KINDS = [[/mapterhorn|elevation-tiles/, "3D heights"], [/trail-finder-winter/, "winter photos"], [/openfreemap\.org\/(?!styles|fonts|sprites)/, "map tiles"],
-    [/\/data\//, "trail data"], [/unpkg\.com|openfreemap/, "map style"]];
+    [/\/data\//, "trail data"], [/unpkg\.com|openfreemap|\/vendor\//, "map style"]];
   const whatsMissing = (urls) => [...new Set(urls.map((u) => (KINDS.find(([re]) => re.test(u)) || [0, "other files"])[1]))].join(", ");
   function showState(kind, head, text, pct, acts) {
     const st = $("[data-state]");
@@ -574,6 +574,14 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   const autoLater = (ms) => { clearTimeout(autoTimer); autoTimer = setTimeout(autoFinish, ms); };
   window.addEventListener("online", () => autoLater(3000));
   if (load().some((a) => a.missing || needsRing(a))) autoLater(20000);   // left unfinished last time: try again once the page has settled
+  // Map library files moved from unpkg.com to the site's own vendor/ folder (2026-11-11, security check: no code from
+  // outside servers). Areas saved before keep only the old copies, so the new ones are added once, quietly, with signal.
+  const libsTopUp = async () => {
+    if (!load().length || !navigator.onLine || !window.caches) return;
+    try { const cache = await caches.open(CACHE); for (const u of LIBS) if (!(await cache.match(u))) { const r = await fetch(u); if (r.ok) await cache.put(u, r); } } catch {}
+  };
+  setTimeout(libsTopUp, 25000);
+  window.addEventListener("online", () => setTimeout(libsTopUp, 5000));
 
   const needAccount = () => (window.tfAccount && window.tfAccount.require ? window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after.") : Promise.resolve(true));
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some

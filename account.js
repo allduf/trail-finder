@@ -7,7 +7,7 @@
   // database only lets each rider read and write their own rows (see supabase/setup.sql).
   const SUPABASE_URL = "https://fohdmserpbkurcvcrbbb.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_kzmEvM2ENCwNcH7-Nu-pOA_88II-bhX";
-  const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js";
+  const LIB = "vendor/supabase-js-2.99.3.js";
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
   // Not "map3d": 3D turned on at a computer would open a phone straight into 3D, which can run it out of memory.

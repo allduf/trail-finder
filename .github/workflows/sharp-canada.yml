@@ -104,5 +104,5 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: 9ad76bdf11abb4440ad064451cf06d9a
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret (Settings > Secrets and variables > Actions)."; exit 1; fi
-          npx --yes wrangler@4 pages project create trailfinder-sharpca-${{ matrix.site }} --production-branch main || true
-          for try in 1 2 3; do npx --yes wrangler@4 pages deploy site --project-name trailfinder-sharpca-${{ matrix.site }} --branch main --commit-dirty=true && break; [ $try = 3 ] && exit 1; sleep 30; done
+          npx --yes wrangler@4.160.1 pages project create trailfinder-sharpca-${{ matrix.site }} --production-branch main || true
+          for try in 1 2 3; do npx --yes wrangler@4.160.1 pages deploy site --project-name trailfinder-sharpca-${{ matrix.site }} --branch main --commit-dirty=true && break; [ $try = 3 ] && exit 1; sleep 30; done
