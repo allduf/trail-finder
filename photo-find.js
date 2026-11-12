@@ -26,7 +26,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = F.esc;
 
-  const EXIFR = "https://unpkg.com/exifr@7.1.3/dist/lite.umd.js";
+  const EXIFR = "vendor/exifr-lite-7.1.3.js";
   const TESS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
   const TESS_OPTS = {
     workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
