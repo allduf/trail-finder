@@ -209,7 +209,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
 
     <section data-panel="problems">
       <h2>Crashes</h2>
-      <p class="muted">Times the app died and iOS opened it again (usually out of memory).</p>
+      <p class="muted">Times the app died and iOS opened it again (usually out of memory). Newest first; Version is the app version it happened on (shown since 13 Nov).</p>
       <div class="card"><table id="crashes"></table></div>
 
       <h2>Speed</h2>
@@ -217,7 +217,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       <div class="card"><table id="speed"></table></div>
 
       <h2>Errors</h2>
-      <p class="muted">Each error once, with how many times it happened.</p>
+      <p class="muted">Each error once, with how many times it happened, newest first. Version is the newest app version it happened on (shown since 13 Nov).</p>
       <div class="card"><table id="errors"></table></div>
     </section>
   </div>
@@ -813,9 +813,14 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       const rest = parts.filter((x) => !/^\d+ min$|^back \d+x$/.test(x)).map((x) => SPORTS[x] || x.replace(/^ski(?=[a-z])/, "").replace(/\+/g, ", "));
       return `${kind === "3d" ? "In the 3D map" : "Not in 3D"} · ${rest.join(" · ")}${back ? " · after coming back to the app" : ""}`;
     };
-    for (const c of crashes) { const k = crashWhere(c.what); const g = cg.get(k) || { n: 0, who: new Set() }; g.n++; g.who.add(c.label || c.device.slice(0, 6)); cg.set(k, g); }
-    $("crashes").innerHTML = cg.size ? `<tr><th>Where</th><th class="n">Times</th><th>Who</th></tr>` + [...cg.entries()].map(([k, g]) => `<tr><td>${k}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td></tr>`).join("")
-      : none(3, "No crashes 🎉");
+    // When it last happened and on which app version (sent since 2026-11-13, "–" before): a crash fix that went out
+    // shows as the row stopping at an older version.
+    for (const c of crashes) {
+      const k = crashWhere(c.what); const g = cg.get(k) || { n: 0, who: new Set(), last: c.at, v: null };
+      g.n++; g.who.add(c.label || c.device.slice(0, 6)); if (c.at > g.last) g.last = c.at; if (c.ms > (g.v || 0)) g.v = c.ms; cg.set(k, g);
+    }
+    $("crashes").innerHTML = cg.size ? `<tr><th>Where</th><th class="n">Times</th><th>Who</th><th class="n">Last</th><th class="n">Version</th></tr>` + [...cg.entries()].sort((a, b) => (a[1].last < b[1].last ? 1 : -1)).map(([k, g]) => `<tr><td>${k}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td><td class="n">${g.v || "–"}</td></tr>`).join("")
+      : none(5, "No crashes 🎉");
 
     // ---- weeks: testers each week, and how many had used it in an earlier week
     const firstWeek = new Map();
@@ -907,12 +912,13 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
 
     const eg = new Map();
     for (const r of shown) if (r.kind === "error") {
-      const k = `${r.page}: ${r.what}`, g = eg.get(k) || { n: 0, who: new Set(), last: r.at };
-      g.n++; g.who.add(r.label || r.device.slice(0, 6)); g.last = r.at; eg.set(k, g);
+      const k = `${r.page}: ${r.what}`, g = eg.get(k) || { n: 0, who: new Set(), last: r.at, v: null };
+      g.n++; g.who.add(r.label || r.device.slice(0, 6)); g.last = r.at; if (r.ms > (g.v || 0)) g.v = r.ms; eg.set(k, g);
     }
-    const el = [...eg.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 30);
+    // Newest first: an error that stopped weeks ago was most likely fixed by an update.
+    const el = [...eg.entries()].sort((a, b) => (a[1].last < b[1].last ? 1 : -1)).slice(0, 30);
     $("errors").innerHTML = el.length
-      ? `<tr><th>Error</th><th class="n">Times</th><th>Who</th><th class="n">Last</th></tr>` + el.map(([k, g]) => `<tr><td class="raw">${esc(k)}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td></tr>`).join("")
+      ? `<tr><th>Error</th><th class="n">Times</th><th>Who</th><th class="n">Last</th><th class="n">Version</th></tr>` + el.map(([k, g]) => `<tr><td class="raw">${esc(k)}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td><td class="n">${g.v || "–"}</td></tr>`).join("")
       : none(1, "No errors 🎉");
     paintTodo();
   }
