@@ -4,7 +4,7 @@
 // of each step in shots/fgs-video-steps.json (for captions). Run by test/phone-check.sh after the phone check; a
 // failure here never fails the check.
 import { execSync, spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 const APP = "com.allduf.trailfinder";
 const sh = (c) => execSync(c, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -63,28 +63,20 @@ async function tap(selector, what) {
 // The ride follows a real trail at Lost Lake (Whistler), from OpenStreetMap, so the track is drawn along it.
 let path = [], step = 0;
 async function loadTrail() {
-  const q = `[out:json][timeout:25];way["highway"~"path|track|footway|cycleway|bridleway"]["name"](50.112,-122.958,50.135,-122.925);out geom;`;
-  const want = ["Lost Lake Loop", "Molly Hogan", "Panther", "Tin Pants", "Gypsy Rose", "Valley Trail"];
-  for (const host of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"]) {
-    try {
-      const r = await fetch(host, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": "trail-finder-ci" } });
-      if (!r.ok) continue;
-      const ways = ((await r.json()).elements || []).filter((w) => w.geometry && w.geometry.length > 5);
-      const len = (g) => g.reduce((a, p, i) => i ? a + Math.hypot((p.lat - g[i - 1].lat) * 111000, (p.lon - g[i - 1].lon) * 71500) : 0, 0);
-      ways.sort((a, b) => (want.indexOf(a.tags.name) + 1 || 99) - (want.indexOf(b.tags.name) + 1 || 99) || len(b.geometry) - len(a.geometry));
-      const w = ways.find((x) => len(x.geometry) > 500) || ways[0];
-      if (!w) continue;
-      // Points every ~7 m (one GPS fix a second at a riding speed of ~25 km/h)
-      const g = w.geometry;
-      for (let i = 1; i < g.length; i++) {
-        const a = g[i - 1], b = g[i], d = Math.hypot((b.lat - a.lat) * 111000, (b.lon - a.lon) * 71500), n = Math.max(1, Math.round(d / 7));
-        for (let k = 0; k < n; k++) path.push([a.lon + (b.lon - a.lon) * k / n, a.lat + (b.lat - a.lat) * k / n]);
-      }
-      console.log(`ride follows "${w.tags.name}" (${Math.round(len(g))} m, ${path.length} fixes)`);
-      return;
-    } catch (e) { console.log(`(${host}: ${e.message})`); }
-  }
-  console.log("(no trail from OpenStreetMap: riding a straight line)");
+  // phone-check.sh puts the live site's Whistler trail file in data/ (the app reads it too, so it names the trail).
+  try {
+    const f = JSON.parse(readFileSync("../data/mtb-wh.json", "utf8"));
+    const w = f.ways["318391930"] || Object.values(f.ways).find((x) => x.tags && x.tags.name === "Molly Hogan Trail");
+    const g = [];
+    for (let i = 0; i < w.g.length; i += 2) g.push({ lat: w.g[i], lon: w.g[i + 1] });
+    // Points every ~7 m (one GPS fix a second at a riding speed of ~25 km/h)
+    for (let i = 1; i < g.length; i++) {
+      const a = g[i - 1], b = g[i], d = Math.hypot((b.lat - a.lat) * 111000, (b.lon - a.lon) * 71500), n = Math.max(1, Math.round(d / 7));
+      for (let k = 0; k < n; k++) path.push([a.lon + (b.lon - a.lon) * k / n, a.lat + (b.lat - a.lat) * k / n]);
+    }
+    console.log(`ride follows "${w.tags.name}" (${path.length} fixes)`);
+    return;
+  } catch (e) { console.log(`(no trail file: ${e.message})`); }
   for (let i = 0; i < 200; i++) path.push([-122.957 + i * 0.00012, 50.116 + i * 0.00009]);
 }
 let alt = 680;

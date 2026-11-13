@@ -4,6 +4,8 @@ set -e
 APP=com.allduf.trailfinder
 mkdir -p shots
 adb wait-for-device
+# The live site's Whistler data files (not in the repo), so the test site shows and names the trails
+for f in mtb trails names roads access; do curl -sf --max-time 60 "https://trailfinderapp.ca/data/$f-wh.json" -o "../data/$f-wh.json" || echo "(no $f-wh.json)"; done
 # Wait for the phone to finish starting (launcher up), or the app can open before it and be closed again.
 for i in $(seq 1 60); do [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] && break; sleep 2; done
 sleep 10
