@@ -60,12 +60,41 @@ async function tap(selector, what) {
   return true;
 }
 
-let lon = -122.957, lat = 50.116, alt = 680;
+// The ride follows a real trail at Lost Lake (Whistler), from OpenStreetMap, so the track is drawn along it.
+let path = [], step = 0;
+async function loadTrail() {
+  const q = `[out:json][timeout:25];way["highway"~"path|track|footway|cycleway|bridleway"]["name"](50.112,-122.958,50.135,-122.925);out geom;`;
+  const want = ["Lost Lake Loop", "Molly Hogan", "Panther", "Tin Pants", "Gypsy Rose", "Valley Trail"];
+  for (const host of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"]) {
+    try {
+      const r = await fetch(host, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": "trail-finder-ci" } });
+      if (!r.ok) continue;
+      const ways = ((await r.json()).elements || []).filter((w) => w.geometry && w.geometry.length > 5);
+      const len = (g) => g.reduce((a, p, i) => i ? a + Math.hypot((p.lat - g[i - 1].lat) * 111000, (p.lon - g[i - 1].lon) * 71500) : 0, 0);
+      ways.sort((a, b) => (want.indexOf(a.tags.name) + 1 || 99) - (want.indexOf(b.tags.name) + 1 || 99) || len(b.geometry) - len(a.geometry));
+      const w = ways.find((x) => len(x.geometry) > 500) || ways[0];
+      if (!w) continue;
+      // Points every ~7 m (one GPS fix a second at a riding speed of ~25 km/h)
+      const g = w.geometry;
+      for (let i = 1; i < g.length; i++) {
+        const a = g[i - 1], b = g[i], d = Math.hypot((b.lat - a.lat) * 111000, (b.lon - a.lon) * 71500), n = Math.max(1, Math.round(d / 7));
+        for (let k = 0; k < n; k++) path.push([a.lon + (b.lon - a.lon) * k / n, a.lat + (b.lat - a.lat) * k / n]);
+      }
+      console.log(`ride follows "${w.tags.name}" (${Math.round(len(g))} m, ${path.length} fixes)`);
+      return;
+    } catch (e) { console.log(`(${host}: ${e.message})`); }
+  }
+  console.log("(no trail from OpenStreetMap: riding a straight line)");
+  for (let i = 0; i < 200; i++) path.push([-122.957 + i * 0.00012, 50.116 + i * 0.00009]);
+}
+let alt = 680;
+const here = () => path[Math.min(step, path.length - 1)];
 async function move(seconds) {
   const end = Date.now() + seconds * 1000;
   while (Date.now() < end) {
-    lon += 0.00012; lat += 0.00009; alt += 0.6;
-    adb(`emu geo fix ${lon.toFixed(6)} ${lat.toFixed(6)} ${alt.toFixed(1)}`);
+    step = (step + 1) % path.length; alt += 0.4;
+    const [lo, la] = here();
+    adb(`emu geo fix ${lo.toFixed(6)} ${la.toFixed(6)} ${alt.toFixed(1)}`);
     await sleep(1000);
   }
 }
@@ -76,7 +105,8 @@ async function move(seconds) {
   try { adb("shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS"); } catch {}
   adb("shell settings put system show_touches 1");
   adb(`shell am force-stop ${APP}`);
-  adb(`emu geo fix ${lon} ${lat} ${alt}`);
+  await loadTrail();
+  adb(`emu geo fix ${here()[0]} ${here()[1]} ${alt}`);
   adb(`shell monkey -p ${APP} -c android.intent.category.LAUNCHER 1`);
   await sleep(15000);
   await connect();
