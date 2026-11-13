@@ -9,3 +9,4 @@ adb emu geo fix -122.95 50.11 700
 adb shell am start -n $APP/.MainActivity
 sleep 20
 node test/phone-check.mjs
+node test/fgs-video.mjs || true
