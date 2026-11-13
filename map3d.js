@@ -2283,6 +2283,62 @@
     try { gl.style.off("data", cb0); gl.style.on("data", cb); gl._terrainDataCallback = cb; } catch {}
   }
   window.tf3dSpreadPaints = () => PAINTS_PER_FRAME;   // for tests
+  // ---------- lag check (?lagcheck in the address, or localStorage tfLagCheck = 1) ----------
+  // alex's recordings show freezes while turning the 3D map (2026-11-13: 1.8 s mid-turn while planning a tour) that the
+  // cloud test browser can't time: its graphics are software, so every frame is slow there. This small readout in the
+  // corner of the 3D map says, for the worst frame of the last few seconds, how long it took and what happened in it:
+  // the page's own work (long tasks), ground pictures painted again, new paint buffers made (~32 MB each on a
+  // computer), tiles that arrived, ground lookups that wait for the graphics card, 3D line rebuilds. A screen recording
+  // with it on shows what to fix. Off unless asked for; nothing is sent anywhere.
+  function lagCheck() {
+    let want = false;
+    try { want = /[?&]lagcheck\b/.test(location.search) || localStorage.getItem("tfLagCheck") === "1"; if (want) localStorage.setItem("tfLagCheck", "1"); } catch {}
+    if (!want || !gl || gl.tfLagCheck) return;
+    gl.tfLagCheck = true;
+    const el = document.createElement("div");
+    el.style.cssText = "position:absolute;left:8px;bottom:86px;z-index:5;background:rgba(0,0,0,.72);color:#fff;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;padding:5px 7px;border-radius:6px;pointer-events:none;white-space:pre";
+    box.append(el);
+    const c = { paints: 0, made: 0, tiles: 0, reads: 0, js: 0, crisp: 0 };
+    let tilesBy = {};
+    try { new PerformanceObserver((l) => { for (const e of l.getEntries()) c.js += e.duration; }).observe({ type: "longtask" }); } catch {}
+    gl.on("data", (e) => { if (e && e.dataType === "source" && e.tile) { c.tiles++; tilesBy[e.sourceId] = (tilesBy[e.sourceId] || 0) + 1; } });
+    try {
+      const g = gl.painter.context.gl, rp = g.readPixels;
+      g.readPixels = function () { c.reads++; return rp.apply(this, arguments); };
+    } catch {}
+    const hook = () => {
+      const pool = gl.painter && gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (!pool || pool.tfLag) return;
+      pool.tfLag = true;
+      const st = pool.stampObject, mk = pool._createObject;
+      pool.stampObject = function () { c.paints++; return st.apply(this, arguments); };
+      if (typeof mk === "function") pool._createObject = function () { c.made++; return mk.apply(this, arguments); };
+    };
+    let last = performance.now(), worst = null, shown = 0, builds = 0, frames = 0, since = performance.now();
+    gl.on("render", () => {
+      hook();
+      const now = performance.now(), gap = now - last;
+      last = now; frames++;
+      const nb = (crispLayer.took || []).length;   // (at most 20 kept: counts new ones)
+      if (nb !== builds) { c.crisp++; builds = nb; }
+      const top = Object.entries(tilesBy).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => k + " " + n).join(", ");
+      const f = { gap: Math.round(gap), js: Math.round(c.js), paints: c.paints, made: c.made, tiles: c.tiles, top, reads: c.reads, crisp: c.crisp, at: now };
+      c.paints = c.made = c.tiles = c.reads = c.js = c.crisp = 0; tilesBy = {};
+      if (gap > 2000) return;   // the tab was hidden or the map was still
+      if (!worst || f.gap >= worst.gap || now - worst.at > 4000) worst = f;
+      if (now - shown < 250) return;
+      shown = now;
+      let pool = null; try { pool = gl.painter.renderToTexture.pool; } catch {}
+      const fps = Math.round((frames * 1000) / Math.max(1, now - since)); frames = 0; since = now;
+      const mb = pool ? Math.round((pool._objects.length * pool._tileSize * pool._tileSize * 8) / 1048576) : 0;
+      el.textContent = `lag check  ${fps} fps  moving: ${gl.isMoving() ? "yes" : "no"}\n` +
+        `worst frame (last 4 s): ${worst.gap} ms\n` +
+        `  page work ${worst.js} ms · ground repaints ${worst.paints} · new buffers ${worst.made}\n` +
+        `  tiles in ${worst.tiles}${worst.top ? " (" + worst.top + ")" : ""}\n` +
+        `  ground lookups ${worst.reads} · line rebuilds ${worst.crisp}\n` +
+        `paint buffers ${pool ? pool._objects.length + " × " + pool._tileSize + " px ≈ " + mb + " MB" : "-"} · pitch ${Math.round(gl.getPitch())}° · zoom ${gl.getZoom().toFixed(1)}`;
+    });
+  }
   let demFixed = false;
   function fixDemLeak() {
     if (demFixed || !gl.terrain) return;
@@ -2885,6 +2941,7 @@
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
     gl.on("render", () => { spreadPaints(); quietSources(); });   // once its paint buffers exist (and again if the terrain is set up anew)
+    lagCheck();   // only with ?lagcheck in the address
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
     gl.on("movestart", (e) => { byHand = !!e.originalEvent; if (byHand) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
