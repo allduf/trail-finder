@@ -1,0 +1,53 @@
+name: Soak test
+
+# Long use at iPhone size (alex 2026-11-13): 30 min of the 3D map in Skiing, MTB, Hunting and Hiking, flying to a new
+# place each round, turning and tilting, and going to the background and back. Fails when memory keeps climbing
+# (what makes an iPhone close the app), when the page runs out of memory, or when a new place usually takes too long
+# to show its 3D ground. Memory and load times of every round are in the job summary and the "soak-test" download.
+# Too long for every pull request: it runs each night on main, and by hand (Actions > Soak test > Run workflow) on
+# any branch, for example before merging a change to the 3D map.
+on:
+  schedule:
+    - cron: "30 10 * * *"   # 02:30 Pacific (03:30 in summer), after the night's data jobs
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "How long to use the app (minutes)"
+        default: "30"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soak-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  soak:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add the data jobs' files
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install the test browser
+        # Same mirror fix as phone-test.yml (azure.archive.ubuntu.com hung on 2026-11-11).
+        run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Use the app for ${{ inputs.minutes || '30' }} minutes
+        run: node scripts/soak-test.mjs
+        env:
+          MINUTES: ${{ inputs.minutes || '30' }}
+          OUT: soak-test-out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak-test
+          path: soak-test-out
+          retention-days: 30
