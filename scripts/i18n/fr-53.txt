@@ -1,0 +1,1 @@
+Mountain biking: New trails shows its list faster, and no longer sits for many seconds waiting on a few old trails OpenStreetMap can't date. ||| Vélo de montagne : Nouveaux sentiers affiche sa liste plus vite et n'attend plus de longues secondes après quelques vieux sentiers qu'OpenStreetMap ne peut pas dater.

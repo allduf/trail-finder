@@ -6,7 +6,7 @@
   "use strict";
   const map = window.tfLeaflet, btn = document.getElementById("btn3d");
   if (!map || !btn || !window.L) return;
-  const LIB = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl";
+  const LIB = "vendor/maplibre-gl-5.24.0";
   // Town, peak and lake names in letters the user can read (alex 2026-10-30, in Japan: "Can we have the map in
   // English"): a name written in another script (Japanese, Korean, Russian...) shows its English name, or the
   // Latin-letter one from OpenMapTiles; French users get the French name first. Names already in Latin letters stay as
@@ -335,14 +335,27 @@
   }
   // Height of the ground as drawn: the terrain piece on screen that holds the point, read on its 128 x 128 grid
   // and blended across the grid square like the drawn mesh. Off the drawn pieces: the best height known.
+  // Kept between builds (see crispHeights and crispBuild): the height grids, and the arrays a build fills. Only grown,
+  // never made again for each build; what's handed to the graphics card is a copy, so refilling them is safe.
+  const crispGridPool = [];
+  let crispGridUsed = null, crispVerts = null, crispIdx = null, crispPts = null;
+  function crispGridsBack() {
+    if (!crispGridUsed) return;
+    for (const e of crispGridUsed.values()) if (crispGridPool.length < 300) crispGridPool.push(e.a);
+    crispGridUsed = null;
+  }
+  // Let go of them all (lighten: the 3D map put away or the app in the background).
+  function crispRelease() { crispGridPool.length = 0; crispVerts = crispIdx = crispPts = null; }
   function crispHeights() {
     const terrain = gl.terrain, tm = terrain && terrain.tileManager;
     if (!tm) return null;
-    const mesh = terrain.meshSize || 128, byKey = new Map();
+    // Pieces by zoom, then by y * 2^z + x: a number, not a "z/x/y" text made for every point at every zoom (that was
+    // most of a build's throwaway memory, ~15 MB each time, measured 2026-11-11).
+    const mesh = terrain.meshSize || 128, byZ = [];
     let zMin = 99, zMax = -1;
     for (const t of tm.getRenderableTiles()) {
       const c = t.tileID.canonical;
-      byKey.set(c.z + "/" + c.x + "/" + c.y, t.tileID);
+      (byZ[c.z] || (byZ[c.z] = new Map())).set(c.y * 2 ** c.z + c.x, t.tileID);
       zMin = Math.min(zMin, c.z); zMax = Math.max(zMax, c.z);
     }
     // The height tiles downloaded so far, by z/x/y (MapLibre internals: none found just means height 0 off the view).
@@ -365,13 +378,20 @@
     // Heights read once per grid corner per terrain piece (each corner serves many points), from the height tile
     // that piece is drawn with. Read straight from the tile's data: MapLibre's own lookup sets up a graphics texture
     // per piece as it goes (a build took up to 1.8 s with it, measured).
+    // The grids come from a pool kept between builds (crispGridPool): a new one for each of the ~250 terrain pieces
+    // every build made ~18 MB of throwaway memory each time, 20-40 builds a minute while looking around, and the
+    // iPhone app restarted in Skiing 3D (alex 2026-11-11). crispBuild gives them back when it's done.
     const grids = new Map(), G = mesh + 1;
+    crispGridUsed = grids;
     const at = (id, gx, gy) => {
       let e = grids.get(id.key);
       if (!e) {
         let src = null;
         try { src = tm.getSourceTile(id, true); } catch {}
-        e = { a: new Float32Array(G * G).fill(NaN), dem: src && src.dem, c: src && src.tileID && src.tileID.canonical };
+        let a = crispGridPool.pop();
+        if (!a || a.length !== G * G) a = new Float32Array(G * G);
+        a.fill(NaN);
+        e = { a, dem: src && src.dem, c: src && src.tileID && src.tileID.canonical };
         grids.set(id.key, e);
       }
       if (!e.dem) return 0;
@@ -381,7 +401,9 @@
     };
     return (mx, my, lng, lat) => {   // mercator x, y in 0..1
       for (let z = zMax; z >= zMin; z--) {
-        const n = 2 ** z, tx = Math.floor(mx * n), ty = Math.floor(my * n), id = byKey.get(z + "/" + tx + "/" + ty);
+        const m = byZ[z];
+        if (!m) continue;
+        const n = 2 ** z, tx = Math.floor(mx * n), ty = Math.floor(my * n), id = m.get(ty * n + tx);
         if (!id) continue;
         const fx = (mx * n - tx) * mesh, fy = (my * n - ty) * mesh, gx = Math.min(mesh - 1, Math.floor(fx)), gy = Math.min(mesh - 1, Math.floor(fy));
         const u = fx - gx, v = fy - gy;
@@ -408,6 +430,9 @@
     if (gl.isMoving()) return;   // never while a finger moves the map: the move's end builds again
     const height = gl.terrain && crispHeights();
     if (!height) { L3.count = 0; crispDraped(true); return; }   // no mountains: the draped lines are right
+    try { crispFill(L3, height, t0); } finally { crispGridsBack(); }
+  }
+  function crispFill(L3, height, t0) {
     const b = gl.getBounds(), pad = 0.35;
     const dx = (b.getEast() - b.getWest()) * pad, dy = (b.getNorth() - b.getSouth()) * pad;
     const box = [b.getWest() - dx, b.getSouth() - dy, b.getEast() + dx, b.getNorth() + dy];
@@ -448,12 +473,12 @@
     }
     const step = Math.max(CRISP_STEP, total / CRISP_MAX);
     // Straight into typed arrays that grow as needed (a plain array of numbers took ~4x the memory while building).
-    let verts = new Float32Array(CRISP_FLOATS * 8192), idx = new Uint32Array(3 * 8192), nv = 0, ni = 0;
+    // The same arrays every build (crispVerts...): made again each time they were ~20 MB of throwaway memory a build.
+    let verts = crispVerts || new Float32Array(CRISP_FLOATS * 8192), idx = crispIdx || new Uint32Array(3 * 8192), nv = 0, ni = 0;
     const room = (v, i) => {
-      if ((nv + v) * CRISP_FLOATS > verts.length) { const a = new Float32Array(Math.max(verts.length * 2, (nv + v) * CRISP_FLOATS)); a.set(verts); verts = a; }
-      if (ni + i > idx.length) { const a = new Uint32Array(Math.max(idx.length * 2, ni + i)); a.set(idx); idx = a; }
+      if ((nv + v) * CRISP_FLOATS > verts.length) { const a = new Float32Array(Math.max(verts.length * 2, (nv + v) * CRISP_FLOATS)); a.set(verts.subarray(0, nv * CRISP_FLOATS)); verts = a; }
+      if (ni + i > idx.length) { const a = new Uint32Array(Math.max(idx.length * 2, ni + i)); a.set(idx.subarray(0, ni)); idx = a; }
     };
-    const merc = (lng, lat) => [(lng + 180) / 360, (1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2];
     const zPerM = (lat) => 1 / (2 * Math.PI * 6371008.8 * Math.cos((lat * Math.PI) / 180));   // mercator units per metre up (MapLibre's)
     for (const { f, runs } of feats) {
       const [r, g, bl, a] = f.c, kind = f.kind;
@@ -463,10 +488,11 @@
         let n = 1;
         for (let i = 1; i < q.length; i++) n += Math.max(1, Math.ceil(Math.hypot((q[i][0] - q[i - 1][0]) * kx, (q[i][1] - q[i - 1][1]) * 110540) / step));
         if (n < 2) continue;
-        const P = new Float64Array(n * 4);
+        if (!crispPts || crispPts.length < n * 4) crispPts = new Float64Array(Math.max(n * 4, crispPts ? crispPts.length * 2 : 16384));
+        const P = crispPts;
         let k = 0, dist = d0;
         const put = (lng, lat, d) => {
-          const [mx, my] = merc(lng, lat);
+          const mx = (lng + 180) / 360, my = (1 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI) / 2;
           P[k] = mx - origin[0]; P[k + 1] = my - origin[1]; P[k + 2] = ((height(mx, my, lng, lat) || 0) + 1.5) * zPerM(lat); P[k + 3] = d; k += 4;
         };
         put(q[0][0], q[0][1], d0);
@@ -493,6 +519,7 @@
         }
       }
     }
+    crispVerts = verts; crispIdx = idx;
     const t1 = performance.now();
     crispDraped(false);
     const t2 = performance.now();
@@ -848,8 +875,13 @@
   // After a long jump the camera can keep aiming at the height of the place it came from (alex 2026-11-03: searching
   // Bromont, 300 m high, from Whistler aimed at 2,200 m): tilted 70°, it then looks kilometres past the place and the
   // place sits at the bottom of the screen. Once the ground's heights there are in, aim at the ground itself.
+  // Never after the person's own move (pan, tilt, turn, zoom): MapLibre has already put the middle back on the ground
+  // there, keeping the camera where it was, and this moved the camera itself, up or down by the difference: after a
+  // tilt up to the horizon, whose middle is far off, it dropped ~4.6 km at the next stop (alex 2026-11-10: "zoom out
+  // or in when you move up and down").
+  let byHand = false;
   function groundCenter() {
-    if (!gl || !gl.setCenterElevation || gl.isMoving() || Date.now() - handAt < 3000) return;
+    if (!gl || !gl.setCenterElevation || byHand || gl.isMoving() || Date.now() - handAt < 3000) return;
     const e = gl.queryTerrainElevation(gl.getCenter());
     if (e != null && Math.abs(e - gl.getCenterElevation()) > 30) gl.setCenterElevation(e);
   }
@@ -1246,9 +1278,231 @@
     return clearPasses.get(key);
   };
   const tileLngLat = (z, x, y) => [(x + 0.5) / (1 << z) * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / (1 << z)))) * 180 / Math.PI];
+  // ---------- Live, sharper: Sentinel-2 at 10 m (alex 2026-11-11: friend's tip, picked "Yes, switch Live to 10 m") ----------
+  // The same satellites as half of NASA's HLS photos above, but at their full 10 m instead of 30 m. The phone reads the
+  // true-colour picture (TCI.tif) of each pass straight from AWS Open Data (sentinel-cogs, free, CORS *, Copernicus data
+  // that may be used commercially with the credit in credits.html): Element 84's Earth Search lists the passes, and each
+  // file is a cloud-optimised GeoTIFF, so only the 512-1024 px squares under the view are downloaded, at the smallest of
+  // its 5 sizes (10, 20, 40, 80, 160 m) that is still as sharp as the screen. No server, nothing to build or pay for.
+  // Zoom 10 and up; further out, or when Earth Search or AWS don't answer, NASA's HLS as before.
+  const S2_SEARCH = "https://earth-search.aws.element84.com/v1/search";
+  const S2_MINZ = 12;
+  const s2Lists = new Map();
+  // The clear passes over the ~40 km square around the point: [{day, items: [{id, href, bbox, zone, cloud}]}], newest first.
+  const s2PassesAt = (lng, lat) => {
+    const n = 512, gx = Math.floor((lng + 180) / 360 * n), gy = Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n), key = gx + "/" + gy;
+    if (!s2Lists.has(key)) {
+      if (s2Lists.size > 300) s2Lists.delete(s2Lists.keys().next().value);
+      const w = gx / n * 360 - 180, e = (gx + 1) / n * 360 - 180;
+      const s = Math.atan(Math.sinh(Math.PI * (1 - 2 * (gy + 1) / n))) * 180 / Math.PI, nn = Math.atan(Math.sinh(Math.PI * (1 - 2 * gy / n))) * 180 / Math.PI;
+      const since = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+      const body = { collections: ["sentinel-2-l2a"], bbox: [w, s, e, nn], datetime: `${since}T00:00:00Z/..`, limit: 40,
+        query: { "eo:cloud_cover": { lt: 60 } }, sortby: [{ field: "properties.datetime", direction: "desc" }] };
+      const p = fetch(S2_SEARCH, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then((j) => {
+          // One square of the grid (S2B_10UEA_...) can be processed twice (_0_, _1_): keep the newest processing.
+          const best = new Map();
+          for (const f of j.features || []) {
+            const m = /^S2[ABC]_(\d\d)([C-X])([A-Z]{2})_(\d{8})_(\d+)_L2A$/.exec(f.id), href = f.assets?.visual?.href;
+            if (!m || !href || !/^https:\/\/sentinel-cogs\./.test(href) || m[2] < "N") continue;   // northern half only (Canada)
+            const day = `${m[4].slice(0, 4)}-${m[4].slice(4, 6)}-${m[4].slice(6)}`, k = m[1] + m[2] + m[3] + day, old = best.get(k);
+            if (!old || +m[5] > old.rev) best.set(k, { id: f.id, href, bbox: f.bbox, zone: +m[1], cloud: +(f.properties?.["eo:cloud_cover"] ?? 100), day, rev: +m[5] });
+          }
+          // By day, each grid square judged on its own clouds: on 2026-10-16 the square east of Whistler was 6% cloud
+          // and the one west of it 60%, and the cloudy one was drawn over Whistler's west side.
+          const days = (max) => {
+            const byDay = new Map();
+            for (const it of best.values()) if (it.cloud <= max) { if (!byDay.has(it.day)) byDay.set(it.day, []); byDay.get(it.day).push(it); }
+            return [...byDay.entries()].map(([day, items]) => ({ day, items: items.sort((a, b) => a.cloud - b.cloud), cloud: Math.min(...items.map((i) => i.cloud)) }))
+              .sort((a, b) => (a.day < b.day ? 1 : -1));
+          };
+          // Like HLS above: the 3 newest mostly clear days, else the 2 clearest of the cloudier ones.
+          let got = days(30).slice(0, 3);
+          if (!got.length) got = days(60).sort((a, b) => a.cloud - b.cloud).slice(0, 2);
+          return got;
+        });
+      p.catch(() => s2Lists.delete(key));
+      s2Lists.set(key, p);
+    }
+    return s2Lists.get(key);
+  };
+  // WGS84 to UTM metres (Krüger series, northern half), for zone `zone`.
+  const utm = (lng, lat, zone) => {
+    const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, n = f / (2 - f), A = a / (1 + n) * (1 + n * n / 4 + n ** 4 / 64);
+    const al = [n / 2 - 2 * n * n / 3 + 5 * n ** 3 / 16, 13 * n * n / 48 - 3 * n ** 3 / 5, 61 * n ** 3 / 240];
+    const phi = lat * Math.PI / 180, lam = (lng - (zone * 6 - 183)) * Math.PI / 180, e2 = 2 * Math.sqrt(n) / (1 + n);
+    const t = Math.sinh(Math.atanh(Math.sin(phi)) - e2 * Math.atanh(e2 * Math.sin(phi)));
+    const xi = Math.atan(t / Math.cos(lam)), eta = Math.atanh(Math.sin(lam) / Math.sqrt(1 + t * t));
+    let E = eta, N = xi;
+    for (let j = 1; j <= 3; j++) { E += al[j - 1] * Math.cos(2 * j * xi) * Math.sinh(2 * j * eta); N += al[j - 1] * Math.sin(2 * j * xi) * Math.cosh(2 * j * eta); }
+    return [500000 + k0 * A * E, k0 * A * N];
+  };
+  // A GeoTIFF's layout: for the full picture and each smaller copy, its size, square size and where each square is
+  // in the file. All of it is in the first 16 KB of these files; one request each, kept for the session.
+  const s2Heads = new Map();
+  const s2Head = (href) => {
+    if (!s2Heads.has(href)) {
+      if (s2Heads.size > 40) s2Heads.delete(s2Heads.keys().next().value);
+      const stop = new AbortController();
+      const p = fetch(href, { headers: { Range: "bytes=0-16383" }, signal: stop.signal }).then((r) => { if (r.status !== 206) { stop.abort(); throw new Error(`HTTP ${r.status}`); } return r.arrayBuffer(); }).then((buf) => {
+        const d = new DataView(buf), le = d.getUint16(0) === 0x4949, u16 = (o) => d.getUint16(o, le), u32 = (o) => d.getUint32(o, le);
+        if (u16(2) !== 42) throw new Error("not a plain TIFF");
+        const SZ = { 3: 2, 4: 4, 12: 8 }, levels = [];
+        let ifd = u32(4), origin = null, px = null;
+        while (ifd && ifd + 2 < buf.byteLength) {
+          const n = u16(ifd), tag = {};
+          for (let i = 0; i < n; i++) {
+            const o = ifd + 2 + i * 12, t = u16(o), type = u16(o + 2), c = u32(o + 4), size = (SZ[type] || 1) * c;
+            const at = size <= 4 ? o + 8 : u32(o + 8);
+            const read = (k) => (type === 3 ? u16(at + k * 2) : type === 4 ? u32(at + k * 4) : type === 12 ? d.getFloat64(at + k * 8, le) : d.getUint8(at + k));
+            tag[t] = { c, read, at };
+          }
+          const get = (t) => tag[t] && tag[t].read(0), arr = (t) => { const x = tag[t], out = new Float64Array(x.c); for (let k = 0; k < x.c; k++) out[k] = x.read(k); return out; };
+          if (tag[33922]) origin = [tag[33922].read(3), tag[33922].read(4)];
+          if (tag[33550]) px = tag[33550].read(0);
+          if (get(259) !== 8 || get(277) !== 3 || !tag[324]) throw new Error("unexpected TIFF");
+          levels.push({ w: get(256), h: get(257), tw: get(322), th: get(323), pred: get(317) || 1, offs: arr(324), counts: arr(325) });
+          ifd = u32(ifd + 2 + n * 12);
+        }
+        if (!origin || !px || !levels.length) throw new Error("no position in TIFF");
+        for (const L of levels) L.res = px * levels[0].w / L.w;   // metres a pixel
+        return { origin, levels };
+      });
+      p.catch(() => s2Heads.delete(href));
+      s2Heads.set(href, p);
+    }
+    return s2Heads.get(href);
+  };
+  // A square's packed bytes. A pass's picture never changes, so the squares are kept on the phone (Cache API, the
+  // S2_KEEP newest, ~2.6 MB each at 10 m): coming back to an area costs no data. A view is ~6-15 MB the first time.
+  const S2_CACHE = "tf-s2-squares", S2_KEEP = PHONE ? 60 : 160;
+  let s2Puts = 0;
+  async function s2Bytes0(href, off, len) {
+    const key = `https://tf-s2.invalid/${encodeURIComponent(href)}/${off}`;
+    const store = await caches.open(S2_CACHE).catch(() => null);
+    const hit = store && await store.match(key).catch(() => null);
+    if (hit) return hit.arrayBuffer();
+    const stop = new AbortController(), r = await fetch(href, { headers: { Range: `bytes=${off}-${off + len - 1}` }, signal: stop.signal });
+    if (r.status !== 206) { stop.abort(); throw new Error(`HTTP ${r.status}`); }   // never the whole 300 MB file
+    const ab = await r.arrayBuffer();
+    if (store) {
+      store.put(key, new Response(ab)).then(async () => {
+        if (++s2Puts % 8) return;   // now and then, drop the oldest beyond S2_KEEP
+        const keys = await store.keys();
+        for (const k of keys.slice(0, Math.max(0, keys.length - S2_KEEP))) await store.delete(k);
+      }).catch(() => {});
+    }
+    return ab;
+  }
+  // Unpacked squares (RGB bytes), newest kept, up to a memory budget (phones crash on too much: [[iphone-crashes]]).
+  const s2Blocks = new Map(), S2_BUDGET = (PHONE ? 48 : 160) * 1048576;
+  let s2Bytes = 0;
+  const s2Block = (href, head, li, bx, by) => {
+    const key = `${href}|${li}|${bx}|${by}`;
+    if (s2Blocks.has(key)) { const v = s2Blocks.get(key); s2Blocks.delete(key); s2Blocks.set(key, v); return v.p; }
+    const L = head.levels[li], i = by * Math.ceil(L.w / L.tw) + bx, off = L.offs[i], len = L.counts[i];
+    const entry = { p: null, size: L.tw * L.th * 3 };
+    entry.p = !len ? Promise.resolve(null) : s2Bytes0(href, off, len)
+      .then((zb) => new Response(new Blob([zb]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer()).then((ab) => {
+        const b = new Uint8Array(ab), row = L.tw * 3;
+        if (L.pred === 2) for (let y = 0; y < L.th; y++) for (let x = y * row + 3, e = y * row + row; x < e; x++) b[x] = (b[x] + b[x - 3]) & 255;
+        return b;
+      });
+    entry.p.catch(() => { if (s2Blocks.get(key) === entry) { s2Blocks.delete(key); s2Bytes -= entry.size; } });
+    s2Blocks.set(key, entry); s2Bytes += entry.size;
+    while (s2Bytes > S2_BUDGET && s2Blocks.size > 1) { const [k, v] = s2Blocks.entries().next().value; s2Blocks.delete(k); s2Bytes -= v.size; }
+    return entry.p;
+  };
+  // One map tile (256 px) from the passes' pictures, newest on top, older ones only where it has no data (the edge of
+  // its strip). Returns [ImageData, metres a pixel of the source] or null when half the tile has nothing.
+  const LIFT = Uint8Array.from({ length: 256 }, (_, i) => Math.round(255 * Math.pow(i / 255, 0.85)));
+  async function s2Tile(z, x, y, sig) {
+    const [lng, lat] = tileLngLat(z, x, y), days = await s2PassesAt(lng, lat).catch(() => null);
+    if (!days || !days.length || sig.aborted) return null;
+    const W = 256, G = 16, n = 1 << z;
+    const lonAt = (px) => (x + px / W) / n * 360 - 180, latAt = (py) => Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + py / W) / n))) * 180 / Math.PI;
+    const west = lonAt(0), east = lonAt(W), north = latAt(0), south = latAt(W);
+    const mpp = 156543.034 * Math.cos(lat * Math.PI / 180) / n;   // the map tile's metres a pixel
+    const out = new Uint8ClampedArray(W * W * 4);
+    let srcRes = 0, left = W * W;
+    for (const d of days) {
+      for (const it of d.items) {
+        if (left < W * W * 0.002) break;
+        const [bw, bs, be, bn] = it.bbox;
+        if (be < west || bw > east || bn < south || bs > north) continue;
+        const head = await s2Head(it.href).catch(() => null);
+        if (!head || sig.aborted) continue;
+        // The smallest copy still about as sharp as the screen for close ground (looking straight down, or zoom 14+
+        // tiles); further off in a tilted view, a pixel up to twice the tile's. The 10 m squares are ~2.6 MB each:
+        // opening tilted 3D at Whistler was ~36-50 MB with 10 m everywhere, ~16 MB like this.
+        const near = z >= 14 || !gl || (gl.getPitch() < 30 && z >= Math.floor(gl.getZoom()));
+        let li = 0;
+        while (li + 1 < head.levels.length && head.levels[li + 1].res <= mpp * (near ? 1.2 : 2)) li++;
+        const L = head.levels[li], [ox, oy] = head.origin;
+        // Picture pixel (column, row) at a G x G grid over the tile; in between, straight lines (UTM is smooth here).
+        const gc = new Float64Array((G + 1) * (G + 1)), gr = new Float64Array((G + 1) * (G + 1));
+        let c0 = Infinity, c1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+        for (let j = 0; j <= G; j++) for (let i = 0; i <= G; i++) {
+          const [E, N] = utm(lonAt(i * W / G), latAt(j * W / G), it.zone), c = (E - ox) / L.res - 0.5, r = (oy - N) / L.res - 0.5, k = j * (G + 1) + i;
+          gc[k] = c; gr[k] = r; c0 = Math.min(c0, c); c1 = Math.max(c1, c); r0 = Math.min(r0, r); r1 = Math.max(r1, r);
+        }
+        if (c1 < 0 || r1 < 0 || c0 > L.w - 1 || r0 > L.h - 1) continue;
+        const bx0 = Math.max(0, Math.floor(c0 / L.tw)), bx1 = Math.min(Math.ceil(L.w / L.tw) - 1, Math.floor((c1 + 1) / L.tw));
+        const by0 = Math.max(0, Math.floor(r0 / L.th)), by1 = Math.min(Math.ceil(L.h / L.th) - 1, Math.floor((r1 + 1) / L.th));
+        if ((bx1 - bx0 + 1) * (by1 - by0 + 1) > 6) continue;   // never more than a few squares for one tile
+        const nbx = bx1 - bx0 + 1, nby = by1 - by0 + 1, blocks = new Array(nbx * nby).fill(null);
+        await Promise.all(blocks.map(async (_, q) => { blocks[q] = await s2Block(it.href, head, li, bx0 + q % nbx, by0 + Math.floor(q / nbx)).catch(() => null); }));
+        if (sig.aborted) return null;
+        const tw = L.tw, th = L.th;
+        let hb = null, ho = 0;
+        const hit = (c, r) => {   // picture pixel c, r: its square in hb, its place in ho; false where there's no data
+          const i = Math.floor(c / tw) - bx0, j = Math.floor(r / th) - by0;
+          if (c < 0 || r < 0 || c >= L.w || r >= L.h || i < 0 || j < 0 || i >= nbx || j >= nby) return false;
+          hb = blocks[j * nbx + i];
+          if (!hb) return false;
+          ho = ((r % th) * tw + (c % tw)) * 3;
+          return (hb[ho] | hb[ho + 1] | hb[ho + 2]) !== 0;
+        };
+        const v = new Float64Array(3), step = W / G;
+        for (let py = 0; py < W; py++) {
+          const gj = Math.min(G - 1, Math.floor(py / step)), fy = py / step - gj;
+          for (let pxx = 0; pxx < W; pxx++) {
+            const o = (py * W + pxx) * 4;
+            if (out[o + 3]) continue;
+            const gi = Math.min(G - 1, Math.floor(pxx / step)), fx = pxx / step - gi, k = gj * (G + 1) + gi;
+            const c = (gc[k] * (1 - fx) + gc[k + 1] * fx) * (1 - fy) + (gc[k + G + 1] * (1 - fx) + gc[k + G + 2] * fx) * fy;
+            const r = (gr[k] * (1 - fx) + gr[k + 1] * fx) * (1 - fy) + (gr[k + G + 1] * (1 - fx) + gr[k + G + 2] * fx) * fy;
+            const ci = Math.floor(c), ri = Math.floor(r), ax = c - ci, ay = r - ri;
+            // Bilinear between the 4 picture pixels around the point; all 4 must have data.
+            if (!hit(ci, ri)) continue;
+            const w00 = (1 - ax) * (1 - ay); v[0] = hb[ho] * w00; v[1] = hb[ho + 1] * w00; v[2] = hb[ho + 2] * w00;
+            if (!hit(ci + 1, ri)) continue;
+            const w10 = ax * (1 - ay); v[0] += hb[ho] * w10; v[1] += hb[ho + 1] * w10; v[2] += hb[ho + 2] * w10;
+            if (!hit(ci, ri + 1)) continue;
+            const w01 = (1 - ax) * ay; v[0] += hb[ho] * w01; v[1] += hb[ho + 1] * w01; v[2] += hb[ho + 2] * w01;
+            if (!hit(ci + 1, ri + 1)) continue;
+            const w11 = ax * ay; v[0] += hb[ho] * w11; v[1] += hb[ho + 1] * w11; v[2] += hb[ho + 2] * w11;
+            // The satellite's true colour is darker than Esri's photos in the shadows: a gentle lift.
+            for (let ch = 0; ch < 3; ch++) out[o + ch] = LIFT[Math.round(v[ch])];
+            out[o + 3] = 255; left--;
+          }
+        }
+        if (!srcRes) srcRes = L.res;   // the newest pass's sharpness
+      }
+    }
+    if (!srcRes || left > W * W * 0.5) return null;
+    return [new ImageData(out, W, W), srcRes];
+  }
   let liveDay = "";   // the photo's day at the middle of the view, for the note under the buttons
   async function liveRecent(z, x, y, raw, sig) {
     if (!navigator.onLine) return null;
+    if (z >= S2_MINZ) {   // Sentinel-2 at 10 m first (s2Tile above)
+      const s2 = await s2Tile(z, x, y, sig).catch((e) => { if (sig.aborted) throw e; return null; });
+      if (s2) {
+        const ratio = s2[1] / (156543.034 * Math.cos(tileLngLat(z, x, y)[1] * Math.PI / 180) / (1 << z));   // > 1: the picture is blurrier than the screen
+        return withDetail(s2[0], raw, ratio > 1.25 ? Math.max(1, Math.round(256 / ratio)) : 0, Math.min(0.85, 0.3 * Math.log2(Math.max(1, ratio))), false);
+      }
+    }
     const [lng, lat] = tileLngLat(z, x, y), passes = await passesAt(lng, lat).catch(() => null);
     if (!passes || !passes.length) return null;
     const hz = Math.min(z, 12), k = z - hz;
@@ -1269,24 +1523,29 @@
     let filled = 0;
     for (let i = 3; i < P.length; i += 4) if (P[i] > 200) filled++;
     if (filled < P.length / 4 * 0.5) return null;   // mostly outside every clear pass: the old way for this tile
-    // The sharp photo, whole and blurred to the satellite's 30 m: what it adds is its fine detail (sharp - blurred).
+    return withDetail(H, raw, k > 0 ? Math.max(1, W >> k) : 0, Math.min(0.85, 0.3 * k), true);
+  }
+  // The satellite picture H (ImageData 256 px) with the sharp photo's fine detail laid over it: the sharp photo, whole
+  // and blurred to the satellite's size (lo px across, 0 = no blur needed), adds what it has more (sharp - blurred),
+  // amt of it. Where H has no data, the sharp photo itself. nasa: NASA's colours, a little dark beside Esri's.
+  async function withDetail(H, raw, lo, amt, nasa) {
+    const W = 256, P = H.data, cv = new OffscreenCanvas(W, W), cx = cv.getContext("2d");
     const photo = await createImageBitmap(new Blob([raw])).catch(() => null);
     let S = null, B = null;
     if (photo) {
       const pc = new OffscreenCanvas(W, W), px = pc.getContext("2d", { willReadFrequently: true });
       px.drawImage(photo, 0, 0, W, W); S = px.getImageData(0, 0, W, W).data;
-      if (k > 0) {
-        const lo = Math.max(1, W >> k), sc = new OffscreenCanvas(lo, lo), sx = sc.getContext("2d");
+      if (lo) {
+        const sc = new OffscreenCanvas(lo, lo), sx = sc.getContext("2d");
         sx.imageSmoothingQuality = "high"; sx.drawImage(photo, 0, 0, lo, lo);
         px.imageSmoothingQuality = "high"; px.clearRect(0, 0, W, W); px.drawImage(sc, 0, 0, W, W); B = px.getImageData(0, 0, W, W).data;
       }
       photo.close();
     }
-    const amt = Math.min(0.85, 0.3 * k);   // more detail the closer the view
     for (let i = 0; i < P.length; i += 4) {
       if (P[i + 3] < 128) { if (S) { P[i] = S[i]; P[i + 1] = S[i + 1]; P[i + 2] = S[i + 2]; } P[i + 3] = 255; continue; }   // no data: the sharp photo
       for (let c = 0; c < 3; c++) {
-        let v = P[i + c] * 1.08 + 4;   // NASA's colours are a little dark beside Esri's
+        let v = nasa ? P[i + c] * 1.08 + 4 : P[i + c];
         if (B) v += Math.max(-45, Math.min(45, (S[i + c] - B[i + c]) * amt));
         P[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
       }
@@ -1296,10 +1555,18 @@
     return createImageBitmap(cv);
   }
   // "Photo of Oct 11" under the buttons, for the middle of the view.
+  // Which satellite it is too (liveSource), so the note always says where the photo comes from and when.
+  let liveSource = "";
   async function liveDayHere() {
     if (!gl) return "";
-    const c = gl.getCenter(), p = await passesAt(c.lng, c.lat).catch(() => null);
-    liveDay = p && p.length ? p[0].day : "";
+    const c = gl.getCenter();
+    if (gl.getZoom() >= S2_MINZ - 1) {
+      const d = await s2PassesAt(c.lng, c.lat).catch(() => null);
+      const hit = d && d.find((p) => p.items.some((i) => c.lng >= i.bbox[0] && c.lng <= i.bbox[2] && c.lat >= i.bbox[1] && c.lat <= i.bbox[3]));
+      if (hit) { liveSource = "Sentinel-2"; liveDay = hit.day; return liveDay; }
+    }
+    const p = await passesAt(c.lng, c.lat).catch(() => null);
+    liveSource = "NASA HLS"; liveDay = p && p.length ? p[0].day : "";
     return liveDay;
   }
 
@@ -1348,10 +1615,58 @@
     }).catch(() => { winterBlocks = null; return null; }));
   // AI-sharpened Winter photos (alex 2026-11-03, "Sea to Sky first"): last winter's same photos sharpened 4x (10 m to
   // 2.5 m) by ESA's free SEN2SR model (scripts/winter-photos/sharpen.py), zoom 15 only, on the second site with their
-  // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: the box they're in (Sea to Sky; Revelstoke, Rogers Pass and
+  // own list of zoom-11 squares (sharp.json). SHARP_BOUNDS: since 2026-11-10 all of Canada (see sharpCaSite); it was the box of (Sea to Sky; Revelstoke, Rogers Pass and
   // Kicking Horse), so nothing is asked for elsewhere; squares in the box but not in sharp.json are never fetched.
   // SHARP_REV: bumped when sharpened squares are rebuilt, so phones don't keep last month's copies (kept 30 days, sw.js).
-  const SHARP = WINTERS[1], SHARP_REV = "?r=3", SHARP_BOUNDS = [-123.76, 49.6, -115.13, 51.85];
+  const SHARP = WINTERS[1], SHARP_REV = "?r=3", SHARP_BOUNDS = [-141, 41.6, -52, 70];
+  // The rest of Canada (alex 2026-11-10: "After you can do all of Canada"): every other Winter photo square, listed in
+  // data/sharp-canada.json and built by .github/workflows/sharp-canada.yml onto 48 sites, k = (x * 31 + y) % 48 of the
+  // zoom-11 square. A square that came out empty (all cloud) just 404s: the plain Winter photo shows there.
+  const sharpCaSite = (x11, y11) => `https://trailfinder-sharpca-${(x11 * 31 + y11) % 48}.pages.dev/trail-finder-winter2/`;
+  // ---------- Winter photos for all of Canada, far view ----------
+  // alex 2026-11-11 (3D zoomed out over BC and the Yukon: "can we add winter map there", then "should we do the same
+  // for the rest of Canada?"): the Winter photos above are only built in squares around ski spots, so zoomed out they
+  // were one block in southern BC and specks near Whitehorse, Smithers or Jasper. Under them now: last winter's
+  // Sentinel-2 photos over all of Canada south of 70 N (scripts/winter-photos/wide.py, zooms 3-10, about 80 m a pixel
+  // at 55 N), on three Cloudflare Pages sites split by zoom-7 tile (zooms under 7 and wide.json, the list of zoom-7
+  // tiles, on -0). Zooms 11-13 enlarge zoom 10; closer than that, outside the ski squares, today's snow shows as before.
+  const WIDE_BOUNDS = [-141.1, 41.6, -52, 70], WIDE_TOP = 13;
+  const wideSite = (z, x, y) => `https://trailfinder-wide-${z < 7 ? 0 : ((x >> (z - 7)) * 31 + (y >> (z - 7))) % 3}.pages.dev/trail-finder-wide/`;
+  let wideList = null;
+  const loadWide = () => wideList || (wideList = fetch(wideSite(0, 0, 0) + "wide.json").then((r) => r.json()).then((a) => {
+    const s = new Set();
+    for (const [x, y] of a) for (let z = 3; z <= 7; z++) s.add(`${z}/${x >> (7 - z)}/${y >> (7 - z)}`);
+    return s;
+  }).catch(() => { setTimeout(() => { wideList = null; }, 60000); return new Set(); }));   // asked again a minute later
+  const hasWide = (s, z, x, y) => z >= 3 && z <= WIDE_TOP && s.has(z <= 7 ? `${z}/${x}/${y}` : `7/${x >> (z - 7)}/${y >> (z - 7)}`);
+  // Tile z/x/y's far-view winter photo (zooms 3-10), as bytes, or null (none there, or it couldn't come).
+  const wideBytes = async (z, x, y, signal) => {
+    if (z > 10 || !hasWide(await loadWide(), z, x, y)) return null;
+    const r = await fetch(`${wideSite(z, x, y)}${z}/${x}/${y}.webp`, { signal }).catch((e) => { if (signal && signal.aborted) throw e; return null; });
+    return r && r.ok ? r.arrayBuffer() : null;
+  };
+  // As a picture, zooms 3-13 (11-13 cut from the zoom-10 one and enlarged), for the flat map.
+  const widePicture = async (z, x, y, signal) => {
+    const d = Math.min(z, 10), k = z - d, b = await wideBytes(d, x >> k, y >> k, signal);
+    if (!b) return null;
+    const big = await createImageBitmap(new Blob([b]));
+    if (!k) return big;
+    const n = 1 << k, size = big.width / n, cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
+    cx.imageSmoothingQuality = "high";
+    cx.drawImage(big, (x % n) * size, (y % n) * size, size, size, 0, 0, 256, 256);
+    big.close();
+    return createImageBitmap(cv);
+  };
+  let wideProtocol = false;
+  function addWideProtocol() {
+    if (wideProtocol) return;
+    wideProtocol = true;
+    photoProtocol("tfwinterwide", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfwinterwide://", "").split("/").map(Number);
+      const b = await wideBytes(z, x, y, abort.signal);
+      return b ? { data: b } : noTile();
+    });
+  }
   // ---------- late-summer mountains on the Summer map ----------
   // alex 2026-11-09 ("use some image around september for the summer map"): Esri's sharp summer photo is from early
   // July in many alpine places (Brandywine and Metal Dome: July 5, 2017), so the meadows and ridges showed melting
@@ -1389,8 +1704,19 @@
     });
   }
   let sharpBlocks = null;
-  const loadSharp = () => sharpBlocks || (sharpBlocks = fetch(tfWinterShard(new URL(SHARP + "sharp.json", location.href).href, 0, 0, 0)).then((r) => r.ok ? r.json() : [])
-    .then((a) => new Set(a.map(([x, y]) => x + "/" + y))).catch(() => new Set()));
+  const sharpList = (u) => fetch(u).then((r) => r.ok ? r.json() : []).then((a) => a.map(([x, y]) => x + "/" + y)).catch(() => []);
+  const loadSharp = () => sharpBlocks || (sharpBlocks = Promise.all([sharpList(tfWinterShard(new URL(SHARP + "sharp.json", location.href).href, 0, 0, 0)),
+    sharpList(new URL("data/sharp-canada.json", location.href).href)]).then(([west, ca]) => {
+    const all = new Set(west), more = new Set();
+    for (const k of ca) if (!all.has(k)) { all.add(k); more.add(k); }
+    all.ca = more;
+    return all;
+  }));
+  // Where tile z/x/y's sharpened photos are: the Sea to Sky / Revelstoke to Banff sites, or the rest of Canada's.
+  const sharpBase = (sharp, z, x, y) => {
+    const bx = x >> (z - 11), by = y >> (z - 11);
+    return sharp && sharp.ca && sharp.ca.has(bx + "/" + by) ? sharpCaSite(bx, by) : (z >= 15 ? SHARP : tfSharpSite(z, x, y));
+  };
   const hasSharp = (sharp, z, x, y) => z >= 15 && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
   // The middle distance from the same sharpened photos (alex 2026-11-07, Kicking Horse 3D: "Map is blurry a bit"):
   // zooms 13 and 14 came from the plain Winter photos, built from far fewer passes, so in cloudy winters (Kicking
@@ -1406,7 +1732,8 @@
   // filled into its cloudy holes (a second download for many). Since 2026-11-10 on the same sites as the zoom-15 ones
   // (tfSharpSite: each square's zooms 11-15 together, ten sites as there are now ~390 squares).
   const SHARP_MID = [11, 12, 13, 14];
-  const sharpMid = (sharp, z, x, y) => SHARP_MID.includes(z) && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11)));
+  // The site to take zoom-11-14 tile z/x/y from, or null (not a sharpened square).
+  const sharpMid = (sharp, z, x, y) => SHARP_MID.includes(z) && !!sharp && sharp.has((x >> (z - 11)) + "/" + (y >> (z - 11))) ? sharpBase(sharp, z, x, y) : null;
   // The shrinking is done in the winter-fill.js workers (sharp: in their message), off the page: on the page it was
   // 16 pictures decoded and shrunk per tile while the map moved, and dragging the 3D map near Squamish and Whistler
   // drew about 2 frames a second (alex's recording, 2026-11-08: "really slow").
@@ -1438,7 +1765,10 @@
       const m = await fillTile(z, x, y, covered(have, z, x, y), abort, winterSite(have, z, x, y), sharp).catch((e) => { if (abort.signal.aborted) throw e; return { none: true }; });
       if (m.miss14) { const b = (x >> 3) + "/" + (y >> 3); missing14.set(b, (missing14.get(b) || 0) + 1); }
       if (m.data) return { data: m.data };
-      // No winter photo here after all, or it couldn't be read: the summer photo rather than a hole to the sky.
+      // No winter photo here after all, or it couldn't be read: the summer photo rather than a hole to the sky. But
+      // not where the far-view winter photos of all of Canada are under it: a summer square over them (zoomed far out
+      // over the Yukon and northern BC, 2026-11-11 test) looked like the gap alex had asked to fill.
+      if (z <= WIDE_TOP && hasWide(await loadWide(), z, x, y)) return noTile();
       return covered(have, z, x, y) ? { data: await photoBytes(z, x, y, abort.signal) } : noTile();
     });
   }
@@ -1448,7 +1778,7 @@
   // sharp: zooms 11-14 inside the sharpened squares, from the zoom-15 sharpened photos (see SHARP_MID).
   const fillTile = (z, x, y, whole, abort, site, sharp) => new Promise((ok, no) => {
     if (!fillWorkers) fillWorkers = [0, 1].map(() => {
-      const w = new Worker("winter-fill.js?v=4220");
+      const w = new Worker("winter-fill.js?v=4230");
       w.onmessage = ({ data: m }) => { const job = fillWaiting.get(m.id); if (!job) return drop(m.data); fillWaiting.delete(m.id); if (m.err) job.no(new Error(m.err)); else job.ok(m); };
       return w;
     });
@@ -1458,7 +1788,7 @@
       if (!fillWaiting.delete(id)) return;
       w.postMessage({ cancel: id }); no(new DOMException("aborted", "AbortError"));
     });
-    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp ? tfSharpSite(z, x, y) : null, rev: SHARP_REV });
+    w.postMessage({ id, z, x, y, base: new URL(site, location.href).href, skip: no14(z, x, y), whole, sharp: sharp || null, rev: SHARP_REV });
   });
   // Since 2026-10-26 the newer squares (ski hills and tours across Canada) stop at zoom 13 to fit the site, and a few
   // tiles are missing where every pass was cloudy. Those came back see-through, so up close the hidden layer under
@@ -1547,7 +1877,7 @@
   function startHdWorkers() {
     if (hdWorkers) return;
     hdWorkers = [...Array(PHONE ? 2 : Math.min(4, Math.max(2, (navigator.hardwareConcurrency || 4) >> 1)))].map(() => {
-      const w = new Worker("winter-hd.js?v=4220" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
+      const w = new Worker("winter-hd.js?v=4230" + (PHONE ? "&cache=" + PHONE_HD_CACHE : ""));
       w.onmessage = ({ data: m }) => {
         const job = hdWaiting.get(m.id);
         if (!job) return drop(m.data);
@@ -1569,11 +1899,12 @@
     sharpProtocol = true;
     photoProtocol("tfwintersharp", async (params, abort) => {
       const [z, x, y] = params.url.replace("tfwintersharp://", "").split("/").map(Number);
-      if (!hasSharp(await loadSharp(), z, x, y)) return noTile();
+      const sharp = await loadSharp();
+      if (!hasSharp(sharp, z, x, y)) return noTile();
       // Straight from the site, not through the Winter workers (winter-fill.js): four of these per Winter tile filled
       // the same two workers and held the Winter photos back too (alex 2026-11-03: "i like the quality but it way
       // longer to load"). The odd cloudy hole stays see-through, with the filled Winter photo under it.
-      const r = await fetch(tfWinterShard(new URL(`${SHARP}${z}/${x}/${y}.webp${SHARP_REV}`, location.href).href, z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
+      const r = await fetch(tfWinterShard(new URL(`${sharpBase(sharp, z, x, y)}${z}/${x}/${y}.webp${SHARP_REV}`, location.href).href, z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
       return r && r.ok ? { data: await r.arrayBuffer() } : noTile();
     });
   }
@@ -1587,7 +1918,7 @@
       const have = await loadWinterBlocks();
       if (!anyWinter(have, z, x, y)) return noTile();
       const sharp = await loadSharp();
-      return hdTile(z, x, y, abort, winterSite(have, z, x, y), hasSharp(sharp, z, x, y) ? SHARP : null);
+      return hdTile(z, x, y, abort, winterSite(have, z, x, y), hasSharp(sharp, z, x, y) ? sharpBase(sharp, z, x, y) : null);
     });
   }
   {
@@ -1629,7 +1960,18 @@
   // styles; the same winter photos as the 3D map now draw there too: zooms 6-14 last winter's photos with their cloudy
   // holes filled (winter-fill.js), 15-16 with the finer detail added (winter-hd.js). null where there are none (the
   // summer photo under it shows). The flat map is light on memory, so phones get the close-ups too.
+  // Since 2026-11-11 the far-view photos of all of Canada (wideBytes) are under them up to zoom 13, as on the 3D map.
   window.tfWinterTile = async (z, x, y, signal) => {
+    const own = await winterOwnTile(z, x, y, signal);
+    if (z > WIDE_TOP || (own && z >= 11)) return own;   // zoom 11 and up, a square's tile covers all of it
+    const wide = await widePicture(z, x, y, signal).catch((e) => { if (signal && signal.aborted) throw e; return null; });
+    if (!wide || !own) return own || wide;
+    const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d");
+    cx.drawImage(wide, 0, 0, 256, 256); cx.drawImage(own, 0, 0, 256, 256);
+    drop(wide); drop(own);
+    return createImageBitmap(cv);
+  };
+  const winterOwnTile = async (z, x, y, signal) => {
     if (z < 6) return null;
     const have = await loadWinterBlocks();
     if (!anyWinter(have, z, x, y)) return null;
@@ -1639,11 +1981,11 @@
       // here the filled zoom-14 photo goes under it, cut to this tile.
       // Where there are sharpened photos (Sea to Sky), the zoom-15 sharpened one goes under instead.
       startHdWorkers();
-      const fine = hasSharp(await loadSharp(), z, x, y), uz = fine ? 15 : 14;
+      const sharp = await loadSharp(), fine = hasSharp(sharp, z, x, y) ? sharpBase(sharp, z, x, y) : null, uz = fine ? 15 : 14;
       const k = z - uz, n = 1 << k;
       const [under, hd] = await Promise.all([
-        fillTile(uz, x >> k, y >> k, covered(have, 14, x >> (z - 14), y >> (z - 14)), abort, fine ? SHARP : site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
-        hdTile(z, x, y, abort, site, fine ? SHARP : null).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+        fillTile(uz, x >> k, y >> k, covered(have, 14, x >> (z - 14), y >> (z - 14)), abort, fine || site).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
+        hdTile(z, x, y, abort, site, fine).then((m) => m.data).catch((e) => { if (signal.aborted) throw e; return null; }),
       ]);
       if (!under) return hd;
       const cv = new OffscreenCanvas(256, 256), cx = cv.getContext("2d"), size = under.width / n;
@@ -1751,6 +2093,7 @@
   // pictures from the photo caches, a second or two).
   function lighten() {
     if (!gl) return;
+    crispRelease();
     try {
       const p = gl.painter, pool = p.renderToTexture && p.renderToTexture.pool;
       if (pool && gl.terrain) {
@@ -1840,6 +2183,106 @@
   // A 10-minute Blackcomb session piled up ~110 of them and the graphics memory kept climbing (120 -> 435 MB)
   // until the iPhone app restarted (phone test, 2026-10-27). So the new heights go into the tile's own picture.
   // MapLibre internals: any surprise just skips it.
+  //
+  // Only the edges are sent again (alex 2026-11-11, "rotation lag more by the second end of the video": turning
+  // zoomed out over Whistler). A height tile already on the graphics card that gets a neighbour only changes in its
+  // 1-pixel border (MapLibre's backfillBorder), but the whole 1 MB tile was sent again, up to 8 tiles for every new
+  // one, and that happened in the middle of a frame, while the screen's tiles were being picked. 31 such re-sends in a
+  // 60-step turn took 25 s of an 87 s test (software graphics). Now the four border lines go up (~8 KB); a tile
+  // whose heights were replaced (reloaded) still goes up whole.
+  function edgesOnly(t) {
+    const tex = t.demTexture, s = t.dem.stride, data = t.dem.data;
+    if (!tex.size || tex.size[0] !== s || tex.size[1] !== s || !data || !data.buffer) return false;
+    const px = new Uint8Array(data.buffer, data.byteOffset, s * s * 4), col = (x) => {
+      const out = new Uint8Array(s * 4);
+      for (let y = 0; y < s; y++) out.set(px.subarray((y * s + x) * 4, (y * s + x) * 4 + 4), y * 4);
+      return out;
+    };
+    const send = (x, y, w, h, bytes) => tex.update({ width: w, height: h, data: bytes }, { premultiply: false }, { x, y });
+    send(0, 0, s, 1, px.subarray(0, s * 4));
+    send(0, s - 1, s, 1, px.subarray((s - 1) * s * 4, s * s * 4));
+    send(0, 0, 1, s, col(0));
+    send(s - 1, 0, 1, s, col(s - 1));
+    return true;
+  }
+  // ---------- smooth turning while new photos arrive ----------
+  // MapLibre paints the photos and lines for each piece of ground into its own big buffer (2048 px on a computer)
+  // and drapes it over the mountains. Each photo that arrives, and any change to a line, has every piece of ground it
+  // touches painted again in the next frame; a wide photo (the far-view winter ones, the blurry ones under Winter)
+  // touches all of them. While turning over new ground in Skiing 3D with Winter on, pieces of ground were painted
+  // again 13 times a frame on average with 11 in view (headless test near Metal Dome, 2026-11-11): all of the ground,
+  // every frame, so the map dropped to 6-11 frames a second with stops up to 0.3 s (alex's computer recording). Now at
+  // most PAINTS_PER_FRAME pieces are painted again in one frame, nearest first; the others keep showing the picture
+  // they had (a photo a few frames late) and get their turn in the next frames. Ground never painted before (new in
+  // view) is always painted at once. MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
+  const PAINTS_PER_FRAME = PHONE ? 4 : 3;
+  function spreadPaints() {
+    const rtt = gl && gl.painter && gl.painter.renderToTexture, tm = gl && gl.terrain && gl.terrain.tileManager;
+    if (!rtt || !tm || rtt.tfSpread || typeof rtt.prepareForRender !== "function" || typeof tm.freeRtt !== "function") return;
+    rtt.tfSpread = true;
+    const old = new WeakMap();   // piece of ground -> the painted picture it showed before MapLibre let it go
+    if (!tm.tfSpread) {
+      tm.tfSpread = true;
+      const free = tm.freeRtt;
+      tm.freeRtt = function () {
+        try { for (const k in this._tiles) { const t = this._tiles[k]; if (t && t.rtt && t.rtt.length) old.set(t, t.rtt); } } catch {}
+        return free.apply(this, arguments);
+      };
+    }
+    const prep = rtt.prepareForRender;
+    rtt.prepareForRender = function () {
+      let before = null;
+      try {
+        before = tm.getRenderableTiles().filter(Boolean).map((t) => {
+          if (t.tfWait) t.rtt = [];   // put off last frame: its turn again
+          return [t, t.rtt.length ? t.rtt : old.get(t)];
+        });
+        // Only pictures still in MapLibre's buffers (the phone code makes fewer or smaller ones when the map is still).
+        const objs = this.pool && this.pool._objects;
+        for (const e of before) if (e[1] && !(objs && e[1].every((r) => r && objs[r.id]))) e[1] = null;
+      } catch {}
+      const out = prep.apply(this, arguments);
+      try {
+        if (!before) return out;
+        const redo = [];
+        for (const [t, had] of before) {
+          if (t.rtt.length || !had || !had.length) { t.tfWait = false; old.delete(t); continue; }
+          redo.push([t, had]);
+        }
+        if (redo.length > PAINTS_PER_FRAME) {
+          redo.sort((a, b) => b[0].tileID.overscaledZ - a[0].tileID.overscaledZ);   // closer ground first
+          redo.forEach(([t, had], i) => {
+            if (i < PAINTS_PER_FRAME) { t.tfWait = false; old.delete(t); return; }
+            t.rtt = had; t.tfWait = true; old.set(t, had);
+          });
+          gl.triggerRepaint();
+        } else for (const [t] of redo) { t.tfWait = false; old.delete(t); }
+      } catch {}
+      return out;
+    };
+  }
+  // And a piece of ground is only painted again when what arrived can change its picture. MapLibre did it for every
+  // tile of every source, also the ones only written over the ground (the trail names, ~37 tiles a frame while
+  // turning, as the names are placed again after each move) and the ones of a hidden layer: they are not in the
+  // painted picture at all. The ground heights (the terrain's own source) go through as before.
+  const PAINTED = { background: true, fill: true, line: true, raster: true, hillshade: true, "color-relief": true };
+  function quietSources() {
+    const cb0 = gl && gl._terrainDataCallback;
+    if (!cb0 || cb0.tfQuiet || !gl.style || !gl.terrain) return;
+    const painted = (id) => {
+      try {
+        const z = gl.getZoom();
+        return gl.style._order.some((k) => { const l = gl.style._layers[k]; return l && l.source === id && PAINTED[l.type] && !l.isHidden(z); });
+      } catch { return true; }
+    };
+    const cb = function (e) {
+      try { if (e && e.dataType === "source" && e.tile && e.sourceId !== gl.terrain.options.source && !painted(e.sourceId)) return; } catch {}
+      return cb0.apply(this, arguments);
+    };
+    cb.tfQuiet = true;
+    try { gl.style.off("data", cb0); gl.style.on("data", cb); gl._terrainDataCallback = cb; } catch {}
+  }
+  window.tf3dSpreadPaints = () => PAINTS_PER_FRAME;   // for tests
   let demFixed = false;
   function fixDemLeak() {
     if (demFixed || !gl.terrain) return;
@@ -1848,16 +2291,20 @@
       const proto = Object.getPrototypeOf(gl.terrain), orig = proto.getTerrainData;
       if (typeof orig !== "function") return;
       proto.getTerrainData = function (tileID) {
+        let t = null;
         try {
-          const t = this.tileManager.getSourceTile(tileID, true);
+          t = this.tileManager.getSourceTile(tileID, true);
           if (t && t.dem && t.demTexture && t.needsTerrainPrepare) {
             const gl2 = this.painter.context.gl;
-            t.demTexture.update(t.dem.getPixels(), { premultiply: false });
+            if (t.tfDemSent === t.dem && !edgesOnly(t)) t.tfDemSent = null;
+            if (t.tfDemSent !== t.dem) t.demTexture.update(t.dem.getPixels(), { premultiply: false });
             t.demTexture.bind(gl2.NEAREST, gl2.CLAMP_TO_EDGE);
             t.needsTerrainPrepare = false;
           }
         } catch {}
         const out = orig.apply(this, arguments);
+        // The same height tile as above (looked up once: each lookup makes new objects, every piece of ground, every frame).
+        try { if (t && t.dem && t.demTexture && !t.needsTerrainPrepare) t.tfDemSent = t.dem; } catch {}
         if (!texFixed && this._emptyDemTexture) closeUploaded(Object.getPrototypeOf(this._emptyDemTexture));
         return out;
       };
@@ -2095,18 +2542,61 @@
       const c = M.fromLngLat(tr.center);
       tr.setCenter(new M(c.x + piv.g.x - a.x, c.y + piv.g.y - a.y).toLngLat());
     }
+    // Tilting swings the camera around the middle of the view at the same distance, so the spot in the middle keeps its
+    // size (alex 2026-11-11, third recording: "it still does it the tilt thing"; asked, alex picked the middle spot staying
+    // the same). History: MapLibre already swings around the middle, but #710 swung around the spot under the mouse,
+    // often far up the screen (big swings), and #720 then held the camera's height instead, so tilting down dived in
+    // close over the ground below (Parkhurst in the recording) and tilting up flew back out: a zoom both ways. Turning
+    // still goes around the spot under the mouse or fingers. The camera never tilts down into the ground: once it's less
+    // than FLOOR metres over the ground below it, tilting further up stops there.
+    const FLOOR = 150;
+    function aboveGround(tr) {
+      if (!gl.terrain) return Infinity;
+      const ll = tr.getCameraLngLat(), g = gl.terrain.getElevationForLngLatZoom(ll, tr.tileZoom);
+      return tr.getCameraAltitude() - (isFinite(g) ? g : 0);
+    }
+    // A frame of a mouse drag is a tilt when it moves the view more up-down than around (MapLibre: ~0.5° of tilt and
+    // ~0.8° of turn per pixel).
+    const tiltFrame = (d) => !!d && !!d.pitchDelta && Math.abs(d.pitchDelta) * 1.6 >= Math.abs(d.bearingDelta || 0);
     const orig = hm._handleMapControls;
     hm._handleMapControls = function (args) {
       const mouse = live("mouseRotate") || live("mousePitch"), tilt = live("touchPitch"), twist = live("touchRotate");
-      if (piv === null && (mouse || tilt || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
+      const d = args.deltasForHelper, tilting = (tilt || mouse) && tiltFrame(d);
+      // The middle's height stays put while tilting (else each frame re-reads the ground there and the camera bobs).
+      if (tilting && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
+      // A tilt goes around the middle; the spot picked for turning is kept (it moves on the screen with the tilt, see
+      // below). Picking it again after every tilt frame (#726) read the ground under the mouse back from the graphics
+      // card each time: MapLibre redraws its whole depth and position pictures of the mountains and waits for the
+      // card to hand one pixel back, which stalled every other frame of a turn (alex 2026-11-11: "it lag when i
+      // rotate", ~15 frames a second with pauses). Now it is read once per drag.
+      if (!tilting && piv === null && !tilt && (mouse || twist) && typeof args.tr.screenPointToMercatorCoordinateAtZ === "function") {
         // The ground under the point as it was drawn before this move (the fingers' point has already slid by panDelta).
         const p = mouse ? down : fingers === 2 && mid ? (args.panDelta ? mid.sub(args.panDelta) : mid) : null;
         const g = p && ground(p, args.tr);
         piv = g ? { g, p, follow: twist && !tilt } : false;   // false: this gesture keeps the middle
         if (g && gl.terrain) { this._terrainMovement = true; gl._elevationFreeze = true; }
       }
+      // Scrolling zooms toward the middle of the view when the spot under the mouse is far off (alex 2026-11-11, desktop
+      // recording, mouse wheel / trackpad: "it still does it"). Zooming in toward the mouse moves the camera toward the
+      // ground under it; tilted up, with the mouse up near the horizon, that ground is 50-300 km away, so each scroll
+      // flew the camera tens of kilometres sideways and down, landing it close over the snow in one or two frames. Now a
+      // far spot (more than twice as far from the camera as the middle of the view) zooms straight ahead instead.
+      if (live("scrollZoom") && args.deltasForHelper && args.deltasForHelper.zoomDelta && args.preZoomAroundLoc) {
+        try {
+          const tr = args.tr, cam = M.fromLngLat(tr.getCameraLngLat()), c = M.fromLngLat(tr.center), a = M.fromLngLat(args.preZoomAroundLoc);
+          if (Math.hypot(a.x - cam.x, a.y - cam.y) > 2 * Math.max(Math.hypot(c.x - cam.x, c.y - cam.y), 1e-9)) {
+            args.deltasForHelper.around = tr.centerPoint;
+            args.preZoomAroundLoc = tr.center;
+          }
+        } catch {}
+      }
+      const before = tilting && d.pitchDelta > 0 ? args.tr.pitch : null;
       const r = orig.apply(this, arguments);
-      if (piv) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
+      // Tilting up lowers the camera: not into the ground below it.
+      if (before !== null) { try { if (aboveGround(args.tr) < FLOOR) args.tr.setPitch(Math.max(before, args.tr.pitch - d.pitchDelta)); } catch {} }
+      if (piv && !tilting) { try { place(args.tr, piv.follow ? mid : piv.p); } catch {} }
+      // After a tilt frame the turning spot sits somewhere else on the screen: turning goes on around it from there.
+      else if (piv && tilting) { try { const q = args.tr.locationToScreenPoint(new M(piv.g.x, piv.g.y).toLngLat(), gl.terrain || undefined); if (q && isFinite(q.x) && isFinite(q.y)) piv.p = q; } catch {} }
       return r;
     };
   }
@@ -2125,6 +2615,7 @@
     addDemProtocol();
     addWinterProtocol();
     addWinterPhotoProtocol();
+    addWideProtocol();
     addSatProtocol();
     addWinterHdProtocol();
     addWinterSharpProtocol();
@@ -2135,10 +2626,14 @@
     // and over the Sea to Sky the sharpened photos waited behind them ("way longer to load").
     try { maplibregl.setMaxParallelImageRequests(PHONE ? 32 : 64); } catch {}
     const c = map.getCenter();
+    // Tilted at most 84°: past 84.3° MapLibre gives up finding the ground in the middle of the view when a move ends, puts
+    // that middle 10 km out in the air at the camera's height, and then the next picture drops it (and the camera with it)
+    // onto the ground there: tilted to the horizon, the camera fell ~5 km a moment after letting go (headless test,
+    // 2026-11-10). One degree less looks the same.
     gl = new maplibregl.Map({
       container: box, antialias: !PHONE, pixelRatio: PHONE ? Math.min(devicePixelRatio || 1, 2) : undefined,
       maxTileCacheSize: PHONE ? 12 : null,   // tiles kept per source after they leave the view (24 before 2026-10-26)
-      center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 0, bearing: bearing2d(), maxPitch: 85,
+      center: [c.lng, c.lat], zoom: map.getZoom() - 1, pitch: 0, bearing: bearing2d(), maxPitch: 84,
       attributionControl: { compact: true },
       style: {
         version: 8,
@@ -2157,6 +2652,9 @@
           // 1-3 s (alex's recording, 2026-10-29); these few big tiles are there long before, so it's a blurry winter
           // photo for that moment instead, sharpening when Winter's tile comes.
           winterlo: { type: "raster", tileSize: 256, minzoom: 6, maxzoom: 9, bounds: WINTER_BOUNDS, tiles: ["tfwinterphoto://{z}/{x}/{y}"] },
+          // Under both: last winter's far-view photos of all of Canada (WIDE above), so zoomed out it's winter everywhere.
+          winwide: { type: "raster", tileSize: 256, minzoom: 3, maxzoom: 10, bounds: WIDE_BOUNDS, tiles: ["tfwinterwide://{z}/{x}/{y}"],
+            attribution: "Winter: Copernicus Sentinel-2 data 2025-2026 (ESA)" },
           // Sea to Sky + Revelstoke to Golden, from zoom 15: the AI-sharpened Winter photos (SHARP above), over Winter and under the close-ups.
           // Same tile size as the close-ups, so on a computer they come in from the same zoom (~14) and show as soon as
           // they're downloaded, while the close-ups are still being drawn (alex 2026-11-03: "way longer to load").
@@ -2164,7 +2662,7 @@
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
           winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
-            attribution: "Live: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> HLS (Landsat, Sentinel-2), MODIS snow" },
+            attribution: "Live: contains modified Copernicus Sentinel data (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>; <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> HLS (Landsat, Sentinel-2), MODIS snow" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
@@ -2204,6 +2702,7 @@
           { id: "sumhi", type: "raster", source: "sumhi", paint: { "raster-fade-duration": 0 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
+          { id: "winwide", type: "raster", source: "winwide", maxzoom: WIDE_TOP + 1, layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "winterlo", type: "raster", source: "winterlo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "winter", type: "raster", source: "winter", layout: { visibility: "none" } },
           { id: "winsharp", type: "raster", source: "winsharp", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
@@ -2265,6 +2764,14 @@
         sky: { "sky-color": "#5d9be0", "horizon-color": "#d8e6f2", "fog-color": "#bfd2e4", "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.5, "fog-ground-blend": 0.7, "atmosphere-blend": 0.9 },
       },
     });
+    // Hidden behind the flat map, the 3D map draws nothing: it kept drawing the tiles still arriving (and asking for
+    // more), ~0.5 s of a slowed phone in the moment after "▭ 2D map" was tapped, and the phone's memory saver
+    // (sleep3d, 10 s later) then waited ~8 s for those drawings to finish (app test 2026-11-11, alex: "fix").
+    // Shown again, the first move or resize draws it where it is now.
+    {
+      const render = gl._render;
+      if (typeof render === "function") gl._render = function () { if (!on && box.hidden) { this._frameRequest = null; return this; } return render.apply(this, arguments); };
+    }
     // How sharp the photos are, near and far (alex, 2026-10-18: "it lag" and "i dont like the resolution make it
     // better"). The photos come one zoom deeper than MapLibre would pick for their size (tileSize 128 below), so
     // up close they're as sharp as the screen, and the far ones get a little softer with distance (6 zoom levels
@@ -2377,9 +2884,10 @@
     } else gl.on("idle", warmPaintBuffers);
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
+    gl.on("render", () => { spreadPaints(); quietSources(); });   // once its paint buffers exist (and again if the terrain is set up anew)
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
-    gl.on("movestart", (e) => { if (e.originalEvent) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
+    gl.on("movestart", (e) => { byHand = !!e.originalEvent; if (byHand) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win
     gl.on("moveend", placeNames);
     // A ski tour on the map (winter.js routeFocus): the other names smaller and fainter, so the route reads first.
     const namesFocus = (e) => { try {
@@ -2410,7 +2918,7 @@
       for (const id of ["satlo", "sat", "sumhi"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
-      for (const id of ["winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
+      for (const id of ["winwide", "winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
@@ -2441,7 +2949,7 @@
         if (photos !== "live") return;
         if (day) {
           const d = new Date(day + "T12:00:00Z"), mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
-          noWinter.textContent = `Satellite photo of ${mon} ${d.getUTCDate()}`; noWinter.style.display = ""; return;
+          noWinter.textContent = `${liveSource} photo of ${mon} ${d.getUTCDate()}`; noWinter.style.display = ""; return;
         }
         if (liveTiles) { noWinter.textContent = "No clear photo lately: today's snow"; noWinter.style.display = ""; }
         return;
@@ -2450,7 +2958,9 @@
       if (photos !== "winter") { noWinter.style.display = "none"; return; }
       const have = await loadWinterBlocks(), c = gl.getCenter(), n = 2048;
       const x = Math.floor((c.lng + 180) / 360 * n), y = Math.floor((1 - Math.asinh(Math.tan(c.lat * Math.PI / 180)) / Math.PI) / 2 * n);
-      noWinter.style.display = photos === "winter" && have && !have.has(x + "/" + y) ? "" : "none";
+      // Not said where the far-view photos of all of Canada cover the ground (up to zoom 13).
+      const wide = gl.getZoom() < WIDE_TOP + 1 && hasWide(await loadWide(), 7, Math.floor(x / 16), Math.floor(y / 16));
+      noWinter.style.display = photos === "winter" && have && !have.has(x + "/" + y) && !wide ? "" : "none";
     };
     gl.on("moveend", winterHere);
     gl.on("movestart", () => { liveTiles = liveSnowy = 0; });
@@ -2462,7 +2972,7 @@
     const tileTries = new Map();
     gl.on("idle", () => {
       if (!navigator.onLine) return;
-      for (const id of ["satlo", "sat", "fill", "winterlo", "winter", "live"]) {
+      for (const id of ["satlo", "sat", "fill", "winwide", "winterlo", "winter", "live"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
         for (const t of tiles.getAllIds()) {
@@ -2503,6 +3013,10 @@
       };
     }
     pivotOnPointer();
+    // Gentler trackpad scrolling than MapLibre's own (made for flat maps): a swipe keeps sending scrolls for a second after
+    // the fingers lift, each zooming in the same frame, so the 3D view lurched toward the ground (alex 2026-11-11). Half
+    // the rate; a mouse wheel notch stays as it was.
+    try { gl.scrollZoom.setZoomRate(1 / 200); } catch {}
     new ResizeObserver(() => gl.resize()).observe(box);
 
     // Taps go to the same Leaflet trail lines (opening the same details panel); anywhere else is a
@@ -2600,6 +3114,24 @@
     };
     inner.addEventListener("mouseover", skipCrossing, true);
     inner.addEventListener("mouseout", skipCrossing, true);
+    // The same ground lookup ran on every mouse move and every finger move too. Each one made MapLibre draw the
+    // mountains twice more off screen (for the depth and the ground under the pointer) and then wait for the graphics
+    // card to finish all its drawing before going on: with a finger on a phone, 59 such waits in a 30-move drag,
+    // 5 now (headless test, 2026-11-11; see also spreadPaints). Nothing needs that ground while the map moves (the trail-name tip under the mouse waits
+    // for a still map, and no finger-move map event is listened to), so it's skipped then. Panning, turning and
+    // tilting don't use these map events: they keep their own (MapLibre's handlers, untouched).
+    // MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
+    try {
+      const byId = gl.handlers && gl.handlers._handlersById, mapEv = byId && byId.mapEvent, hover = byId && byId.blockableMapEvent;
+      if (hover && typeof hover.mousemove === "function") {
+        const move = hover.mousemove;
+        hover.mousemove = function (e) { if (gl.isMoving() || (e && e.buttons)) return; return move.apply(this, arguments); };
+      }
+      if (mapEv && typeof mapEv.touchmove === "function") {
+        const move = mapEv.touchmove;
+        mapEv.touchmove = function () { if (gl.listens("touchmove")) return move.apply(this, arguments); };
+      }
+    } catch {}
   }
 
   // Each sport opens on the map it was last left on, 3D or flat, also after the app is closed. Skiing starts on 3D

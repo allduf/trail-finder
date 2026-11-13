@@ -1,0 +1,8 @@
+# Tutorials: cabin trip video (tutorials.js), 2026-11-11
+Pick a hut, the way in, your crew, ski lines, packing, meals and costs, then share the trip ||| Choisissez un refuge, le chemin d'accès, votre groupe, les lignes de ski, le matériel, les repas et les coûts, puis partagez le séjour
+Who brings what ||| Qui apporte quoi
+Add a name… ||| Ajouter un nom…
+Who brings it ||| Qui l'apporte
+Type their name and tap Add: it goes on that item. ||| Tapez son nom et touchez Ajouter : il ira sur cet article.
+Tap Who? beside a shared item (stove, first aid, your own items) to say who brings it, so nobody brings two. ||| Touchez Qui ? à côté d'un article commun (réchaud, trousse de premiers soins, vos propres articles) pour dire qui l'apporte, pour que personne n'en apporte deux.
+Packing list: Who? is beside every shared item and your own items, even before you add the group's names (Add a name… adds one), and Who brings what at the top lists each person's items. ||| Liste à emporter : Qui ? est à côté de chaque article commun et de vos propres articles, même avant d'ajouter les noms du groupe (Ajouter un nom… en ajoute un), et Qui apporte quoi en haut liste les articles de chacun.

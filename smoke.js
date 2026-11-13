@@ -304,9 +304,9 @@
     const ok = vals.map((v, i) => [hs[i], v]).filter(([, v]) => Number.isFinite(v));
     if (!ok.length) return `<p>No smoke forecast for this spot.</p>`;
     const worst = ok.reduce((a, b) => (b[1] > a[1] ? b : a));
-    if (worst[1] < 10) return `<p>Clean air for riding here: very little wildfire smoke in the forecast.</p>`;
+    if (worst[1] < 10) return `<p>Very little wildfire smoke in the forecast here.</p>`;
     const clean = ok.filter(([, v]) => v < 10).map(([h]) => h);
-    const rest = clean.length >= ok.length * 0.7 ? " Clean air the rest of the time." : clean.length ? ` Next clean air: ${label(clean.find((h) => h >= hour) ?? clean[0]).replace(/^Now$/, "now")}.` : " No clean air in the forecast.";
+    const rest = clean.length >= ok.length * 0.7 ? " Very little smoke the rest of the time." : clean.length ? ` Next with very little smoke: ${label(clean.find((h) => h >= hour) ?? clean[0]).replace(/^Now$/, "now")}.` : " Smoke the whole time in the forecast.";
     return `<p>Smokiest ${label(worst[0])}: ${riskOf(worst[1])[1]}, ${Math.round(worst[1])} µg/m³.${rest}</p>`;
   }
   function chartCursor() {

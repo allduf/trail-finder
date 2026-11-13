@@ -26,7 +26,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = F.esc;
 
-  const EXIFR = "https://unpkg.com/exifr@7.1.3/dist/lite.umd.js";
+  const EXIFR = "vendor/exifr-lite-7.1.3.js";
   const TESS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
   const TESS_OPTS = {
     workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
@@ -869,7 +869,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     "valley canyon meadow meadows pass basin glacier falls bluff bluffs bowl hill hills alpine island beach bay inlet sound range village town " +
     "north south east west home love life good best nice fun day time ride riding bike biking mtb enduro shred send follow following followers like likes liked comment comments reply " +
     "share save more view views search explore reels video photo story stories post posts message today yesterday week weeks year years ago km mile miles elevation gain moving " +
-    "speed avg max time map maps segment segments strava trailforks kudos activity morning afternoon evening night lunch ride rides route routes forest woods dirt loam loamy " +
+    "speed avg max time map maps segment segments strava trailforks kudos activity morning afternoon evening night lunch ride rides route routes forest woods dirt loam loamy " +   // wording-ok: words to skip, never shown
     "jump jumps drop drops flow fast steep tech gnar rock rocks roots root slab slabs berm berms line lines lap laps spring summer fall autumn winter snow rain sun sunny " +
     "wet dry dust dusty mud muddy easy hard green blue black double pro official unofficial new old first last big little long short high low great awesome epic sick " +
     // everyday words in a description ("it looks like ..., we can see ...")

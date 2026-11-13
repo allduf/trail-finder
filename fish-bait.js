@@ -210,7 +210,7 @@
     return [...seasonal, ...rest].slice(0, 3).map(clean);
   }
   const RULE = { bait: "BC and Alberta ban live fish as bait, and many trout waters are bait-banned. Ontario baitfish can't leave their Bait Management Zone. Quebec bans live baitfish. Check the Rules line.",
-    fly: "Many rivers are fly only or single barbless hook: check the Rules line.", ice: "Only on safe ice: 10 cm of clear ice to walk on.", troll: "", lure: "" };
+    fly: "Many rivers are fly only or single barbless hook: check the Rules line.", ice: "The app can't see how thick the ice is: check it yourself.", troll: "", lure: "" };
 
   // Fish keys at a spot from its species names, in the order anglers care about.
   function fishKeys(names) {

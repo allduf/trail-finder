@@ -12,6 +12,9 @@
 
 import { writeFileSync, mkdirSync, readdirSync, readFileSync, createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
+import { createRequire } from "node:module";
+// Places taken off the app by hand (hidden-places.js: Tom's Hut) are left out of the data too.
+const hiddenPlace = createRequire(import.meta.url)("../hidden-places.js");
 
 const root = new URL("../", import.meta.url);
 const OUT = new URL("out/ca/moto/", root), PART = new URL("out/moto/", root);
@@ -62,7 +65,7 @@ async function ingest(prov, file) {
     if (id && seen.has(id)) continue;
     seen.add(id);
     const [lat, lon] = centreOf(f.geometry);
-    if (!isFinite(lat) || !isFinite(lon)) continue;
+    if (!isFinite(lat) || !isFinite(lon) || hiddenPlace({ id: `${String(t["@type"] || "n")[0]}${t["@id"]}`, name: t.name, lat, lon })) continue;
     const real = (v) => (/^(none|null|undefined|n\/?a|unnamed|no name|noname|-|\?)$/i.test(String(v || "").trim()) ? "" : String(v || "").trim());   // "None" mapped as a name is no name
     const name = (real(t.name) || real(t.brand) || real(t.operator)).slice(0, 60), extra = extraOf(k, t);
     // The OpenStreetMap id ("n", "w" or "r" and the number in base 36), so a tap on the map can fetch all its tags

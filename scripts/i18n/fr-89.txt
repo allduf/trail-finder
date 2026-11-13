@@ -1,0 +1,2 @@
+Phone notifications aren't in the Android app yet. They're coming in a later version. ||| Les notifications sur le téléphone ne sont pas encore dans l'appli Android. Elles arriveront dans une prochaine version.
+Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight. ||| Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight.

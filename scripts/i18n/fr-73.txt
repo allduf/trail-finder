@@ -1,0 +1,2 @@
+Search: the first letter you type shows at once now, even right after opening Find. ||| Recherche : la première lettre tapée s'affiche tout de suite, même juste après avoir ouvert Trouver.
+3D: going back to the flat map no longer freezes the phone for a moment, and the short pause a few seconds later is gone. ||| 3D : revenir à la carte plate ne fige plus le téléphone un instant, et la courte pause quelques secondes plus tard a disparu.

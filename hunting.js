@@ -1337,8 +1337,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     for (const r of rows) (by.get(r[0]) || by.set(r[0], []).get(r[0])).push(r);
     const now = [...by.keys()].filter((sp) => by.get(sp).some((r) => openNow(r[3])));
     const list = [...by.entries()].map(([sp, rs]) => `<li style="border-color:${rs.some((r) => openNow(r[3])) ? "#2f9e44" : "var(--line)"}"><b>${esc(sp)}</b>${rs.map((r) =>
-      `${openNow(r[3]) ? '<span class="hn-open">● Open · </span>' : ""}${r[1] ? esc(r[1]) + ": " : ""}${r[2] ? esc(r[2]) + ", " : ""}${esc(r[3])}${r[4] ? " †" : ""}`).join("<br>")}</li>`).join("");
-    return `<details class="hn-seasons"><summary>Seasons in ${esc(label)}: ${now.length ? `<span class="hn-open">${now.length} open now</span>` : "none open today"}</summary>
+      `${openNow(r[3]) ? '<span class="hn-open">● In season · </span>' : ""}${r[1] ? esc(r[1]) + ": " : ""}${r[2] ? esc(r[2]) + ", " : ""}${esc(r[3])}${r[4] ? " †" : ""}`).join("<br>")}</li>`).join("");
+    return `<details class="hn-seasons"><summary>Seasons in ${esc(label)}: ${now.length ? `<span class="hn-open">${now.length} in season today</span>` : "none in season today"}</summary>
       <ul class="hn-list">${list}</ul><p class="hn-note" style="margin-top:6px">${foot}</p></details>`;
   }
   const seasonFoot = (u, link, sf) => sf ? `${u.p === "nl" ? "Read by the app from" : "Typed in from"} the <a href="${esc(link)}" target="_blank" rel="noopener">${esc(sf.src)}</a>. ${u.p === "yt" ? " Bag limits are for the whole Yukon, not per subzone. † part of the subzone only." : ""} Licences, tags and the exact rules are in the summary: always check it before you hunt.`
@@ -1482,7 +1482,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const name = z.map((u) => `${esc(zoneName(u, true))}${u.p !== "qc" && zoneSub(u) ? ` · ${esc(zoneSub(u))}` : ""}${u.cwd ? " · CWD surveillance zone" : ""}`).join(" / ");
     el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "hunt" }) : ""}<button type="button" class="hn-x" aria-label="Close">${svg(IC.x, 14)}</button></header>
       <p class="hn-zone">${name || (pvHere.length ? `${esc(PV[pvHere[0]].name)}: no hunting zone here on the map` : "Outside the hunting zones on the map")}</p>
-      <div class="hn-chips">${known ? `<span class="hn-chip" style="--c:${open.size ? "#2f9e44" : "var(--line)"}">${open.size ? `Open now: ${esc([...open].slice(0, 3).join(", "))}${open.size > 3 ? ` +${open.size - 3} more` : ""}` : "No general season open today"}</span>` : ""}<span id="hnLand"></span>${warn.join("")}</div>
+      <div class="hn-chips">${known ? `<span class="hn-chip" style="--c:${open.size ? "#2f9e44" : "var(--line)"}">${open.size ? `In season today: ${esc([...open].slice(0, 3).join(", "))}${open.size > 3 ? ` +${open.size - 3} more` : ""}` : "No general season today"}</span>` : ""}<span id="hnLand"></span>${warn.join("")}</div>
       <p class="hn-lot" id="hnLot" hidden></p>
       ${folds.join("")}
       <details${z.length ? "" : " open"}><summary>Rules here</summary><ul class="hn-list">${rules.join("") || "<li>No hunting zone found here: check the province's or territory's regulations.</li>"}</ul></details>

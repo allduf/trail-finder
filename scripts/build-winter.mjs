@@ -29,6 +29,9 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { buildJapanAvalanche } from "./japan-avalanche.mjs";
+import { createRequire } from "node:module";
+// Places taken off the app by hand (hidden-places.js: Tom's Hut) are left out of the data too.
+const hiddenPlace = createRequire(import.meta.url)("../hidden-places.js");
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -359,7 +362,7 @@ function osmRoutes(els) {
     let lat = el.lat, lon = el.lon;
     const pts = el.geometry || (el.members || []).flatMap((m) => m.geometry || []).filter(Boolean);
     if (lat == null && pts.length) { lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length; lon = pts.reduce((s, p) => s + p.lon, 0) / pts.length; }
-    if (lat == null) continue;
+    if (lat == null || hiddenPlace({ id: el.type[0] + el.id, name: t.name, lat, lon })) continue;
     huts.push({ id: el.type[0] + el.id, name: t.name || "", kind: t.tourism || "shelter", lat: round(lat), lon: round(lon), tags: keepTags(t) });
   }
   resortTerrain(routes, resorts);
@@ -596,7 +599,7 @@ async function buildCanadaOsm(old) {
   canadaT0.t = Date.now();
   const keepOld = (pv) => {
     routes.push(...old.routes.filter((r) => r.src === "osm" && r.pv === pv));
-    huts.push(...old.huts.filter((h) => h.pv === pv));
+    huts.push(...old.huts.filter((h) => h.pv === pv && !hiddenPlace(h)));
   };
   for (const pv of [...PROVINCES].sort((a, b) => (osmPv[a] || "").localeCompare(osmPv[b] || ""))) {
     if (canadaLate()) { skipped.push(pv); keepOld(pv); continue; }
@@ -841,7 +844,8 @@ function level(r) {
   for (const [k, v] of Object.entries(LEVELS)) if (s.includes(k)) return v;
   return 0;
 }
-const BAND = (s) => { s = val(s).toLowerCase(); return /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : /btl|below/.test(s) ? "btl" : ""; };
+// Below treeline first: "btl" also holds "tl", which used to read it as treeline (below-treeline problems were dropped).
+const BAND = (s) => { s = val(s).toLowerCase(); return /btl|below/.test(s) ? "btl" : /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : ""; };
 const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
 const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const short = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(short) ? short : ""; };
 
@@ -862,7 +866,7 @@ function normalizeForecast(p) {
     const size = d.expectedSize ? [d.expectedSize.min, d.expectedSize.max].filter((x) => x != null).join("-") : "";
     return {
       type: text(pr.type) || text(pr.name), aspects: [...new Set((d.aspects || []).map(ASPECT).filter(Boolean))],
-      elevations: [...new Set((d.elevations || []).map(BAND).filter(Boolean))], likelihood: text(d.likelihood), size,
+      elevations: ((s) => ["alp", "tln", "btl"].filter((b) => s.has(b)))(new Set((d.elevations || []).map(BAND))), likelihood: text(d.likelihood), size,
       comment: text(pr.comment).slice(0, 1200),
     };
   });
@@ -1130,7 +1134,9 @@ if (runs("ski")) {
   try { bc = await buildBc(); } catch (e) { failed++; log(`  DataBC failed: ${e.message}; keeping the last data`); }
   try { c2c = await buildC2c(); } catch (e) { failed++; log(`  camptocamp failed: ${e.message}; keeping the last data`); }
   const oldOf = (src) => (old.routes || []).filter((r) => r.src === src);
-  const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))];
+  // Routes gone on the ground that OpenStreetMap still has (data/ski-gone.json, hand-kept): never written back.
+  const goneIds = new Set(((readJson("ski-gone.json") || {}).routes || []).map((g) => g.id));
+  const routes = [...(osm ? osm.routes : oldOf("osm")), ...(bc || oldOf("bc")), ...(c2c ? c2c.routes : oldOf("c2c"))].filter((r) => !goneIds.has(r.id));
   const starts = c2c ? c2c.starts : old.starts || [];
   const huts = osm ? osm.huts : old.huts || [];
   const parking = osm ? osm.parking : old.parking || [];

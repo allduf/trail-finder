@@ -4,14 +4,14 @@
 // are not touched; map tiles only as TILES says (OpenStreetMap, heights, Winter photos), and the OpenFreeMap map and data files saved in
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
-const VERSION = "tf-4020";
+const VERSION = "tf-4580";
 const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=20", "account.js?v=4220", "friends.js?v=4220", "moderation.js?v=4220", "reports.js?v=4220", "grades.js?v=4220", "trail-photos.js?v=4220", "status.js?v=4220", "ask.js?v=4220", "visitors.js?v=4220", "usage.js?v=4220", "map3d.js?v=4220", "ski-terrain.js?v=4220", "winter.js?v=4220", "place-search.js?v=4220", "clouds.js?v=4220", "smoke.js?v=4220", "radar.js?v=4220", "live.js?v=4220", "ski-points.js?v=4220", "hunts.js?v=4220", "webcams.js?v=4220", "lifts.js?v=4220", "ski-areas.js?v=4220", "helicat.js?v=4220", "cabin-trip.js?v=4220", "camper.js?v=4220", "japanese.js?v=4220", "japan-snow.js?v=4220", "rogers.js?v=4220", "slackcountry.js?v=4220", "freeride.js?v=4220", "crownland.js?v=4220", "hunting.js?v=4220", "fish-bait.js?v=4220", "fish-route.js?v=4220", "ski-route.js?v=4220", "fishing.js?v=4220", "moto.js?v=4220", "moto-roads.js?v=4220", "hike.js?v=4220", "compass.js?v=4220", "offline.js?v=4220", "native-gps.js?v=4220", "native.js?v=4220", "native-map.js?v=4220", "keyboard.js?v=4220", "navigate.js?v=4220", "go-there.js?v=4220", "ride-stats.js?v=4220", "ride-finds.js?v=4220", "rides.js?v=4220", "planner.js?v=4220", "rotate.js?v=4220", "photo-find.js?v=4220", "ebike.js?v=4220", "closures.js?v=4220", "loops.js?v=4220", "strava.js?v=4220", "share.js?v=4220", "community.js?v=4220", "ride-files.js?v=4220", "rider-trails.js?v=4220", "alpine.js?v=4220", "areas.js?v=4220", "bikeparks.js?v=4220", "contours.js?v=4220", "directions.js?v=4220", "notify.js?v=4220", "official.js?v=4220", "photo-slider.js?v=4220", "ratings.js?v=4220", "whats-new.js?v=4220", "app-update.js?v=4220", "noback.js?v=4220", "risk.js?v=4220", "welcome.js?v=4220", "i18n.js?v=4220", "line-icons.js?v=4220", "i18n-fr.js?v=4220", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=20", "account.js?v=4780", "friends.js?v=4780", "moderation.js?v=4780", "reports.js?v=4780", "grades.js?v=4780", "trail-photos.js?v=4780", "status.js?v=4780", "ask.js?v=4780", "visitors.js?v=4780", "usage.js?v=4780", "map3d.js?v=4780", "ski-terrain.js?v=4780", "winter.js?v=4780", "place-search.js?v=4780", "clouds.js?v=4780", "smoke.js?v=4780", "radar.js?v=4780", "live.js?v=4780", "ski-points.js?v=4780", "hunts.js?v=4780", "webcams.js?v=4780", "lifts.js?v=4780", "ski-areas.js?v=4780", "helicat.js?v=4780", "cabin-trip.js?v=4780", "camper.js?v=4780", "japanese.js?v=4780", "japan-snow.js?v=4780", "rogers.js?v=4780", "slackcountry.js?v=4780", "freeride.js?v=4780", "crownland.js?v=4780", "hunting.js?v=4780", "fish-bait.js?v=4780", "fish-route.js?v=4780", "ski-route.js?v=4780", "fishing.js?v=4780", "moto.js?v=4780", "moto-roads.js?v=4780", "hike.js?v=4780", "compass.js?v=4780", "offline.js?v=4780", "native-gps.js?v=4780", "native.js?v=4780", "native-map.js?v=4780", "keyboard.js?v=4780", "navigate.js?v=4780", "go-there.js?v=4780", "ride-stats.js?v=4780", "ride-finds.js?v=4780", "rides.js?v=4780", "planner.js?v=4780", "rotate.js?v=4780", "photo-find.js?v=4780", "ebike.js?v=4780", "closures.js?v=4780", "loops.js?v=4780", "strava.js?v=4780", "share.js?v=4780", "community.js?v=4780", "ride-files.js?v=4780", "rider-trails.js?v=4780", "alpine.js?v=4780", "areas.js?v=4780", "bikeparks.js?v=4780", "contours.js?v=4780", "directions.js?v=4780", "notify.js?v=4780", "official.js?v=4780", "photo-slider.js?v=4780", "ratings.js?v=4780", "whats-new.js?v=4780", "tutorials.js?v=4780", "app-update.js?v=4780", "hidden-places.js?v=4780", "noback.js?v=4780", "risk.js?v=4780", "welcome.js?v=4780", "i18n.js?v=4780", "line-icons.js?v=4780", "i18n-fr.js?v=4780", "manifest.webmanifest",
   "privacy.html", "support.html", "terms.html", "credits.html",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
+  "vendor/leaflet-1.9.4.css",
   "vendor/leaflet-rotate-0.2.8.js",
 ];
 // Versioned libraries and fonts: they never change at the same URL, so the cached copy is served first.
@@ -130,7 +130,7 @@ async function savedFirst(req) {
 //  - osm: OpenStreetMap's map; shown from here at once and fetched again in the background when over a day old,
 //    as OpenStreetMap asks apps to keep its tiles rather than download them on every open
 const TILES = [
-  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev|trailfinder-sharp-\d+\.pages\.dev)$/.test(u.hostname)) && /\/trail-finder-(winter2?|summer)\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
+  { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev|trailfinder-sharp-\d+\.pages\.dev|trailfinder-sharpca-\d+\.pages\.dev|trailfinder-wide-\d+\.pages\.dev)$/.test(u.hostname)) && /\/trail-finder-(winter2?|summer|wide)\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
   { name: "tf-tiles-heights", max: 200, days: 7, test: (u) => u.hostname === "tiles.mapterhorn.com" },
   { name: "tf-tiles-osm", max: 2000, days: 7, fresh: 1, test: (u) => u.hostname === "tile.openstreetmap.org" },
 ];
@@ -167,13 +167,16 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // Tutorial videos (tutorials.js): the browser's own loading. iPhones ask for a video in pieces (Range), which a saved
+  // copy can't answer, and an 8 MB video shouldn't fill the saved files.
+  if (url.origin === self.location.origin && url.pathname.includes("/videos/")) return;
   // A script with ?v= (bumped on every change) or a file in vendor/ (version in its name) never changes at the same
   // address, so the saved copy is served first. alex, 2026-10-24 ("it lag", blank map, empty Area list): right after
   // a deploy the page sat waiting on the network for scripts it already had.
   const tile = TILES.find((t) => t.test(url));
   if (tile) e.respondWith(tileFirst(req, tile, e).catch(() => fetch(req)));
   else if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
-  else if ((url.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev|trailfinder-sharp-\d+\.pages\.dev)$/.test(url.hostname)) && /\/trail-finder-(winter2?|summer)\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
+  else if ((url.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev|trailfinder-sharp-\d+\.pages\.dev|trailfinder-sharpca-\d+\.pages\.dev|trailfinder-wide-\d+\.pages\.dev)$/.test(url.hostname)) && /\/trail-finder-(winter2?|summer|wide)\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
   else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));

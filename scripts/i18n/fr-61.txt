@@ -1,0 +1,7 @@
+Show both ways on the map ||| Voir les deux chemins sur la carte
+Working out two ways… ||| Calcul de deux chemins…
+Way B: from the road the finder picks… ||| Chemin B : depuis la route choisie par le calcul…
+Tap one on the map, or here, to keep it as your tour. ||| Touchez-en un sur la carte, ou ici, pour le garder comme sortie.
+The ways weigh today's avalanche danger, slope angle, which way slopes face and what's above you. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field. ||| Les chemins tiennent compte du danger d'avalanche du jour, de l'angle des pentes, de leur orientation et de ce qui se trouve au-dessus de vous. Votre sortie est gardée dans Enregistrés. Aucun itinéraire n'est à l'abri des avalanches : consultez le bulletin et décidez sur le terrain.
+Find the least exposed way in ||| Trouver le chemin le moins exposé
+Skiing: when Ask plans a tour to a mountain or ridge with no tour on it, Show both ways on the map draws two less exposed ways, each with its length and time: tap the one you want, on the map or in the list. ||| Ski : quand Demander planifie une sortie vers une montagne ou une crête sans sortie tracée, Voir les deux chemins sur la carte trace deux chemins moins exposés, chacun avec sa longueur et sa durée : touchez celui que vous voulez, sur la carte ou dans la liste.

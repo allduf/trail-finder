@@ -19,6 +19,9 @@
 
 import { writeFileSync, readFileSync, mkdirSync, readdirSync, createReadStream, appendFileSync, rmSync } from "node:fs";
 import { createInterface } from "node:readline";
+import { createRequire } from "node:module";
+// Places taken off the app by hand (hidden-places.js: Tom's Hut) are left out of the data too.
+const hiddenPlace = createRequire(import.meta.url)("../hidden-places.js");
 
 const root = new URL("../", import.meta.url);
 const OUT = new URL("out/ca/h/", root), PART = new URL("out/hike/", root);
@@ -158,7 +161,7 @@ async function ingest(prov, waysFile, relsFile, placesFile) {
     if (seen.has(id)) continue;
     seen.add(id);
     const [lat, lon] = centreOf(f.geometry);
-    if (inZones(lat, lon)) continue;
+    if (inZones(lat, lon) || hiddenPlace({ id, name: t.name, lat, lon })) continue;
     const x = {}; PLACE_EXTRA.forEach((key) => { if (t[key] != null) x[key] = String(t[key]).slice(0, 200); });
     p.push([id, k, round(lat), round(lon), t.name ? String(t.name) : "", x]);
   }

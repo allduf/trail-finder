@@ -7,7 +7,7 @@
   // database only lets each rider read and write their own rows (see supabase/setup.sql).
   const SUPABASE_URL = "https://fohdmserpbkurcvcrbbb.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_kzmEvM2ENCwNcH7-Nu-pOA_88II-bhX";
-  const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js";
+  const LIB = "vendor/supabase-js-2.99.3.js";
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
   // Not "map3d": 3D turned on at a computer would open a phone straight into 3D, which can run it out of memory.
@@ -15,7 +15,7 @@
     // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
     // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
     // lists' merges read it.
-    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
+    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -564,7 +564,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
   const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
-    "listGone", "skiTrips", "skiTours", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
+    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
   // A saved list both devices add to: items by id, the newer edit wins, minus those deleted (tf:listGone) after their
   // last edit. sorted: newest first (else this device's order, then the account's new ones). max: the page's own cap.
@@ -584,6 +584,14 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     return list.length ? JSON.stringify(list) : null;
   };
   const MERGE = {
+    // Your own packing items and the ones you leave out (cabin-trip.js): both devices' kept, so signing in never drops one.
+    tripPack: (a, b) => {
+      const x = jparse(a, null) || {}, y = jparse(b, null) || {};
+      if (!a && !b) return null;
+      const own = [], seen = new Set();
+      [...(x.own || []), ...(y.own || [])].forEach((o) => { const k = o && String(o.label || "").toLowerCase(); if (k && !seen.has(k)) { seen.add(k); own.push(o); } });
+      return JSON.stringify({ own, hide: [...new Set([...(x.hide || []), ...(y.hide || [])])] });
+    },
     listGone: (a, b) => {
       const all = {};
       [...jparse(a, []), ...jparse(b, [])].forEach((g) => { const id = g && g.k && g.id != null && g.k + "\n" + g.id; if (id && !(all[id] && all[id].at >= g.at)) all[id] = g; });
@@ -657,13 +665,22 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     huntAlarms: [(v) => { const x = jparse(v, null); return x && x.on ? Object.values(x.on).filter(Boolean).length : 0; }, "your alerts"],
   };
   const NUDGE_KEY = "tf:signNudge", DAY = 864e5;
+  // Only right after a tap on a Save button (alex 2026-11-11: "i want it to pop just if a user that is not already
+  // signed in clicks on save"): never when something is kept by itself (a cabin trip as you plan it, a tour on ✓ Done)
+  // or when an alert is turned on.
+  let saveTap = 0;
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("button, [role=button], a");
+    if (b && /\b(save|saved)\b|enregistr|sauvegard/i.test(b.textContent || b.getAttribute("aria-label") || "")) saveTap = Date.now();
+  }, true);
   function nudgeCheck(prev, cur) {
     if (api.user || api.savedSession) return;
+    if (Date.now() - saveTap > 4000) return;
     let what = "";
     for (const k in NUDGE) {
       if (cur[k] === prev[k]) continue;
       const [count, name] = NUDGE[k];
-      try { if (count(cur[k]) > count(prev[k])) { what = name; break; } } catch {}
+      try { if (count(cur[k]) >= count(prev[k])) { what = name; break; } } catch {}   // added or saved again (a trip saved offline)
     }
     if (!what) return;
     const st = jparse(lsGet(NUDGE_KEY), null) || {}, now = Date.now();

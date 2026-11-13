@@ -71,6 +71,7 @@ dialog.ask-dlg h3 { margin: 14px 0 6px; font-size: .76rem; font-weight: 800; let
 .ask-chips li { font-size: .76rem; padding: 2px 9px; border-radius: 999px; background: var(--chip, #eef1f4); border: 1px solid var(--line); }
 .ask-note { margin: 6px 0 0; color: var(--muted); font-size: .8rem; }
 .ask-warn { color: #b45309; }
+.ask-off .ask-ai-on { display: block; width: 100%; margin: 8px 0 2px; min-height: 44px; font: inherit; font-size: .9rem; font-weight: 700; border-radius: 10px; border: 1px solid #1f5fe0; background: none; color: #1f5fe0; cursor: pointer; }
 .ask-ex { display: flex; flex-direction: column; gap: 5px; margin: 6px 0 0; }
 .ask-ex button { all: unset; box-sizing: border-box; cursor: pointer; font-size: .86rem; padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--line); color: #1f5fe0; }
 ol.ask-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -202,6 +203,21 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   dlg.addEventListener("close", () => { planAsk = false; });
   const PLAN_EX = ["Start at the top of Showcase, ski DOA, finish in Lakeside Bowl", "Start at Joffre Lakes parking, skin up the Shoulder, finish at the parking", "From the top of 7th Heaven ski Lakeside Bowl and finish at the bottom of 7th Heaven"];
 
+  // Why the AI didn't read the question. Off by choice (More, Google's AI): a button turns it back on from here, since
+  // a No tapped by accident was easy to miss (alex, 2026-11-10); "ask again later" only when the AI itself failed.
+  const aiNote = (ai) => ai.ok ? "" : ai.off
+    ? `<p class="ask-note ask-off"><span>${esc(ai.why)}</span> <button type="button" class="ask-ai-on" data-ai-on>Turn Google's AI back on</button></p>`
+    : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`;
+  // The button asks again (18 or older box, welcome.js). Once the AI is on, from here or from More, the off note goes
+  // at once (alex: not shown when it's on) and an open Ask reads its question again with the AI.
+  dlg.addEventListener("click", (e) => { if (e.target.closest("[data-ai-on]") && window.tfAiConsent) window.tfAiConsent.set(true); });
+  document.addEventListener("tf:aiconsent", (ev) => {
+    if (!ev.detail || !ev.detail.ok) return;
+    const had = dlg.querySelector(".ask-off");
+    document.querySelectorAll(".ask-off").forEach((n) => n.remove());
+    const q = dlg.querySelector(".ask-in") && dlg.querySelector(".ask-in").value.trim();
+    if (had && dlg.open && q) open(q);
+  });
   let token = 0;
   async function open(q, o) {
     const sp = sportOf(), my = ++token;
@@ -226,7 +242,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const p = ai.ok ? fromAi(ai, q, sp) : localParse(q, sp);
     if (planAsk) p.plan = true;
     head.innerHTML = `<p class="ask-said">${esc(p.summary || summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
-      ${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
+      ${aiNote(ai)}`;
     out.innerHTML = `<p class="ask-wait">Finding the place…</p>`;
     // A ski plan's own pieces ("finish in Lakeside Bowl") aren't the place to look around: they're found near the map.
     if (sp === "ski" && (planAsk || planLike(q)) && p.place && planSteps(q).some((x) => norm(x.name) === norm(p.place) || norm(p.place).includes(norm(x.name)))) p.place = "";
@@ -236,7 +252,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     // A backcountry area read from the words ("in the duffys", "Duffy Lake"): the heading says where it looked.
     if (at && at.name && (at.region || p.place !== was)) {
       p.place = at.name; p.summary = "";
-      head.innerHTML = `<p class="ask-said">${esc(summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>${ai.ok ? "" : `<p class="ask-note">${esc(ai.why)} Read here more simply: ask again later for a smarter read.</p>`}`;
+      head.innerHTML = `<p class="ask-said">${esc(summaryOf(p, sp))}</p><ul class="ask-chips">${chipsOf(p, sp).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>${aiNote(ai)}`;
     }
     // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
     if (!at && sp === "ski" && (planAsk || planLike(q))) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
@@ -252,7 +268,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   async function aiParse(q, sport) {
     if (aiOff) return { ok: false, why: aiOff };
     // Google's AI only after a yes (welcome.js tfAiConsent); without it the words are read on the phone.
-    if (window.tfAiConsent && !(await window.tfAiConsent.ask("ask"))) return { ok: false, why: "Google's AI is off (your choice), so your words were read on the phone." };
+    if (window.tfAiConsent && !(await window.tfAiConsent.ask("ask"))) return { ok: false, off: true, why: "Google's AI is off (your choice), so your words were read on the phone." };
     const acct = window.tfAccount;
     try {
       if (!acct || !acct.enabled) return { ok: false, why: "The AI isn't available here." };
@@ -327,7 +343,10 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       const W = "(?!(?:I|Today|Tomorrow|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\\b)[A-ZÀ-Ý][\\w'’.-]*";
       const cap = q.match(new RegExp(`\\b(?:near|around|close to|at|by|in|from|to)\\s+(${W}(?:\\s+(?:${W}|de|du|des|la|le|of))*)`));
       const low = s.match(new RegExp(`\\b(?:near|around|close to)\\s+([a-zà-ÿ][a-zà-ÿ'.-]*(?:\\s+(?!(?:${STOP})\\b)[a-zà-ÿ][a-zà-ÿ'.-]*){0,3})`));
-      p.place = ((cap && cap[1]) || (low && low[1]) || "").replace(/\s+(?:de|du|des|la|le|of)$/i, "").trim();
+      // Skiing: "ski on microwave ridge", "a tour on Mount Rohr": the place after "on" (only after a ski word: "on
+      // saturday" isn't a place).
+      const on = sp === "ski" && s.match(new RegExp(`\\b(?:ski|skiing|tour|touring|tours|skin|go|lap|laps) on (?:the )?((?!(?:${STOP})\\b)[a-zà-ÿ][a-zà-ÿ'.-]*(?:\\s+(?!(?:${STOP})\\b)[a-zà-ÿ][a-zà-ÿ'.-]*){0,3})`));
+      p.place = ((cap && cap[1]) || (low && low[1]) || (on && on[1].replace(/\b\w/g, (c) => c.toUpperCase())) || "").replace(/\s+(?:de|du|des|la|le|of)$/i, "").trim();
     }
     return p;
   }
@@ -405,7 +424,17 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   const inThe = (q) => { const m = norm(q).match(/\b(?:in|at|to|around) the ([a-z][a-z ]{2,30})$/); return m ? m[1] : ""; };
 
   // The place named: a riding area or zone by its name, else the place search (OpenStreetMap), else the AI's own spot.
+  // A place typed glued together, "microwaveridge", "mountrohr" (alex 2026-11-11: "i wan to ski on microwaveridge"
+  // landed on Kafir Peak): the ridge, peak, lake or the like apart, so the place search finds Microwave Ridge.
+  const GLUED = /([a-zà-ÿ]{3,}?)(ridge|peak|mountain|glacier|icefield|lake|creek|basin|valley|bowl|couloir|pass|col|hut|cabin)$/i;
+  const unglue = (place) => String(place || "").split(/\s+/).map((w) => {
+    let m = w.match(/^(mount)(?!ain)([a-zà-ÿ]{3,})$/i);
+    if (m) return m[1] + " " + m[2][0].toUpperCase() + m[2].slice(1);
+    m = !/(bridge|tridge|rridge|flake|tocol|compass|bypass|overpass|underpass|trespass)$/i.test(w) && w.match(GLUED);
+    return m ? m[1] + " " + (w[0] === w[0].toUpperCase() ? m[2][0].toUpperCase() + m[2].slice(1) : m[2]) : w;
+  }).join(" ");
   async function whereOf(p) {
+    if (p.place) p.place = unglue(p.place);
     if (p.sport === "ski" && !p.near_me && !p.place && inThe(p.q)) { const a = await skiAreaOf(inThe(p.q)); if (a) { p.place = a.name; return a; } }
     if (p.near_me || !p.place) return youOr();
     const n = norm(p.place);
@@ -418,7 +447,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (p.sport === "ski") {
       const SKIW = new Set(["mount", "mt", "mountain", "resort", "ski", "area", "hill", "slack", "country", "slackcountry", "backcountry", "side", "the", "de", "du", "station", "mont"]);
       const w = n.split(" ").filter((x) => x && !SKIW.has(x));
-      const rs = w.length ? await fetch("data/ski-lifts.json?v=4220").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
+      const rs = w.length ? await fetch("data/ski-lifts.json?v=4230").then((r) => r.json()).then((d) => Object.values(d.resorts || {})).catch(() => []) : [];
       const hit = rs.find((r) => r.name && w.every((x) => norm(r.name).split(" ").includes(x)));
       if (hit) return { c: [hit.lat, hit.lon], name: hit.name };
       const a = await skiAreaOf(p.place);
@@ -429,8 +458,12 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       const hits = await Promise.race([ps.search(p.place).catch(() => null), new Promise((r) => setTimeout(() => r(null), 8000))]);
       // A ski question never lands on a bike park, a skate park or a pump track.
       const ok = (x) => p.sport !== "ski" || !/\bbike|\bjump park|\bskate|\bpump track|\bbmx\b/i.test(x.name + " " + (x.sub || ""));
-      const h = hits && (hits.find((x) => x.ca && ok(x)) || (!p.ll && hits.find(ok)));
-      if (h) return { c: [h.lat, h.lon], name: h.name, bb: h.bb };
+      // The place by the name typed before the service's first hit (alex 2026-11-10: "ski on microwave ridge" looked
+      // near Kafir Peak, the peak on that ridge, which the search lists first).
+      const same = (x) => norm(x.name) === n || norm(x.name).replace(/ /g, "") === n.replace(/ /g, "");
+      const h = hits && (hits.find((x) => x.ca && ok(x) && same(x)) || hits.find((x) => x.ca && ok(x)) || (!p.ll && (hits.find((x) => ok(x) && same(x)) || hits.find(ok))));
+      // A mountain, ridge, pass, glacier or the like: a spot to ski on, not a town to look around.
+      if (h) return { c: [h.lat, h.lon], name: h.name, bb: h.bb, kind: h.kind, spot: /^(Mountain|Ridge|Pass|Glacier|Plateau|Valley|Mountain range)$/.test(h.kind || "") };
     }
     if (p.ll) return { c: p.ll, name: p.place };
     return null;
@@ -493,7 +526,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     return out;
   }
   let liftsP = null, slackP = null;
-  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=4220").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
+  const liftsList = () => liftsP || (liftsP = fetch("data/ski-lifts.json?v=4230").then((r) => r.json()).then((d) => d.lifts || []).catch(() => { liftsP = null; return []; }));
   const slackList = () => slackP || (slackP = fetch("data/slackcountry.json").then((r) => r.json()).then((d) => (d.resorts || []).flatMap((rs) => (rs.lines || []).map((l) => ({ ...l, resort: rs.name })))).catch(() => { slackP = null; return []; }));
   const pairs = (flat) => { const o = []; for (let i = 0; i + 1 < flat.length; i += 2) o.push([flat[i], flat[i + 1]]); return o; };
   // How well a name typed matches a name on the map: 3 the same, 2.5 the same before its brackets or its short name,
@@ -596,7 +629,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const q = new URLSearchParams({ latitude: c[0].toFixed(3), longitude: c[1].toFixed(3), hourly: "freezing_level_height,snowfall", past_days: "7", forecast_days: "7", timezone: "auto" });
     const j = await fetch("https://api.open-meteo.com/v1/forecast?" + q).then((r) => (r.ok ? r.json() : null));
     const h = j && j.hourly;
-    if (!h || !h.time) return null;
+    if (!h || !h.time) throw new Error("no weather");   // not read: never said to be "no snow"
     const to = date || localDay(), from = addDays(to, -7);
     let lo = null;
     h.time.forEach((t, i) => {
@@ -608,31 +641,40 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   }
   // Where the car stops on the way to a trailhead: on the drivable roads near it (index.html's forest roads), the point
   // nearest the trailhead that's under the snow line. { p, name, what } or null when no roads are loaded there.
-  async function carStart(th, date) {
+  // far: how far from it (km) a road can be, 3 by default (a trailhead is by its road).
+  async function carStart(th, date, far = 3) {
     const nav = window.tfNav;
     if (!nav || !nav.roadsAlong) return null;
-    const [zs, line] = await Promise.all([nav.roadsAlong([L.latLng(th[0], th[1]).toBounds(16000)]), snowLine(th, date).catch(() => null)]);
+    const R = Math.max(6, far + 3);
+    // The forest roads, and the paved public roads (alex 2026-11-11: the Microwave Ridge tour started on a forest road
+    // 4.4 km away; Pemberton Portage Road, the paved road up the valley, passes about 3 km from the top).
+    const T = window.tfSki && window.tfSki.trip;
+    if (!window.tfFishRoute && T && T.loadJs) await T.loadJs("fish-route").catch(() => {});
+    const FR = window.tfFishRoute;
+    const [zs, line, pub] = await Promise.all([nav.roadsAlong([L.latLng(th[0], th[1]).toBounds(R * 2000 + 4000)]), snowLine(th, date).catch(() => undefined),
+      FR && FR.publicRoads ? FR.publicRoads(th[0], th[1], Math.min(R, 10)).catch(() => []) : []]);
     const pts = [];
+    if (pub.length) zs.push({ list: pub.map((r) => ({ ...r, pub: true })) });
     for (const z of zs) for (const r of z.list || []) {
       if (/^(closed|impass)$/.test(r.st || "") || !r.geom || r.geom.length < 2) continue;
-      if (!r.geom.some((p) => kmTo(p, th) < 6)) continue;
+      if (!r.geom.some((p) => kmTo(p, th) < R)) continue;
       for (let i = 1; i < r.geom.length; i++) {   // every ~100 m along it
         const a = r.geom[i - 1], b = r.geom[i], k = Math.max(1, Math.ceil(kmTo(a, b) / 0.1));
-        for (let j = 0; j < k; j++) { const p = [a[0] + ((b[0] - a[0]) * j) / k, a[1] + ((b[1] - a[1]) * j) / k]; if (kmTo(p, th) < 6) pts.push({ p, r }); }
+        for (let j = 0; j < k; j++) { const p = [a[0] + ((b[0] - a[0]) * j) / k, a[1] + ((b[1] - a[1]) * j) / k]; if (kmTo(p, th) < R) pts.push({ p, r }); }
       }
     }
     if (!pts.length) return null;
     pts.sort((x, y) => kmTo(x.p, th) - kmTo(y.p, th));
     const near = pts.slice(0, 400);
-    if (kmTo(near[0].p, th) > 3) return null;   // no road reaches it
+    if (kmTo(near[0].p, th) > far) return null;   // no road reaches it
     const es = line == null ? [] : await Promise.all(near.map((x) => window.tfSki.trip.heightAt(x.p[0], x.p[1]).catch(() => null)));
     const ok = line == null ? near[0] : near.find((x, i) => es[i] != null && es[i] <= line);
     const pick = ok || near[near.length - 1];
     // A government road code ("R08938 251") isn't a name people know: a named road near it, else "the forest road".
-    const named = (r) => r && r.name && !/^[A-Z]{0,2}\d[\w-]*(?:\s+\d+)?$/.test(r.name.trim()) ? r.name : "";
-    const nm = named(pick.r) || named((pts.find((x) => named(x.r) && kmTo(x.p, pick.p) < 0.3) || {}).r) || "the forest road";
+    const named = (r) => r && r.name && !/^[A-Z]{0,2}\d[\w-]*(?:\s+(?:\d+|[A-Z0-9][A-Z0-9-]*))?$/.test(r.name.trim()) ? r.name : "";
+    const nm = named(pick.r) || named((pts.find((x) => named(x.r) && !x.r.pub === !pick.r.pub && kmTo(x.p, pick.p) < 0.3) || {}).r) || (pick.r.pub ? "the paved road" : "the forest road");
     const at = line == null ? "" : ok === near[0] ? ` (under the snow line, about ${line.toLocaleString("en-CA")} m)` : ` at the snow line, about ${line.toLocaleString("en-CA")} m`;
-    return { p: [+pick.p[0].toFixed(6), +pick.p[1].toFixed(6)], name: nm, what: line == null ? "where the road comes closest (no snow on the roads in the forecast)" : `where you leave the car${at}: drag it if the road is open higher` };
+    return { p: [+pick.p[0].toFixed(6), +pick.p[1].toFixed(6)], name: nm, what: line === undefined ? "where the road comes closest (the snow line couldn't be read: drag it to where the car stops)" : line == null ? "where the road comes closest (no snow on the roads in the forecast)" : `where you leave the car${at}: drag it if the road is open higher` };
   }
   async function planPts(pieces, date) {
     const pts = [], used = [];
@@ -748,23 +790,83 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     if (ch && later) ch.insertAdjacentHTML("beforeend", `<li>📅 ${esc(dayName(later))}</li>`);
     out.innerHTML = `<h3>Your tour</h3><ol class="ask-plan">${ord.map((x) => `<li>${lbl(x)}</li>`).join("")}</ol>
       ${miss.length ? `<p class="ask-note ask-warn">Couldn't find ${miss.map((x) => `“${esc(x.name)}”`).join(", ")} near ${esc(nearName(at))}: left out. Add it by tapping the map once the tour is drawn.</p>` : ""}
-      ${ok ? `<button type="button" class="ask-act" data-plan>🗺 Make this tour on the map</button>
+      ${planBtns(ok, later)}`;
+    wirePlan(out, pts, later);
+    return true;
+  }
+  // Make this tour, with or without the less exposed way, and what that way weighs.
+  function planBtns(ok, later) {
+    return `${ok ? `<button type="button" class="ask-act" data-plan>🗺 Make this tour on the map</button>
       <button type="button" class="ask-act ask-act2" data-plan-safe>🗺 Make it with the less exposed way</button>
       <p class="ask-said">The less exposed way finds the way between the pieces (the climb too). It weighs:</p>
       <ul class="ask-why">
         <li><b>${later ? esc(dayName(later)).replace(/^./, (c) => c.toUpperCase()) + "'s" : "Today's"} avalanche danger</b> where you are${later ? " (when the forecast covers that day)" : ""}: alpine, treeline or below treeline (Avalanche Canada)</li>
         <li><b>Slope angle</b>: it keeps off 30° to 45°, where most slab avalanches start</li>
         <li><b>Which way slopes face</b>: more care on the aspects of today's avalanche problems</li>
-        <li><b>What's above you</b>: where a slide from steeper ground could run, and gullies or creeks (terrain traps)</li>
         <li><b>Time</b>: about 430 m an hour up, slower in forest; open water and cliffs can't be crossed</li>
       </ul>
       <p class="ask-note">Your tour is kept in Saved. Its card shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.</p>`
       : `<p class="ask-note">That's only one point: say where you start and where you finish, or a line to ski.</p>`}`;
+  }
+  function wirePlan(out, pts, later) {
+    const S = window.tfSki.trip;
     const b = out.querySelector("[data-plan]");
     if (b) b.addEventListener("click", () => { logUse("pick", "Ask plan"); close(); S.planSet(pts, later ? { date: later } : undefined); });
     // The same, with the less exposed way turned on for this tour in the same tap (alex 2026-11-07: fewer steps).
     const bs = out.querySelector("[data-plan-safe]");
     if (bs) bs.addEventListener("click", () => { logUse("pick", "Ask plan less exposed"); close(); S.planSet(pts, { safe: true, date: later }); });
+  }
+
+  // ---------- Skiing: a mountain or ridge with no tour mapped on it ----------
+  // alex 2026-11-10 ("I want to go ski on microwave ridge" listed 45 tours near Kafir Peak, the closest 14 km away):
+  // "if there is no ski route on the ridge, just bring us to the location and start a route from the closest FSR or
+  // road from it". The map goes there with its pin, and the tour starts where the closest drivable road comes nearest
+  // (under the snow line when it snowed) and ends at the top of the place. The tours nearby stay one tap away.
+  async function spotTop(at) {
+    const c = at.c, bb = at.bb;
+    const pts = [c];
+    // The high point of a ridge or a mountain's outline (up to ~6 km), on a 5 x 5 grid over it.
+    if (bb && bb[1] - bb[0] < 0.06 && bb[3] - bb[2] < 0.09) for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) pts.push([bb[0] + ((bb[1] - bb[0]) * i) / 4, bb[2] + ((bb[3] - bb[2]) * j) / 4]);
+    const e = await Promise.all(pts.map((p) => window.tfSki.trip.heightAt(p[0], p[1]).catch(() => null)));
+    let best = 0;
+    e.forEach((v, i) => { if (v != null && (e[best] == null || v > e[best])) best = i; });
+    return { p: pts[best], e: e[best] };
+  }
+  async function askSpot(p, at, out, stale, others) {
+    const S = window.tfSki && window.tfSki.trip;
+    if (!S || !S.planSet || !S.heightAt) return false;
+    out.innerHTML = `<p class="ask-wait">No tour mapped on ${esc(at.name)}: finding the closest road to it…</p>`;
+    // The map there now, with the place's pin, behind the answer.
+    if (window.tfPlaceSearch && window.tfPlaceSearch.go) { try { window.tfPlaceSearch.go({ name: at.name, lat: at.c[0], lon: at.c[1], bb: at.bb }, { sheet: false }); } catch (e) { /* the answer still shows */ } }
+    const later = p.date && p.date !== localDay() ? p.date : "";
+    const top = await spotTop(at);
+    if (stale()) return true;
+    const st = await carStart(top.p, later, 15).catch(() => null);
+    if (stale()) return true;
+    const hd = dlg.querySelector(".ask-head .ask-said"), ch = dlg.querySelector(".ask-head .ask-chips");
+    if (hd) hd.textContent = `A tour to ${at.name}`;
+    if (ch) ch.innerHTML = `<li>🗺 Plan a tour</li><li>📍 ${esc(at.name)}</li>${later ? `<li>📅 ${esc(dayName(later))}</li>` : ""}`;
+    const ht = top.e != null ? `about ${Math.round(top.e).toLocaleString("en-CA")} m high` : "";
+    const far = st ? kmTo(st.p, top.p) : 0;
+    // Two ways (alex 2026-11-11: "you can give 2 option a shorter way and the longer"): from the closest road, and
+    // the less exposed way in from the plowed road that gives it (ski-route.js fromRoad, the This spot card's Safest
+    // way here: it picks the road too, within 9 km). Which is shorter is only known once both are worked out (Microwave
+    // Ridge: 19.7 km from Pemberton Portage Road, 15.8 km from the road picked), so neither is named shorter here.
+    const two = !!(st && S.twoWays), one = !two && !!S.safeTo;
+    // alex 2026-11-11: "could be nice to see both option on the map and let the user chose directly on the map".
+    out.innerHTML = `<p class="ask-note">No ski tour is mapped on ${esc(at.name)} in the app yet.</p>
+      ${st ? `<ol class="ask-plan"><li><b>Start</b> at ${esc(st.name)} <small>${esc(st.what)}</small> <small>${fmtKm(far)} from the top in a straight line</small></li>
+        <li><b>Finish</b> <span>at the top of ${esc(at.name)}</span>${ht ? ` <small>${ht}</small>` : ""}</li></ol>` : ""}
+      ${two ? `<button type="button" class="ask-act" data-two>🗺 Show both ways on the map</button>
+        <p class="ask-note">Two less exposed ways are worked out: from the closest road, ${esc(st.name)}, and from the plowed road or parking lot within 9 km that gives the least exposed way in. Both are drawn on the map: tap the one you want.</p>`
+        : one ? `<button type="button" class="ask-act" data-from-road>🛡 Find the least exposed way in</button>` : ""}
+      ${two || one ? `<p class="ask-note">The ways weigh today's avalanche danger, slope angle and which way slopes face. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.</p>`
+        : `<p class="ask-note ask-warn">No drivable road is mapped within 15 km of ${esc(at.name)}. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest.</p>`}
+      ${others ? `<button type="button" class="ask-more" data-others>Show the ${others} ski tours nearby instead</button>` : ""}`;
+    const tb = out.querySelector("[data-two]");
+    if (tb) tb.addEventListener("click", () => { logUse("pick", "Ask spot two ways"); close(); S.twoWays(top.p, st.p, st.name, at.name); });
+    const fr = out.querySelector("[data-from-road]");
+    if (fr) fr.addEventListener("click", () => { logUse("pick", "Ask spot from road"); close(); S.safeTo(top.p[0], top.p[1]); });
     return true;
   }
 
@@ -868,6 +970,19 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       let R = p.km_away || at.R || 25;
       let near = await S.near(at.c, R, types);
       if (stale()) return;
+      // A mountain or ridge named with no tour on it: a tour to it from the closest road (askSpot), not tours elsewhere.
+      if (at.spot && !p.nearby && p.what === "tours" && types[0] === "tour" && !p.km_away) {
+        const bb = at.bb, rad = Math.max(1.5, bb ? kmTo([bb[0], bb[2]], [bb[1], bb[3]]) / 2 : 0);
+        if (!near.routes.some((r) => r.d <= rad * 1000)) {
+          const all = near.routes.length || (await S.near(at.c, 50, types)).routes.length;
+          if (stale()) return;
+          if (await askSpot(p, at, out, stale, all)) {
+            const ob = out.querySelector("[data-others]");
+            if (ob) ob.addEventListener("click", () => { p.nearby = true; ANSWER.ski(p, at, out, stale); });
+            return;
+          }
+        }
+      }
       // Nothing that close: look further (up to 75 km) before saying there's nothing, and say how far it went.
       let wider = 0;
       if (!p.km_away && p.what !== "huts" && !near.routes.some((r) => r.name)) {

@@ -185,6 +185,8 @@ body:not(.sport-hike) #hikePane, body:not(.sport-hike) .leaflet-hike-pane { disp
 #hikePane .hk-safe { color: var(--muted); font-size: .76rem; }
 #hikePane .hk-safe summary { cursor: pointer; font-weight: 700; }
 #hikePane .hk-actions.five { grid-template-columns: repeat(5, 1fr); }
+/* Phones: saved hikes have one home, the Saved tab (My hikes, Saved hikes). */
+@media (max-width: 760px) { #hikePane .hk-actions.five { grid-template-columns: repeat(4, 1fr); } #hikePane .hk-act[data-act="saved"] { display: none !important; } }
 #hikePane .hk-prof { width: 100%; height: auto; max-height: 110px; display: block; }
 #hikePane .hk-prof text { font-size: 10px; fill: var(--muted); }
 #hikePane .hk-along { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
@@ -355,7 +357,9 @@ out center tags qt;`;
     return out;
   }
   const places = new Map();   // id -> { id, k, ll: [lat, lon], n, x }
-  function absorbPlaces(list) { (list || []).forEach((p) => { if (PLACES[p[1]] && !places.has(p[0])) places.set(p[0], { id: p[0], k: p[1], ll: [p[2], p[3]], n: p[4], x: p[5] || {} }); }); }
+  // Places taken off by hand (hidden-places.js: Tom's Hut) never come in.
+  const gonePlace = (p) => !!window.tfHiddenPlace && window.tfHiddenPlace({ id: p[0], n: p[4], lat: p[2], lon: p[3] });
+  function absorbPlaces(list) { (list || []).forEach((p) => { if (PLACES[p[1]] && !places.has(p[0]) && !gonePlace(p)) places.set(p[0], { id: p[0], k: p[1], ll: [p[2], p[3]], n: p[4], x: p[5] || {} }); }); }
   function absorb(j) {
     absorbPlaces(j.p);
     j.w.forEach((w) => ways.set(w.id, w));
@@ -531,7 +535,7 @@ out center tags qt;`;
     const best = e && e.filter((x) => kmTo([x[1], x[2]], h.c) < 20).sort((a, b) => kmTo([a[1], a[2]], h.c) - kmTo([b[1], b[2]], h.c))[0];
     if (best) { h.g = best[3]; h.gFrom = { by: guide.src[best[4]] || best[4], url: best[5] || "" }; }
   }
-  getJ("data/hike-grades.json?v=4220").then((d) => {
+  getJ("data/hike-grades.json?v=4230").then((d) => {
     if (!d || d.v !== 1) return;
     guide = new Map(); guide.src = d.src || {};
     for (const x of d.h) { const k = guideKey(x[0]); if (k) (guide.get(k) || guide.set(k, []).get(k)).push(x); }
@@ -672,7 +676,7 @@ out center tags qt;`;
     if (!hutsP) hutsP = getJ("data/huts.json").then((d) => {
       const list = (d && d.huts) || [];
       list.forEach((e) => { e.keys = [e.name, ...(e.aka || [])].map(hutKey).filter(Boolean); });
-      clubHuts = list.filter((e) => e.lat != null).map((e) => ({ id: "j" + hutKey(e.name), k: "hut", ll: [e.lat, e.lon], n: e.name, x: { ...(e.tags || {}) }, club: e }));
+      clubHuts = list.filter((e) => e.lat != null && !(window.tfHiddenPlace && window.tfHiddenPlace(e))).map((e) => ({ id: "j" + hutKey(e.name), k: "hut", ll: [e.lat, e.lon], n: e.name, x: { ...(e.tags || {}) }, club: e }));
       drawPlaces();
       return list;
     }).catch(() => []);
@@ -1025,7 +1029,7 @@ out center tags qt;`;
   // alex 2026-11-03: anything found about a trail beyond OpenStreetMap goes on the trail (the Sea to Sky Gondola's
   // trails: difficulty, length, time, what it's like). An entry fits a hike with one of its names within r metres.
   let tInfo = null;
-  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=4220").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
+  const loadTInfo = () => (tInfo = tInfo || fetch("data/trail-info.json?v=4230").then((r) => r.json()).catch(() => { tInfo = null; return null; }));
   const fold = (x) => String(x || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   function operatorFacts(h) {
     const j = tInfo && tInfo.then ? null : tInfo;
@@ -1507,7 +1511,7 @@ out center tags qt;`;
   // What Offline maps saves for Hiking (offline.js): the hiking trails and places of the home zones in the box, the
   // Canada chunks over it, the grades and trail facts, and the terrain tiles for heights.
   window.tfHikeOffline = async (box) => {   // box = [south, west, north, east]
-    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=4220", "data/trail-info.json?v=4220", "ca/h/index.json"];
+    const abs = (u) => new URL(u, location.href).href, data = ["data/hike-grades.json?v=4230", "data/trail-info.json?v=4230", "ca/h/index.json"];
     for (const z of window.tfZones || []) if (z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]) data.push(`data/hike-${z.id}.json`, `data/hike-places-${z.id}.json`);
     const have = await chunkList();
     for (let la = Math.floor(box[0] / CH_LAT) * CH_LAT; la < box[2]; la += CH_LAT)
@@ -1725,8 +1729,8 @@ out center tags qt;`;
     const d = wx && wx.days[0];
     $("hkToday").innerHTML = head
       + (d ? `<p class="hk-note">Here today: ${Math.round(d.min)} to ${Math.round(d.max)}°C${d.pop != null ? `, rain ${d.pop}%` : ""}${d.line != null ? `, ${esc(lineWord(d.line))}` : ""}${d.sunset ? `, sunset ${hm(d.sunset)}` : ""}</p>` : "")
-      + sec("good", "Good today: no snow up top, nothing closed", "#2f9e44", "")
-      + sec("snow", "Snow up high", "#1c7ed6", "Microspikes and poles, or wait for the melt. Snow from a weather model, not a trail report.")
+      + sec("good", "No snow or closures found today", "#495057", "Snow from a weather model; closures, warnings and fires from the feeds the app reads. Not a trail report.")
+      + sec("snow", "Snow up high", "#1c7ed6", "Snow from a weather model, not a trail report.")
       + sec("check", "Check first", "#c92a2a", "A closure, warning or wildfire is reported near these: tap one for the details.")
       + `<p class="hk-note">Nearest ${list.length} hikes within 25 km of the middle of the map. Move the map and tap Today again for another area.</p>`;
   }

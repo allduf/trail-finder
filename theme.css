@@ -405,6 +405,44 @@ body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-hea
 /* Phone navigation (alex, 2026-10-23: "more natural to navigate"): five tabs, a search box on the map's sheet,
    Find / Ride / Saved / More as pages in the sheet, and one ← Back at the top of every page (index.html showNav) */
 .peek-search, .peek-photo, .peek-quick, .sheet-nav, .hub { display: none; }
+/* The cards and On/Off rows of the phone's pages, also in the computer's ☰ Menu (#deskMenu) */
+.hub-sec { margin: 8px 0 -2px; font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.hub-card {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 14px; box-sizing: border-box;
+  font: inherit; text-align: left; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 14px; cursor: pointer;
+}
+.hub-card:active { background: var(--chip); }
+.hub-card .ic { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--chip); font-size: 1.2rem; }
+.hub-card .tx { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hub-card b { font-size: 1rem; }
+.hub-card small { color: var(--muted); font-size: .82rem; }
+.hub-card .go { flex: none; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+.hub-start { min-height: 60px; font: inherit; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--cta-fg); background: var(--cta); border: 0; border-radius: 16px; cursor: pointer; }
+.hub-note { margin: -4px 0 2px; text-align: center; color: var(--muted); font-size: .85rem; }
+.hub-seg { display: flex; padding: 4px; gap: 4px; border-radius: 12px; background: var(--chip); }
+.hub-seg button { flex: 1 1 auto; min-width: 0; padding: 4px 2px; min-height: 44px; font: inherit; font-weight: 700; color: var(--fg); background: none; border: 0; border-radius: 9px; cursor: pointer; }
+.hub-seg [aria-pressed="true"] { background: var(--panel); box-shadow: var(--shadow-sm); }
+.hub-hint { margin: -2px 2px 0; font-size: .82rem; color: var(--muted); line-height: 1.3; }
+@media (max-width: 380px) { .hub-seg button { font-size: .86em; } }
+/* ☰ Menu on computers (alex 2026-11-11: "where is the menu icon on the computer? like we have on the phone"):
+   a list under the button with the phone's Record, Saved and More pages. Phones keep their tab bar. */
+.desk-menu:not([hidden]) {
+  position: fixed; z-index: 1150; width: 360px; max-width: calc(100vw - 16px); display: flex; flex-direction: column;
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 18px 50px rgba(0, 0, 0, .35); overflow: hidden;
+}
+.desk-menu .dm-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 18px; background: var(--forest); color: #fff; }
+.desk-menu .dm-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; font-weight: 800; color: #fff; text-transform: none; letter-spacing: 0; }
+.desk-menu .dm-close { width: 36px; height: 36px; border: 0; border-radius: 10px; font: inherit; font-size: 1rem; color: #fff; background: rgba(255, 255, 255, .12); cursor: pointer; }
+.desk-menu .dm-close:hover { background: rgba(255, 255, 255, .22); }
+.desk-menu .dm-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 6px 14px 16px; }
+.desk-menu .dm-body > * { flex: none; }
+.desk-menu .hub-card { min-height: 56px; }
+.desk-menu .hub-card:hover, .desk-menu .hub-seg button:hover:not([aria-pressed="true"]) { background: var(--chip); }
+.desk-menu .hub-seg button { min-height: 38px; }
+.desk-menu .hub-start { min-height: 50px; font-size: 1.1rem; }
+.brand .desk-menu-btn { font-weight: 800; }
+.brand .desk-menu-btn[aria-expanded="true"] { background: rgba(255, 255, 255, .26); }
+@media (max-width: 760px) { .desk-menu, .brand .desk-menu-btn { display: none !important; } }
 @media (max-width: 760px) {
   /* the sheet's top row: logo, a search box, the photo search and the bell (the sport menu moved to More) */
   .brand .sport-pick { display: none; }
@@ -456,24 +494,6 @@ body.sport-alt .layers-menu .lm-looks, body.sport-alt .layers-menu .lm-looks-hea
   .panel.nav-search #todayBtn, .panel.nav-search #paneNew > .wantlist { display: none !important; }
   /* Results of Near me, Prime loam, Every trail on screen: just the list */
   .panel.nav-results .panel-head > .pane, .panel.nav-results .box-row-btns { display: none !important; }
-  .hub-sec { margin: 8px 0 -2px; font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-  .hub-card {
-    display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 14px; box-sizing: border-box;
-    font: inherit; text-align: left; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 14px; cursor: pointer;
-  }
-  .hub-card:active { background: var(--chip); }
-  .hub-card .ic { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--chip); font-size: 1.2rem; }
-  .hub-card .tx { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .hub-card b { font-size: 1rem; }
-  .hub-card small { color: var(--muted); font-size: .82rem; }
-  .hub-card .go { flex: none; color: var(--muted); font-size: 1.4rem; line-height: 1; }
-  .hub-start { min-height: 60px; font: inherit; font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; color: var(--cta-fg); background: var(--cta); border: 0; border-radius: 16px; cursor: pointer; }
-  .hub-note { margin: -4px 0 2px; text-align: center; color: var(--muted); font-size: .85rem; }
-  .hub-seg { display: flex; padding: 4px; gap: 4px; border-radius: 12px; background: var(--chip); }
-  .hub-seg button { flex: 1 1 auto; min-width: 0; padding: 4px 2px; min-height: 44px; font: inherit; font-weight: 700; color: var(--fg); background: none; border: 0; border-radius: 9px; cursor: pointer; }
-  .hub-seg [aria-pressed="true"] { background: var(--panel); box-shadow: var(--shadow-sm); }
-  .hub-hint { margin: -2px 2px 0; font-size: .82rem; color: var(--muted); line-height: 1.3; }
-  @media (max-width: 380px) { .hub-seg button { font-size: .86em; } }
   .hub-slot:empty { display: none; }
   .hub .wantlist { margin: 0; }
   body.sport-alt .hub .wantlist > details.folder { display: none; }
@@ -547,18 +567,18 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: #fff; }
   html body :is(#huntPane .hn-card, #fishPane .fs-card, #motoPane .mt-card, #hikePane .hk-card) header svg { color: var(--accent); }
   /* the list: rows like Find's, with › */
-  html body :is(#skiPane #skPlanBtn, #skiPane #skNewBtn, #skiPane #skToursBtn, #skiPane #skTripBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill) {
+  html body :is(#motoPane #mtSafeRow .mt-pill) {
     display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; box-sizing: border-box; margin: 0; padding: 10px 14px; text-align: left;
     font: inherit; font-size: .95rem; font-weight: 700; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 14px; cursor: pointer;
   }
-  html body :is(#skiPane #skPlanBtn, #skiPane #skNewBtn, #skiPane #skToursBtn, #skiPane #skTripBtn, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtSafeRow .mt-pill)::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.4rem; line-height: 1; font-weight: 400; }
+  html body :is(#motoPane #mtSafeRow .mt-pill)::after { content: "›"; margin-left: auto; color: var(--muted); font-size: 1.4rem; line-height: 1; font-weight: 400; }
   html body #motoPane #mtSafeRow { display: grid; grid-template-columns: 1fr; gap: 10px; }
   html body #motoPane #mtSafeRow .mt-pill svg { color: var(--accent); }
   html body #motoPane .mt-bike, html body #motoPane .mt-bike.setup { border: 1px solid var(--line); border-radius: 14px; background: var(--bg); min-height: 52px; }
   html body #motoPane .mt-bike :is(svg, em) { color: var(--accent); }
-  html body #skiPane .sk-acts { display: block; }
-  html body #skiPane .sk-acts #skTripBtn { margin-top: 10px; }
-  html body #skiPane .sk-acts :is(#skNewBtn, #skToursBtn) { margin-top: 10px; }
+  /* Skiing's tour buttons: two per row, not one long row each (alex 2026-11-11, keep it simple at first) */
+  html body #skiPane .sk-acts { display: grid; grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  html body #skiPane .sk-acts .sk-act { width: 100%; min-height: 48px; margin: 0; font-size: .9rem; border-radius: 14px; background: var(--bg); }
   html body #skiPane .sk-acts [hidden] { display: none !important; }
   /* the order: search, Today, a card you tapped, 4 buttons, the list, what's on the map, the sport's own cards, the small print */
   html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) { display: flex; flex-direction: column; gap: 10px; }
@@ -568,7 +588,7 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body :is(#huntPane, #fishPane, #motoPane, #hikePane) > .ps-box, html body #skiPane #skFindForm, html body #skiPane #skPlaceMsg, html body #skiPane #skPlaces { order: 1; }
   html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hkNow, #hikePane #hkHike, #hnSpot, #fsSpot, #skSpot, #skPlan, #skTrip, #skDetail, #skStation) { order: 2; }
   html body :is(#huntPane .hn-actions, #huntPane #hnPins, #fishPane .fs-actions, #motoPane .mt-actions, #hikePane .hk-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
-  html body :is(#skiPane .sk-acts, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtBike, #motoPane #mtSafeRow, #fishPane #fsToday) { order: 4; }
+  html body :is(#skiPane .sk-acts, #skiPane .sk-explore, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtBike, #motoPane #mtSafeRow, #fishPane #fsToday) { order: 4; }
   html body :is(#hnLayers, #fsMap, #mtMap) { order: 5; }
   html body #skiPane #avCard { order: 6; }
   html body #huntPane #hnOffBox { order: 8; }

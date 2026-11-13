@@ -126,12 +126,12 @@
   // its hardest part you can't go around, and rain can make it a grade or two harder).
   const GRADES = {
     1: ["Paved", "Any bike"],
-    2: ["Good gravel", "Graded gravel or packed dirt: fine on any ADV bike"],
-    3: ["Rough gravel or two-track", "Loose gravel, potholes, a rough track: easy on a light bike, careful on a big one"],
-    4: ["Rough two-track", "Rocks, ruts, sand or mud: for light bikes and good riders"],
-    5: ["Very rough", "Big rocks, steep, washed out or deactivated: plated dirt bikes and experts"],
+    2: ["Good gravel", "Graded gravel or packed dirt: usually fine on ADV bikes"],
+    3: ["Rough gravel or two-track", "Loose gravel, potholes, a rough track: easier on a light bike than a big one"],
+    4: ["Rough two-track", "Rocks, ruts, sand or mud: usually ridden on light bikes by skilled riders"],
+    5: ["Very rough", "Big rocks, steep, washed out or deactivated: usually only plated dirt bikes and expert riders"],
   };
-  const FIT = { ok: ["Good for your bike", "#2f9e44"], hard: ["Hard for your bike", "#f08c00"], no: ["Too hard for your bike", "#e03131"] };
+  const FIT = { ok: ["Within your bike's grade", "#2f9e44"], hard: ["A grade above your bike", "#f08c00"], no: ["Well above your bike's grade", "#e03131"] };
   const fitOf = (g, cap = capOf(cur())) => (g <= cap ? "ok" : g === cap + 1 ? "hard" : "no");
   // From the full OpenStreetMap tags of a road. Returns [grade, reasons].
   function gradeOfTags(t) {
@@ -710,6 +710,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const room = [], GAP = 24;
     const put = (k, p) => {
       if (!b.contains([p[0], p[1]])) return;
+      if (k === "camp" && window.tfHiddenPlace && window.tfHiddenPlace({ n: p[2], lat: p[0], lon: p[1] })) return;   // hidden-places.js (Tom's Hut)
       pts3d.push({ k, p });   // the 3D map leaves out its own crowded ones (pts3dData), from its own view
       const q = map.latLngToContainerPoint([p[0], p[1]]);
       if (room.some((o) => Math.abs(o.x - q.x) < GAP && Math.abs(o.y - q.y) < GAP)) return;
@@ -757,8 +758,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // Open-Meteo (free, no key), several squares per call: rain of the last 3 days and the next day, the top soil's
   // moisture, snow on the ground and the temperature.
   const MUD = {
-    good: ["Good", "#2f9e44", "Dry and firm"], dust: ["Dusty", "#d4a017", "Dry and dusty: keep your distance"], slick: ["Slick", "#f08c00", "Damp: slick on clay and rock"],
-    mud: ["Muddy", "#8b5a2b", "Wet: mud and ruts, a grade harder"], snow: ["Snow", "#4dabf7", "Snow on the ground"],
+    good: ["Dry", "#2f9e44", "Dry and firm in the weather model"], dust: ["Dusty", "#d4a017", "Dry and dusty in the weather model"], slick: ["Slick", "#f08c00", "Damp: slick on clay and rock"],
+    mud: ["Muddy", "#8b5a2b", "Wet: mud and ruts, can ride a grade harder"], snow: ["Snow", "#4dabf7", "Snow on the ground"],
   };
   const mudCache = new Map();   // "lat,lon" (cell centre) -> { at, w }
   const MUD_TTL = 3600e3;
@@ -868,7 +869,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       [["BC resource road safety", "https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/resource-roads/local-road-safety-information"], ["BC off-road vehicle rules", "https://www2.gov.bc.ca/gov/content/industry/crown-land-water/crown-land/crown-land-uses/off-road-vehicles/registration"]]],
     ab: ["Alberta", "On public land, ride the roads and designated trails only. In a Public Land Use Zone, off-highway riding is only on its designated trails, and some zones close trails for the season. Random camping on the eastern slopes needs a Public Lands Camping Pass, 100 m or more from water.",
       [["Alberta Public Land Use Zones", "https://alberta.ca/about-public-land-use-zones"]]],
-    on: ["Ontario", "Your bike must be plated and insured. Crown land roads are open unless they're posted closed; many logging roads are gated, and private forests often ban motorcycles. No 400-series highways off a road bike's plate.", [["Ontario off-road vehicle rules", "https://www.ontario.ca/atv"]]],
+    on: ["Ontario", "Your bike must be plated and insured. Crown land roads are generally open unless they're posted closed; many logging roads are gated, and private forests often ban motorcycles. No 400-series highways off a road bike's plate.", [["Ontario off-road vehicle rules", "https://www.ontario.ca/atv"]]],
     qc: ["Quebec", "Most forest roads on public land are open, but ZECs and wildlife reserves charge at their gates. Off-road trails are run by clubs (FQMHR for motorcycles) and need their trail pass; most cross private land with the owners' permission.", []],
   };
   const PROV_OTHER = "Crown land roads are mostly open to plated, insured bikes; off-highway trails follow the province's off-highway vehicle rules. Watch for posted closures and private land.";
@@ -1542,7 +1543,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // Dirt roads that close with snow (months 0-11): stop = snowed in, warn = may be. Matched by the route's road names.
   const SEASONAL = [
     { re: /hurley/i, name: "Hurley River FSR (Pemberton to Gold Bridge)", stop: [11, 0, 1, 2, 3], warn: [9, 10, 4, 5],
-      why: "it isn't plowed, so snow closes it from about November to June; Highway 99 by Duffey Lake and Highway 40 by Lillooet stay open" },
+      why: "it isn't plowed, so snow closes it from about November to June; Highway 99 by Duffey Lake and Highway 40 by Lillooet are kept open in winter (check DriveBC)" },
   ];
   function seasonalOn(r) {
     const m = new Date().getMonth(), out = [];

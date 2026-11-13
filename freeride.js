@@ -252,7 +252,7 @@ dialog.fr-dlg .fr-small { font-size: .78rem; color: var(--muted); }
     const n = shown() && map.getZoom() >= LINES_Z ? groups().length : 0;
     listBtn.hidden = !n;
     if (n) listBtn.textContent = `⛷ Freeride lines here (${n})`;
-    if (!listBtn.isConnected) { const after = document.querySelector("#skiPane .sc-open") || document.querySelector("#skiPane .sk-acts"); if (after) after.after(listBtn); }
+    if (!listBtn.isConnected) { const ex = document.getElementById("skExplore"), after = document.querySelector("#skiPane .sc-open") || document.querySelector("#skiPane .sk-acts"); if (ex) ex.append(listBtn); else if (after) after.after(listBtn); }
   }
 
   // ---------- map key ----------

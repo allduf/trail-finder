@@ -107,8 +107,6 @@ Along the way ||| En chemin
 Start at ||| Départ à
 Snow up high ||| Neige en altitude
 Check first ||| Vérifiez d'abord
-Good today: no snow up top, nothing closed ||| Bien aujourd'hui : pas de neige en haut, rien de fermé
-Microspikes and poles, or wait for the melt. Snow from a weather model, not a trail report. ||| Crampons légers et bâtons, ou attendez la fonte. Neige selon un modèle météo, pas un rapport de sentier.
 A closure, warning or wildfire is reported near these: tap one for the details. ||| Une fermeture, un avertissement ou un feu de forêt est signalé près de celles-ci : touchez-en une pour les détails.
 Zoom in to a valley or a town: Today ranks the hikes around the middle of the map. ||| Zoomez sur une vallée ou une ville : Aujourd'hui classe les randos autour du centre de la carte.
 Still finding the hikes here: try again in a moment. ||| Recherche des randos ici en cours : réessayez dans un instant.

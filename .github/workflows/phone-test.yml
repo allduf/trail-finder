@@ -19,7 +19,9 @@ concurrency:
 
 jobs:
   phone:
-    runs-on: ubuntu-latest
+    # Pinned (2026-11-11): ubuntu-latest moved to 26.04, where playwright 1.48.2's --with-deps asks for 24.04 packages
+    # (libicu74, libvpx9, libx264-164) that aren't there, and the browser install failed before any test ran.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -28,8 +30,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Wording check (nothing that promises safety or conditions)
+        run: node scripts/wording-check.mjs
       - name: Install the test browser
+        # The runner's Ubuntu mirror (azure.archive.ubuntu.com) stopped sending files on 2026-11-11 and the install
+        # hung until the 25 min limit, twice. The browser's system files come from the main Ubuntu mirror instead, and
+        # apt gives up on a dead download after 15 s and tries again, not 20 s per file forever.
         run: |
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
           npm install --no-save --no-package-lock playwright@1.48.2
           npx playwright install --with-deps webkit
       - name: Test every sport at iPhone size

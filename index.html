@@ -23,8 +23,8 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=4220"></script>
-<script src="line-icons.js?v=4220"></script>
+<script src="i18n.js?v=4780"></script>
+<script src="line-icons.js?v=4780"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -825,6 +825,8 @@ button.tsearch-where { border: 0; color: inherit; font: inherit; font-size: .9re
 .pin-in svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .pin-in input { padding-left: 30px !important; font-size: .92rem !important; }
 .panel.mode-name .debug, .panel.mode-name .list, body.mode-name #searchArea { display: none !important; }
+/* Reading one trail: the "Search this area" button only got in the way of the map above the details. */
+@media (max-width: 760px) { body:has(.panel.detail-open) #searchArea { display: none !important; } }
 .tsearch { position: relative; }
 .tsearch svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .tsearch input { width: 100%; box-sizing: border-box; font: inherit; padding: 9px 10px 9px 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
@@ -1301,7 +1303,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body #layersMenu .lm-offline small { display: block; font-size: .78rem; opacity: .75; }
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=20">
+<link rel="stylesheet" href="theme.css?v=22">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1410,7 +1412,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <h1>Trail <span>Finder</span></h1>
         <button type="button" class="peek-search" id="peekSearch"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search trails</span></button>
         <button type="button" class="peek-photo" id="peekPhoto" aria-label="Which trail is this? Find a trail from a photo" title="Which trail is this? Find a trail from a photo">📷</button>
-        <span class="brand-links"><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto" data-short="🏍 Moto">🏍 Adventure moto</option><option value="hike">🥾 Hiking</option></select></span>
+        <span class="brand-links"><button class="linkish desk-menu-btn" id="deskMenuBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskMenu" title="Everything in the phone's More menu: settings, saved, record and more">☰ Menu</button><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto" data-short="🏍 Moto">🏍 Adventure moto</option><option value="hike">🥾 Hiking</option></select></span>
       </div>
       <div class="peek-quick" id="peekQuick" role="group" aria-label="Quick searches">
         <button type="button" data-q="new">✨ New trails</button><button type="button" data-q="near">◎ Near me</button><button type="button" data-q="prime"><span class="dot" aria-hidden="true"></span>Prime loam</button><button type="button" data-q="today">☀ Today</button>
@@ -1521,10 +1523,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
   </nav>
 </div>
 
+<!-- The phone's menu on computers (alex 2026-11-11: "where is the menu icon on the computer? like we have on the phone"):
+     the ☰ Menu button at the top of the side panel opens the phone's More page, with its Record and Saved buttons above. -->
+<section class="desk-menu" id="deskMenu" role="dialog" aria-label="Menu" hidden>
+  <div class="dm-head"><h2>Menu</h2><button type="button" class="dm-close" id="deskMenuClose" aria-label="Close the menu">✕</button></div>
+  <div class="dm-body" id="deskMenuBody"></div>
+</section>
 <div class="about" id="about" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle">How Trail Finder works</h2>
     <p class="about-lead">Find mountain bike trails that are new to you and ride them when the dirt is just right. The Sport button on the map switches to Skiing, Hunting, Fishing, Adventure moto or Hiking.</p>
+    <p class="about-tut" hidden><button class="tut-watch" type="button" data-tut-open=""><span>Watch the tutorial videos</span></button></p>
     <h3>🚵 MTB</h3>
     <ul class="about-quick">
       <li><b>Search</b> a trail, a town or Near me, then pick how new. <b>Any</b> shows every trail, old or new.</li>
@@ -1611,16 +1620,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="noback.js?v=4220"></script>
-<script src="risk.js?v=4220"></script>
-<script src="welcome.js?v=4220"></script>
-<script src="native.js?v=4220"></script>
-<script src="keyboard.js?v=4220"></script>
-<script src="rotate.js?v=4220"></script>
-<script src="official.js?v=4220"></script>
-<script src="directions.js?v=4220"></script>
-<script src="ratings.js?v=4220"></script>
-<script src="ebike.js?v=4220"></script>
+<script src="hidden-places.js?v=4780"></script>
+<script src="noback.js?v=4780"></script>
+<script src="risk.js?v=4780"></script>
+<script src="welcome.js?v=4780"></script>
+<script src="native.js?v=4780"></script>
+<script src="keyboard.js?v=4780"></script>
+<script src="rotate.js?v=4780"></script>
+<script src="official.js?v=4780"></script>
+<script src="directions.js?v=4780"></script>
+<script src="ratings.js?v=4780"></script>
+<script src="ebike.js?v=4780"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2002,14 +2012,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
   };
   const SAT_NAMES = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
   // The vector map needs MapLibre GL (same copy as the 3D view) and its Leaflet bridge, loaded on first use.
-  const GL = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl";
+  const GL = "vendor/maplibre-gl-5.24.0";
   let glLoading = null;
   function loadScript(src) { return new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); }); }
   function loadVectorLib() {
     if (!glLoading) {
       if (!window.maplibregl) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = GL + ".css"; document.head.append(l); }
       glLoading = (window.maplibregl ? Promise.resolve() : loadScript(GL + ".js"))
-        .then(() => L.maplibreGL || loadScript("https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.3/leaflet-maplibre-gl.js"))
+        .then(() => L.maplibreGL || loadScript("vendor/maplibre-gl-leaflet-0.1.3.js"))
         .catch((e) => { glLoading = null; throw e; });
     }
     return glLoading;
@@ -2743,21 +2753,35 @@ body.sport-alt #rideMapBtn { display: none !important; }
 
   // Version-1 lookups: returns Map(id -> {timestamp, user}) using the multi-fetch API.
   let v1Failed = 0;
+  // Ways whose first version OpenStreetMap won't give (redacted in 2012, so old trails anyway): the API answers 404/403
+  // every time, and asking again on each search held the New trails list for many seconds on phones ("Trails on the
+  // map" 37 s usual, 180 s slow on the usage page, 2026-11-10). Remembered on this device for a month.
+  const NO_V1_KEY = "tf:noV1", NO_V1_MS = 30 * 864e5;
+  const noV1 = (() => { try { const j = JSON.parse(localStorage.getItem(NO_V1_KEY) || "null"); return new Set(j && Date.now() - j.at < NO_V1_MS ? j.ids : []); } catch { return new Set(); } })();
+  const noV1At = (() => { try { return (JSON.parse(localStorage.getItem(NO_V1_KEY) || "null") || {}).at; } catch { return 0; } })() || Date.now();
+  const rememberNoV1 = (id) => { noV1.add(id); try { localStorage.setItem(NO_V1_KEY, JSON.stringify({ at: noV1At, ids: [...noV1].slice(-2000) })); } catch {} };
+  // A slow answer gives up after 15 s instead of waiting forever (the trails it holds stay out until the next search).
+  const osmGet = (url) => fetch(url, window.AbortSignal && AbortSignal.timeout ? { signal: AbortSignal.timeout(15000) } : {});
   async function fetchV1(ids, onProgress) {
     const out = new Map();
     v1Failed = 0;
+    ids = ids.filter((id) => !noV1.has(id));
     const chunks = [];
     for (let i = 0; i < ids.length; i += 120) chunks.push(ids.slice(i, i + 120));
     let done = 0;
     async function get(chunk) {
-      const res = await fetch(`${OSM_API}/ways?ways=${chunk.map((id) => id + "v1").join(",")}`);
+      const res = await osmGet(`${OSM_API}/ways?ways=${chunk.map((id) => id + "v1").join(",")}`).catch(() => null);
+      if (!res) { v1Failed += chunk.length; return; }   // no answer: tried again on the next search
       if (!res.ok) {
         if (chunk.length === 1) {
-          const one = await fetch(`${OSM_API}/way/${chunk[0]}/1`).catch(() => null);
+          const one = await osmGet(`${OSM_API}/way/${chunk[0]}/1`).catch(() => null);
           if (one && one.ok) {
             const w = new DOMParser().parseFromString(await one.text(), "application/xml").querySelector("way");
             if (w) out.set(+w.getAttribute("id"), { timestamp: w.getAttribute("timestamp"), user: w.getAttribute("user") || "", changeset: +w.getAttribute("changeset") });
-          } else v1Failed++;
+          } else {
+            v1Failed++;
+            if (one && (one.status === 403 || one.status === 404 || one.status === 410)) rememberNoV1(chunk[0]);
+          }
           return;
         }
         const mid = Math.ceil(chunk.length / 2);
@@ -2979,6 +3003,7 @@ out body;`;
   async function search(boxes, offline, auto) {
     if (!auto && anyMode()) { findAny(); return; }   // How new: Any lists every trail in the area instead
     const token = ++state.token;
+    if (!trailsTimed) trailsT0 = auto ? 0 : performance.now();
     state.waiting = !!auto;
     gate.strikes = 0;
     $("searchArea").hidden = true;
@@ -3014,6 +3039,9 @@ out body;`;
     if (token !== state.token) return;
     if (state.ghosts.length) mergeTiles(tiles);
     let fromNightly = 0;
+    // A square's trails go on the map as soon as they're sorted: the few first-version dates the nightly file lacks are
+    // asked of OpenStreetMap after, in the background (waiting for them held every square behind it).
+    const nightlyDates = [];
     for (const t of tiles) {
       const f = files.find((f) => f.tiles[t.key]);
       if (!f) continue;
@@ -3021,9 +3049,17 @@ out body;`;
       nightlyAt.set(t.key, at);
       if (c && c.fetchedAt >= at) continue;
       const sq = nightlySquare(f, t.key);
-      const r = await processElements(sq.elements, token, sq.known, null);
+      // processElements calls back with the dated trails (more = dates still to ask) before it awaits anything.
+      let later = null;
+      const p = processElements(sq.elements, token, sq.known, (trails, more) => {
+        if (token !== state.token) return;
+        if (later) tileCache.set(t.key, { fetchedAt: 0, trails });
+        else if (more) later = { trails };
+      });
+      const r = later || await p.catch((e) => { log(`${t.key}: ${e.message}`); return { trails: [] }; });
+      if (later) nightlyDates.push(p.then((r) => { if (token === state.token) { tileCache.set(t.key, { fetchedAt: at, trails: r.trails }); mergeTiles(tiles); render(); } }).catch(() => {}));
       if (token !== state.token) return;
-      tileCache.set(t.key, { fetchedAt: at, trails: r.trails });
+      tileCache.set(t.key, { fetchedAt: later ? 0 : at, trails: r.trails });
       fromNightly++;
     }
     if (files.length) log(`${fromNightly} squares from the nightly file (built ${new Date(Math.max(...files.map((f) => Date.parse(f.builtAt)))).toLocaleString()}).`);
@@ -3095,6 +3131,7 @@ out body;`;
     }
     // One worker per OpenStreetMap server, so both share the load.
     if (todo.length) { await Promise.all(OVERPASS.map((_, i) => worker(i))); await Promise.all(checking); }
+    await Promise.all(nightlyDates);
     clearTimeout(renderTimer);
     if (token === state.token) mergeTiles(tiles);
     clearInterval(tick);
@@ -3483,6 +3520,10 @@ out body;`;
     if (selT) { if (selT._glow) selT._glow.bringToFront(); if (selT._edge) selT._edge.bringToFront(); selT._line.bringToFront(); }
   }
   let trailsTimed = false;   // the first trails drawn, timed once (usage page)
+  // Timed from the search that brought them, not from the app opening: on a first open the clock ran while the person
+  // read the terms and the welcome and only then tapped New trails ("Trails on the map" 37 s, 2026-11-10). The search
+  // the app runs by itself on opening (saved trails) counts from the opening.
+  let trailsT0 = 0;
   // Only when the app opened in MTB: opened in another sport, the first trails came when the rider switched to MTB,
   // and that counted minutes of skiing as waiting (37 s "most" on the usage page, 2026-10-30).
   window.addEventListener("tf:sport", (e) => { if (e.detail !== "mtb") trailsTimed = true; });
@@ -3494,7 +3535,7 @@ out body;`;
     const vis = mergeSegments(base.filter((t) => !t.use))   // moto and hiking-only trails are left out
       .filter((t) => t.km * 1000 >= MIN_TRAIL_M);
     state.merged = new Map(vis.map((t) => [t.id, t]));
-    if (!trailsTimed && vis.length) { trailsTimed = true; logUse("speed", "trails", performance.now()); }
+    if (!trailsTimed && vis.length) { trailsTimed = true; logUse("speed", "list", performance.now() - trailsT0); }
     const idx = oldNameIndex(monthsAgo(state.months));
     vis.forEach((t) => { t.bit = bitOf(t, idx); });
     const kept = state.showBits ? vis : vis.filter((t) => !t.bit);
@@ -3866,7 +3907,7 @@ out body;`;
     [40, "Tacky", "Grippy and fast, can be a bit loose on top."],
     [60, "Damp, prime loam", "Hero dirt: the best grip on loam. Roots and rocks get slick."],
     [80, "Wet and muddy", "Slippery, and riding leaves ruts."],
-    [101, "Saturated", "Very muddy and very slippery. Still rideable: go easy and avoid skidding, which leaves ruts."]];
+    [101, "Saturated", "Very muddy and very slippery. Riding it now leaves deep ruts."]];
   // Tuned by rider reports (data/loam-tune.json, built every night by scripts/build-loam-tune.mjs): where riders said
   // "Muddy" at a reading of 50, the zone's readings move up, and so on, so 40-59 stays prime loam everywhere. key is the
   // loam cell (cellOf), so every place that shows a trail's loam gets the same tuned number.
@@ -4338,7 +4379,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4220").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4780").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -5646,6 +5687,7 @@ out body;`;
       ${acct ? card("account", "👤", signedIn ? "Account" : "Sign in", signedIn ? "Your saves follow you to every device" : "Keep your saves on every device") : ""}
       ${window.tfFriends && window.tfFriends.admin() ? card("friends", "🤝", "Friends", "Who sees unofficial trails") : ""}
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
+      ${window.tfTutorials && window.tfTutorials.list.length ? card("tutorials", "▶", "Tutorials", "Short videos: how to use each feature") : ""}
       ${card("about", "?", "How it works", "")}
       ${card("support", "✉", "Help and support", "Questions, problems, ideas")}
       ${card("privacy", "🔒", "Privacy", "What the app keeps and how to delete it")}
@@ -5778,7 +5820,7 @@ out body;`;
     hunt: [["📍 Drop a pin", '#hnPins [data-pin=""]'], ["◎ My spot", '#huntPane [data-act="me"]', true], ["📜 Rules", '#huntPane [data-view="rules"]'], ["🛻 Truck", '#huntPane [data-act="truck"]', true], ["🧭 Compass", "#hnCompass", true]],
     fish: [["◎ My spot", '#fishPane [data-act="me"]', true], ["🐟 Save a catch", '#fishPane [data-act="catch"]', true], ["📜 Rules", '#fishPane [data-view="rules"]'], ["🛻 Truck", '#fishPane [data-act="truck"]', true]],
     moto: [["➚ Plan a route", '#motoPane [data-act="plan"]'], ["⛽ Fuel & camp", '#motoPane [data-act="stops"]'], ["💧 Mud today", '#motoPane [data-act="mud"]'], ["🗺 ADV routes", '#motoPane [data-act="trips"]', true]],
-    hike: [["📅 Today", '#hikePane [data-act="today"]', true], ["🥾 Hikes here", '#hikePane [data-act="list"]', true], ["❄ Snow line", '#hikePane [data-act="snow"]', true], ["✎ Plan a hike", '#hikePane [data-act="plan"]', true], ["🎫 Passes", '#hkPassBtn', true], ["★ Saved", '#hikePane [data-act="saved"]', true]],
+    hike: [["📅 Today", '#hikePane [data-act="today"]', true], ["🥾 Hikes here", '#hikePane [data-act="list"]', true], ["❄ Snow line", '#hikePane [data-act="snow"]', true], ["✎ Plan a hike", '#hikePane [data-act="plan"]', true], ["🎫 Passes", '#hkPassBtn', true]],
   };
   const NOW_ID = { ski: "skNow", hunt: "hnNow", fish: "fsNow", moto: "mtNow", hike: "hkNow" };   // each sport's Today line (its own file fills it)
   let peekFor = "";
@@ -5870,20 +5912,22 @@ out body;`;
     if (b.dataset.q === "new") { quick("search"); $("findBtn").click(); return; }   // the list right away; the form stays above it to change
     quick(b.dataset.q);
   });
-  hubEl.addEventListener("click", (e) => {
+  hubEl.addEventListener("click", (e) => hubClick(e, hubEl));
+  // The buttons of a hub page: the phone's sheet (#hub) or the computer's ☰ Menu (#deskMenu)
+  function hubClick(e, root) {
     if (e.target.closest("[data-sport], [data-hub], [data-lang], [data-ai], [data-usage]")) e.stopPropagation();   // the page decides the sheet's height
     const lg = e.target.closest("[data-lang]");
     if (lg) { if (window.tfLang) window.tfLang.set(lg.dataset.lang); return; }   // i18n.js: reloads in that language
     const ai = e.target.closest("[data-ai]");
     if (ai && window.tfAiConsent) { window.tfAiConsent.set(ai.dataset.ai === "true"); return; }   // welcome.js: On asks again (18 or older)
     const use = e.target.closest("[data-usage]");   // usage.js: iPhone app only; Don't share stops at once
-    if (use && window.tfUsage) { window.tfUsage.set(use.dataset.usage === "true"); hubEl.querySelectorAll("[data-usage]").forEach((b) => b.setAttribute("aria-pressed", String(window.tfUsage.on() === (b.dataset.usage === "true")))); return; }
+    if (use && window.tfUsage) { window.tfUsage.set(use.dataset.usage === "true"); root.querySelectorAll("[data-usage]").forEach((b) => b.setAttribute("aria-pressed", String(window.tfUsage.on() === (b.dataset.usage === "true")))); return; }
     const sp = e.target.closest("[data-sport]");
     if (sp) { if ($("sport").value !== sp.dataset.sport) { $("sport").value = sp.dataset.sport; $("sport").dispatchEvent(new Event("change", { bubbles: true })); } return; }
     const b = e.target.closest("[data-hub]"); if (!b) return;
     const act = b.dataset.hub;
     if (["search", "near", "prime", "screen", "today", "photo"].includes(act)) quick(act);
-    else if (act === "layer") { $(b.dataset.id)?.click(); hubEl.querySelectorAll('[data-hub="layer"]').forEach((c) => c.setAttribute("aria-pressed", String($(c.dataset.id)?.getAttribute("aria-pressed") === "true"))); }
+    else if (act === "layer") { $(b.dataset.id)?.click(); root.querySelectorAll('[data-hub="layer"]').forEach((c) => c.setAttribute("aria-pressed", String($(c.dataset.id)?.getAttribute("aria-pressed") === "true"))); }
     else if (act === "layers") { lowerSheet(); $("layersBtn").click(); }
     else if (act === "start") { if (window.tfRide) window.tfRide.start(); }
     else if (act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
@@ -5896,13 +5940,53 @@ out body;`;
     else if (act === "about") $("aboutBtn").click();
     else if (act === "support" || act === "privacy" || act === "terms") location.href = act + ".html";
     else if (act === "news") window.tfWhatsNew.open();
+    else if (act === "tutorials") window.tfTutorials.open();   // tutorials.js
     else if (act === "friends") window.tfFriends.open();   // friends.js, alex only
     else if (act.startsWith("log") && window.tfPoints) window.tfPoints.openLog(act.slice(4) || undefined);   // My hunts' tabs, the Fishing log
     else if (act === "tours") location.href = "ride.html#rides";
     else if (act === "ski-planned" && window.tfSki && window.tfSki.tours) window.tfSki.tours();   // winter.js: saved planned tours
     else if (act.startsWith("moto-") && window.tfMoto) window.tfMoto.hub(act.slice(5));   // moto.js: plan, routes, log, bike
     else if (act.startsWith("hike-") && window.tfHike) window.tfHike.hub(act.slice(5));   // hike.js: log, saved
+  }
+  // ---------- ☰ Menu on computers: the phone's tabs Record (Ride) and Saved, then More, in one list ----------
+  // alex 2026-11-11: "where is the menu icon on the computer? like we have on the phone". Phones keep their tab bar.
+  const deskMenu = $("deskMenu"), deskBody = $("deskMenuBody"), deskBtn = $("deskMenuBtn");
+  function deskMenuHtml() {
+    const box = document.createElement("div");
+    box.innerHTML = `<div class="hub-sec">${esc(words().tab)}</div>${hubHtml("ride")}<div class="hub-sec">Saved</div>${hubHtml("saved")}${hubHtml("more")}`;
+    box.querySelectorAll(".hub-slot").forEach((x) => x.remove());   // the phone's borrowed lists stay in the side panel here
+    const seen = new Set();   // Offline maps and Live location are on two phone pages: once here
+    box.querySelectorAll(".hub-card[data-hub]").forEach((c) => { if (seen.has(c.dataset.hub)) c.remove(); else seen.add(c.dataset.hub); });
+    box.querySelectorAll(".hub-sec").forEach((h) => { const n = h.nextElementSibling; if (!n || n.classList.contains("hub-sec")) h.remove(); });   // a heading with nothing under it
+    return box.innerHTML;
+  }
+  function placeDeskMenu() {
+    const r = deskBtn.getBoundingClientRect(), top = Math.round(r.bottom + 8);
+    deskMenu.style.top = top + "px";
+    deskMenu.style.left = Math.max(8, Math.min(Math.round(r.left), innerWidth - deskMenu.offsetWidth - 8)) + "px";
+    deskMenu.style.maxHeight = Math.max(240, innerHeight - top - 12) + "px";
+  }
+  function openDeskMenu(open) {
+    if (open && phoneMQ.matches) open = false;
+    deskMenu.hidden = !open;
+    deskBtn.setAttribute("aria-expanded", String(open));
+    if (open) { deskBody.innerHTML = deskMenuHtml(); deskBody.scrollTop = 0; placeDeskMenu(); }
+  }
+  const deskMenuOpen = () => !deskMenu.hidden;
+  deskBtn.addEventListener("click", (e) => { e.stopPropagation(); openDeskMenu(!deskMenuOpen()); });
+  $("deskMenuClose").addEventListener("click", () => openDeskMenu(false));
+  deskMenu.addEventListener("click", (e) => {
+    const go = e.target.closest("[data-hub]");
+    hubClick(e, deskMenu);
+    e.stopPropagation();
+    if (go) openDeskMenu(false);   // a button that opens something: the menu steps aside; the On/Off choices stay
   });
+  document.addEventListener("click", (e) => { if (deskMenuOpen() && !deskMenu.contains(e.target) && e.target !== deskBtn) openDeskMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && deskMenuOpen()) { openDeskMenu(false); deskBtn.focus(); } });
+  window.addEventListener("resize", () => { if (deskMenuOpen()) { if (phoneMQ.matches) openDeskMenu(false); else placeDeskMenu(); } });
+  const redrawDeskMenu = () => { if (deskMenuOpen()) { deskBody.innerHTML = deskMenuHtml(); placeDeskMenu(); } };
+  document.addEventListener("tf:aiconsent", redrawDeskMenu);
+  $("sport").addEventListener("change", () => setTimeout(redrawDeskMenu));
   ["tabNew", "tabName"].forEach((id) => $(id).addEventListener("click", () => setTimeout(syncTabbar)));
   // The sport set at start (winter.js, the last one used) also renames the tabs and the search box: opened with no
   // signal, nothing else came along to do it and Skiing showed "Ride" and "Search trails" (2026-10-31).
@@ -7412,8 +7496,12 @@ out tags center qt;`;
       .map((w) => ({ t: "w", id: w.id, c: w.geom[w.geom.length >> 1], tags: w.tags }));
     return extra.length ? items.concat(extra) : items;
   }
-  async function loadNames(retry, zones, onLocal, localOnly) {
+  // quiet (typing in the box): the list is only redrawn here when a name list or trails came in. Typing used to redraw
+  // it on every letter (on top of the redraw 120 ms after the typing), each a full search of every name and town:
+  // "Comfortably" took 4.2 s to type on a slowed phone, the letters lagging behind the fingers (app test 2026-11-11).
+  async function loadNames(retry, zones, onLocal, localOnly, quiet) {
     if (retry) { names.failed.clear(); gate.strikes = 0; }
+    const was = quiet && names.rev + "/" + state.trails.length;
     const c = map.getCenter();
     const changed = () => { refreshHits(); if (state.prime) render(); };
     const want = (zones || wantedZones()).slice().sort((a, b) => c.distanceTo(a.bounds.getCenter()) - c.distanceTo(b.bounds.getCenter()));
@@ -7430,7 +7518,7 @@ out tags center qt;`;
       else todo.push(z);  // never loaded, or saved more than a week ago (the old list is used meanwhile)
     }
     if (onLocal) onLocal();   // the saved and nightly lists are in; the rest come from OpenStreetMap
-    changed();
+    if (!quiet || names.dirty || names.rev + "/" + state.trails.length !== was) changed();
     if (localOnly) todo.splice(0).forEach((z) => names.inflight.delete(z.id));
     if (!todo.length) return;
     log(`Trail names: loading ${todo.map(shortZone).join(", ")}.`);
@@ -7796,12 +7884,20 @@ out tags center qt;`;
   let hitTimer = 0;
   $("trailQ").addEventListener("input", () => {
     if (namePick && $("trailQ").value.trim().toLowerCase() !== namePick.key) clearNamePick();
-    hitSel = -1; clearTimeout(hitTimer); hitTimer = setTimeout(refreshHits, 120); loadNames(); });
+    hitSel = -1; clearTimeout(hitTimer); hitTimer = setTimeout(refreshHits, 120); loadNames(false, null, null, false, true); });
   // The name lists (this area's trail names, towns, and every trail name in Canada: about 0.7 MB) start downloading
   // the moment the box is touched, not on the first letter: the deep test 2026-11-09 waited 2.9 s for "Comfortably"
   // on LTE because the lists only started with the "C". An Area picked later still loads its own names when typing.
-  const warmNames = () => { loadPlaces(); loadNames(); };
+  // Once they're in, the trail groups are built while the box is still empty: building them on the first letter froze
+  // that letter ~0.55 s on a slowed phone even with the lists already downloaded (app test 2026-11-11).
+  const prebuild = () => setTimeout(() => {
+    if (!$("trailQ").value.trim() && names.zones.size && (names.dirty || names.trailCount !== state.trails.length)) buildGroups();
+  }, 0);
+  const warmNames = () => { loadPlaces(); loadNames(false, null, prebuild).then(prebuild, () => {}); };
   $("trailQ").addEventListener("pointerdown", warmNames, { passive: true });
+  // and as soon as Find opens (its tab, or the map's Search trails), before the box is even touched
+  document.querySelector('#tabbar [data-nav="new"]')?.addEventListener("click", warmNames);
+  $("peekSearch").addEventListener("pointerdown", () => { if (!isAlt()) warmNames(); }, { passive: true });
   $("trailQ").addEventListener("focus", () => { warmNames(); refreshHits(); });
   $("trailQ").addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== $("trailQ")) { $("trailHits").hidden = true; $("trailQ").setAttribute("aria-expanded", "false"); } }, 150));
   $("trailQ").addEventListener("keydown", (e) => {
@@ -8730,50 +8826,51 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=4220"></script>
-<script src="native-map.js?v=4220"></script>
-<script src="contours.js?v=4220"></script>
-<script src="clouds.js?v=4220"></script>
-<script src="smoke.js?v=4220"></script>
-<script src="radar.js?v=4220"></script>
-<script src="photo-slider.js?v=4220"></script>
-<script src="ski-terrain.js?v=4220"></script>
-<script src="place-search.js?v=4220"></script>
-<script src="winter.js?v=4220"></script>
-<script src="hunts.js?v=4220"></script>
-<script src="ski-points.js?v=4220"></script>
-<script src="offline.js?v=4220"></script>
-<script src="ride-stats.js?v=4220"></script>
-<script src="native-gps.js?v=4220"></script>
-<script src="navigate.js?v=4220"></script>
-<script src="go-there.js?v=4220"></script>
-<script src="planner.js?v=4220"></script>
-<script src="loops.js?v=4220"></script>
-<script src="ride-finds.js?v=4220"></script>
-<script src="rides.js?v=4220"></script>
-<script src="community.js?v=4220"></script>
-<script src="ride-files.js?v=4220"></script>
-<script src="rider-trails.js?v=4220"></script>
-<script src="account.js?v=4220"></script>
-<script src="friends.js?v=4220"></script>
-<script src="live.js?v=4220"></script>
-<script src="strava.js?v=4220"></script>
-<script src="moderation.js?v=4220"></script>
-<script src="reports.js?v=4220"></script>
-<script src="grades.js?v=4220"></script>
-<script src="trail-photos.js?v=4220"></script>
-<script src="visitors.js?v=4220"></script>
-<script src="usage.js?v=4220"></script>
-<script src="notify.js?v=4220"></script>
-<script src="closures.js?v=4220"></script>
-<script src="status.js?v=4220"></script>
-<script src="ask.js?v=4220"></script>
-<script src="areas.js?v=4220"></script>
-<script src="alpine.js?v=4220"></script>
-<script src="bikeparks.js?v=4220"></script>
-<script src="photo-find.js?v=4220"></script>
-<script src="whats-new.js?v=4220"></script>
-<script src="app-update.js?v=4220"></script>
+<script src="map3d.js?v=4780"></script>
+<script src="native-map.js?v=4780"></script>
+<script src="contours.js?v=4780"></script>
+<script src="clouds.js?v=4780"></script>
+<script src="smoke.js?v=4780"></script>
+<script src="radar.js?v=4780"></script>
+<script src="photo-slider.js?v=4780"></script>
+<script src="ski-terrain.js?v=4780"></script>
+<script src="place-search.js?v=4780"></script>
+<script src="winter.js?v=4780"></script>
+<script src="hunts.js?v=4780"></script>
+<script src="ski-points.js?v=4780"></script>
+<script src="offline.js?v=4780"></script>
+<script src="ride-stats.js?v=4780"></script>
+<script src="native-gps.js?v=4780"></script>
+<script src="navigate.js?v=4780"></script>
+<script src="go-there.js?v=4780"></script>
+<script src="planner.js?v=4780"></script>
+<script src="loops.js?v=4780"></script>
+<script src="ride-finds.js?v=4780"></script>
+<script src="rides.js?v=4780"></script>
+<script src="community.js?v=4780"></script>
+<script src="ride-files.js?v=4780"></script>
+<script src="rider-trails.js?v=4780"></script>
+<script src="account.js?v=4780"></script>
+<script src="friends.js?v=4780"></script>
+<script src="live.js?v=4780"></script>
+<script src="strava.js?v=4780"></script>
+<script src="moderation.js?v=4780"></script>
+<script src="reports.js?v=4780"></script>
+<script src="grades.js?v=4780"></script>
+<script src="trail-photos.js?v=4780"></script>
+<script src="visitors.js?v=4780"></script>
+<script src="usage.js?v=4780"></script>
+<script src="notify.js?v=4780"></script>
+<script src="closures.js?v=4780"></script>
+<script src="status.js?v=4780"></script>
+<script src="ask.js?v=4780"></script>
+<script src="areas.js?v=4780"></script>
+<script src="alpine.js?v=4780"></script>
+<script src="bikeparks.js?v=4780"></script>
+<script src="photo-find.js?v=4780"></script>
+<script src="whats-new.js?v=4780"></script>
+<script src="tutorials.js?v=4780"></script>
+<script src="app-update.js?v=4780"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

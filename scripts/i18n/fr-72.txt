@@ -1,0 +1,8 @@
+Hold and drag to move ||| Maintenir et glisser pour déplacer
+Hold ☰ to drag an item up or down. What you take off (✕) or add stays that way for your next trips too. ||| Maintenez ☰ pour glisser un article vers le haut ou le bas. Ce que vous retirez (✕) ou ajoutez reste ainsi pour vos prochains séjours.
+Taken off. It stays off your next trips too. ||| Retiré. Il reste retiré pour vos prochains séjours.
+Cabin trips: hold ☰ and drag to move an item up or down the packing list, or into another section, and ✕ takes it off. Tour points move the same way. The trip's sections have simple line icons instead of emoji. ||| Séjours en refuge : maintenez ☰ et glissez pour déplacer un article dans la liste de bagages, ou dans une autre section, et ✕ le retire. Les points d'une sortie se déplacent de la même façon. Les sections du séjour ont de simples icônes au trait au lieu d'émojis.
+What's for breakfast? ||| Quoi pour le déjeuner?
+What's for lunch? ||| Quoi pour le dîner?
+What's for dinner? ||| Quoi pour le souper?
+Cabin trips: each meal has its own full-width box that grows with what you write, so the whole meal is always easy to read. ||| Séjours en refuge : chaque repas a sa propre case pleine largeur qui s'agrandit avec ce que vous écrivez, pour que tout le repas reste facile à lire.

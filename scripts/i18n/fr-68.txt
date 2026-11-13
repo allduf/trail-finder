@@ -1,0 +1,22 @@
+Backcountry areas ||| Secteurs hors-piste
+Why no forecast ||| Pourquoi pas de bulletin
+Skiing opens simpler: the tour buttons sit two by two, the lists across Canada are one row of small buttons, the avalanche weather folds under its title (the orange number counts its warning signs) and a tour's two warnings are one box, with why there's no forecast a tap away. ||| Le ski s'ouvre plus simplement : les boutons de sortie sont deux par deux, les listes partout au Canada tiennent sur une rangée de petits boutons, la météo avalanche se replie sous son titre (le chiffre orange compte ses signes d'alerte) et les deux avertissements d'une sortie tiennent dans une seule boîte, avec la raison de l'absence de bulletin à un toucher.
+Start a new trip ||| Commencer un nouveau séjour
+Trip name ||| Nom du séjour
+My trip ||| Mon séjour
+Like: Spearhead hut trip ||| Ex. : séjour au refuge Spearhead
+The cabin ||| Le refuge
+Draw a tour ||| Tracer une sortie
+Tap the map along your tour, then ✓ Done. It goes in this trip. ||| Touchez la carte le long de votre sortie, puis ✓ Terminé. Elle s'ajoute à ce séjour.
+Cabin trips: start a new trip without picking a cabin first (Cabin trip, then ＋ Start a new trip). Add the cabin when you know it, from the list or a cabin on the map. ||| Séjours en refuge : commencez un nouveau séjour sans choisir de refuge d'abord (Séjour en refuge, puis ＋ Commencer un nouveau séjour). Ajoutez le refuge quand vous le savez, depuis la liste ou un refuge sur la carte.
+Start where you park. Tap a ski line to add it all. ||| Partez de votre stationnement. Touchez une ligne de ski pour l'ajouter en entier.
+Ski touring: add the whole line to your tour? ||| Ski de randonnée : ajouter toute la ligne à votre sortie?
+Approach trails: add the whole line to your tour? ||| Sentier d'approche : ajouter toute la ligne à votre sortie?
+Other winter routes: add the whole line to your tour? ||| Itinéraire d'hiver : ajouter toute la ligne à votre sortie?
+Nordic / cross-country: add the whole line to your tour? ||| Ski de fond : ajouter toute la ligne à votre sortie?
+Snowshoe: add the whole line to your tour? ||| Raquette : ajouter toute la ligne à votre sortie?
+Snowmobile trails: add the whole line to your tour? ||| Sentier de motoneige : ajouter toute la ligne à votre sortie?
+Ski resort runs: add the whole line to your tour? ||| Piste de station : ajouter toute la ligne à votre sortie?
+Resort off-piste and bowls: add the whole line to your tour? ||| Hors-piste de station : ajouter toute la ligne à votre sortie?
+That tour isn't in your saved tours any more. Draw it again with ✏️ Draw a tour. ||| Cette sortie n'est plus dans vos sorties enregistrées. Tracez-la de nouveau avec ✏️ Tracer une sortie.
+Cabin trips: while you draw a tour for a trip, tap any ski line to add it all. Your points are listed on the tour card to move up or down or delete, and ✎ on a drawn tour in the trip opens its points again. ||| Séjours en refuge : pendant que vous tracez une sortie pour un séjour, touchez une ligne de ski pour l'ajouter en entier. Vos points sont listés sur la fiche de la sortie pour les monter, les descendre ou les supprimer, et ✎ sur une sortie tracée du séjour rouvre ses points.
