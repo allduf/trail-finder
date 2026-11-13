@@ -638,7 +638,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   // A spot, route or hut card being opened (other sports don't send "view" like the MTB trail card does).
   const CARD = /^(#(fsSpot|mtSpot|mtRoute)|list:#(results|list|trailHits|wantList))|\(in #(fsSpot|mtSpot|mtRoute|detail)\)$/;
   const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask", Area: "🗺️ Where to look", "Ski find": "⛷ Skiing search" };
-  const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["list", "New trails list"], ["3d", "3D mountains"]];
+  const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["list", "New trails list"], ["3dshape", "3D mountains shown"], ["3d", "3D sharp photos all in"]];
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
     const labels = new Map((all || []).map((d) => [d.device, d.label]));

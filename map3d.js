@@ -2917,6 +2917,18 @@
     // stop moving before, so on a phone it stayed up 5-6 s over mountains already drawn (alex's recording, 2026-11-05).
     // The mountains' shape is in once the tilt has started (the height under the centre); the far heights fill in
     // after, like the photos (all of them took 3-5 s more on a slow phone).
+    // The usage page also times this moment ("3D mountains shown", alex 2026-11-13): what a person waits for, while
+    // "3D mountains" below waits for every sharp photo of the view.
+    // Timed on its own, also when the note went at 12 s before the ground was in (30 s or more counts as 30 s).
+    let shaped = false;
+    const shapeTime = () => {
+      if (shaped) return;
+      shaped = true; logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
+      gl.off("sourcedata", shapeIn); gl.off("idle", shapeIn); gl.off("moveend", shapeIn);
+    };
+    const shapeIn = () => { if (tilted && gl.isSourceLoaded(quickPhotos())) shapeTime(); };
+    gl.on("sourcedata", shapeIn); gl.on("idle", shapeIn); gl.on("moveend", shapeIn);
+    setTimeout(shapeTime, 30000);
     const groundIn = () => {
       if (!tilted || !gl.isSourceLoaded(quickPhotos())) return;
       waited();
