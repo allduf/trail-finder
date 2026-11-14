@@ -89,7 +89,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
   // Notes on single lifts from other sources than OpenStreetMap (data/lift-notes.json, hand-edited; alex 2026-11-14:
   // Hakuba Norikura's Alps No.11 lift needs a signed waiver). Matched by the lift's OpenStreetMap way id.
   let notes = null;
-  const loadNotes = () => (notes = notes || fetch("data/lift-notes.json?v=4900").then((r) => r.json()).then((d) => {
+  const loadNotes = () => (notes = notes || fetch("data/lift-notes.json?v=4920").then((r) => r.json()).then((d) => {
     const m = {};
     for (const n of d.notes || []) m[String(n.osm)] = n;
     return m;

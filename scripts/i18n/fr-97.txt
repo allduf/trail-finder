@@ -1,3 +1,5 @@
+# Layers menu overlap fix (japanese.js, index.html), 2026-11-14
+Skiing on a computer: the Japanese button no longer sits on top of the Layers menu, and the squashed Save this area offline row is gone from it (it stays in Tools). ||| Ski sur ordinateur : le bouton Japonais ne se place plus par-dessus le menu Couches, et la ligne écrasée Enregistrer cette zone hors ligne n'y est plus (elle reste dans Outils).
 # Lift notes from other sources (data/lift-notes.json, lifts.js), 2026-11-14
 Checked ||| Vérifié
 More from the resort ||| Plus d'infos de la station

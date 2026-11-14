@@ -2560,6 +2560,7 @@
     "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials).":"Tutoriels : deux nouvelles vidéos en Ski, les couches neige et pluie et les couches avalanche et terrain (Plus, Tutoriels).",
     "Phone notifications aren't in the Android app yet. They're coming in a later version.":"Les notifications sur le téléphone ne sont pas encore dans l'appli Android. Elles arriveront dans une prochaine version.",
     "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight.":"Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight.",
+    "Skiing on a computer: the Japanese button no longer sits on top of the Layers menu, and the squashed Save this area offline row is gone from it (it stays in Tools).":"Ski sur ordinateur : le bouton Japonais ne se place plus par-dessus le menu Couches, et la ligne écrasée Enregistrer cette zone hors ligne n'y est plus (elle reste dans Outils).",
     "Checked":"Vérifié",
     "More from the resort":"Plus d'infos de la station",
     "Waiver to ride":"Décharge à signer pour monter",
