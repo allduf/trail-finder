@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-14", "text": "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight."},
     {"date": "2026-11-14", "text": "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials)."},
     {"date": "2026-11-14", "text": "Weather in Skiing, Hiking, Hunting and Fishing is now checked across three weather models (Environment Canada, ECMWF and NOAA): the cards show the middle value and list the days where the models disagree. Forecasts stay estimates."},
     {"date": "2026-11-14", "text": "Trails: Horseshoe Loop (Canmore), Riverview and Paddy's Flat (Bragg Creek), Blind Skier (Cypress), Richard Juryn (Seymour) and Decapitator (Eagle Mountain) now show as bike trails."},

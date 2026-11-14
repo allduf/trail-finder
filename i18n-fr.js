@@ -2557,7 +2557,9 @@
     "See where snow and rain fell in the last 24 hours, and where they're forecast in the next 24 hours, 2 days or 3 days":"Voyez où la neige et la pluie sont tombées dans les dernières 24 heures, et où elles sont prévues dans les prochaines 24 heures, 2 jours ou 3 jours",
     "Avalanche and terrain layers":"Couches avalanche et terrain",
     "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)":"La cote d'Avalanche Canada sur les pentes, puis l'inclinaison, l'orientation des pentes, les replats et les étages d'altitude (un exemple de bulletin)",
-    "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials).":"Tutoriels : deux nouvelles vidéos en Ski, les couches neige et pluie et les couches avalanche et terrain (Plus, Tutoriels)."};
+    "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials).":"Tutoriels : deux nouvelles vidéos en Ski, les couches neige et pluie et les couches avalanche et terrain (Plus, Tutoriels).",
+    "Phone notifications aren't in the Android app yet. They're coming in a later version.":"Les notifications sur le téléphone ne sont pas encore dans l'appli Android. Elles arriveront dans une prochaine version.",
+    "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight.":"Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

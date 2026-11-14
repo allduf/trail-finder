@@ -7,7 +7,8 @@
 // Read on usage.html by accounts listed in tf_admins. See supabase/usage.sql.
 (() => {
   const C = window.Capacitor, acct = window.tfAccount;
-  if (!C || !C.isNativePlatform || !C.isNativePlatform() || !acct || !acct.enabled) { window.tfUse = () => {}; window.tfUseQ = []; return; }
+  // iPhone app only (alex, 2026-10-26; the privacy page says so): not the Android app.
+  if (!C || !C.isNativePlatform || !C.isNativePlatform() || (C.getPlatform && C.getPlatform() !== "ios") || !acct || !acct.enabled) { window.tfUse = () => {}; window.tfUseQ = []; return; }
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
   // More → How the app is used: Don't share stops it at once and drops what wasn't sent yet (tf:useOff, this device).
