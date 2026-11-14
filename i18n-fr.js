@@ -2545,7 +2545,14 @@
     "Snow in cm, rain in mm, wind in km/h (strongest of the day, and where it comes from). Weather model from":"Neige en cm, pluie en mm, vent en km/h (le plus fort de la journée, et d'où il vient). Modèle météo d'",
     ", at this spot's height. Snow and rain split by Environment Canada's snow level where it has one, else by the freezing level. All estimates.":", à l'altitude de cet endroit. Neige et pluie séparées selon la limite pluie-neige d'Environnement Canada là où elle existe, sinon selon l'isotherme 0 °C. Ce sont des estimations.",
     "Skiing: the Snow and rain forecast layers (24 h, 2 days, 3 days) and the Snow at this height card now put the snow line at Environment Canada's own snow level, where it has one. It sat a few hundred metres too low before. Forecasts stay estimates. The layer also fills in where you are looking first after you move the map.":"Ski : les couches Prévisions de neige et de pluie (24 h, 2 jours, 3 jours) et la carte Neige à cette altitude placent maintenant la limite de la neige à la limite pluie-neige d'Environnement Canada, là où elle existe. Elle était quelques centaines de mètres trop basse avant. Les prévisions restent des estimations. La couche se remplit aussi d'abord là où vous regardez après avoir déplacé la carte.",
-    "Trails: Horseshoe Loop (Canmore), Riverview and Paddy's Flat (Bragg Creek), Blind Skier (Cypress), Richard Juryn (Seymour) and Decapitator (Eagle Mountain) now show as bike trails.":"Sentiers : Horseshoe Loop (Canmore), Riverview et Paddy's Flat (Bragg Creek), Blind Skier (Cypress), Richard Juryn (Seymour) et Decapitator (mont Eagle) s'affichent maintenant comme sentiers de vélo."};
+    "Trails: Horseshoe Loop (Canmore), Riverview and Paddy's Flat (Bragg Creek), Blind Skier (Cypress), Richard Juryn (Seymour) and Decapitator (Eagle Mountain) now show as bike trails.":"Sentiers : Horseshoe Loop (Canmore), Riverview et Paddy's Flat (Bragg Creek), Blind Skier (Cypress), Richard Juryn (Seymour) et Decapitator (mont Eagle) s'affichent maintenant comme sentiers de vélo.",
+    "Still an estimate":"Ça reste une estimation",
+    "Environment Canada (GEM)":"Environnement Canada (GEM)",
+    "ECMWF (Europe)":"ECMWF (Europe)",
+    "NOAA (GFS)":"NOAA (GFS, États-Unis)",
+    "The models disagree on these, so treat them as less certain":"Les modèles ne s'entendent pas sur ces valeurs, à considérer comme moins sûres",
+    "Weather from Open-Meteo's automatic model choice, not checked against other models this time. An estimate.":"Météo selon le modèle choisi automatiquement par Open-Meteo, pas vérifiée avec d'autres modèles cette fois. Une estimation.",
+    "Weather in Skiing, Hiking, Hunting and Fishing is now checked across three weather models (Environment Canada, ECMWF and NOAA): the cards show the middle value and list the days where the models disagree. Forecasts stay estimates.":"La météo en ski, randonnée, chasse et pêche est maintenant comparée entre trois modèles météo (Environnement Canada, ECMWF et NOAA) : les cartes affichent la valeur du milieu et indiquent les jours où les modèles ne s'entendent pas. Les prévisions restent des estimations."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -2565,6 +2572,13 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // Weather checked across models (wxcheck.js)
+    [/^Middle value of (\d+) weather models checked against each other:?$/, function (m, n) { return "Valeur du milieu de " + n + " modèles météo comparés entre eux :"; }],
+    [/^((?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\))(?:, (?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
+    [/^(Wind|High|Low|Snow|Rain or snow \(water\)): ((?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat))*) \(([\d.]+) to ([\d.]+) (mm|cm|°C|km\/h)\)$/, function (m, w, ds, a, b, u) {
+      var DJ = { Today: "aujourd'hui", Sun: "dim.", Mon: "lun.", Tue: "mar.", Wed: "mer.", Thu: "jeu.", Fri: "ven.", Sat: "sam." };
+      var WW = { Wind: "Vent", High: "Max.", Low: "Min.", Snow: "Neige", "Rain or snow (water)": "Pluie ou neige (eau)" };
+      return WW[w] + " : " + ds.split(", ").map(function (d) { return DJ[d]; }).join(", ") + " (" + a.replace(".", ",") + " à " + b.replace(".", ",") + " " + u + ")"; }],
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
     [/^added by (.+)$/, function (m, n) { return "ajouté par " + n; }],

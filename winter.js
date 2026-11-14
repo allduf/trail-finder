@@ -1831,13 +1831,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const WICON = { 0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️", 51: "🌦️", 53: "🌦️", 55: "🌧️", 56: "🌧️", 57: "🌧️", 61: "🌦️", 63: "🌧️", 65: "🌧️",
     66: "🌧️", 67: "🌧️", 71: "🌨️", 73: "🌨️", 75: "❄️", 77: "🌨️", 80: "🌦️", 81: "🌧️", 82: "🌧️", 85: "🌨️", 86: "❄️", 95: "⛈️", 96: "⛈️", 99: "⛈️" };
   const wxCache = new Map();
+  const wxNote = (w) => (window.tfWx ? window.tfWx.noteHtml(w, { cls: "sk-note" }) : "");
   function weather(lat, lon, ele) {
     const key = `${lat.toFixed(2)},${lon.toFixed(2)},${Math.round(ele / 50) * 50}`, c = wxCache.get(key);
     if (c && Date.now() - c.at < 30 * 60000) return c.p;
-    const p = fetch(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=7&forecast_days=8`
+    // Checked across three weather models (wxcheck.js): the middle value of Environment Canada, ECMWF and NOAA.
+    const p = (window.tfWx ? window.tfWx.getChecked : (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); }))(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=7&forecast_days=8`
       + "&daily=weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant"
       + "&hourly=freezing_level_height,temperature_2m,precipitation,snowfall,wind_speed_10m,wind_direction_10m&current=temperature_2m,weather_code")
-      .then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); })
       .then((w) => {
         // Environment Canada's snow level for the wet hours (the rest don't matter), up to 5 s; without it the split
         // falls back on the freezing level.
@@ -2079,7 +2080,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return `<h4>Weather at ${ele != null ? `the top (${fmtM(ele)})` : "this spot"}</h4>
       ${aw ? `<h5>Avalanche weather</h5>${signsHtml(aw, ele)}` : `<p>New snow in the last 3 days: <b>${Math.round(past)} cm</b></p>`}
       <table class="sk-wx"><tr><th></th><th></th><th>Low / high</th><th>Snow</th><th>Wind km/h</th><th>Freezing level</th></tr>${rows}</table>
-      <p class="sk-note">Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Wind: strongest / gusts.</p>`;
+      <p class="sk-note">Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Wind: strongest / gusts.</p>${wxNote(w)}`;
   }
 
   // Whistler Blackcomb's uphill and backcountry access routes (data/ski-hand/ "wb": the name on their map): today's state
@@ -3926,7 +3927,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     html += `<h4>Weather at ${fmtM(g.e)}</h4>
       <p>Now <b>${WICON[w.current.weather_code ?? dd.weather_code[t0]] || ""} ${Math.round(w.current.temperature_2m)}°C</b> · wind ${Math.round(wind || 0)} km/h from the ${wdir}</p>
       ${strip("Next 7 days", t0, t0 + 7)}${strip("Last 7 days", t0 - 7, t0)}
-      <p class="sk-note">Snow in cm, rain in mm, wind in km/h (strongest of the day, and where it comes from). Weather model from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, at this spot's height. Snow and rain split by Environment Canada's snow level where it has one, else by the freezing level. All estimates.</p>`;
+      <p class="sk-note">Snow in cm, rain in mm, wind in km/h (strongest of the day, and where it comes from). Weather model from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, at this spot's height. Snow and rain split by Environment Canada's snow level where it has one, else by the freezing level. All estimates.</p>${wxNote(w)}`;
     html += `<h5>Avalanche weather</h5>${signsHtml(aw, g.e)}`;
     return html;
   }

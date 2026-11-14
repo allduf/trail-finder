@@ -42,6 +42,8 @@
   const phone = () => matchMedia("(max-width: 760px)").matches;
   const timeout = (ms) => (AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined);
   const getJ = (url, ms = 15000, opt = {}) => fetch(url, { signal: timeout(ms), ...opt }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+  // Weather checked across three models (wxcheck.js): the middle value of Environment Canada, ECMWF and NOAA.
+  const wxGet = (url) => (window.tfWx ? window.tfWx.getChecked(url) : getJ(url));
   const kmTo = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos((a[0] * Math.PI) / 180), (a[0] - b[0]) * 110.57);
   const fmtKm = (k) => (k < 1 ? `${Math.round(k * 1000)} m` : k < 10 ? `${k.toFixed(1)} km` : `${Math.round(k)} km`);
   const fmtM = (m) => `${Math.round(m).toLocaleString()} m`;
@@ -951,7 +953,7 @@ out center tags qt;`;
   }
   async function snowTop(ht) {
     const q = new URLSearchParams({ latitude: ht.hiAt[0].toFixed(3), longitude: ht.hiAt[1].toFixed(3), elevation: Math.round(ht.hi), hourly: "snow_depth,temperature_2m,snowfall", daily: "sunset", forecast_days: "2", timezone: "auto" });
-    const j = await getJ(`https://api.open-meteo.com/v1/forecast?${q}`);
+    const j = await wxGet(`https://api.open-meteo.com/v1/forecast?${q}`);
     const w = j.hourly; if (!w) return null;
     const now = Date.now();
     let i = w.time.findIndex((x) => new Date(x).getTime() > now) - 1; if (i < 0) i = 0;
@@ -1340,13 +1342,13 @@ out center tags qt;`;
     try {
       const q = new URLSearchParams({ latitude: c.lat.toFixed(2), longitude: c.lng.toFixed(2), current: "temperature_2m,precipitation,weather_code", hourly: "freezing_level_height",
         daily: "temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,snowfall_sum,sunset", forecast_days: "3", timezone: "auto" });
-      const j = await getJ(`https://api.open-meteo.com/v1/forecast?${q}`);
+      const j = await wxGet(`https://api.open-meteo.com/v1/forecast?${q}`);
       const days = (j.daily.time || []).map((d, i) => {
         const at = j.hourly.time.findIndex((t) => t === `${d}T12:00`);
         const fl = at >= 0 ? j.hourly.freezing_level_height[at] : null;
         return { d, max: j.daily.temperature_2m_max[i], min: j.daily.temperature_2m_min[i], pop: j.daily.precipitation_probability_max[i], rain: j.daily.precipitation_sum[i], snow: j.daily.snowfall_sum[i], sunset: j.daily.sunset[i], line: fl == null ? null : Math.max(0, Math.round((fl - 300) / 100) * 100) };
       });
-      wx = { at: Date.now(), k, cur: j.current, days, elev: j.elevation };
+      wx = { at: Date.now(), k, cur: j.current, days, elev: j.elevation, check: j.check };
       wxCache.set(k, wx);
     } catch { wx = null; }
     renderNow();
@@ -1366,7 +1368,7 @@ out center tags qt;`;
     const day = (s, i) => (i === 0 ? "Today" : new Date(s + "T12:00:00").toLocaleDateString(undefined, { weekday: "short" }));
     el.innerHTML = `<header>${svg(IC.snow)}<h3>Snow line, next 3 days</h3>${closeX("hkSnow")}</header>
       <div class="hk-days">${wx.days.map((d, i) => `<div><b>${esc(day(d.d, i))}</b><span>${d.line == null ? "–" : d.line < 200 ? "Valley" : `${d.line.toLocaleString()} m`}</span><small>${Math.round(d.min)} to ${Math.round(d.max)}°C</small><small>${d.snow >= 0.5 ? `${Math.round(d.snow)} cm snow` : d.pop != null ? `rain ${d.pop}%` : ""}</small></div>`).join("")}</div>
-      <p class="hk-note">Around the middle of the map (the valley here is about ${fmtM(wx.elev || 0)}). Above the snow line, expect snow on the trail and bring microspikes. Snow already on the ground can stay well below it into early summer: tap a hike for the snow at its top. Weather: Open-Meteo.</p>`;
+      <p class="hk-note">Around the middle of the map (the valley here is about ${fmtM(wx.elev || 0)}). Above the snow line, expect snow on the trail and bring microspikes. Snow already on the ground can stay well below it into early summer: tap a hike for the snow at its top. Weather: Open-Meteo.</p>${window.tfWx ? window.tfWx.noteHtml(wx, { cls: "hk-note" }) : ""}`;
   }
 
   // ---------- plan a hike ----------
