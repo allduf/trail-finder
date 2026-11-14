@@ -2534,7 +2534,9 @@
     "Closures":"Fermetures",
     "Check the notices":"Voir les avis",
     "Closure notices":"Avis de fermeture",
-    "Starts at the winter parking from the winter access below.":"Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous."};
+    "Starts at the winter parking from the winter access below.":"Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous.",
+    "Type their name and tap Add: they'll bring the item you're adding.":"Tapez son nom et touchez Ajouter : cette personne apportera l'article que vous ajoutez.",
+    "Packing list: the Add an item box has its own Who?, so you pick who brings it while you add it.":"Liste à emporter : la case Ajouter un article a son propre Qui ?, pour choisir qui l'apporte pendant que vous l'ajoutez."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
