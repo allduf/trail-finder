@@ -2216,6 +2216,10 @@
   // they had (a photo a few frames late) and get their turn in the next frames. Ground never painted before (new in
   // view) is always painted at once. MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
   const PAINTS_PER_FRAME = PHONE ? 4 : 3;
+  // While the map is being turned or moved, a computer paints one piece again per frame (alex 2026-11-14: "rotation still
+  // lag", desktop recording): ground new in view is still painted at once, a photo arriving for ground already shown
+  // waits a few frames, so each frame of the turn is quicker. When the map stops, PAINTS_PER_FRAME again.
+  const paintsNow = () => (!PHONE && gl && gl.isMoving && gl.isMoving() ? 1 : PAINTS_PER_FRAME);
   function spreadPaints() {
     const rtt = gl && gl.painter && gl.painter.renderToTexture, tm = gl && gl.terrain && gl.terrain.tileManager;
     if (!rtt || !tm || rtt.tfSpread || typeof rtt.prepareForRender !== "function" || typeof tm.freeRtt !== "function") return;
@@ -2249,10 +2253,11 @@
           if (t.rtt.length || !had || !had.length) { t.tfWait = false; old.delete(t); continue; }
           redo.push([t, had]);
         }
-        if (redo.length > PAINTS_PER_FRAME) {
+        const cap = paintsNow();
+        if (redo.length > cap) {
           redo.sort((a, b) => b[0].tileID.overscaledZ - a[0].tileID.overscaledZ);   // closer ground first
           redo.forEach(([t, had], i) => {
-            if (i < PAINTS_PER_FRAME) { t.tfWait = false; old.delete(t); return; }
+            if (i < cap) { t.tfWait = false; old.delete(t); return; }
             t.rtt = had; t.tfWait = true; old.set(t, had);
           });
           gl.triggerRepaint();
@@ -2264,7 +2269,7 @@
   // And a piece of ground is only painted again when what arrived can change its picture. MapLibre did it for every
   // tile of every source, also the ones only written over the ground (the trail names, ~37 tiles a frame while
   // turning, as the names are placed again after each move) and the ones of a hidden layer: they are not in the
-  // painted picture at all. The ground heights (the terrain's own source) go through as before.
+  // painted picture at all, nor an empty photo piece. The ground heights (the terrain's own source) go through as before.
   const PAINTED = { background: true, fill: true, line: true, raster: true, hillshade: true, "color-relief": true };
   function quietSources() {
     const cb0 = gl && gl._terrainDataCallback;
@@ -2276,11 +2281,39 @@
       } catch { return true; }
     };
     const cb = function (e) {
-      try { if (e && e.dataType === "source" && e.tile && e.sourceId !== gl.terrain.options.source && !painted(e.sourceId)) return; } catch {}
+      try {
+        if (e && e.dataType === "source" && e.tile && e.sourceId !== gl.terrain.options.source) {
+          if (!painted(e.sourceId)) return;
+          const z = e.tile.texture && e.tile.texture.size;   // an empty photo piece (see skipEmpty): nothing to paint
+          if (z && z[0] <= 1 && z[1] <= 1) return;
+        }
+      } catch {}
       return cb0.apply(this, arguments);
     };
     cb.tfQuiet = true;
     try { gl.style.off("data", cb0); gl.style.on("data", cb); gl._terrainDataCallback = cb; } catch {}
+  }
+  // Empty photo pieces aren't painted. Where last winter's photos cover the ground, the blurry photos under them
+  // ("fill", and the others outside their own area) are an empty 1-pixel picture, but MapLibre still painted each one
+  // over the whole piece of ground: with Winter on, the hidden "fill" layer cost as much as the Winter photos themselves
+  // (56 of ~140 photo pieces painted per full repaint near Whistler, headless count 2026-11-14). An empty piece draws
+  // nothing, so leaving it out changes nothing on the screen.
+  function skipEmpty() {
+    const p = gl && gl.painter;
+    if (!p || p.tfSkipEmpty || typeof p.renderLayer !== "function") return;
+    p.tfSkipEmpty = true;
+    const draw = p.renderLayer;
+    p.renderLayer = function (painter, tm, layer, coords) {
+      const args = Array.prototype.slice.call(arguments);
+      try {
+        if (layer && layer.type === "raster" && tm && typeof tm.getTile === "function" && coords && coords.length) {
+          const keep = coords.filter((c) => { const t = tm.getTile(c), z = t && t.texture && t.texture.size; return !z || z[0] > 1 || z[1] > 1; });
+          if (!keep.length) return;
+          if (keep.length < coords.length) args[3] = keep;
+        }
+      } catch {}
+      return draw.apply(this, args);
+    };
   }
   window.tf3dSpreadPaints = () => PAINTS_PER_FRAME;   // for tests
   // ---------- lag check (?lagcheck in the address, or localStorage tfLagCheck = 1) ----------
@@ -2952,7 +2985,7 @@
     } else gl.on("idle", warmPaintBuffers);
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
-    gl.on("render", () => { spreadPaints(); quietSources(); });   // once its paint buffers exist (and again if the terrain is set up anew)
+    gl.on("render", () => { spreadPaints(); quietSources(); skipEmpty(); });   // once its paint buffers exist (and again if the terrain is set up anew)
     lagCheck();   // only with ?lagcheck in the address
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
