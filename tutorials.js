@@ -15,6 +15,9 @@
   // empty, nothing shows: no More › Tutorials, no button in How it works, no Watch how in a feature.
   // cabin-trip: alex 2026-11-11 ("you can add that in the tutorial video for skiing mode").
   const LIST = [
+    // snow-rain, avalanche-terrain: alex 2026-11-14 ("add those two video in the tutorial section").
+    { id: "snow-rain", sport: "ski", title: "Snow and rain layers", sub: "See where snow and rain fell in the last 24 hours, and where they're forecast in the next 24 hours, 2 days or 3 days", src: "videos/snow-rain.mp4", poster: "videos/snow-rain.jpg", secs: 42 },
+    { id: "avalanche-terrain", sport: "ski", title: "Avalanche and terrain layers", sub: "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)", src: "videos/avalanche-terrain.mp4", poster: "videos/avalanche-terrain.jpg", secs: 51 },
     { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your crew, ski lines, packing, meals and costs, then share the trip", src: "videos/cabin-trip.mp4", poster: "videos/cabin-trip.jpg", secs: 94 },
   ];
   const SPORTS = { all: ["The whole app", "✨"], mtb: ["MTB", "🚵"], ski: ["Skiing", "⛷"], hunt: ["Hunting", "🦌"], fish: ["Fishing", "🎣"], moto: ["Adventure moto", "🏍"], hike: ["Hiking", "🥾"] };

@@ -2552,7 +2552,12 @@
     "NOAA (GFS)":"NOAA (GFS, États-Unis)",
     "The models disagree on these, so treat them as less certain":"Les modèles ne s'entendent pas sur ces valeurs, à considérer comme moins sûres",
     "Weather from Open-Meteo's automatic model choice, not checked against other models this time. An estimate.":"Météo selon le modèle choisi automatiquement par Open-Meteo, pas vérifiée avec d'autres modèles cette fois. Une estimation.",
-    "Weather in Skiing, Hiking, Hunting and Fishing is now checked across three weather models (Environment Canada, ECMWF and NOAA): the cards show the middle value and list the days where the models disagree. Forecasts stay estimates.":"La météo en ski, randonnée, chasse et pêche est maintenant comparée entre trois modèles météo (Environnement Canada, ECMWF et NOAA) : les cartes affichent la valeur du milieu et indiquent les jours où les modèles ne s'entendent pas. Les prévisions restent des estimations."};
+    "Weather in Skiing, Hiking, Hunting and Fishing is now checked across three weather models (Environment Canada, ECMWF and NOAA): the cards show the middle value and list the days where the models disagree. Forecasts stay estimates.":"La météo en ski, randonnée, chasse et pêche est maintenant comparée entre trois modèles météo (Environnement Canada, ECMWF et NOAA) : les cartes affichent la valeur du milieu et indiquent les jours où les modèles ne s'entendent pas. Les prévisions restent des estimations.",
+    "Snow and rain layers":"Couches neige et pluie",
+    "See where snow and rain fell in the last 24 hours, and where they're forecast in the next 24 hours, 2 days or 3 days":"Voyez où la neige et la pluie sont tombées dans les dernières 24 heures, et où elles sont prévues dans les prochaines 24 heures, 2 jours ou 3 jours",
+    "Avalanche and terrain layers":"Couches avalanche et terrain",
+    "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)":"La cote d'Avalanche Canada sur les pentes, puis l'inclinaison, l'orientation des pentes, les replats et les étages d'altitude (un exemple de bulletin)",
+    "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials).":"Tutoriels : deux nouvelles vidéos en Ski, les couches neige et pluie et les couches avalanche et terrain (Plus, Tutoriels)."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
