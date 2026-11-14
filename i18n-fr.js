@@ -2535,6 +2535,7 @@
     "Check the notices":"Voir les avis",
     "Closure notices":"Avis de fermeture",
     "Starts at the winter parking from the winter access below.":"Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous.",
+    "3D map: turning is lighter on the graphics card. A hidden photo layer under the Winter photos is no longer painted where Winter covers it, and while you turn the map, fewer pieces of ground are painted again per frame.":"Carte 3D : tourner la carte demande moins à la carte graphique. Une couche de photos cachée sous les photos d'hiver n'est plus peinte là où l'hiver la couvre, et pendant que vous tournez la carte, moins de morceaux du sol sont repeints à chaque image.",
     "Type their name and tap Add: they'll bring the item you're adding.":"Tapez son nom et touchez Ajouter : cette personne apportera l'article que vous ajoutez.",
     "Packing list: the Add an item box has its own Who?, so you pick who brings it while you add it.":"Liste à emporter : la case Ajouter un article a son propre Qui ?, pour choisir qui l'apporte pendant que vous l'ajoutez."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
