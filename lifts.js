@@ -425,7 +425,8 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
     lifts.push(...(t.lifts || []).filter((l) => !have.has(l.id)));
     Object.assign(resorts, t.resorts || {});
     sync();
+    window.dispatchEvent(new CustomEvent("tf:jp-lifts"));   // jp-resorts.js names the resorts on the map
   });
-  window.tfLifts = { add, open: (name) => load().then(() => { const l = lifts.find((x) => x.n === name); if (l) open(l); }), poll: () => poll(true), _l: (name) => lifts.find((x) => x.n === name) };
+  window.tfLifts = { add, all: () => ({ lifts, resorts }), open: (name) => load().then(() => { const l = lifts.find((x) => x.n === name); if (l) open(l); }), poll: () => poll(true), _l: (name) => lifts.find((x) => x.n === name) };
   sync();
 })();
