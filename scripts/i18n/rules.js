@@ -17,6 +17,13 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // Weather checked across models (wxcheck.js)
+    [/^Middle value of (\d+) weather models checked against each other:?$/, function (m, n) { return "Valeur du milieu de " + n + " modèles météo comparés entre eux :"; }],
+    [/^((?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\))(?:, (?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
+    [/^(Wind|High|Low|Snow|Rain or snow \(water\)): ((?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat))*) \(([\d.]+) to ([\d.]+) (mm|cm|°C|km\/h)\)$/, function (m, w, ds, a, b, u) {
+      var DJ = { Today: "aujourd'hui", Sun: "dim.", Mon: "lun.", Tue: "mar.", Wed: "mer.", Thu: "jeu.", Fri: "ven.", Sat: "sam." };
+      var WW = { Wind: "Vent", High: "Max.", Low: "Min.", Snow: "Neige", "Rain or snow (water)": "Pluie ou neige (eau)" };
+      return WW[w] + " : " + ds.split(", ").map(function (d) { return DJ[d]; }).join(", ") + " (" + a.replace(".", ",") + " à " + b.replace(".", ",") + " " + u + ")"; }],
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
     [/^added by (.+)$/, function (m, n) { return "ajouté par " + n; }],
