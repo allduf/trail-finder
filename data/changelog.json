@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-14", "text": "Packing list: the Add an item box has its own Who?, so you pick who brings it while you add it."},
     {"date": "2026-11-14", "text": "Webcams: the Whistler Blackcomb and Lake Louise cameras play their live video again, and a camera its owner has switched off now says so plainly instead of showing an error picture."},
     {"date": "2026-11-11", "text": "Skiing: the Runout zones and traps layer and everything about terrain traps and steep slopes above you are gone, from the 2D and 3D maps, the route cards, This spot, the less exposed way and Ask. That estimate from the terrain map wasn't accurate enough to show."},
     {"date": "2026-11-11", "text": "3D map: turning and tilting are smoother while new photos come in. The ground is no longer repainted all at once on every frame, and a finger move no longer makes the map wait for the graphics chip."},
