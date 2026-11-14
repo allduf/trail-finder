@@ -1176,9 +1176,15 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const u = `https://api.open-meteo.com/v1/forecast?latitude=${spot.lat.toFixed(3)}&longitude=${spot.lon.toFixed(3)}`
         + "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover"
         + "&hourly=temperature_2m,precipitation_probability,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&forecast_hours=13&timezone=auto";
-      const r = await fetch(u);
-      if (!r.ok) throw new Error(r.status === 429 ? "the free weather service is busy, try again in a minute" : `HTTP ${r.status}`);
-      wx = await r.json(); wxKey = key;
+      // Checked across three weather models (wxcheck.js): the middle value of Environment Canada, ECMWF and NOAA.
+      if (window.tfWx) {
+        wx = await window.tfWx.getChecked(u).catch((e) => { throw new Error(e.status === 429 ? "the free weather service is busy, try again in a minute" : e.message); });
+      } else {
+        const r = await fetch(u);
+        if (!r.ok) throw new Error(r.status === 429 ? "the free weather service is busy, try again in a minute" : `HTTP ${r.status}`);
+        wx = await r.json();
+      }
+      wxKey = key;
       wxCache.set(key, { at: Date.now(), d: wx });
     } catch (e) { wxErr = e.message || "no connection"; }
     wxBusy = false;
@@ -1206,7 +1212,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
         <p class="hn-therm" id="hnTherm"></p>
         <div class="hn-stats" style="margin-top:8px"><div><b>${Math.round(c.temperature_2m ?? 0)}°</b><span>Feels ${Math.round(c.apparent_temperature ?? 0)}°</span></div><div><b>${g || sp}</b><span>Gusts</span></div>
           <div><b>${c.cloud_cover ?? "–"}%</b><span>Cloud</span></div><div><b>${c.precipitation ?? 0}</b><span>mm now</span></div></div>
-        <p class="hn-note">${esc(WX[c.weather_code] || "")} · weather from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · ${fmtLL(spot.lat, spot.lon)}</p>
+        <p class="hn-note">${esc(WX[c.weather_code] || "")} · weather from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> · ${fmtLL(spot.lat, spot.lon)}</p>${window.tfWx ? window.tfWx.noteHtml(wx, { cls: "hn-note" }) : ""}
         <details><summary>Next 12 hours</summary><div class="hn-hours">${hourHtml}</div><p class="hn-note">Hour, wind from (km/h), temperature, chance of rain or snow.</p></details>`;
     }
     el.innerHTML = `<header style="margin-bottom:8px">${svg(IC.wind)}<h3>Conditions <small class="hn-note">${where}</small></h3>${spot.how !== "centre" ? `<button type="button" class="hn-pill" id="hnCentre">Map centre</button>` : ""}</header>${body}`;
@@ -1226,9 +1232,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     if (hit && Date.now() - hit.at < 60 * 60000) { if (castKey !== key) { cast = hit.d; castKey = key; renderCast(); } return; }
     castBusy = true;
     try {
-      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${spot.lat.toFixed(2)}&longitude=${spot.lon.toFixed(2)}`
-        + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&hourly=surface_pressure&past_days=1&forecast_days=3&timezone=auto");
-      if (r.ok) { cast = await r.json(); castKey = key; castCache.set(key, { at: Date.now(), d: cast }); }
+      const u = `https://api.open-meteo.com/v1/forecast?latitude=${spot.lat.toFixed(2)}&longitude=${spot.lon.toFixed(2)}`
+        + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&hourly=surface_pressure&past_days=1&forecast_days=3&timezone=auto";
+      const j = window.tfWx ? await window.tfWx.getChecked(u).catch(() => null) : await fetch(u).then((r) => (r.ok ? r.json() : null));
+      if (j) { cast = j; castKey = key; castCache.set(key, { at: Date.now(), d: cast }); }
     } catch {}
     castBusy = false;
     renderCast();
