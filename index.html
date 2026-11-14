@@ -1296,6 +1296,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
 /* alex 2026-10-31: "how do I save a region offline without planning a route?" The Track tab's card was too hidden, so
    on phones Offline maps is also the first row of Layers, in every sport, 2D and 3D. Computers keep it in Tools. */
 .lm-offline { display: none; }
+/* Computers: theme.css's Layers button style showed it anyway, squashed ("offlineUse", alex 2026-11-14). */
+@media (min-width: 761px) { body .map-tools .layers-menu .lm-offline { display: none; } }
 @media (max-width: 760px) {
   body #layersMenu .lm-offline { display: flex; align-items: center; gap: 10px; width: 100%; margin: 2px 0 8px; padding: 10px 12px; border-radius: 12px;
     border: 1px solid var(--accent, #2f7d4f); background: color-mix(in srgb, var(--accent, #2f7d4f) 12%, transparent); color: inherit; text-align: left; font: inherit; }
