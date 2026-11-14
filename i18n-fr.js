@@ -2530,7 +2530,8 @@
     "Closures":"Fermetures",
     "Check the notices":"Voir les avis",
     "Closure notices":"Avis de fermeture",
-    "Starts at the winter parking from the winter access below.":"Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous."};
+    "Starts at the winter parking from the winter access below.":"Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous.",
+    "3D map: turning is lighter on the graphics card. A hidden photo layer under the Winter photos is no longer painted where Winter covers it, and while you turn the map, fewer pieces of ground are painted again per frame.":"Carte 3D : tourner la carte demande moins à la carte graphique. Une couche de photos cachée sous les photos d'hiver n'est plus peinte là où l'hiver la couvre, et pendant que vous tournez la carte, moins de morceaux du sol sont repeints à chaque image."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
