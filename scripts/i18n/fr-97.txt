@@ -1,2 +1,10 @@
 # Layers menu overlap fix (japanese.js, index.html), 2026-11-14
 Skiing on a computer: the Japanese button no longer sits on top of the Layers menu, and the squashed Save this area offline row is gone from it (it stays in Tools). ||| Ski sur ordinateur : le bouton Japonais ne se place plus par-dessus le menu Couches, et la ligne écrasée Enregistrer cette zone hors ligne n'y est plus (elle reste dans Outils).
+# Lift notes from other sources (data/lift-notes.json, lifts.js), 2026-11-14
+Checked ||| Vérifié
+More from the resort ||| Plus d'infos de la station
+Waiver to ride ||| Décharge à signer pour monter
+The resort asks riders to hand in a mountain-climbing registration form, or to agree to and sign its No.11 Pair Lift waiver, before riding this lift. Rules can change: check with the resort before you go. ||| La station demande de remettre un formulaire d'inscription d'ascension en montagne, ou d'accepter et signer sa décharge du télésiège No.11, avant de prendre ce télésiège. Les règles peuvent changer : vérifiez auprès de la station avant d'y aller.
+Waiver and pre-registration (resort, Japanese) ||| Décharge et inscription à l'avance (station, en japonais)
+Hakuba Norikura Onsen Ski Resort's website and a local report ||| Site web de Hakuba Norikura Onsen Ski Resort et un témoignage local
+Lift cards can now show notes from resorts and local reports: Hakuba Norikura's Alps No.11 lift says riders sign a waiver first. ||| Les fiches de remontées peuvent maintenant afficher des notes des stations et de gens du coin : le télésiège Alps No.11 de Hakuba Norikura indique qu'il faut d'abord signer une décharge.
