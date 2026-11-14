@@ -2008,7 +2008,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       current: "temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,cloud_cover,precipitation,weather_code",
       hourly: "temperature_2m,pressure_msl,wind_speed_10m,wind_gusts_10m,cloud_cover,precipitation" });
     try {
-      const j = await getJ(`https://api.open-meteo.com/v1/forecast?${p}`);
+      // Checked across three weather models (wxcheck.js): the middle value of Environment Canada, ECMWF and NOAA.
+      const j = window.tfWx ? await window.tfWx.getChecked(`https://api.open-meteo.com/v1/forecast?${p}`, 12000) : await getJ(`https://api.open-meteo.com/v1/forecast?${p}`);
       if (wxKey !== key) return;
       wx = j;
     } catch { wx = null; }
@@ -2138,7 +2139,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       ${fold("days", IC.star, "Next 3 days", days.length ? days.map((d) => `<span class="fs-mini">${d.s}★</span>`).join("") : "", days.length ? `<ul class="fs-days">${days.map((d, i) => `<li><b>${i === 0 ? "Today" : esc(new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" }))}</b>${stars(d.s)}<span></span><small>${esc(d.why.join(", "))}</small></li>`).join("")}</ul>` : "")}
       ${fold("sun", IC.sun, "Sun and moon", `${hm(s.rise)}–${hm(s.set)} · ${p[2]}`, `<dl class="fs-sun"><dt>Sunrise · sunset</dt><dd>${hm(s.rise)} · ${hm(s.set)}</dd><dt>Moon</dt><dd>${p[2]} ${p[1]}, ${Math.round(ph.fraction * 100)}%</dd>
         <dt>Feeding times</dt><dd>${major || "none"}${minor ? ` <small>· minor ${minor}</small>` : ""}</dd></dl>
-      <p class="fs-note">The first and last hour of light are often best. Feeding times are solunar, a traditional guide. Weather: Open-Meteo.</p>`)}`;
+      <p class="fs-note">The first and last hour of light are often best. Feeding times are solunar, a traditional guide. Weather: Open-Meteo.</p>${wx && window.tfWx ? window.tfWx.noteHtml(wx, { cls: "fs-note" }) : ""}`)}`;
   }
   function renderNow() {
     const b = $("fsNow");

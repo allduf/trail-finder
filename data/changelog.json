@@ -1,7 +1,14 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
-    {"date": "2026-11-13", "text": "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight."},
+    {"date": "2026-11-14", "text": "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight."},
+    {"date": "2026-11-14", "text": "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials)."},
+    {"date": "2026-11-14", "text": "Weather in Skiing, Hiking, Hunting and Fishing is now checked across three weather models (Environment Canada, ECMWF and NOAA): the cards show the middle value and list the days where the models disagree. Forecasts stay estimates."},
+    {"date": "2026-11-14", "text": "Trails: Horseshoe Loop (Canmore), Riverview and Paddy's Flat (Bragg Creek), Blind Skier (Cypress), Richard Juryn (Seymour) and Decapitator (Eagle Mountain) now show as bike trails."},
+    {"date": "2026-11-14", "text": "Skiing: the Snow and rain forecast layers (24 h, 2 days, 3 days) and the Snow at this height card now put the snow line at Environment Canada's own snow level, where it has one. It sat a few hundred metres too low before. Forecasts stay estimates. The layer also fills in where you are looking first after you move the map."},
+    {"date": "2026-11-14", "text": "3D map: turning is lighter on the graphics card. A hidden photo layer under the Winter photos is no longer painted where Winter covers it, and while you turn the map, fewer pieces of ground are painted again per frame."},
+    {"date": "2026-11-14", "text": "Packing list: the Add an item box has its own Who?, so you pick who brings it while you add it."},
+    {"date": "2026-11-14", "text": "Webcams: the Whistler Blackcomb and Lake Louise cameras play their live video again, and a camera its owner has switched off now says so plainly instead of showing an error picture."},
     {"date": "2026-11-11", "text": "Skiing: the Runout zones and traps layer and everything about terrain traps and steep slopes above you are gone, from the 2D and 3D maps, the route cards, This spot, the less exposed way and Ask. That estimate from the terrain map wasn't accurate enough to show."},
     {"date": "2026-11-11", "text": "3D map: turning and tilting are smoother while new photos come in. The ground is no longer repainted all at once on every frame, and a finger move no longer makes the map wait for the graphics chip."},
     {"date": "2026-11-11", "text": "Skiing 3D: the trail lines on the mountains now reuse their memory instead of making new copies after every move, so the app holds much less at once while you look around. This was a likely cause of the app closing and reopening in Skiing."},

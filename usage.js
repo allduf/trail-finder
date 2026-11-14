@@ -43,11 +43,19 @@
   } catch {}
   const screenSize = `${Math.min(screen.width, screen.height)}x${Math.max(screen.width, screen.height)}`;
 
+  // The app version (the shared ?v= tag), sent in the ms field of crashes and errors so the usage page can tell the
+  // problems an update already fixed from the ones still happening (alex's Problems list, 2026-11-13). A crash is
+  // seen when the app opens again, so it carries the version that was running before (tf:useVer), not the new one.
+  const VER = Number(((document.currentScript && document.currentScript.src) || "").match(/[?&]v=(\d+)/)?.[1]) || null;
+  const PREV_VER = Number(lsGet("tf:useVer")) || VER;
+  if (VER) lsSet("tf:useVer", String(VER));
+
   const QKEY = "tf:useQueue", MAX_QUEUE = 400;
   let queue = [];
   try { queue = JSON.parse(lsGet(QKEY) || "[]"); } catch {}
   const add = (k, w, ms) => {
     if (off) return;
+    if (k === "crash") ms = PREV_VER; else if (k === "error") ms = VER;
     queue.push({ s: session, t: new Date().toISOString(), p: page, k, w: w == null ? null : String(w).slice(0, 120), ms });
     if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
     lsSet(QKEY, JSON.stringify(queue));

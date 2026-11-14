@@ -509,6 +509,14 @@
     { name: "Fireman Trail", c: [49.477, -120.568], r: 2000, d: "blue", src: "China Ridge Trails Society, Fireman's Trail sheet: 'intermediate'", url: "https://www.chinaridgetrails.com/_files/ugd/388108_3e0d995012a64b639dcafc19a315c19d.pdf" },
     { name: "Gravy Train", c: [50.489, -115.952], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     { name: "Autobahn", c: [50.497, -115.953], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
+    // weekly audit, 2026-11-14: left-out paths that open sources call bike trails
+    { name: "Horseshoe Loop", c: [51.0807, -115.3033], r: 2000, d: "blue", src: "The Banff Blog, Canmore biking", url: "https://thebanffblog.com/canmore-biking/" },
+    { name: "Horse-shoe loop", c: [51.0807, -115.3033], r: 2000, d: "blue", src: "The Banff Blog, Canmore biking (Horseshoe Loop)", url: "https://thebanffblog.com/canmore-biking/" },
+    { name: "Riverview", c: [50.8661, -114.7312], r: 2000, src: "Alberta Parks, Elbow Valley trail report (open to bikes)", url: "https://albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-and-public-safety/trail-reports/elbow-valley/riverview/" },
+    { name: "Paddy's Flat Trail", c: [50.8717, -114.7183], r: 2000, src: "Alberta Parks, Elbow Valley trail report (open to bikes)", url: "https://albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/elbow-valley" },
+    { name: "Blind Skier", c: [49.3633, -123.2], r: 2000, src: "NSMB.com forum, Cypress trail conditions", url: "https://nsmb.com/forum/forum/trail-conditions-6/topic/2018-cypress-trail-conditions-thread-130008/" },
+    { name: "Richard Juryn Trail", c: [49.3382, -123.0054], r: 2000, d: "blue", src: "Georgia Straight, Juryn bike trail (LSCR)", url: "https://www.straight.com/article-321062/vancouver/juryn-bike-trail-gets-gear" },
+    { name: "Decapitator", c: [49.3177, -122.826], r: 2000, src: "stevensong.com, Eagle Mountain trip report", url: "https://stevensong.com/eagle-mountain-buntzen" },
     // weekly audit, 2026-10-24: bike trails left out for a hiking grade or a gravel surface
     { name: "Easy Beaver", c: [49.482, -115.059], r: 2000, src: "Tourism Fernie", url: "https://elk.tourismfernie.com/activities/hiking-trails/easybeavertrail" },
     { name: "Marlu", c: [49.487, -115.055], r: 2000, src: "Tourism Fernie", url: "https://tourismfernie.com/activities/mountain-biking/trails" },

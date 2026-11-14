@@ -108,6 +108,8 @@
 #skiPane .tp-list .tp-rm { flex: none; width: 44px; justify-content: center; align-items: center; font-size: 1rem; color: var(--muted); }
 #skiPane .tp-addf { display: flex; gap: 6px; margin-top: 8px; }
 #skiPane .tp-addf input { flex: 1; font: inherit; font-size: 16px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); min-width: 0; }
+#skiPane .tp-addf .tp-who { flex: none; width: 92px; font: inherit; font-size: 16px; padding: 6px 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--muted); min-width: 0; }
+#skiPane .tp-addf .tp-who.set { color: var(--fg); font-weight: 700; border-color: ${COL}; }
 #skiPane .tp-addf button { font: inherit; font-size: .86rem; font-weight: 800; padding: 8px 14px; border-radius: 10px; border: 0; background: ${COL}; color: #fff; cursor: pointer; }
 #skiPane .tp-addto { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 #skiPane .tp-addto > button, #skiPane .tp-addto li button { font: inherit; font-size: .86rem; font-weight: 800; padding: 10px; border-radius: 11px; border: 1.5px solid ${COL}; background: color-mix(in srgb, ${COL} 7%, var(--panel)); color: var(--fg); cursor: pointer; width: 100%; }
@@ -676,6 +678,11 @@
     return `<div class="tp-whos"><h5>Who brings what</h5><ul>${order.map((n) => `<li><b>${esc(n)}</b><span>${by.get(n).map((x) => `<i>${esc(x)}</i>`).join(", ")}</span></li>`).join("")}</ul>${open ? `<p class="sk-note">${open} shared item${open > 1 ? "s have" : " has"} no one yet: tap Who? beside it.</p>` : ""}</div>`;
   }
   let gearFor = "";   // the item waiting for a name typed in Your group (Who? › Add a name…)
+  // Who? right in the Add an item box (alex 2026-11-14: "can you add an item with the who option"): pick who brings it
+  // while adding. What you typed and picked stays put while Who? › Add a name… takes you to Your group and back.
+  let addDraft = { label: "", who: "" };
+  const whoPick = (t) => { const v = addDraft.who;
+    return `<select data-pkwho="1" class="tp-who${v ? " set" : ""}" aria-label="Who brings it">${[`<option value="">Who?</option>`, ...names(t).map((n) => `<option ${n === v ? "selected" : ""}>${esc(n)}</option>`), ...(v && !names(t).includes(v) ? [`<option selected>${esc(v)}</option>`] : []), `<option value="+add">Add a name…</option>`].join("")}</select>`; };
   function packHtml(t) {
     const G = packList(t), done = packDone(t), auto = { offline: !!t.offAt, plan: !!(t.plan && t.plan.sent) }, all = G.flatMap((x) => x[1]), n = all.filter((x) => done[x[0]]).length;
     // Every row: tick it, ✕ to take it off, hold ☰ and drag it up or down, or into another section (alex 2026-11-11).
@@ -686,7 +693,7 @@
       ${n && n === all.length ? `<p class="tp-ready">🎉 Your bag is ready. Have a great trip!</p>` : ""}
       ${whoHtml(t, G)}
       ${body}
-      <form class="tp-addf" data-pkadd="1"><input type="text" maxlength="80" placeholder="Add an item" autocomplete="off" enterkeyhint="done" aria-label="Add an item to the packing list"><button type="submit">Add</button></form>
+      <form class="tp-addf" data-pkadd="1"><input type="text" maxlength="80" placeholder="Add an item" autocomplete="off" enterkeyhint="done" aria-label="Add an item to the packing list" value="${esc(addDraft.label)}">${whoPick(t)}<button type="submit">Add</button></form>
       <p class="sk-note">Hold ☰ to drag an item up or down. What you take off (✕) or add stays that way for your next trips too.</p>
       <div class="tp-btns"><button type="button" data-tp="packshare">📤 Send the list to the group</button>${n ? `<button type="button" data-tp="packclear">Untick all</button>` : ""}${(t.hide || []).length ? `<button type="button" data-tp="packback">Put back what you took off</button>` : ""}</div></details>`;
   }
@@ -1042,6 +1049,17 @@
       if (Object.keys(x).length) m[k] = x; else delete m[k];
       t.meals = m; putTrip(t); return;
     }
+    if (el.dataset.pkwho) {   // Who? in the Add an item box
+      const f = el.closest("form"), i = f && f.querySelector("input");
+      addDraft = { label: i ? i.value : "", who: el.value === "+add" ? addDraft.who : el.value };
+      if (el.value !== "+add") { el.classList.toggle("set", !!el.value); return; }
+      el.value = addDraft.who; gearFor = "+new";
+      t.grpOpen = true; const d = card.querySelector("#tpGroup details"); if (d) d.open = true;
+      const g = card.querySelector("[data-gadd] input");
+      if (g) { if (window.tfPanelScrollTo) window.tfPanelScrollTo($("tpGroup")); setTimeout(() => g.focus(), 120); }
+      toast("Type their name and tap Add: they'll bring the item you're adding.");
+      return;
+    }
     if (el.dataset.gear && el.value === "+add") {   // a new name for this item: Your group opens with its box ready
       gearFor = el.dataset.gear; el.value = (t.gear || {})[gearFor] || "";
       t.grpOpen = true; const d = card.querySelector("#tpGroup details"); if (d) d.open = true;
@@ -1071,6 +1089,12 @@
       if (names(t).some((x) => x.toLowerCase() === n.toLowerCase())) { toast("That name is in the group already."); return; }
       t.group = [...(t.group || []), { k: uid("g"), n }];
       if (t.group.length > t.people) t.people = t.group.length;
+      if (gearFor === "+new") {   // Who? › Add a name… in the Add an item box: back to the box, with that name picked
+        gearFor = ""; addDraft = { ...addDraft, who: n }; putTrip(t); render();
+        const a = card.querySelector("[data-pkadd] input");
+        if (a) { if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo(a.closest("form")), 80); if (!a.value) setTimeout(() => a.focus(), 160); }
+        toast(`${n} brings it.`); return;
+      }
       if (gearFor) {   // Who? › Add a name…: the new name goes on that item, and you're back at it
         const k = gearFor; gearFor = ""; t.gear = { ...(t.gear || {}), [k]: n }; putTrip(t); render(); toast(`${n} brings it.`);
         const r = card.querySelector(`.tp-pkrow[data-k="${CSS.escape(k)}"]`); if (r && window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo(r), 80); return;
@@ -1122,7 +1146,7 @@
   // Meal boxes grow with their text (field-sizing where the browser has it, this everywhere else). Enter is done.
   const grow = (el) => { if (!el.offsetParent) return; el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; };
   const growAll = () => card.querySelectorAll(".tp-meal textarea").forEach(grow);
-  card.addEventListener("input", (e) => { if (e.target.matches(".tp-meal textarea")) grow(e.target); });
+  card.addEventListener("input", (e) => { if (e.target.matches(".tp-meal textarea")) grow(e.target); if (e.target.matches("[data-pkadd] input")) addDraft.label = e.target.value; });
   card.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches(".tp-meal textarea")) { e.preventDefault(); e.target.blur(); } });
   card.addEventListener("toggle", (e) => { if (e.target.open && e.target.classList.contains("tp-meals")) growAll(); }, true);
   new MutationObserver(() => requestAnimationFrame(growAll)).observe(card, { childList: true, subtree: true });
@@ -1332,10 +1356,13 @@
     const t = cur, label = e.target.querySelector("input").value.trim().replace(/\s+/g, " ").slice(0, 80), lab = label.toLowerCase();
     if (!label) return;
     if ((t.own || []).some((y) => y.label.toLowerCase() === lab)) { toast("It's on the list already."); return; }
-    const x = { k: "my_" + Date.now().toString(36), label };
+    const x = { k: "my_" + Date.now().toString(36), label }, who = addDraft.who;
     t.own = [...(t.own || []), meOf(t) ? { ...x, ab: meOf(t) } : x];
+    if (who) t.gear = { ...(t.gear || {}), [x.k]: who };   // who brings it is for this trip only, not the next ones
+    addDraft = { label: "", who: "" };
     tplSet((v) => ({ ...v, own: v.own.some((y) => y.label.toLowerCase() === lab) ? v.own : [...v.own, x] }));
     putTrip(t); renderPack();
+    if (who) toast(`${who} brings it.`);
     const i = card.querySelector("[data-pkadd] input"); if (i) i.focus();   // ready for the next one
   });
   card.addEventListener("change", (e) => {

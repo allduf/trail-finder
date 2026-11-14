@@ -1280,10 +1280,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     aspect: "Colours the slopes of 25° and more by the way they face, to match the forecast's problem aspects",
     flats: "Nearly flat ground (under 5°): where you'll have to skate, pole or skin out, and where a splitboard has to switch to walk mode",
     elev: "The three heights of the avalanche forecast: below treeline, treeline and alpine, at the heights used for that area",
-    fresh: "Snow that fell in the last 24 hours, in centimetres; where it rained instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
-    snowfc1: "Snow coming in the next 24 hours, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
-    snowfc2: "Snow coming in the next 2 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
-    snowfc: "Snow coming in the next 3 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model)",
+    fresh: "Snow that fell in the last 24 hours, in centimetres; where it rained instead, the rain in millimetres in greens. Split by each spot's height and the freezing level (Open-Meteo weather model). An estimate: the snow line can be off by a few hundred metres",
+    snowfc1: "Snow coming in the next 24 hours, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and Environment Canada's snow level (the freezing level where it has none), with Open-Meteo's amounts. An estimate: the snow line can be off by a few hundred metres",
+    snowfc2: "Snow coming in the next 2 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and Environment Canada's snow level (the freezing level where it has none), with Open-Meteo's amounts. An estimate: the snow line can be off by a few hundred metres",
+    snowfc: "Snow coming in the next 3 days, in centimetres; where rain comes instead, the rain in millimetres in greens. Split by each spot's height and Environment Canada's snow level (the freezing level where it has none), with Open-Meteo's amounts. An estimate: the snow line can be off by a few hundred metres",
   };
   const thumbs = {};   // picture tiles' pictures (makeThumbs)
   function renderSwitches() {
@@ -1831,14 +1831,24 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const WICON = { 0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️", 51: "🌦️", 53: "🌦️", 55: "🌧️", 56: "🌧️", 57: "🌧️", 61: "🌦️", 63: "🌧️", 65: "🌧️",
     66: "🌧️", 67: "🌧️", 71: "🌨️", 73: "🌨️", 75: "❄️", 77: "🌨️", 80: "🌦️", 81: "🌧️", 82: "🌧️", 85: "🌨️", 86: "❄️", 95: "⛈️", 96: "⛈️", 99: "⛈️" };
   const wxCache = new Map();
+  const wxNote = (w) => (window.tfWx ? window.tfWx.noteHtml(w, { cls: "sk-note" }) : "");
   function weather(lat, lon, ele) {
     const key = `${lat.toFixed(2)},${lon.toFixed(2)},${Math.round(ele / 50) * 50}`, c = wxCache.get(key);
     if (c && Date.now() - c.at < 30 * 60000) return c.p;
-    const p = fetch(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=7&forecast_days=8`
+    // Checked across three weather models (wxcheck.js): the middle value of Environment Canada, ECMWF and NOAA.
+    const p = (window.tfWx ? window.tfWx.getChecked : (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); }))(`${WX}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}${ele != null ? `&elevation=${Math.round(ele)}` : ""}&timezone=auto&past_days=7&forecast_days=8`
       + "&daily=weather_code,temperature_2m_max,temperature_2m_min,snowfall_sum,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant"
       + "&hourly=freezing_level_height,temperature_2m,precipitation,snowfall,wind_speed_10m,wind_direction_10m&current=temperature_2m,weather_code")
-      .then((r) => { if (!r.ok) throw new Error(r.status === 429 ? "too many requests today, try later" : `HTTP ${r.status}`); return r.json(); })
-      .then((w) => splitAtHeight(w, ele));
+      .then((w) => {
+        // Environment Canada's snow level for the wet hours (the rest don't matter), up to 5 s; without it the split
+        // falls back on the freezing level.
+        const h = w.hourly, off = (w.utc_offset_seconds || 0) * 1000;
+        if (!h || !h.time || !h.precipitation || ele == null) return splitAtHeight(w, ele);
+        const now = Date.now(), wet = [];
+        h.time.forEach((t, i) => { const ms = Date.parse(t + "Z") - off; if (h.precipitation[i] > 0 && ms > now - 6 * 3600000) wet.push([i, ms]); });
+        const sl = eccSnowLevels(lat, lon, wet.map((x) => x[1])).then((v) => { const a = h.time.map(() => null); wet.forEach(([i], k) => { a[i] = v[k]; }); return a; });
+        return Promise.race([sl, new Promise((ok) => setTimeout(() => ok(null), 5000))]).catch(() => null).then((a) => splitAtHeight(w, ele, a));
+      });
     p.catch(() => wxCache.delete(key));
     wxCache.set(key, { at: Date.now(), p });
     return p;
@@ -1848,20 +1858,134 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // level"). Open-Meteo's own snowfall comes from the weather model's smoothed ground: near Gold Bridge it gave 7 cm of
   // snow at 1,530 m and 8 cm at 1,315 m for the next 3 days with the freezing level never under 1,490 m, and the map's
   // grid points (7-11 km apart, often on a ridge) coloured the valleys between them with that snow. So the share of
-  // snow is worked out here, hour by hour, from the freezing level and the real height: all snow from 200 m under the
-  // freezing level up, all rain from 600 m under it down, mixed in between. That day Environment Canada's HRDPS snow
-  // level ran a median of about 400 m under Open-Meteo's freezing level (Whistler, Squamish, Gold Bridge, Lillooet), the
-  // middle of the mix. The temperature at the height isn't used when there's a freezing level: it's the model ground's,
-  // carried up or down at 6.5°C per km, and at the Gold Bridge spot (2,118 m) it read -0.4°C under a freezing level of
-  // 2,620 m in a warm front, when Environment Canada's snow level was 2,240-2,370 m (rain). Only a model with no
-  // freezing level gets the 0°C height from it. Open-Meteo counts 0.7 cm of snow for each mm of water; the same here.
-  const SNOW_ALL = 200, RAIN_ALL = 600, LAPSE = 0.0065, CM_PER_MM = 0.7;
-  // e: the height (m); fz: the hour's freezing level (m, or null); t: the temperature (°C) at height te. 0 (rain) to 1 (snow), or null.
-  function snowShare(e, fz, t, te) {
+  // snow is worked out here, hour by hour, at the real height.
+  // Where it can, the split follows Environment Canada's own snow level (HRDPS 2.5 km for 2 days, then RDPS 10 km, the
+  // "Height of snow level" of MSC GeoMet, see eccSnowLevels): half snow at that height, all rain 100 m under it, all snow
+  // 100 m over it. Without it (outside Canada, the past 24 h, a refused answer), from Open-Meteo's freezing level: half
+  // snow 200 m under it. alex 2026-11-14 ("the snow line seems low", Whistler): the old split (all rain from 600 m under
+  // the freezing level, all snow from 200 m under) painted snow 300-500 m under Environment Canada's snow level in every
+  // window. Over 743 wet hours at 40 points of southern BC for the next 3 days, the snow level ran a median 80 m (rain-
+  // weighted 160 m) under Open-Meteo's freezing level, but it moves: 0 to 560 m under it at Whistler the same night.
+  // The temperature at the height isn't used when there's a freezing level: it's the model ground's, carried up or
+  // down at 6.5°C per km, and at the Gold Bridge spot (2,118 m) it read -0.4°C under a freezing level of 2,620 m in a
+  // warm front, when Environment Canada's snow level was 2,240-2,370 m (rain). Only a model with no freezing level gets
+  // the 0°C height from it. Open-Meteo counts 0.7 cm of snow for each mm of water; the same here.
+  const SNOW_ALL = 75, RAIN_ALL = 325, SL_HALF = 100, LAPSE = 0.0065, CM_PER_MM = 0.7;
+  // e: the height (m); fz: the hour's freezing level (m, or null); t: the temperature (°C) at height te; sl:
+  // Environment Canada's snow level that hour (m, or null). 0 (rain) to 1 (snow), or null.
+  function snowShare(e, fz, t, te, sl) {
+    if (sl != null) return Math.max(0, Math.min(1, (e - (sl - SL_HALF)) / (2 * SL_HALF)));
     const z0 = fz != null ? fz : t != null && te != null ? te + t / LAPSE : null;
     if (z0 == null) return null;
     return Math.max(0, Math.min(1, (e - (z0 - RAIN_ALL)) / (RAIN_ALL - SNOW_ALL)));
   }
+  // Environment Canada's snow level ("Height of snow level", WEonG), from MSC GeoMet's WCS: one small float picture
+  // (2 by 2 degrees, a value every 0.05 degree; for the far-away grid 8 by 8 degrees, every 0.2) per block and per 3
+  // hours, in between blended in time. HRDPS (2.5 km)
+  // for its 48 hours, then RDPS (10 km) to 84 hours. A value of 0 or under means the snow level is under the model's
+  // ground there (snow at its ground): the height under it isn't given, so that hour falls back on the freezing level.
+  const GEOMET = "https://geo.weather.gc.ca/geomet", SL_LAYERS = ["HRDPS-WEonG_2.5km_SnowLevelHeight", "RDPS-WEonG_10km_SnowLevelHeight"];
+  const SL_GRIDS = [[2, 0.05], [8, 0.2]], SL_STEP = 3 * 3600000, slBlocks = new Map();
+  let slTimesP = null, slBusy = 0;
+  const slQueue = [];
+  const inCanadaGrid = (lat, lon) => lat > 41 && lat < 83 && lon > -141 && lon < -52;
+  // The hours each model has now (from GetCapabilities): [Set of ms, Set of ms].
+  function slTimes() {
+    if (slTimesP) return slTimesP;
+    slTimesP = Promise.all(SL_LAYERS.map((l) => fetch(`${GEOMET}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&LAYER=${l}`)
+      .then((r) => (r.ok ? r.text() : ""))
+      .then((x) => {
+        const m = x.match(/<Dimension name="time"[^>]*>([^<]+)</), out = new Set();
+        if (m) for (const part of m[1].split(",")) {
+          const [a, b, st] = part.trim().split("/");
+          if (!b) { out.add(Date.parse(a)); continue; }
+          const h = +((st || "").match(/PT(\d+)H/) || [0, 1])[1] * 3600000;
+          for (let t = Date.parse(a); t <= Date.parse(b) && h > 0; t += h) out.add(t);
+        }
+        return out;
+      }).catch(() => new Set())));
+    // Asked again in an hour (the next model run).
+    slTimesP.then(() => setTimeout(() => { slTimesP = null; }, 3600000));
+    return slTimesP;
+  }
+  // A little GeoTIFF reader: one band of 32-bit floats, not compressed (what GeoMet sends).
+  function readTiff(buf) {
+    const dv = new DataView(buf), le = dv.getUint16(0) === 0x4949, u16 = (o) => dv.getUint16(o, le), u32 = (o) => dv.getUint32(o, le);
+    const ifd = u32(4), n = u16(ifd), tags = {};
+    const SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 11: 4, 12: 8 };
+    for (let i = 0; i < n; i++) {
+      const o = ifd + 2 + 12 * i, tag = u16(o), type = u16(o + 2), cnt = u32(o + 4), sz = SIZE[type] || 1;
+      const at = sz * cnt <= 4 ? o + 8 : u32(o + 8), vals = [];
+      for (let k = 0; k < Math.min(cnt, 64); k++) {
+        const p = at + k * sz;
+        vals.push(type === 3 ? u16(p) : type === 4 ? u32(p) : type === 12 ? dv.getFloat64(p, le) : type === 11 ? dv.getFloat32(p, le) : type === 5 ? u32(p) / u32(p + 4) : dv.getUint8(p));
+      }
+      tags[tag] = vals;
+    }
+    const w = tags[256][0], h = tags[257][0];
+    if ((tags[258] || [32])[0] !== 32 || (tags[259] || [1])[0] !== 1 || (tags[339] || [3])[0] !== 3) throw new Error("tiff kind");
+    const data = new Float32Array(w * h), offs = tags[273], rows = (tags[278] || [h])[0];
+    let q = 0;
+    offs.forEach((off) => { for (let k = 0; k < rows * w && q < w * h; k++, q++) data[q] = dv.getFloat32(off + 4 * k, le); });
+    const sc = tags[33550], tp = tags[33922];
+    return { w, h, data, x0: tp[3] - tp[0] * sc[0], y0: tp[4] + tp[1] * sc[1], sx: sc[0], sy: sc[1] };
+  }
+  function slPump() {
+    while (slBusy < 4 && slQueue.length) {
+      const [key, layer, t, bi, bj, g] = slQueue.shift(), b = slBlocks.get(key), [B, res] = SL_GRIDS[g];
+      slBusy++;
+      const la = bi * B, lo = bj * B;
+      fetch(`${GEOMET}?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=${layer}&SUBSETTINGCRS=EPSG:4326&SUBSET=x(${lo},${lo + B})&SUBSET=y(${la},${la + B})`
+        + `&OUTPUTCRS=EPSG:4326&RESOLUTION=x(${res})&RESOLUTION=y(${res})&FORMAT=image/tiff&TIME=${new Date(t).toISOString().slice(0, 19)}Z`)
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+        .then((buf) => { b.img = readTiff(buf); })
+        .catch(() => { b.img = null; })
+        .finally(() => { b.done = true; slBusy--; b.wait.forEach((f) => f()); b.wait = []; slPump(); });
+    }
+  }
+  // One block-time picture (a promise of it, or null when it can't be had).
+  function slBlock(layer, t, bi, bj, g) {
+    const key = `${layer}|${t}|${bi}|${bj}|${g}`;
+    let b = slBlocks.get(key);
+    if (!b) {
+      b = { done: false, img: null, wait: [] };
+      slBlocks.set(key, b);
+      if (slBlocks.size > 3000) for (const k of [...slBlocks.keys()].slice(0, 500)) slBlocks.delete(k);
+      slQueue.push([key, layer, t, bi, bj, g]);
+      slPump();
+    }
+    return b.done ? Promise.resolve(b.img) : new Promise((ok) => b.wait.push(() => ok(b.img)));
+  }
+  const slPixel = (img, lat, lon) => {
+    if (!img) return null;
+    const c = Math.floor((lon - img.x0) / img.sx), r = Math.floor((img.y0 - lat) / img.sy);
+    if (c < 0 || r < 0 || c >= img.w || r >= img.h) return null;
+    const v = img.data[r * img.w + c];
+    return v > 0 && v < 9000 ? v : null;
+  };
+  // The snow level at one place for each of the hours asked (ms, UTC): an array of metres (null where unknown). far:
+  // from the coarse pictures (the far-away grid points).
+  async function eccSnowLevels(lat, lon, hours, far) {
+    if (!inCanadaGrid(lat, lon) || !hours.length) return hours.map(() => null);
+    const [hr, rd] = await slTimes(), g = far ? 1 : 0, B = SL_GRIDS[g][0];
+    const bi = Math.floor(lat / B), bj = Math.floor(lon / B);
+    const layerAt = (t) => (hr.has(t) ? SL_LAYERS[0] : rd.has(t) ? SL_LAYERS[1] : null);
+    const need = new Map();
+    for (const t of hours) for (const s of [Math.floor(t / SL_STEP) * SL_STEP, Math.ceil(t / SL_STEP) * SL_STEP]) if (!need.has(s)) {
+      const l = layerAt(s);
+      need.set(s, l ? slBlock(l, s, bi, bj, g).then((img) => slPixel(img, lat, lon)) : Promise.resolve(null));
+    }
+    const at = new Map();
+    await Promise.all([...need].map(([s, p]) => p.then((v) => at.set(s, v))));
+    return hours.map((t) => {
+      const a = Math.floor(t / SL_STEP) * SL_STEP, b = Math.ceil(t / SL_STEP) * SL_STEP, va = at.get(a), vb = at.get(b);
+      if (a === b) return va ?? null;
+      const f = (t - a) / (b - a);
+      if (va != null && vb != null) return va + (vb - va) * f;
+      return f < 0.5 ? va ?? null : vb ?? null;
+    });
+  }
+  window.tfSnowLevels = eccSnowLevels;   // the Snow at this height card and tests
   const SNOW_CODES = [71, 73, 75, 77, 85, 86], RAIN_CODES = [51, 53, 55, 61, 63, 65, 80, 81, 82];
   // The weather icon follows the split: a snow icon on a day that's rain at this height (or the other way) would say
   // the opposite of the numbers next to it.
@@ -1871,11 +1995,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return code;
   };
   // Every hour's (and day's) snowfall worked out again at the height asked for, from its precipitation (weather()).
-  function splitAtHeight(w, ele) {
+  // sl: Environment Canada's snow level for each hour (or nothing).
+  function splitAtHeight(w, ele, sl) {
     const h = w && w.hourly;
     if (!h || !h.precipitation || !h.freezing_level_height || ele == null) return w;
     h.snowfall = h.precipitation.map((p, i) => {
-      const s = snowShare(ele, h.freezing_level_height[i], h.temperature_2m ? h.temperature_2m[i] : null, ele);
+      const s = snowShare(ele, h.freezing_level_height[i], h.temperature_2m ? h.temperature_2m[i] : null, ele, sl ? sl[i] : null);
       return s == null ? h.snowfall[i] : (p || 0) * s * CM_PER_MM;
     });
     const dd = w.daily;
@@ -1955,7 +2080,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return `<h4>Weather at ${ele != null ? `the top (${fmtM(ele)})` : "this spot"}</h4>
       ${aw ? `<h5>Avalanche weather</h5>${signsHtml(aw, ele)}` : `<p>New snow in the last 3 days: <b>${Math.round(past)} cm</b></p>`}
       <table class="sk-wx"><tr><th></th><th></th><th>Low / high</th><th>Snow</th><th>Wind km/h</th><th>Freezing level</th></tr>${rows}</table>
-      <p class="sk-note">Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Wind: strongest / gusts.</p>`;
+      <p class="sk-note">Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. Wind: strongest / gusts.</p>${wxNote(w)}`;
   }
 
   // Whistler Blackcomb's uphill and backcountry access routes (data/ski-hand/ "wb": the name on their map): today's state
@@ -3802,7 +3927,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     html += `<h4>Weather at ${fmtM(g.e)}</h4>
       <p>Now <b>${WICON[w.current.weather_code ?? dd.weather_code[t0]] || ""} ${Math.round(w.current.temperature_2m)}°C</b> · wind ${Math.round(wind || 0)} km/h from the ${wdir}</p>
       ${strip("Next 7 days", t0, t0 + 7)}${strip("Last 7 days", t0 - 7, t0)}
-      <p class="sk-note">Snow in cm, rain in mm, wind in km/h (strongest of the day, and where it comes from). Weather model from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, at this spot's height.</p>`;
+      <p class="sk-note">Snow in cm, rain in mm, wind in km/h (strongest of the day, and where it comes from). Weather model from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>, at this spot's height. Snow and rain split by Environment Canada's snow level where it has one, else by the freezing level. All estimates.</p>${wxNote(w)}`;
     html += `<h5>Avalanche weather</h5>${signsHtml(aw, g.e)}`;
     return html;
   }
@@ -4755,28 +4880,38 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const SNOW_KEEP_MS = 2 * 3600000, SNOW_SAVE = "tf:snowGrid2", SNOW_USE = "tf:snowUse";   // not synced settings
   try { localStorage.removeItem("tf:snowGrid"); } catch {}
   // "step|i|j" -> { e: the point's height (m), w: its wet hours [hour (0 = 24 h ago, 24 = now), mm, freezing level m or
-  // null, °C at height e], at } or { err, at }. Snow and rain at any height come from those (snowTable).
+  // null, °C at height e, Environment Canada's snow level m or null (filled in when it comes, slFill)], at, t0: the
+  // first hour (ms) } or { err, at }. Snow and rain at any height come from those (snowTable).
   const snowGrid = new Map();
   const snowAsk = new Map();    // waiting to be asked: key -> { lat, lon, done: [resolve], tries }
-  const SNOW_PER_MIN = 250, SNOW_PER_HOUR = 2000, SNOW_TRIES = 4, SNOW_WAIT_MS = 800;
+  // 450 a minute (was 250; Open-Meteo allows 600 a minute per phone, shared with the weather cards): a move to a new
+  // area at zoom 10 asks about 150-300 places, and with 250 the second view of a session often waited a minute.
+  const SNOW_PER_MIN = 450, SNOW_PER_HOUR = 2000, SNOW_TRIES = 4, SNOW_WAIT_MS = 800;
   let snowTimer = 0, snowVer = 0, snowPause = 0, snowRefused = 0, snowSaveT = 0;
   let snowSent = [];   // [time, places] in the last hour, kept on the phone so opening the app again counts them
   try {
     const now = Date.now();
     snowSent = (JSON.parse(localStorage.getItem(SNOW_USE)) || []).filter((x) => now - x[0] < 3600000);
-    for (const [k, e, w, at] of JSON.parse(localStorage.getItem(SNOW_SAVE)) || []) if (now - at < SNOW_KEEP_MS) snowGrid.set(k, { e, w, at });
+    for (const [k, e, w, at, t0] of JSON.parse(localStorage.getItem(SNOW_SAVE)) || []) if (now - at < SNOW_KEEP_MS) snowGrid.set(k, { e, w, at, t0 });
   } catch {}
   const snowSave = () => {
     if (snowSaveT) return;
     snowSaveT = setTimeout(() => {
       snowSaveT = 0;
       const now = Date.now(), keep = [];
-      for (const [k, v] of snowGrid) if (!v.err && now - v.at < SNOW_KEEP_MS) keep.push([k, v.e, v.w, v.at]);
+      for (const [k, v] of snowGrid) if (!v.err && now - v.at < SNOW_KEEP_MS) keep.push([k, v.e, v.w, v.at, v.t0]);
       // Each point keeps its wet hours (about 20 numbers a rainy day), so fewer points fit than before: the latest 1,500.
       try { localStorage.setItem(SNOW_SAVE, JSON.stringify(keep.slice(-1500))); localStorage.setItem(SNOW_USE, JSON.stringify(snowSent)); } catch {}
     }, 3000);
   };
-  const snowLater = (ms) => { if (!snowTimer) snowTimer = setTimeout(snowFlush, ms); };
+  // A sooner call wins (the coarse points of a new view mustn't wait for the timer set for the next minute's room).
+  let snowTimerAt = 0;
+  const snowLater = (ms) => {
+    const at = Math.max(Date.now() + ms, snowPause);
+    if (snowTimer && snowTimerAt <= at) return;
+    clearTimeout(snowTimer);
+    snowTimerAt = at; snowTimer = setTimeout(snowFlush, at - Date.now());
+  };
   function snowFlush() {
     snowTimer = 0;
     const now = Date.now();
@@ -4786,9 +4921,20 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const room = Math.min(SNOW_PER_MIN - used(60000), SNOW_PER_HOUR - used(3600000));
     // Close-up points first: a wide 3D view asks hundreds of far-away ones first, which used up the minute's places
     // before the mountains in front were asked (Whistler stayed bare for 2 minutes in a test).
-    const all = [...snowAsk.entries()].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])).slice(0, Math.max(0, room));
+    // alex 2026-11-14 recording ("weather dont load", Golden): the queue was in step order only, so after a move the
+    // places of the views before went first, each minute's room used up on them, and the view on screen waited
+    // minutes. Now the finest step first, then the closest to the middle of the map.
+    // Close-up places well off the map now (a view left behind) wait in the queue until the map comes back to them.
+    const c = map.getCenter(), far = (k, w) => (w.lat - c.lat) ** 2 + ((w.lon - c.lng) * Math.cos((c.lat * Math.PI) / 180)) ** 2;
+    const near = map.getBounds().pad(0.75), wanted = ([k, w]) => parseFloat(k) >= 0.5 || near.contains([w.lat, w.lon]);
+    // The half-degree points (a coarse first picture of a new area, see paintSnowBy) may go 100 over the minute's
+    // room: a handful per view, still well under Open-Meteo's 600.
+    const fine = [...snowAsk.entries()].filter(wanted).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]) || far(...a) - far(...b));
+    const all = fine.slice(0, Math.max(0, room));
+    const extra = Math.min(SNOW_PER_MIN + 100 - used(60000), SNOW_PER_HOUR - used(3600000)) - all.length;
+    if (extra > 0) all.push(...fine.slice(all.length).filter(([k]) => parseFloat(k) >= 0.5).slice(0, extra));
     for (const [k] of all) snowAsk.delete(k);
-    if (snowAsk.size) {
+    if ([...snowAsk.entries()].some(wanted)) {
       // The next time some room frees up: a minute after the oldest of this minute's, or of this hour's when that's full.
       const full = SNOW_PER_HOUR - used(3600000) <= 0, from = snowSent.find((x) => now - x[0] < (full ? 3600000 : 60000));
       snowLater(from ? Math.max(1000, from[0] + (full ? 3600000 : 60000) - now) : 1000);
@@ -4808,7 +4954,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
               const fz = h.freezing_level_height ? h.freezing_level_height[q] : null, t = h.temperature_2m ? h.temperature_2m[q] : null;
               w.push([q, Math.round(mm * 10) / 10, fz == null ? null : Math.round(fz / 10) * 10, t == null ? null : Math.round(t * 10) / 10]);
             });
-            snowGrid.set(k, h && h.precipitation ? { e: pt.elevation ?? null, w, at: Date.now() } : { err: true, at: Date.now() });
+            const t0 = h && h.time ? Date.parse(h.time[0] + "Z") : null;
+            snowGrid.set(k, h && h.precipitation ? { e: pt.elevation ?? null, w, at: Date.now(), t0 } : { err: true, at: Date.now() });
+            slFill(k);
             p.done.forEach((d) => d());
           });
           snowSave();
@@ -4828,9 +4976,25 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     snowSave();
   }
+  // Environment Canada's snow level for a grid point's wet hours from now on, written into them when it comes; the
+  // point's tables are worked out again and the tiles repainted.
+  function slFill(k) {
+    const v = snowGrid.get(k);
+    if (!v || v.err || !v.t0 || v.slAsked) return;
+    v.slAsked = true;
+    const [st, i, j] = k.split("|").map(Number), now = Date.now();
+    const rows = (v.w || []).filter((r) => r[4] === undefined && v.t0 + r[0] * 3600000 > now - 3 * 3600000);
+    if (!rows.length) return;
+    eccSnowLevels(i * st, j * st, rows.map((r) => v.t0 + r[0] * 3600000), st >= 0.5).then((sl) => {
+      let any = false;
+      rows.forEach((r, n) => { r[4] = sl[n] == null ? null : Math.round(sl[n] / 10) * 10; if (sl[n] != null) any = true; });
+      if (any) { v.tb = null; snowSave(); snowRedraw(); }
+    }).catch(() => {});
+  }
+  map.on("moveend", () => { if (snowAsk.size) snowLater(150); });   // places left waiting off the map, back on it
   function snowPoint(step, i, j) {
     const k = `${step}|${i}|${j}`, v = snowGrid.get(k);
-    if (v && Date.now() - v.at < SNOW_KEEP_MS) return Promise.resolve(v);
+    if (v && Date.now() - v.at < SNOW_KEEP_MS) { slFill(k); return Promise.resolve(v); }
     return new Promise((ok) => {
       const w = snowAsk.get(k) || { lat: i * step, lon: j * step, done: [], tries: 0 };
       w.done.push(() => ok(snowGrid.get(k)));
@@ -4851,10 +5015,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const tb = v.tb || (v.tb = {});
     if (tb[span]) return tb[span];
     const [a, b] = SNOW_SPANS[span], out = new Float32Array(2 * SNOW_NL);
-    for (const [q, mm, fz, t] of v.w || []) {
+    for (const [q, mm, fz, t, sl] of v.w || []) {
       if (q < a || q >= b) continue;
       for (let l = 0; l < SNOW_NL; l++) {
-        const sh = snowShare(l * 100, fz, t, v.e) ?? 0;
+        const sh = snowShare(l * 100, fz, t, v.e, sl) ?? 0;
         out[l] += mm * sh * CM_PER_MM; out[SNOW_NL + l] += mm * (1 - sh);
       }
     }
@@ -4931,6 +5095,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // half an hour, and the ones already in should show.
     if (partial) jobs.forEach((j) => j.then(snowRedraw));
     // A close-up point still missing takes the far-away grid's value there when that's in (asked first after opening).
+    // And when close-up points are missing, the half-degree points around the tile are asked too (a few, sent even
+    // when the minute's room is used up): the tile has a first, coarser picture in seconds, not after a minute.
+    if (s < 0.5 && vals.some((v) => !v)) {
+      const a0 = Math.floor(bottom / 0.5), a1 = Math.ceil(top / 0.5), b0 = Math.floor(left / 0.5), b1 = Math.ceil(right / 0.5);
+      for (let a = a0; a <= a1; a++) for (let b = b0; b <= b1; b++) if (!okPoint(snowGrid.get(`0.5|${a}|${b}`))) snowPoint(0.5, a, b).then(snowRedraw);
+    }
     if (s < 0.5) for (let q = 0; q < vals.length; q++) if (!vals[q]) {
       const v = snowCoarse((i0 + ((q / C) | 0)) * s, (j0 + (q % C)) * s, span);
       if (v) { vals[q] = v[0]; hts[q] = v[1]; }
@@ -4960,8 +5130,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     return out;
   };
-  const snowAttr = 'Snow: <a href="https://open-meteo.com/">Open-Meteo</a> weather model';
-  const snowTint = (id, span, z) => paintedLayer(id, paintSnowBy(span), { z, minZoom: 6, maxNative: 10, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo" });
+  const snowAttr = 'Snow: <a href="https://open-meteo.com/">Open-Meteo</a> weather model, snow level: <a href="https://eccc-msc.github.io/open-data/">Environment and Climate Change Canada</a>';
+  const snowTint = (id, span, z) => paintedLayer(id, paintSnowBy(span), { z, minZoom: 6, maxNative: 10, ver: () => snowVer, attribution: snowAttr, attribution3d: "Snow: Open-Meteo, snow level: Environment and Climate Change Canada" });
   const freshLayer = snowTint("skifresh", "f", 352);
   // Snow and rain forecast for the next 24 h, 2 days or 3 days (alex 2026-11-10: "can we add 24h and 2 days with the
   // same setting that we cant have more than one activated at the same time": they're ground colours, one at a time).

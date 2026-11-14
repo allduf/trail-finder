@@ -45,7 +45,7 @@ jobs:
           mkdir -p /tmp/osm
           for p in $PROVINCES; do
             echo "::group::${NAME[$p]}"
-            curl -sSfL --retry 3 -o /tmp/osm/p.pbf "https://download.geofabrik.de/north-america/canada/${NAME[$p]}-latest.osm.pbf"
+            curl -sSfL --retry 5 --retry-all-errors --retry-delay 60 -o /tmp/osm/p.pbf "https://download.geofabrik.de/north-america/canada/${NAME[$p]}-latest.osm.pbf"
             ls -lh /tmp/osm/p.pbf
             osmium tags-filter --overwrite -o /tmp/osm/f.pbf /tmp/osm/p.pbf \
               w/highway=path,bridleway,track,footway,cycleway r/route=mtb,bicycle,hiking,foot,horse,motorcycle,atv

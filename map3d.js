@@ -2216,6 +2216,10 @@
   // they had (a photo a few frames late) and get their turn in the next frames. Ground never painted before (new in
   // view) is always painted at once. MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
   const PAINTS_PER_FRAME = PHONE ? 4 : 3;
+  // While the map is being turned or moved, a computer paints one piece again per frame (alex 2026-11-14: "rotation still
+  // lag", desktop recording): ground new in view is still painted at once, a photo arriving for ground already shown
+  // waits a few frames, so each frame of the turn is quicker. When the map stops, PAINTS_PER_FRAME again.
+  const paintsNow = () => (!PHONE && gl && gl.isMoving && gl.isMoving() ? 1 : PAINTS_PER_FRAME);
   function spreadPaints() {
     const rtt = gl && gl.painter && gl.painter.renderToTexture, tm = gl && gl.terrain && gl.terrain.tileManager;
     if (!rtt || !tm || rtt.tfSpread || typeof rtt.prepareForRender !== "function" || typeof tm.freeRtt !== "function") return;
@@ -2249,10 +2253,11 @@
           if (t.rtt.length || !had || !had.length) { t.tfWait = false; old.delete(t); continue; }
           redo.push([t, had]);
         }
-        if (redo.length > PAINTS_PER_FRAME) {
+        const cap = paintsNow();
+        if (redo.length > cap) {
           redo.sort((a, b) => b[0].tileID.overscaledZ - a[0].tileID.overscaledZ);   // closer ground first
           redo.forEach(([t, had], i) => {
-            if (i < PAINTS_PER_FRAME) { t.tfWait = false; old.delete(t); return; }
+            if (i < cap) { t.tfWait = false; old.delete(t); return; }
             t.rtt = had; t.tfWait = true; old.set(t, had);
           });
           gl.triggerRepaint();
@@ -2264,7 +2269,7 @@
   // And a piece of ground is only painted again when what arrived can change its picture. MapLibre did it for every
   // tile of every source, also the ones only written over the ground (the trail names, ~37 tiles a frame while
   // turning, as the names are placed again after each move) and the ones of a hidden layer: they are not in the
-  // painted picture at all. The ground heights (the terrain's own source) go through as before.
+  // painted picture at all, nor an empty photo piece. The ground heights (the terrain's own source) go through as before.
   const PAINTED = { background: true, fill: true, line: true, raster: true, hillshade: true, "color-relief": true };
   function quietSources() {
     const cb0 = gl && gl._terrainDataCallback;
@@ -2276,13 +2281,97 @@
       } catch { return true; }
     };
     const cb = function (e) {
-      try { if (e && e.dataType === "source" && e.tile && e.sourceId !== gl.terrain.options.source && !painted(e.sourceId)) return; } catch {}
+      try {
+        if (e && e.dataType === "source" && e.tile && e.sourceId !== gl.terrain.options.source) {
+          if (!painted(e.sourceId)) return;
+          const z = e.tile.texture && e.tile.texture.size;   // an empty photo piece (see skipEmpty): nothing to paint
+          if (z && z[0] <= 1 && z[1] <= 1) return;
+        }
+      } catch {}
       return cb0.apply(this, arguments);
     };
     cb.tfQuiet = true;
     try { gl.style.off("data", cb0); gl.style.on("data", cb); gl._terrainDataCallback = cb; } catch {}
   }
+  // Empty photo pieces aren't painted. Where last winter's photos cover the ground, the blurry photos under them
+  // ("fill", and the others outside their own area) are an empty 1-pixel picture, but MapLibre still painted each one
+  // over the whole piece of ground: with Winter on, the hidden "fill" layer cost as much as the Winter photos themselves
+  // (56 of ~140 photo pieces painted per full repaint near Whistler, headless count 2026-11-14). An empty piece draws
+  // nothing, so leaving it out changes nothing on the screen.
+  function skipEmpty() {
+    const p = gl && gl.painter;
+    if (!p || p.tfSkipEmpty || typeof p.renderLayer !== "function") return;
+    p.tfSkipEmpty = true;
+    const draw = p.renderLayer;
+    p.renderLayer = function (painter, tm, layer, coords) {
+      const args = Array.prototype.slice.call(arguments);
+      try {
+        if (layer && layer.type === "raster" && tm && typeof tm.getTile === "function" && coords && coords.length) {
+          const keep = coords.filter((c) => { const t = tm.getTile(c), z = t && t.texture && t.texture.size; return !z || z[0] > 1 || z[1] > 1; });
+          if (!keep.length) return;
+          if (keep.length < coords.length) args[3] = keep;
+        }
+      } catch {}
+      return draw.apply(this, args);
+    };
+  }
   window.tf3dSpreadPaints = () => PAINTS_PER_FRAME;   // for tests
+  // ---------- lag check (?lagcheck in the address, or localStorage tfLagCheck = 1) ----------
+  // alex's recordings show freezes while turning the 3D map (2026-11-13: 1.8 s mid-turn while planning a tour) that the
+  // cloud test browser can't time: its graphics are software, so every frame is slow there. This small readout in the
+  // corner of the 3D map says, for the worst frame of the last few seconds, how long it took and what happened in it:
+  // the page's own work (long tasks), ground pictures painted again, new paint buffers made (~32 MB each on a
+  // computer), tiles that arrived, ground lookups that wait for the graphics card, 3D line rebuilds. A screen recording
+  // with it on shows what to fix. Off unless asked for; nothing is sent anywhere.
+  function lagCheck() {
+    let want = false;
+    try { want = /[?&]lagcheck\b/.test(location.search) || localStorage.getItem("tfLagCheck") === "1"; if (want) localStorage.setItem("tfLagCheck", "1"); } catch {}
+    if (!want || !gl || gl.tfLagCheck) return;
+    gl.tfLagCheck = true;
+    const el = document.createElement("div");
+    el.style.cssText = "position:absolute;left:8px;bottom:86px;z-index:5;background:rgba(0,0,0,.72);color:#fff;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;padding:5px 7px;border-radius:6px;pointer-events:none;white-space:pre";
+    box.append(el);
+    const c = { paints: 0, made: 0, tiles: 0, reads: 0, js: 0, crisp: 0 };
+    let tilesBy = {};
+    try { new PerformanceObserver((l) => { for (const e of l.getEntries()) c.js += e.duration; }).observe({ type: "longtask" }); } catch {}
+    gl.on("data", (e) => { if (e && e.dataType === "source" && e.tile) { c.tiles++; tilesBy[e.sourceId] = (tilesBy[e.sourceId] || 0) + 1; } });
+    try {
+      const g = gl.painter.context.gl, rp = g.readPixels;
+      g.readPixels = function () { c.reads++; return rp.apply(this, arguments); };
+    } catch {}
+    const hook = () => {
+      const pool = gl.painter && gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (!pool || pool.tfLag) return;
+      pool.tfLag = true;
+      const st = pool.stampObject, mk = pool._createObject;
+      pool.stampObject = function () { c.paints++; return st.apply(this, arguments); };
+      if (typeof mk === "function") pool._createObject = function () { c.made++; return mk.apply(this, arguments); };
+    };
+    let last = performance.now(), worst = null, shown = 0, builds = 0, frames = 0, since = performance.now();
+    gl.on("render", () => {
+      hook();
+      const now = performance.now(), gap = now - last;
+      last = now; frames++;
+      const nb = (crispLayer.took || []).length;   // (at most 20 kept: counts new ones)
+      if (nb !== builds) { c.crisp++; builds = nb; }
+      const top = Object.entries(tilesBy).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => k + " " + n).join(", ");
+      const f = { gap: Math.round(gap), js: Math.round(c.js), paints: c.paints, made: c.made, tiles: c.tiles, top, reads: c.reads, crisp: c.crisp, at: now };
+      c.paints = c.made = c.tiles = c.reads = c.js = c.crisp = 0; tilesBy = {};
+      if (gap > 2000) return;   // the tab was hidden or the map was still
+      if (!worst || f.gap >= worst.gap || now - worst.at > 4000) worst = f;
+      if (now - shown < 250) return;
+      shown = now;
+      let pool = null; try { pool = gl.painter.renderToTexture.pool; } catch {}
+      const fps = Math.round((frames * 1000) / Math.max(1, now - since)); frames = 0; since = now;
+      const mb = pool ? Math.round((pool._objects.length * pool._tileSize * pool._tileSize * 8) / 1048576) : 0;
+      el.textContent = `lag check  ${fps} fps  moving: ${gl.isMoving() ? "yes" : "no"}\n` +
+        `worst frame (last 4 s): ${worst.gap} ms\n` +
+        `  page work ${worst.js} ms · ground repaints ${worst.paints} · new buffers ${worst.made}\n` +
+        `  tiles in ${worst.tiles}${worst.top ? " (" + worst.top + ")" : ""}\n` +
+        `  ground lookups ${worst.reads} · line rebuilds ${worst.crisp}\n` +
+        `paint buffers ${pool ? pool._objects.length + " × " + pool._tileSize + " px ≈ " + mb + " MB" : "-"} · pitch ${Math.round(gl.getPitch())}° · zoom ${gl.getZoom().toFixed(1)}`;
+    });
+  }
   let demFixed = false;
   function fixDemLeak() {
     if (demFixed || !gl.terrain) return;
@@ -2861,6 +2950,18 @@
     // stop moving before, so on a phone it stayed up 5-6 s over mountains already drawn (alex's recording, 2026-11-05).
     // The mountains' shape is in once the tilt has started (the height under the centre); the far heights fill in
     // after, like the photos (all of them took 3-5 s more on a slow phone).
+    // The usage page also times this moment ("3D mountains shown", alex 2026-11-13): what a person waits for, while
+    // "3D mountains" below waits for every sharp photo of the view.
+    // Timed on its own, also when the note went at 12 s before the ground was in (30 s or more counts as 30 s).
+    let shaped = false;
+    const shapeTime = () => {
+      if (shaped) return;
+      shaped = true; logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
+      gl.off("sourcedata", shapeIn); gl.off("idle", shapeIn); gl.off("moveend", shapeIn);
+    };
+    const shapeIn = () => { if (tilted && gl.isSourceLoaded(quickPhotos())) shapeTime(); };
+    gl.on("sourcedata", shapeIn); gl.on("idle", shapeIn); gl.on("moveend", shapeIn);
+    setTimeout(shapeTime, 30000);
     const groundIn = () => {
       if (!tilted || !gl.isSourceLoaded(quickPhotos())) return;
       waited();
@@ -2884,7 +2985,8 @@
     } else gl.on("idle", warmPaintBuffers);
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
-    gl.on("render", () => { spreadPaints(); quietSources(); });   // once its paint buffers exist (and again if the terrain is set up anew)
+    gl.on("render", () => { spreadPaints(); quietSources(); skipEmpty(); });   // once its paint buffers exist (and again if the terrain is set up anew)
+    lagCheck();   // only with ?lagcheck in the address
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
     gl.on("movestart", (e) => { byHand = !!e.originalEvent; if (byHand) { handAt = Date.now(); searchTilt = false; } });   // the person's own moves win

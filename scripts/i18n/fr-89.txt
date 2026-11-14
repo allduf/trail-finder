@@ -1,2 +1,5 @@
-Phone notifications aren't in the Android app yet. They're coming in a later version. ||| Les notifications sur le téléphone ne sont pas encore dans l'appli Android. Elles arriveront dans une prochaine version.
-Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight. ||| Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight.
+# Webcams (2026-11-14): Brownrice cams scheduled off, missing pictures
+The camera's owner has it scheduled off right now, often the case at night or out of season. Try again later. ||| Le propriétaire de la caméra l'a programmée hors ligne pour le moment, souvent la nuit ou hors saison. Réessayez plus tard.
+The live video and the camera's picture aren't available right now. Try again later. ||| La vidéo en direct et l'image de la caméra ne sont pas disponibles pour le moment. Réessayez plus tard.
+This camera hasn't sent a new picture in the last day. ||| Cette caméra n'a pas envoyé de nouvelle image depuis un jour.
+Webcams: the Whistler Blackcomb and Lake Louise cameras play their live video again, and a camera its owner has switched off now says so plainly instead of showing an error picture. ||| Webcams : les caméras de Whistler Blackcomb et de Lake Louise affichent de nouveau leur vidéo en direct, et une caméra que son propriétaire a éteinte l'indique clairement au lieu d'afficher une image d'erreur.
