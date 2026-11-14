@@ -2559,7 +2559,14 @@
     "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)":"La cote d'Avalanche Canada sur les pentes, puis l'inclinaison, l'orientation des pentes, les replats et les étages d'altitude (un exemple de bulletin)",
     "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials).":"Tutoriels : deux nouvelles vidéos en Ski, les couches neige et pluie et les couches avalanche et terrain (Plus, Tutoriels).",
     "Phone notifications aren't in the Android app yet. They're coming in a later version.":"Les notifications sur le téléphone ne sont pas encore dans l'appli Android. Elles arriveront dans une prochaine version.",
-    "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight.":"Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight."};
+    "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight.":"Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight.",
+    "Checked":"Vérifié",
+    "More from the resort":"Plus d'infos de la station",
+    "Waiver to ride":"Décharge à signer pour monter",
+    "The resort asks riders to hand in a mountain-climbing registration form, or to agree to and sign its No.11 Pair Lift waiver, before riding this lift. Rules can change: check with the resort before you go.":"La station demande de remettre un formulaire d'inscription d'ascension en montagne, ou d'accepter et signer sa décharge du télésiège No.11, avant de prendre ce télésiège. Les règles peuvent changer : vérifiez auprès de la station avant d'y aller.",
+    "Waiver and pre-registration (resort, Japanese)":"Décharge et inscription à l'avance (station, en japonais)",
+    "Hakuba Norikura Onsen Ski Resort's website and a local report":"Site web de Hakuba Norikura Onsen Ski Resort et un témoignage local",
+    "Lift cards can now show notes from resorts and local reports: Hakuba Norikura's Alps No.11 lift says riders sign a waiver first.":"Les fiches de remontées peuvent maintenant afficher des notes des stations et de gens du coin : le télésiège Alps No.11 de Hakuba Norikura indique qu'il faut d'abord signer une décharge."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
