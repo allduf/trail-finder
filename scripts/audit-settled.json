@@ -240,6 +240,366 @@
    "date": "2026-10-31",
    "who": "Claude (weekly audit)",
    "note": "5 Mount Swansea trails rated from Columbia Valley Tourism. Meat Grinder left out (sources disagree). Lake Lillian, Johnson, Juniper Heights and Radium have levels only on Trailforks; the Columbia Valley Cycling Society site could not be read."
+  },
+  "network:fv:Vedder Mountain Ridge Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Only a passing mention in a Komoot guide; no club/official source on bike use); only Trailforks-based apps list it."
+  },
+  "network:fv:BR1280": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Old logging branch road on Sumas Mtn (OSM); no source on riding); only Trailforks-based apps list it."
+  },
+  "network:fv:Duckpond": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:fv:Upper Woodlot Spur 2": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Overgrown logging spur in the Woodlot (alt name Schwinn Way per OSM); no web source); only Trailforks-based apps list it."
+  },
+  "network:fv:Old Yale Wagon Road": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Heritage wagon-road alignment near Duck Farm; only app listings, no club/official bike source); only Trailforks-based apps list it."
+  },
+  "network:fv:BR SA430": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Old logging branch road; no source on riding); only Trailforks-based apps list it."
+  },
+  "network:fv:The Silver Ghost Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Maple Ridge says Silver Valley trails are shared with mountain bikers but doesn't name this one; left as a plain path."
+  },
+  "network:fv:Diez Dubaze": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (OSM describes it as an unsanctioned old dirtbike trail; no web source); only Trailforks-based apps list it."
+  },
+  "network:fv:Rockstar": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No non-Trailforks source found); only Trailforks-based apps list it."
+  },
+  "network:fv:Mission Access": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Old track used as access (OSM alt name Access 3); no web source); only Trailforks-based apps list it."
+  },
+  "network:fv:Qoqó:lem Ridge Loop Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (City park docs name only the Qoqó:lem Trail; no source for this loop); only Trailforks-based apps list it."
+  },
+  "network:fv:A/C Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No source found for this name in Qoqó:lem Park); only Trailforks-based apps list it."
+  },
+  "network:kam:Saskatoon Braid": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Kenna Cartwright Park; tourism page says park is used for biking but this trail not named); only Trailforks-based apps list it."
+  },
+  "network:kam:Paul Lk North Shore Tr": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: BC Parks: cycling allowed on park roads only, not on hiking trails (check if segment is inside park) (BC Parks)."
+  },
+  "network:kam:Deep Lake Loop - Grasslands Comm Tr": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Lac du Bois hiking route per Kamloops Trails blog; no clear bike source); only Trailforks-based apps list it."
+  },
+  "network:kam:Valley Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Sun Peaks' paved/gravel village path, shared by riders and walkers; not a mountain bike trail."
+  },
+  "network:kam:Deep Lk Loop - Grassland Community Tr": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Lac du Bois hiking route per Kamloops Trails blog; no clear bike source); only Trailforks-based apps list it."
+  },
+  "network:kel:Wetland Loop Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Short gravel loop in Lake Country; only an app listing found); only Trailforks-based apps list it."
+  },
+  "network:pem:Peaks": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:pem:Bob's Loop": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Only Trailforks lists it (One Mile Lake area)); only Trailforks-based apps list it."
+  },
+  "network:ros:Drake's Connector": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:ros:Lower Columbia": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (OSM notes it is plowed in winter as a pedestrian route; no web source); only Trailforks-based apps list it."
+  },
+  "network:sqm:Rock Bluff Loop": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Short Brohm Lake loop; hiking guides cover Brohm Lake but not this name); only Trailforks-based apps list it."
+  },
+  "network:sqm:BR100-5": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Overgrown logging branch road (OSM); no source on riding); only Trailforks-based apps list it."
+  },
+  "network:sqm:Smoke Bluff Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Smoke Bluffs loop is pedestrian; 'no bikes' sign reported, separate bike trail exists (VancouverTrails / Outdoor Vancouver)."
+  },
+  "network:sqm:Strainer": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:sqm:Fender Bits": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No source; OSM tags sport=trial (likely moto trials)); only Trailforks-based apps list it."
+  },
+  "network:sqm:Clavicle Creek": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No source; OSM tags sport=trial (likely moto trials)); only Trailforks-based apps list it."
+  },
+  "network:sqm:69": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: OSM describes it as an unsanctioned trials motorcycle trail; no web source (OSM way description)."
+  },
+  "network:sqm:1Cup Extension": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:sun:Upper Tube": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Roberts Creek (Sunshine Coast, not Sun Peaks); only an app listing found); only Trailforks-based apps list it."
+  },
+  "network:van:Top Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Pacific Spirit has multi-use and hiking-only trails; could not confirm this trail's designation from Metro Van map); only Trailforks-based apps list it."
+  },
+  "network:van:Baden Powell Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Long-distance hiking trail; riders use some Fromme sections as connectors (Wikipedia (Mount Fromme))."
+  },
+  "network:van:LGMH - Skyline connector": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Links to Skyline hiking trail; no bike source); only Trailforks-based apps list it."
+  },
+  "network:van:LGMH": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Lower Grouse Mountain Highway; hiking articles list it as a Grouse route, no bike source); only Trailforks-based apps list it."
+  },
+  "network:van:Varley Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Runs into Lynn Headwaters, where cycling is not permitted on park trails (Metro Vancouver (Lynn Headwaters brochure))."
+  },
+  "network:van:Air Supply": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Former Fromme MTB trail, reported decommissioned (Mount Fromme wiki)."
+  },
+  "network:van:Fir Path": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (West Vancouver municipal path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Millstream Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Hiking access to Lawson Creek/Brothers Creek heritage walks (Vancouver Courier)."
+  },
+  "network:van:Old Forks Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Historic hiker/skier route to Hollyburn (Vancouver Courier)."
+  },
+  "network:van:Spar Tree Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:van:Main Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:van:Douglas Fir": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Pacific Spirit has multi-use and hiking-only trails; could not confirm this trail's designation); only Trailforks-based apps list it."
+  },
+  "network:van:Upper Backyard Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Only Trailforks/app listings found); only Trailforks-based apps list it."
+  },
+  "network:van:Rogers Creek Secondary Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (West Vancouver municipal path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Old Quarry Rock Access Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Access to the Quarry Rock hike (Baden Powell, Deep Cove) (Destination Vancouver)."
+  },
+  "network:van:Side-sidetrack": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:van:Baden Powell Pipeline Crossing": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Baden Powell hiking section (Lynn Canyon to Seymour) (Destination Vancouver)."
+  },
+  "network:van:NSHA Loop Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:van:Eastern Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Small neighbourhood park path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Mountain View Park": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Neighbourhood park path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Devil's Peak Route": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Peak-bagging hiking route on Mt Seymour (A Walk and a Lark)."
+  },
+  "network:van:The Mistress": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Only Trailforks found (black DH there); OSM says RSTBC bike/moto designated); only Trailforks-based apps list it."
+  },
+  "network:van:SFU Ring Road East Loop Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Unsanctioned MTB trail closed by City of Burnaby for restoration (per OSM; no web confirmation) (OSM way note)."
+  },
+  "network:van:Fern Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (West Vancouver municipal path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Dam Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (District of North Vancouver path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Forever After Connector": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Forever After is a Seymour MTB trail but only Singletracks covers it; connector itself unsourced); only Trailforks-based apps list it."
+  },
+  "network:van:Banana Slug": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "network:van:Flommer": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No source; OSM tags access=private); only Trailforks-based apps list it."
+  },
+  "network:van:Salal Path": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (West Vancouver municipal path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Dreamweaver Bypass": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found (alt name Kwai Bridge Bypass)); only Trailforks-based apps list it."
+  },
+  "network:van:Ford Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Small park path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Riverside Route": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Small park path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:North Glencanyon Entrance": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Small park path; no source found); only Trailforks-based apps list it."
+  },
+  "network:van:Westside Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Small park path; no source found); only Trailforks-based apps list it."
+  },
+  "network:wh:Harmony Lake Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Alpine hiking trail on WB hiking map (Whistler Blackcomb hiking map)."
+  },
+  "network:wh:Harmony Meadows Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Alpine hiking connector (Harmony Lake to High Note) (Whistler.com hiking guide)."
+  },
+  "network:wh:Paleface Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (Whistler alpine path; no source found); only Trailforks-based apps list it."
+  },
+  "network:wh:Little Burn": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Blackcomb ascent hiking trail (first of Little/Big/Heart Burn) (Whistler.com)."
+  },
+  "network:wh:River of Golden Dreams Portage Trail": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Not a bike trail: Canoe portage path (Resort Municipality of Whistler)."
+  },
+  "network:wh:Red Green": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "No open source says riders use it (No usable source found); only Trailforks-based apps list it."
+  },
+  "area-plain:Horseshoe & G8": {
+   "date": "2026-11-14",
+   "who": "Claude (weekly audit)",
+   "note": "Horseshoe Loop (all three spellings) added as a blue bike trail from The Banff Blog. Cougar Peak and Grotto West Ridge are scrambles, Horseshoe Slabs is a climbing approach; River, Benchlands, Horse Meadows and Horseshoe Loop connectors have no open source."
   }
  }
 }
