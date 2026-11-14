@@ -46,6 +46,11 @@ dialog.lf-dlg h3 { margin: 14px 0 6px; font-size: .9rem; }
 dialog.lf-dlg .lf-runs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 dialog.lf-dlg .lf-runs li { font-size: .82rem; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); }
 dialog.lf-dlg .lf-runs li i { font-style: normal; margin-right: 4px; color: var(--d); }
+dialog.lf-dlg .lf-note { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, #f08c00 45%, transparent); background: color-mix(in srgb, #f08c00 10%, transparent); font-size: .9rem; line-height: 1.4; }
+dialog.lf-dlg .lf-note b { display: block; margin-bottom: 2px; }
+dialog.lf-dlg .lf-note p { margin: 0; }
+dialog.lf-dlg .lf-note a { color: var(--accent); font-weight: 600; }
+dialog.lf-dlg .lf-note small { display: block; margin-top: 4px; color: var(--muted); font-size: .78rem; }
 dialog.lf-dlg .lf-foot { margin: 12px 0 0; font-size: .8rem; color: var(--muted); }
 dialog.lf-dlg .lf-foot a { color: var(--accent); font-weight: 600; }
 dialog.lf-dlg .lf-tag { display: inline-block; margin: 0 0 10px; padding: 3px 9px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); font-size: .78rem; font-weight: 600; }
@@ -81,6 +86,22 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
   let access = null;
   const triedLive = {};
   const loadAccess = () => (access = access || fetch("data/access-lifts.json?v=4230").then((r) => r.json()).then((d) => d.lifts || {}).catch(() => { access = null; return {}; }));
+  // Notes on single lifts from other sources than OpenStreetMap (data/lift-notes.json, hand-edited; alex 2026-11-14:
+  // Hakuba Norikura's Alps No.11 lift needs a signed waiver). Matched by the lift's OpenStreetMap way id.
+  let notes = null;
+  const loadNotes = () => (notes = notes || fetch("data/lift-notes.json?v=4920").then((r) => r.json()).then((d) => {
+    const m = {};
+    for (const n of d.notes || []) m[String(n.osm)] = n;
+    return m;
+  }).catch(() => { notes = null; return {}; }));
+  let noteMap = {};
+  loadNotes().then((m) => { noteMap = m; if (dlg.open && selected) open(selected); });
+  const noteOf = (l) => noteMap[String(l.id).replace(/^\D+/, "")] || null;
+  function noteHtml(l) {
+    const n = noteOf(l);
+    if (!n) return "";
+    return `<div class="lf-note">${n.title ? `<b>${esc(n.title)}</b>` : ""}<p>${esc(n.text)}</p>${n.link ? `<a href="${esc(n.link)}" target="_blank" rel="noopener"><span>${esc(n.linkText || "More from the resort")}</span> ↗</a>` : ""}<small>Source: <span>${esc(n.src || "")}</span>.${n.checked ? ` Checked <span>${esc(n.checked)}</span>.` : ""}</small></div>`;
+  }
   // Live status, per resort: { t, lifts: [{ n, s, w, o, c }], err } from the function, and when we got it.
   const live = {};
   let gotAt = 0, liveErr = "", timer = 0, busy = false;
@@ -268,7 +289,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
       <h2>${esc(l.n || KIND[l.k] || "Lift")}</h2>
       <p class="lf-sub">${esc(r.name || "")}</p>
       <div class="lf-state" style="--c:${c}"><i></i><div><b>${esc(WORD[st.s])}</b>${why ? `<div class="lf-sub" style="margin:2px 0 0">${why}</div>` : ""}</div>${wait}</div>
-      ${seasonNote}${sumText(v) ? `<p class="lf-sub" style="margin:8px 0 0"><b>Today at ${esc(r.name || "the resort")}:</b> <span>${esc(sumText(v))}</span></p>` : ""}
+      ${noteHtml(l)}${seasonNote}${sumText(v) ? `<p class="lf-sub" style="margin:8px 0 0"><b>Today at ${esc(r.name || "the resort")}:</b> <span>${esc(sumText(v))}</span></p>` : ""}
       <dl>${rows.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join("")}</dl>
       ${runs ? `<h3>Runs from the top</h3><ul class="lf-runs">${runs}</ul>` : ""}
       <p class="lf-foot">${v && v.noDate ? `The resort's report has no time on it: checked ${esc(ago(v.at))}. ` : st.t || (v && v.t) ? `Resort's lift report updated ${esc(ago(Date.parse(st.t || v.t)))}${gotAt ? `, checked ${esc(ago(gotAt))}` : ""}. ` : ""}${r.page ? `<a href="${esc(r.page)}" target="_blank" rel="noopener">${esc(r.name)} lift status ↗</a>` : ""}<br>Lift line, length and heights from OpenStreetMap.</p>`;
@@ -316,7 +337,7 @@ dialog.lf-dlg .lf-today dd { font-weight: 400; overflow-wrap: anywhere; }
       <h2>${esc(l.n || a.name || "Gondola")}</h2>
       <span class="lf-tag">🚡 Backcountry access gondola · not a ski resort</span>
       <div class="lf-state" style="--c:${c}"><i></i><div><b>${esc(head)}</b><div class="lf-sub" style="margin:2px 0 0">${esc(hrs)}${hrs ? "<br>" : ""}${esc(why)}</div></div></div>
-      ${closedNote}${ski}
+      ${noteHtml(l)}${closedNote}${ski}
       ${todayRows.length ? `<h3>Today on the way up</h3><dl class="lf-today" style="margin-top:0">${todayRows.map(([k, x]) => `<dt>${esc(k)}</dt><dd>${esc(x)}</dd>`).join("")}</dl>` : ""}
       ${sec("Routes from the top", routes ? `<div class="lf-btns">${routes}</div>` : "")}
       ${sec("Lines in the bowls", lines ? `<div class="lf-btns">${lines}</div>` : "")}
