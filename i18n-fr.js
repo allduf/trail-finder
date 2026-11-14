@@ -2559,7 +2559,12 @@
     "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)":"La cote d'Avalanche Canada sur les pentes, puis l'inclinaison, l'orientation des pentes, les replats et les étages d'altitude (un exemple de bulletin)",
     "Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials).":"Tutoriels : deux nouvelles vidéos en Ski, les couches neige et pluie et les couches avalanche et terrain (Plus, Tutoriels).",
     "Phone notifications aren't in the Android app yet. They're coming in a later version.":"Les notifications sur le téléphone ne sont pas encore dans l'appli Android. Elles arriveront dans une prochaine version.",
-    "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight.":"Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight."};
+    "Phone notifications settings: the Android test app now says notifications aren't in it yet, instead of pointing to TestFlight.":"Réglages des notifications : l'appli Android de test dit maintenant que les notifications n'y sont pas encore, au lieu de renvoyer à TestFlight.",
+    "Skiing in Japan: each ski resort's name is on the map (flat and 3D), in English. Tap a name for the Japanese name, the resort's website and a button to show the whole resort.":"Ski au Japon : le nom de chaque station de ski est sur la carte (plate et 3D), en anglais. Touchez un nom pour voir le nom en japonais, le site de la station et un bouton pour afficher toute la station.",
+    "Show the whole resort":"Afficher toute la station",
+    "Resort website ↗":"Site de la station ↗",
+    "Opening dates, hours, lift status and tickets: check the resort's own website. Resort name and lifts from OpenStreetMap.":"Dates d'ouverture, heures, état des remontées et billets : consultez le site de la station. Nom de la station et remontées d'OpenStreetMap.",
+    "Opening dates, hours, lift status and tickets: check the resort's own website. Resort name and lifts from OpenStreetMap, names checked against the resort's website.":"Dates d'ouverture, heures, état des remontées et billets : consultez le site de la station. Nom de la station et remontées d'OpenStreetMap, noms vérifiés sur le site de la station."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }
@@ -2623,6 +2628,9 @@
     [/^(\d+) of (\d+) (chairlifts|lifts) running$/, function (m, a, b, k) { return a + " " + (k === "chairlifts" ? "télésièges" : "remontées") + " en marche sur " + b; }],
     [/^(\d+) of (\d+) magic carpets$/, "$1 tapis magiques sur $2"],
     [/^Today at (.+?)(:?)$/, function (m, n, c) { return "Aujourd'hui à " + n + (c ? " :" : ""); }],
+    // jp-resorts.js: a Japan ski resort's card (2026-11-14)
+    [/^Ski resort · (\d+) lifts? on the map$/, function (m, n) { return "Station de ski · " + n + (n === "1" ? " remontée" : " remontées") + " sur la carte"; }],
+    [/^Part of (Niseko United|Kagura)$/, function (m, n) { return "Fait partie de " + n; }],
     [/^(.+) says (\d+) of its (\d+) lifts run today( but not which ones)?\.$/, function (m, n, a, b, w) { return n + " indique que " + a + " de ses " + b + " remontées fonctionnent aujourd'hui" + (w ? ", sans dire lesquelles" : "") + "."; }],
     [/^The resort's report has no time on it: checked (.+)\.$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t); return "Le rapport de la station n'indique pas d'heure : vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : t) + "."; }],
     [/^From the resort's own report, checked (.+):$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t), d = /^(\d+) days? ago$/.exec(t); return "Du rapport de la station, vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : d ? "il y a " + d[1] + " j" : t) + " :"; }],

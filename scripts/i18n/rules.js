@@ -61,6 +61,9 @@
     [/^(\d+) of (\d+) (chairlifts|lifts) running$/, function (m, a, b, k) { return a + " " + (k === "chairlifts" ? "télésièges" : "remontées") + " en marche sur " + b; }],
     [/^(\d+) of (\d+) magic carpets$/, "$1 tapis magiques sur $2"],
     [/^Today at (.+?)(:?)$/, function (m, n, c) { return "Aujourd'hui à " + n + (c ? " :" : ""); }],
+    // jp-resorts.js: a Japan ski resort's card (2026-11-14)
+    [/^Ski resort · (\d+) lifts? on the map$/, function (m, n) { return "Station de ski · " + n + (n === "1" ? " remontée" : " remontées") + " sur la carte"; }],
+    [/^Part of (Niseko United|Kagura)$/, function (m, n) { return "Fait partie de " + n; }],
     [/^(.+) says (\d+) of its (\d+) lifts run today( but not which ones)?\.$/, function (m, n, a, b, w) { return n + " indique que " + a + " de ses " + b + " remontées fonctionnent aujourd'hui" + (w ? ", sans dire lesquelles" : "") + "."; }],
     [/^The resort's report has no time on it: checked (.+)\.$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t); return "Le rapport de la station n'indique pas d'heure : vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : t) + "."; }],
     [/^From the resort's own report, checked (.+):$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t), d = /^(\d+) days? ago$/.exec(t); return "Du rapport de la station, vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : d ? "il y a " + d[1] + " j" : t) + " :"; }],

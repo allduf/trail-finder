@@ -2886,7 +2886,7 @@
     // Skiing 3D the webcams, heli pins, two parking P's and the Gate tag were a pile over the peak names (review
     // 2026-10-30). Bigger kinds win (your own spots, then huts, gates, slackcountry lines...), then the nearer pin
     // (lower on the screen). A tapped pin (.on) is always shown; pins of other kinds are not touched.
-    const PIN_RANK = [[".on", 99], [".sp-gl", 90], [".sk-hutgl", 60], [".sc-gate", 50], [".sc-pin", 45], [".sc-resort", 44], [".rp-pin", 40],
+    const PIN_RANK = [[".on", 99], [".sp-gl", 90], [".sk-hutgl", 60], [".sc-gate", 50], [".sc-pin", 45], [".sc-resort", 44], [".jr-pin", 43], [".rp-pin", 40],
       [".sk-pin.park", 30], [".wc-gl", 20], [".hc-pin", 20]];
     const pinRank = (el) => { for (const [q, n] of PIN_RANK) if (el.matches(q) || el.querySelector(q)) return n; return 0; };
     let unclutterAt = 0, unclutterT = 0;
