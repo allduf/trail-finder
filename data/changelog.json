@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-14", "text": "Trails: Horseshoe Loop (Canmore), Riverview and Paddy's Flat (Bragg Creek), Blind Skier (Cypress), Richard Juryn (Seymour) and Decapitator (Eagle Mountain) now show as bike trails."},
     {"date": "2026-11-14", "text": "Skiing: the Snow and rain forecast layers (24 h, 2 days, 3 days) and the Snow at this height card now put the snow line at Environment Canada's own snow level, where it has one. It sat a few hundred metres too low before. Forecasts stay estimates. The layer also fills in where you are looking first after you move the map."},
     {"date": "2026-11-14", "text": "3D map: turning is lighter on the graphics card. A hidden photo layer under the Winter photos is no longer painted where Winter covers it, and while you turn the map, fewer pieces of ground are painted again per frame."},
     {"date": "2026-11-14", "text": "Packing list: the Add an item box has its own Who?, so you pick who brings it while you add it."},

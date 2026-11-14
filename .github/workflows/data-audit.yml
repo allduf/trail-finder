@@ -43,7 +43,7 @@ jobs:
         run: |
           mkdir -p /tmp/osm
           for p in british-columbia alberta; do
-            curl -sSfL --retry 3 -o /tmp/osm/p.pbf "https://download.geofabrik.de/north-america/canada/$p-latest.osm.pbf"
+            curl -sSfL --retry 5 --retry-all-errors --retry-delay 60 -o /tmp/osm/p.pbf "https://download.geofabrik.de/north-america/canada/$p-latest.osm.pbf"
             # Southern BC and Alberta, where the zones are (index.html ZONES), then every highway way in it.
             osmium extract --overwrite -b -124.9,48.9,-113.7,52.4 -o /tmp/osm/x.pbf /tmp/osm/p.pbf
             osmium tags-filter --overwrite -o /tmp/osm/h.pbf /tmp/osm/x.pbf w/highway
