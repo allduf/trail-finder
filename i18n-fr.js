@@ -2474,6 +2474,10 @@
     "No 30°+ slopes on this route, as far as the terrain map can see.":"Aucune pente de 30°+ sur ce trajet, d'après la carte du terrain.",
     "This way is from the terrain map only. It doesn't know today's avalanche danger or avalanche problems. Check":"Ce chemin vient de la carte du relief seulement. Il ne connaît ni le danger d'avalanche du jour ni les problèmes d'avalanche. Consultez",
     "The ways weigh today's avalanche danger, slope angle and which way slopes face. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.":"Les chemins tiennent compte du danger d'avalanche du jour, de l'angle des pentes et de leur orientation. Votre sortie est gardée dans Enregistrés. Aucun itinéraire n'est à l'abri des avalanches : consultez le bulletin et décidez sur le terrain.",
+    "The camera's owner has it scheduled off right now, often the case at night or out of season. Try again later.":"Le propriétaire de la caméra l'a programmée hors ligne pour le moment, souvent la nuit ou hors saison. Réessayez plus tard.",
+    "The live video and the camera's picture aren't available right now. Try again later.":"La vidéo en direct et l'image de la caméra ne sont pas disponibles pour le moment. Réessayez plus tard.",
+    "This camera hasn't sent a new picture in the last day.":"Cette caméra n'a pas envoyé de nouvelle image depuis un jour.",
+    "Webcams: the Whistler Blackcomb and Lake Louise cameras play their live video again, and a camera its owner has switched off now says so plainly instead of showing an error picture.":"Webcams : les caméras de Whistler Blackcomb et de Lake Louise affichent de nouveau leur vidéo en direct, et une caméra que son propriétaire a éteinte l'indique clairement au lieu d'afficher une image d'erreur.",
     "Your tour":"Votre sortie",
     "Finish":"Arrivée",
     "Up":"Montée",
@@ -2531,7 +2535,9 @@
     "Check the notices":"Voir les avis",
     "Closure notices":"Avis de fermeture",
     "Starts at the winter parking from the winter access below.":"Part du stationnement d'hiver indiqué dans l'accès en hiver ci-dessous.",
-    "3D map: turning is lighter on the graphics card. A hidden photo layer under the Winter photos is no longer painted where Winter covers it, and while you turn the map, fewer pieces of ground are painted again per frame.":"Carte 3D : tourner la carte demande moins à la carte graphique. Une couche de photos cachée sous les photos d'hiver n'est plus peinte là où l'hiver la couvre, et pendant que vous tournez la carte, moins de morceaux du sol sont repeints à chaque image."};
+    "3D map: turning is lighter on the graphics card. A hidden photo layer under the Winter photos is no longer painted where Winter covers it, and while you turn the map, fewer pieces of ground are painted again per frame.":"Carte 3D : tourner la carte demande moins à la carte graphique. Une couche de photos cachée sous les photos d'hiver n'est plus peinte là où l'hiver la couvre, et pendant que vous tournez la carte, moins de morceaux du sol sont repeints à chaque image.",
+    "Type their name and tap Add: they'll bring the item you're adding.":"Tapez son nom et touchez Ajouter : cette personne apportera l'article que vous ajoutez.",
+    "Packing list: the Add an item box has its own Who?, so you pick who brings it while you add it.":"Liste à emporter : la case Ajouter un article a son propre Qui ?, pour choisir qui l'apporte pendant que vous l'ajoutez."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

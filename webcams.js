@@ -166,7 +166,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   const frame = (c, src) => `<iframe src="${esc(src)}" title="${esc(c.name)} live webcam" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="origin" loading="eager"></iframe>`;
   const imgTag = (c, src, alt = "latest picture") => `<img alt="${esc(c.name)}, ${alt}" referrerpolicy="no-referrer" src="${esc(src)}">`;
   function feedHtml(c) {
-    if (briOf(c)) return `${imgTag(c, bust(stillOf(c)))}<p class="wc-wait">Starting the live video…</p>`;
+    if (briOf(c)) return `<p class="wc-wait">Starting the live video…</p>`;
     if (c.embed) return frame(c, ytOf(c) ? c.embed + (c.embed.includes("?") ? "&" : "?") + "enablejsapi=1&playsinline=1&origin=" + encodeURIComponent(location.origin) : c.embed);
     if (c.img && !c.feed) return imgTag(c, bust(c.img));
     if (c.feed) return `<p>Finding the latest picture…</p>`;
@@ -178,22 +178,45 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
     const box = boxFor(c, seq);
     if (!box) return;
     clearInterval(refresh);
-    const still = opts.still === undefined ? stillOf(c) : opts.still;
+    const still = opts.still === undefined ? stillOf(c) : opts.still, blob = still.startsWith("blob:");
     const links = opts.retry ? `<button type="button" class="wc-retry">${esc(opts.retry)}</button>` : "";   // the card's own links are just below
-    box.innerHTML = still ? `${imgTag(c, bust(still), "last picture")}<div class="wc-off"><span>${esc(why)}</span>${links}</div>`
+    box.innerHTML = still ? `${imgTag(c, blob ? still : bust(still), "last picture")}<div class="wc-off"><span>${esc(why)}</span>${links}</div>`
       : `<p>${esc(why)}<span class="wc-off-links">${links}</span></p>`;
     const b = box.querySelector(".wc-retry");
     if (b) b.onclick = () => { if (opts.onRetry) opts.onRetry(); };
-    if (still) refresh = setInterval(() => { const im = box.querySelector("img"); if (im && box.isConnected) im.src = bust(still); }, 30000);
+    if (still && !blob) refresh = setInterval(() => { const im = box.querySelector("img"); if (im && box.isConnected) im.src = bust(still); }, 30000);
   }
-  // Brownrice: the stream address their own player would use, from their player script.
+  // Brownrice: the stream address their own player would use, from their player script. alex 2026-11-14 ("web cam not
+  // working anymore"): Brownrice renamed the script's camera object (camera_<id>['streamurl'], and it now gives the
+  // whole "playlistUrl"), so the old pattern found nothing and every Brownrice cam said its video was off. Their servers
+  // also answer some requests with an error (or the script's source), so each request is tried up to 3 times.
   async function briStream(name) {
-    const js = await fetch(`https://player.brownrice.com/?sn=${encodeURIComponent(name)}&em=1`, { cache: "no-store" }).then((r) => (r.ok ? r.text() : ""));
-    const get = (k) => (js.match(new RegExp(`camera\\[['"]${k}['"]\\]\\s*=\\s*['"]([^'"]*)['"]`)) || [])[1] || "";
-    const url = get("streamurl"), type = get("serverType"), typeid = get("typeid");
-    if (!url || get("offline") === "offline") return "";
-    const file = type === "hookerupper" ? ".stream/index.m3u8" : typeid === "20" ? ".stream_360p/playlist.m3u8" : ".stream/main_playlist.m3u8";
-    return `${url}/${name}/${name}${file}`;
+    for (let i = 0; i < 3; i++) {
+      let js = "";
+      try { js = await fetch(`https://player.brownrice.com/?sn=${encodeURIComponent(name)}&em=1`, { cache: "no-store" }).then((r) => (r.ok ? r.text() : "")); } catch {}
+      const get = (k) => (js.match(new RegExp(`camera(?:_\\w+)?\\[['"]${k}['"]\\]\\s*=\\s*['"]([^'"]*)['"]`)) || [])[1] || "";
+      const url = get("streamurl"), list = get("playlistUrl");
+      if (!url && !list) continue;   // an error page, not their player script: ask again
+      if (get("offline") === "offline") return "";
+      if (/^https:\/\//.test(list)) return list;
+      const type = get("serverType"), typeid = get("typeid");
+      const file = type === "hookerupper" ? ".stream/index.m3u8" : typeid === "20" ? ".stream_360p/playlist.m3u8" : ".stream/main_playlist.m3u8";
+      return `${url}/${name}/${name}${file}`;
+    }
+    return "";
+  }
+  // The camera's latest picture from Brownrice (open to other sites), tried up to 4 times. A camera its owner has
+  // scheduled off gives Brownrice's "scheduled to be offline" picture, a PNG; real pictures are JPEGs.
+  async function briStill(name) {
+    for (let i = 0; i < 4; i++) {
+      try {
+        const r = await fetch(`https://player.brownrice.com/snapshot/${encodeURIComponent(name)}?t=${Date.now()}`, { cache: "no-store" });
+        const type = (r.headers.get("content-type") || "").toLowerCase();
+        if (r.ok && type.startsWith("image/png")) return { off: true };
+        if (r.ok && type.startsWith("image/")) return { url: URL.createObjectURL(await r.blob()) };
+      } catch {}
+    }
+    return {};
   }
   function brownricePlayer(c, seq) {
     const box = boxFor(c, seq);
@@ -203,14 +226,17 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
   }
   async function playBrownrice(c, seq) {
     if (!canHls) return brownricePlayer(c, seq);   // computers: Brownrice's own player, as before
-    let src = "";
-    try { src = await briStream(briOf(c)); } catch {}
+    const [src, still] = await Promise.all([briStream(briOf(c)).catch(() => ""), briStill(briOf(c))]);
     let box = boxFor(c, seq);
     if (!box) return;
-    const fail = () => off(c, seq, "The live video is off right now. This is the camera's last picture.", { retry: "▶ Try their player", onRetry: () => brownricePlayer(c, seq) });
-    if (!src) return fail();
+    const retry = { retry: "▶ Try their player", onRetry: () => brownricePlayer(c, seq) };
+    const fail = () => (still.off ? off(c, seq, "The camera's owner has it scheduled off right now, often the case at night or out of season. Try again later.", { ...retry, still: "" })
+      : still.url ? off(c, seq, "The live video is off right now. This is the camera's last picture.", { ...retry, still: still.url })
+      : off(c, seq, "The live video and the camera's picture aren't available right now. Try again later.", { ...retry, still: "" }));
+    if (!src || still.off) return fail();   // scheduled off: say so now instead of trying for a minute
     const v = document.createElement("video");
-    Object.assign(v, { muted: true, autoplay: true, playsInline: true, controls: true, poster: bust(stillOf(c)) });
+    Object.assign(v, { muted: true, autoplay: true, playsInline: true, controls: true });
+    if (still.url) v.poster = still.url;
     v.setAttribute("playsinline", ""); v.setAttribute("muted", "");
     let tries = 0, done = false, timer = 0;
     // A stream that was asleep can take a few seconds to wake (Brownrice's player waits up to a minute): try 4 times.
@@ -292,8 +318,11 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
         const p = pacific(d), h = +p.hour;
         if (h < 8 || h > 19) continue;   // no pictures at night
         tries++;
-        const src = `https://pmsccams.com/Images/${id}/${id}_${p.year}${p.month}${p.day}${p.hour}${p.minute}00.jpg`;
-        if (await tryImg(src)) return { src, at: d };
+        // The file name ends with the second the club's camera saved it: usually :00, sometimes :01 (seen 2026-11-12).
+        const base = `https://pmsccams.com/Images/${id}/${id}_${p.year}${p.month}${p.day}${p.hour}${p.minute}`;
+        const hit = await Promise.all(["00", "01"].map((sec) => tryImg(base + sec + ".jpg").then((ok) => (ok ? base + sec + ".jpg" : ""))));
+        const src = hit.find(Boolean);
+        if (src) return { src, at: d };
       }
     }
     return null;
@@ -311,7 +340,7 @@ dialog.wc-dlg .wc-foot a { color: var(--accent); font-weight: 600; }
       box.innerHTML = imgTag(c, bust(c.img), "older picture");
       if (at) at.textContent = "This may be an older picture: the newest is on their webcam page.";
     } else {
-      box.innerHTML = `<p>No new picture in the last day.${c.season ? ` ${esc(c.season)}` : ""}${page ? `<br><a href="${esc(page)}" target="_blank" rel="noopener" style="color:#fff">Open their webcam page ↗</a>` : ""}</p>`;
+      box.innerHTML = `<p>This camera hasn't sent a new picture in the last day.${c.season ? ` ${esc(c.season)}` : ""}${page ? `<br><a href="${esc(page)}" target="_blank" rel="noopener" style="color:#fff">Open their webcam page ↗</a>` : ""}</p>`;
     }
   }
   function open(c) {

@@ -1,0 +1,3 @@
+# Cabin trip packing list (2026-11-14): Who? in the Add an item box
+Type their name and tap Add: they'll bring the item you're adding. ||| Tapez son nom et touchez Ajouter : cette personne apportera l'article que vous ajoutez.
+Packing list: the Add an item box has its own Who?, so you pick who brings it while you add it. ||| Liste à emporter : la case Ajouter un article a son propre Qui ?, pour choisir qui l'apporte pendant que vous l'ajoutez.
