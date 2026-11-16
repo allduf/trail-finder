@@ -178,14 +178,30 @@ const dayName = (d, today) => {
   const n = Math.round((Date.parse(d) - Date.parse(today)) / 86400e3);
   return n === 1 ? "tomorrow" : new Date(d + "T12:00Z").toLocaleDateString("en-CA", { weekday: "long", timeZone: "UTC" });
 };
+// Open-Meteo sometimes drops a request ("fetch failed", 429, 5xx): try again after 5, 20 and 60 s before giving up on
+// a chunk, so one hiccup doesn't skip a whole alert run (fix list item 51, 15 Nov 2026: loam read at 0 of 49 spots).
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+async function fetchJsonRetry(url, waits = [5e3, 20e3, 60e3]) {
+  for (let n = 0; ; n++) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(30e3) });
+      if (r.ok) return await r.json();
+      const err = new Error("HTTP " + r.status);
+      if (r.status !== 429 && r.status < 500) throw Object.assign(err, { final: true });
+      throw err;
+    } catch (e) {
+      if (e.final || n >= waits.length) throw e;
+      console.log(`  ${e.message}, trying again in ${waits[n] / 1e3} s`);
+      await sleep(waits[n]);
+    }
+  }
+}
 const lmi = new Map(), soonOf = new Map(), cellList = [...cells];
 for (let i = 0; i < cellList.length; i += 50) {
   const chunk = cellList.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
   try {
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}` +
+    const json = await fetchJsonRetry(`https://api.open-meteo.com/v1/forecast?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}` +
       "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth");
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const json = await r.json();
     (Array.isArray(json) ? json : [json]).forEach((w, k) => {
       let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
       if (j < 0) j = w.hourly.time.length - 1;
