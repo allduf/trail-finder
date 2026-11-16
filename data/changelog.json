@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-16", "text": "Picking a trail from search now moves the map to it in 3D too, and search finds a trail typed as singular or plural (Lord of the loam finds Lord of the Loams)."},
     {"date": "2026-11-16", "text": "Adventure moto on a phone: going from the 3D map back to the flat map now frees the 3D map's memory first, which had made the iPhone app restart there. Opening 3D again right after takes a second or two."},
     {"date": "2026-11-14", "text": "Skiing in Japan: each ski resort's name is on the map (flat and 3D), in English. Tap a name for the Japanese name, the resort's website and a button to show the whole resort."},
     {"date": "2026-11-14", "text": "Lift cards can now show notes from resorts and local reports: Hakuba Norikura's Alps No.11 lift says riders sign a waiver first."},

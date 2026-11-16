@@ -614,6 +614,7 @@
     "This goes for every route, tour and tool in the app, now and added later.":"Cela vaut pour chaque itinéraire, sortie et outil de l'application, actuel ou ajouté plus tard.",
     "Routes, ratings, forecasts, status and other people's data in the app are estimates. They can be late, wrong or missing, and they can't see what's in front of you today.":"Les itinéraires, cotes, prévisions, statuts et données des autres dans l'application sont des estimations. Ils peuvent être en retard, faux ou manquants, et ils ne voient pas ce qui est devant vous aujourd'hui.",
     "Terms of use now cover every sport and every feature, including ones added later. You'll tap I agree once more.":"Les conditions d'utilisation couvrent maintenant chaque sport et chaque fonction, y compris celles ajoutées plus tard. Vous toucherez J'accepte une fois de plus.",
+    "Picking a trail from search now moves the map to it in 3D too, and search finds a trail typed as singular or plural (Lord of the loam finds Lord of the Loams).":"Choisir un sentier dans la recherche déplace maintenant la carte jusqu'à lui en 3D aussi, et la recherche trouve un sentier écrit au singulier ou au pluriel (Lord of the loam trouve Lord of the Loams).",
     "Plan it":"Planifier",
     "Type your plan":"Écrivez votre plan",
     "💬 Or type your plan: start at…, ski…, finish…":"💬 Ou écrivez votre plan : départ à…, descendre…, arrivée à…",

@@ -818,8 +818,13 @@
       go();
     } catch {}
   }
+  // A move of the flat map while the 3D map is still flying to the last one isn't dropped: it's flown to as soon as
+  // that flight's guard ends (alex 2026-11-16: picked Lord of the Loams from search in 3D and the 3D map stayed on all
+  // of BC; the trail's own move came a moment after the search's first one and was lost).
+  let flying2d = false, missed2d = false;
   function from2d() {
-    if (!gl || syncing) return;
+    if (!gl) return;
+    if (syncing) { if (flying2d) missed2d = true; return; }
     syncing++;
     const c = map.getCenter();
     // The flat map moving because the 3D map just moved it (its zoom rounded to a whole step) is not a new
@@ -834,7 +839,11 @@
     searchView = 0; searchTo = null;
     // (a search result: the place itself in the middle of what the sheet leaves showing)
     gl.flyTo({ center: to ? [to.lon, to.lat] : [c.lng, c.lat], ...(to && to.dy ? { offset: [0, -to.dy] } : {}), zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...look });
-    setTimeout(() => syncing--, 1300);
+    flying2d = true; missed2d = false;
+    setTimeout(() => {
+      syncing--; flying2d = false;
+      if (missed2d) { missed2d = false; if (on) from2d(); }
+    }, 1300);
     // A search result: aimed at the ground as soon as it lands, not at the next check (up to 10 s later when the map
     // was still moving then), from the place's height on the 3D map when it's in, else its own height (heightAt).
     // MapLibre's flight keeps the height it started from when the place's heights aren't in yet. Then the place is put
