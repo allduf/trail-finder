@@ -23,9 +23,9 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=4960"></script>
-<script src="wxcheck.js?v=4960"></script>
-<script src="line-icons.js?v=4960"></script>
+<script src="i18n.js?v=4970"></script>
+<script src="wxcheck.js?v=4970"></script>
+<script src="line-icons.js?v=4970"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -1623,17 +1623,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="hidden-places.js?v=4960"></script>
-<script src="noback.js?v=4960"></script>
-<script src="risk.js?v=4960"></script>
-<script src="welcome.js?v=4960"></script>
-<script src="native.js?v=4960"></script>
-<script src="keyboard.js?v=4960"></script>
-<script src="rotate.js?v=4960"></script>
-<script src="official.js?v=4960"></script>
-<script src="directions.js?v=4960"></script>
-<script src="ratings.js?v=4960"></script>
-<script src="ebike.js?v=4960"></script>
+<script src="hidden-places.js?v=4970"></script>
+<script src="noback.js?v=4970"></script>
+<script src="risk.js?v=4970"></script>
+<script src="welcome.js?v=4970"></script>
+<script src="native.js?v=4970"></script>
+<script src="keyboard.js?v=4970"></script>
+<script src="rotate.js?v=4970"></script>
+<script src="official.js?v=4970"></script>
+<script src="directions.js?v=4970"></script>
+<script src="ratings.js?v=4970"></script>
+<script src="ebike.js?v=4970"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -3599,6 +3599,27 @@ out body;`;
     }
     return primeKeep.get(g);
   }
+  // A trail a forest road splits is one row per piece (data/road-splits.json), all with the same name: each says
+  // which piece it is from where they lie (deep test 2026-11-16: "Insomnia" twice in Prime loam, nothing to tell them apart).
+  const pieceKeep = new WeakMap();
+  function pieceTag(g) {
+    if (!g || !g.part || !g.center) return "";
+    if (pieceKeep.has(g)) return pieceKeep.get(g);
+    const sib = names.groups.filter((o) => o.part && o.name === g.name && o.type === g.type && o.center && o.center.distanceTo(g.center) < 5000);
+    let tag = "";
+    if (sib.length > 1) {
+      const lat = sib.map((o) => o.center.lat), lon = sib.map((o) => o.center.lng), k = Math.cos(g.center.lat * Math.PI / 180);
+      const ns = Math.max(...lat) - Math.min(...lat) >= (Math.max(...lon) - Math.min(...lon)) * k;
+      sib.sort((a, b) => (ns ? b.center.lat - a.center.lat : a.center.lng - b.center.lng));
+      const i = sib.indexOf(g), n = sib.length;
+      if (i < 0) { pieceKeep.set(g, ""); return ""; }   // a search row that joined the pieces back together
+      const ends = ns ? ["North", "South"] : ["West", "East"];
+      tag = n === 2 ? `${ends[i]} part` : n === 3 ? `${[ends[0], "Middle", ends[1]][i]} part` : `Part ${i + 1} of ${n} (${ends[0].toLowerCase()} to ${ends[1].toLowerCase()})`;
+      tag += ", a road splits it";
+    }
+    pieceKeep.set(g, tag);
+    return tag;
+  }
   // Where a trail's dot goes: the point of its line closest to the middle of the trail, so the dot sits on it.
   const dotKeep = new WeakMap();
   function dotOn(g) {
@@ -3626,8 +3647,11 @@ out body;`;
     if (typed.length) loadLoam(typed);
     const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !isSnowy(snowOf(e)); };
     const prime = pool.filter(isPrime);
-    const vals = typed.map(loamOf).filter((v) => v != null);
+    // The range said under "No trails in prime loam": trails under snow left out of it, and counted apart (deep test
+    // 2026-11-16: "Right now it's 26 to 69 here" read as if some trails were 40 to 59 and still not listed).
+    const vals = typed.filter((e) => !isSnowy(snowOf(e))).map(loamOf).filter((v) => v != null);
     state.primeRange = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
+    state.primeSnowy = typed.filter((e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && isSnowy(snowOf(e)); }).length;
     // Nothing prime now: the first coming day the forecast has prime loam on these trails, so the answer isn't a dead end.
     state.primeSoon = null;
     if (!prime.length) typed.forEach((e) => {
@@ -3656,6 +3680,9 @@ out body;`;
         .sort((a, b) => offBy(loamOf(a)) - offBy(loamOf(b)) || dist(a) - dist(b)).slice(0, 25);
       state.primeClose = shown.length;
     }
+    // A route (relation) with the same name as a trail listed at the same spot is the same trail twice ("Seventh Secret").
+    shown = shown.filter((e) => e.g.type !== "r" || !shown.some((o) => o.g.type === "w" && o.g.name === e.g.name && o.g.center.distanceTo(e.g.center) < 500));
+    if (state.primeClose) state.primeClose = shown.length; else state.shownCount = shown.length;
     state.primeShown = shown;
 
     trailLayer.clearLayers(); drawn.key = "";
@@ -3670,7 +3697,7 @@ out body;`;
       return `<li class="trail prime ${e.cat}" data-pk="${i}" tabindex="0">
         <span class="bar"${barStyle({ tags: e.g.tags })}></span>
         <div><div class="name">${esc(e.g.name)} ${diffRangeBadge(e.g.tags, e.g.items.filter((i) => hasMtb(i.tags)).map((i) => i.tags))} ${e.unoff.length ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(e.official)}</div>
-        <div class="meta">${showAway ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
+        <div class="meta">${showAway ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone, pieceTag(e.g)].filter(Boolean).join(" · "))}</div></div>
         <div class="right">${loamBadge(e).replace(/^<br>/, "")}</div></li>`;
     }).join("") + "</ol>" : "";
   }
@@ -3706,9 +3733,10 @@ out body;`;
       const where = near ? `${near.km} km around ${near.label || "you"}` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : areaById(state.zone).short);
       const slow = primeZones().filter((z) => names.inflight.has(z.id));
       const loamNow = () => {
-        if (!state.primeRange) return "";
+        if (!state.primeRange) return state.primeSnowy ? ` ${state.primeSnowy} trail${state.primeSnowy === 1 ? " is" : "s are"} in the 40 to 59 range but under snow (snow estimate).` : "";
         const [lo, hi] = state.primeRange, words = [...new Set([lmiLevel(lo)[1], lmiLevel(hi)[1]])].join(" to ").toLowerCase();
-        return ` Right now it's ${lo === hi ? lo : `${lo} to ${hi}`} here (${words}).`;
+        const snowy = state.primeSnowy ? ` ${state.primeSnowy} more trail${state.primeSnowy === 1 ? " is" : "s are"} in the 40 to 59 range but under snow (snow estimate).` : "";
+        return ` Right now it's ${lo === hi ? lo : `${lo} to ${hi}`} on trails with no snow here (${words}).${snowy}`;
       };
       const wait = busyFor();
       const busy = state.primeLoading ? "Loading the trails here…" : state.loamPending ? `Checking the Loam index of ${state.primeTotal} trails…`
@@ -4389,7 +4417,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4960").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4970").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -7663,7 +7691,12 @@ out tags center qt;`;
     });
     if (!caNamesP) caNamesP = (/^https?:$/.test(location.protocol) ? fetch("ca/names.json").then((r) => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null))
       .then((f) => {
-        caNames = f && f.v === 1 ? f.names.map(([name, lat, lon, kind, alt]) => ({ name, lat, lon, kind, texts: [norm(name), ...(alt || "").split(";").map(norm).filter(Boolean)] })) : [];
+        // h: every piece of it is mapped informal, closed or no bikes (scripts/build-name-index.mjs). The public map never
+        // names those (pubSecret), and neither does this list (deep test 2026-11-16: an informal Squamish trail showed in
+        // the box until its area's own names loaded, then vanished). Nor a trail on alex's own unofficial list.
+        const R = window.tfRatings, secret = (name, lat, lon, h) => globalThis.tfPub && (h === 1 || !!(R && R.hand && (R.hand([[lat, lon]], { name }) || {}).unoff));
+        caNames = f && f.v === 1 ? f.names.filter(([name, lat, lon, , , h]) => !secret(name, lat, lon, h))
+          .map(([name, lat, lon, kind, alt]) => ({ name, lat, lon, kind, texts: [norm(name), ...(alt || "").split(";").map(norm).filter(Boolean)] })) : [];
         if ($("trailQ").value.trim()) refreshHits();
       });
   }
@@ -7814,7 +7847,7 @@ out tags center qt;`;
       return `<li class="hit ${x.kind === "M" || x.kind === "R" ? "mtb" : ""}" ${sel}<div><div class="hn">${esc(x.name)}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }
     const g = h.g;
-    const meta = [g.kind, g.zone || nearTown(g.center.lat, g.center.lng), g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
+    const meta = [g.kind, g.zone || nearTown(g.center.lat, g.center.lng), pieceTag(g), g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
     return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
       <div><div class="hn">${esc(g.name)} ${diffRangeBadge(g.tags, g.items.filter((i) => hasMtb(i.tags)).map((i) => i.tags))} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? unoffTag(UNOFF_FLAGGED) : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
   }
@@ -7865,8 +7898,12 @@ out tags center qt;`;
     const P = window.tfPlaceSearch, more = [];
     if (P && P.live && local.length + far.length < 3) {
       const here = you.ll || map.getCenter(), into = local.length || far.length ? more : towns;
+      const q = norm(raw), qWords = q.split(" ");
       for (const x of P.live(raw, () => { if ($("trailQ").value.trim() === raw) refreshHits(); })) {
         if (towns.length + more.length >= 4) break;
+        // Only places whose name looks like what was typed: "lords of the loam" offered a cape and an islet in Nova
+        // Scotia, 4,400 km away (deep test 2026-11-16).
+        if (matchScore(q, qWords, norm(x.name)) < 0.45) continue;
         if (towns.concat(more).some((h) => P.norm(h.p.name) === P.norm(x.name) && Math.abs(h.p.lat - x.lat) + Math.abs(h.p.lon - x.lon) < 0.3)) continue;
         into.push({ p: { name: x.name, lat: x.lat, lon: x.lon, prov: "", kind: "l", pop: 0, label: x.sub, t: P.norm(x.name) }, s: 0.5, d: here.distanceTo([x.lat, x.lon]) });
       }
@@ -8846,51 +8883,51 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=4960"></script>
-<script src="native-map.js?v=4960"></script>
-<script src="contours.js?v=4960"></script>
-<script src="clouds.js?v=4960"></script>
-<script src="smoke.js?v=4960"></script>
-<script src="radar.js?v=4960"></script>
-<script src="photo-slider.js?v=4960"></script>
-<script src="ski-terrain.js?v=4960"></script>
-<script src="place-search.js?v=4960"></script>
-<script src="winter.js?v=4960"></script>
-<script src="hunts.js?v=4960"></script>
-<script src="ski-points.js?v=4960"></script>
-<script src="offline.js?v=4960"></script>
-<script src="ride-stats.js?v=4960"></script>
-<script src="native-gps.js?v=4960"></script>
-<script src="navigate.js?v=4960"></script>
-<script src="go-there.js?v=4960"></script>
-<script src="planner.js?v=4960"></script>
-<script src="loops.js?v=4960"></script>
-<script src="ride-finds.js?v=4960"></script>
-<script src="rides.js?v=4960"></script>
-<script src="community.js?v=4960"></script>
-<script src="ride-files.js?v=4960"></script>
-<script src="rider-trails.js?v=4960"></script>
-<script src="account.js?v=4960"></script>
-<script src="friends.js?v=4960"></script>
-<script src="live.js?v=4960"></script>
-<script src="strava.js?v=4960"></script>
-<script src="moderation.js?v=4960"></script>
-<script src="reports.js?v=4960"></script>
-<script src="grades.js?v=4960"></script>
-<script src="trail-photos.js?v=4960"></script>
-<script src="visitors.js?v=4960"></script>
-<script src="usage.js?v=4960"></script>
-<script src="notify.js?v=4960"></script>
-<script src="closures.js?v=4960"></script>
-<script src="status.js?v=4960"></script>
-<script src="ask.js?v=4960"></script>
-<script src="areas.js?v=4960"></script>
-<script src="alpine.js?v=4960"></script>
-<script src="bikeparks.js?v=4960"></script>
-<script src="photo-find.js?v=4960"></script>
-<script src="whats-new.js?v=4960"></script>
-<script src="tutorials.js?v=4960"></script>
-<script src="app-update.js?v=4960"></script>
+<script src="map3d.js?v=4970"></script>
+<script src="native-map.js?v=4970"></script>
+<script src="contours.js?v=4970"></script>
+<script src="clouds.js?v=4970"></script>
+<script src="smoke.js?v=4970"></script>
+<script src="radar.js?v=4970"></script>
+<script src="photo-slider.js?v=4970"></script>
+<script src="ski-terrain.js?v=4970"></script>
+<script src="place-search.js?v=4970"></script>
+<script src="winter.js?v=4970"></script>
+<script src="hunts.js?v=4970"></script>
+<script src="ski-points.js?v=4970"></script>
+<script src="offline.js?v=4970"></script>
+<script src="ride-stats.js?v=4970"></script>
+<script src="native-gps.js?v=4970"></script>
+<script src="navigate.js?v=4970"></script>
+<script src="go-there.js?v=4970"></script>
+<script src="planner.js?v=4970"></script>
+<script src="loops.js?v=4970"></script>
+<script src="ride-finds.js?v=4970"></script>
+<script src="rides.js?v=4970"></script>
+<script src="community.js?v=4970"></script>
+<script src="ride-files.js?v=4970"></script>
+<script src="rider-trails.js?v=4970"></script>
+<script src="account.js?v=4970"></script>
+<script src="friends.js?v=4970"></script>
+<script src="live.js?v=4970"></script>
+<script src="strava.js?v=4970"></script>
+<script src="moderation.js?v=4970"></script>
+<script src="reports.js?v=4970"></script>
+<script src="grades.js?v=4970"></script>
+<script src="trail-photos.js?v=4970"></script>
+<script src="visitors.js?v=4970"></script>
+<script src="usage.js?v=4970"></script>
+<script src="notify.js?v=4970"></script>
+<script src="closures.js?v=4970"></script>
+<script src="status.js?v=4970"></script>
+<script src="ask.js?v=4970"></script>
+<script src="areas.js?v=4970"></script>
+<script src="alpine.js?v=4970"></script>
+<script src="bikeparks.js?v=4970"></script>
+<script src="photo-find.js?v=4970"></script>
+<script src="whats-new.js?v=4970"></script>
+<script src="tutorials.js?v=4970"></script>
+<script src="app-update.js?v=4970"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
