@@ -151,12 +151,16 @@
   // can say more than "Somewhere else" (alex 2026-11-02).
   const ALIVE = "tf:useAlive", CTX = "tf:useCtx";
   { const t = Number(lsGet(ALIVE) || 0); if (t && Date.now() - t < 60e3 && document.visibilityState === "visible") { const c = lsGet(CTX); add("crash", c ? `app · ${c}` : "app"); } }
+  // The flat map within 15 s of leaving 3D says so, and the place is saved at once when 3D goes on or off: it was
+  // saved every 5 s only, so a crash just after leaving 3D read "Not in 3D · 3D map" (alex 2026-11-16).
   const where = () => {
     const b = document.body.classList, sp = ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((x) => b.contains("sport-" + x));
     const tab = document.querySelector("#tabbar [aria-current=true]");
-    return [sp, document.querySelector(".is3d") ? "3D map" : "flat map", tab ? `${(tab.textContent || "").trim().slice(0, 12)} tab` : ""].filter(Boolean).join(" · ");
+    const m = document.querySelector(".is3d") ? "3D map" : Date.now() - (window.tf3dLeftAt || 0) < 15e3 ? "flat map just after 3D" : "flat map";
+    return [sp, m, tab ? `${(tab.textContent || "").trim().slice(0, 12)} tab` : ""].filter(Boolean).join(" · ");
   };
   const alive = (v) => { try { if (v) { localStorage.setItem(ALIVE, String(Date.now())); localStorage.setItem(CTX, where()); } else localStorage.removeItem(ALIVE); } catch {} };
+  addEventListener("tf:3d", () => { if (document.visibilityState === "visible") alive(true); });
   setInterval(() => { if (document.visibilityState === "visible") alive(true); }, 5000);
   alive(true);
   // How long the page took to be ready, from the start of loading.

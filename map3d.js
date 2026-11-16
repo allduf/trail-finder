@@ -2940,8 +2940,22 @@
     box.append(wait);
     // Time to the first draw of the ground; 30 s or more is counted as 30 s (usage page).
     const t3d = performance.now();
+    // Only a wait someone watched is timed: if the app went to the background or back to the flat map before the
+    // mountains were in, the clock kept running there (the 3D map is put to sleep then) and the usage page showed
+    // 18 s "slow" loads that were mostly time away (alex 2026-11-16). Those loads aren't counted.
+    let away = false;
+    const goneAway = () => { away = true; };
+    const awayHidden = () => { if (document.visibilityState === "hidden") goneAway(); };
+    const awayFlat = (e) => { if (!e.detail) goneAway(); };
+    document.addEventListener("visibilitychange", awayHidden);
+    window.addEventListener("tf:3d", awayFlat);
     let timed = false;
-    const timeIt = () => { if (!timed) { timed = true; logUse("speed", "3d", Math.min(performance.now() - t3d, 30000)); } };
+    const timeIt = () => {
+      if (timed) return;
+      timed = true;
+      if (!away) logUse("speed", "3d", Math.min(performance.now() - t3d, 30000));
+      document.removeEventListener("visibilitychange", awayHidden); window.removeEventListener("tf:3d", awayFlat);
+    };
     const photoSource = () => ["winter", "live", "sat"].find((id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none") || "sat";
     // The few big, blurry photos under the sharp ones (Winter: winterlo, Summer: satlo), there long before.
     const quickPhotos = () => { const lo = ({ winter: "winterlo", sat: "satlo" })[photoSource()]; return lo && gl.getSource(lo) ? lo : photoSource(); };
@@ -2956,7 +2970,7 @@
     let shaped = false;
     const shapeTime = () => {
       if (shaped) return;
-      shaped = true; logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
+      shaped = true; if (!away) logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
       gl.off("sourcedata", shapeIn); gl.off("idle", shapeIn); gl.off("moveend", shapeIn);
     };
     const shapeIn = () => { if (tilted && gl.isSourceLoaded(quickPhotos())) shapeTime(); };
@@ -3242,6 +3256,12 @@
   // until they're switched once.
   const saved3d = (s) => { const v = bySport("map3dBy", s); return typeof v === "boolean" ? v : s === "ski" ? true : s === "mtb" ? false : store.get("map3d", false); };
   const FLAT_SLEEP_MS = 10000;
+  const heavyFlat = () => {
+    if (document.body.classList.contains("sport-moto")) return true;
+    let h = false;
+    try { map.eachLayer((l) => { if (l._glMap !== undefined) h = true; }); } catch {}
+    return h;
+  };
   let flatSleepT = 0;
   let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
   function set3d(want, auto) {
@@ -3261,8 +3281,7 @@
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     // Back to 2D, the flat map's lines are drawn again just after the 3D map is hidden, not in the same moment: in
     // Adventure moto (thousands of roads) the tap froze the screen ~1.3 s on a slowed phone (deep test, 2026-11-09).
-    if (on) rest2d(true);
-    else requestAnimationFrame(() => setTimeout(() => { if (!on) rest2d(false); }, 0));
+    if (on) { rest2d(true); window.dispatchEvent(new CustomEvent("tf:3d", { detail: true })); }
     if (on) {
       if (!gl) build();
       else { wake3d(); box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
@@ -3276,6 +3295,22 @@
       // and More) after 3D had been on (alex 2026-11-09). Tapping ⛰ 3D again rebuilds it (a second or two).
       clearTimeout(flatSleepT);
       if (PHONE) flatSleepT = setTimeout(() => { if (on) return; sleep3d(); setTimeout(() => { if (!on) stopPhotoWorkers(); }, 1000); }, FLAT_SLEEP_MS);
+    }
+    if (!on) {
+      window.tf3dLeftAt = Date.now();   // usage.js: a crash in the next seconds is "flat map just after 3D"
+      const flatBack = () => { if (on) return; rest2d(false); window.dispatchEvent(new CustomEvent("tf:3d", { detail: false })); };
+      // A phone going back to a heavy flat map (Adventure moto's thousands of roads, or a flat map drawn by its own
+      // graphics context: vector style, lake depths) lets the 3D map's memory go FIRST, then draws the flat map: the
+      // flat map's lines and road tiles all came back while the hidden 3D map still held its ~400 MB, and the iPhone
+      // app died there twice (usage page, Adventure moto Roads tab, alex 2026-11-16). Tapping ⛰ 3D again then
+      // rebuilds it (a second or two) instead of showing it at once.
+      if (PHONE && gl && !slept && heavyFlat()) {
+        clearTimeout(flatSleepT);
+        let done = false;
+        const go = () => { if (done) return; done = true; requestAnimationFrame(() => setTimeout(flatBack, 0)); setTimeout(() => { if (!on) stopPhotoWorkers(); }, 1000); };
+        gl.once("webglcontextlost", go); setTimeout(go, 300);
+        sleep3d();
+      } else requestAnimationFrame(() => setTimeout(flatBack, 0));
     }
     syncBtn();
   }
