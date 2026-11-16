@@ -789,7 +789,7 @@
     const status = pl.safe ? `<p class="sk-note">✅ Out safe ${esc(when(pl.safe))}.</p>`
       : isLate ? `<p class="tp-late">Past your out time (${esc(when(pl.out))}). Out safe? Tell ${esc(pl.friend || "your friend")} now${Date.now() > new Date(pl.help).getTime() ? ": their alert has gone off" : `, before the alert goes off at ${esc(when(pl.help))}`}.</p>`
       : pl.sent ? `<p class="sk-note">Sent ${esc(when(pl.sent))}: their alert goes off at ${esc(when(pl.help))} unless you tell them you're out.</p>` : "";
-    return `<details class="tp-plan" ${t.planOpen || isLate ? "open" : ""}><summary>🛟 Trip plan for a friend${isLate ? ` <small class="tp-late-tag">Overdue</small>` : pl.sent ? " <small>sent</small>" : ""}</summary>
+    return `<details class="tp-plan" ${t.planOpen || isLate ? "open" : ""}><summary>🛟 Tell someone your plan${isLate ? ` <small class="tp-late-tag">Overdue</small>` : pl.sent ? " <small>sent</small>" : ""}</summary>
       <p class="sk-note">Leave it with someone at home: if you don't check in, they call for help.</p>
       <div class="tp-plan-form">
         <label>Who's going<input type="text" data-pl="who" value="${esc(pl.who)}" placeholder="Your names" autocomplete="off"></label>
@@ -828,7 +828,7 @@
       <div class="tp-btns">${sh ? (sh.dead ? `<button type="button" data-tp="share">📤 Share it again with a new link</button>` : `<button type="button" class="go" data-tp="sharelink">📤 Send the link again</button><button type="button" data-tp="syncnow">↻ Sync now</button>`)
         : `<button type="button" class="go" data-tp="share">📤 Share this trip with your group</button>`}</div>
       ${sh && !sh.dead ? `<p class="sk-note">Taking a name off the group doesn't take away their link. To stop someone opening this trip, make a new link: the old one stops working for everyone, then send the new one to the people still going.</p><div class="tp-btns"><button type="button" data-tp="rekey">Make a new link</button></div>` : ""}
-      <p class="sk-note">${sh ? "Anyone with the link can see and change this trip, so only send it to your group. Your ticks in the packing list, the trip plan for a friend and your photos stay on your phone." : "Your group opens the link in Trail Finder and gets the same trip: lines, packing list, who brings what, meals, booking and costs. Everyone can add and delete things. Your ticks, your trip plan for a friend and your photos stay yours."}</p></details>`;
+      <p class="sk-note">${sh ? "Anyone with the link can see and change this trip, so only send it to your group. Your ticks in the packing list, the plan you tell someone and your photos stay on your phone." : "Your group opens the link in Trail Finder and gets the same trip: lines, packing list, who brings what, meals, booking and costs. Everyone can add and delete things. Your ticks, the plan you tell someone and your photos stay yours."}</p></details>`;
   }
 
   function bookHtml(t) {
