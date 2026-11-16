@@ -176,6 +176,8 @@
 #skiPane .tp-note textarea { width: 100%; resize: vertical; }
 #skiPane .tp-notei { border-left: 3px solid ${COL}; padding: 2px 0 2px 10px; margin: 8px 0; }
 #skiPane .tp-notei small { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: .76rem; }
+#skiPane .tp-nbtn { display: flex; align-items: center; }
+#skiPane .tp-notei.tf-dragging { background: var(--panel); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
 #skiPane .tp-notei p { margin: 0; font-size: .88rem; white-space: pre-wrap; }
 #skiPane .tp-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 #skiPane .tp-photos figure { margin: 0; position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--chip); }
@@ -890,11 +892,14 @@
 
   // Journal: notes (shared with the group) and photos (on this phone only), for after you come out.
   function journalHtml(t) {
-    const l = (t.notes || []).slice().sort((a, b) => b.at - a.at);
+    // Newest first, until someone moves a note (alex 2026-11-16: "make it so we can move those up and down"): then the
+    // order they put them in (t.nOrd: the notes' ids, shared with the group), notes added since going on top.
+    const ord = Array.isArray(t.nOrd) ? t.nOrd : [], at = (x) => ord.indexOf(x.id);
+    const l = (t.notes || []).slice().sort((a, b) => (at(a) < 0 || at(b) < 0 ? (at(b) < 0) - (at(a) < 0) || b.at - a.at : at(a) - at(b)));
     return `<details class="tp-pack tp-jour" ${t.jourOpen ? "open" : ""}><summary>📓 Trip journal <small>${l.length ? `${l.length} note${l.length > 1 ? "s" : ""}` : ""}</small></summary>
       <p class="sk-note">How the snow was, what you skied, what to bring next time.</p>
       <form class="tp-note" data-nadd="1"><textarea maxlength="1000" rows="3" placeholder="Write a note" aria-label="Write a note"></textarea><button type="submit">Add the note</button></form>
-      ${l.map((x) => `<div class="tp-notei"><small>${esc(new Date(x.at).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}${x.by ? ` · ${esc(x.by)}` : ""}<button type="button" data-nrm="${esc(x.id)}" aria-label="Delete this note">✕</button></small><p>${esc(x.text)}</p></div>`).join("")}
+      <div class="tp-notes">${l.map((x) => `<div class="tp-notei" data-nid="${esc(x.id)}"><small><span>${esc(new Date(x.at).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}${x.by ? ` · ${esc(x.by)}` : ""}</span><span class="tp-nbtn"><button type="button" data-nrm="${esc(x.id)}" aria-label="Delete this note">✕</button>${l.length > 1 ? window.tfGrip || "" : ""}</span></small><p>${esc(x.text)}</p></div>`).join("")}</div>
       <h5>Photos</h5><div class="tp-photos" id="tpPhotos"></div>
       <label class="tp-photoadd">📷 Add photos<input type="file" accept="image/*" multiple data-photo="1" hidden></label>
       <p class="sk-note">Photos stay on this phone.</p></details>`;
@@ -937,7 +942,7 @@
   // phone keeps its copy (works with no signal) and the copy it last synced (share.base): a sync merges the group's
   // changes with yours item by item (an added line or item, a deleted one, a meal typed), so two people editing at once
   // both keep their changes. Ticks, the trip plan for a friend, offline saves and photos stay on each phone.
-  const SHARED = ["hut", "name", "date", "nights", "people", "way", "lines", "own", "hide", "pk", "gear", "meals", "book", "costs", "notes", "group"];
+  const SHARED = ["hut", "name", "date", "nights", "people", "way", "lines", "own", "hide", "pk", "gear", "meals", "book", "costs", "notes", "nOrd", "group"];
   const docOf = (t) => JSON.parse(JSON.stringify(Object.fromEntries(SHARED.filter((k) => t[k] !== undefined).map((k) => [k, t[k]]))));
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
@@ -1353,6 +1358,11 @@
       const h = p && p.dataset.h; if (h && h !== r.dataset.home) sec[r.dataset.k] = h;
     });
     t.pk = { order, sec }; putTrip(t); renderPack();
+  } });
+  // ☰ on a journal note: drag it up or down; the group gets the same order.
+  if (window.tfDragSort) window.tfDragSort(card, { list: ".tp-notes", row: ".tp-notei", done: (rows) => {
+    const t = cur; if (!t) return;
+    t.nOrd = rows.map((r) => r.dataset.nid); putTrip(t);
   } });
   card.addEventListener("click", (e) => {   // ✕ on a packing list item
     const b = e.target.closest("[data-pkrm]");
