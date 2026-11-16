@@ -19,3 +19,11 @@ Each file is copied byte for byte from the official npm release named here (chec
 | exifr-lite-7.1.3.js | exifr@7.1.3 | dist/lite.umd.js | `530dbaef11cd9d4d65f108abc159b113580eb3dbd7bc69cd1364e25dd40413f9` |
 
 Still loaded from cdn.jsdelivr.net at a fixed version: tesseract.js 5.1.1 (Photo find text reading: its worker, the 3-4 MB reading engine and the English data) and geotiff 2.1.3's JPEG reader (height tiles). Both are too large or split into many module files to copy here for now.
+
+## iPhone app (ios-app/), not served by the site
+
+The iPhone app's TrailMap plugin (ios-app/plugins/TrailMap) gets MapLibre Native as a ready-built framework that Xcode downloads and checks against this sha256 (Swift Package Manager refuses it if one byte differs). Since 2026-11-16 it is a community build with 3D mountains, because the official MapLibre Native has none yet (maplibre-native issue #252). It is **not an official MapLibre release**. Only the alex-only "Native map (test)" and "Native 3D (test)" screens use it.
+
+| File | From | sha256 |
+|---|---|---|
+| MapLibre.dynamic.xcframework.zip | github.com/kaiuhl/maplibre-native release `glassing-terrain-20261109-337f1b4ba8a3` (feature/terrain-3d branch, 2026-11-09) | `49fcee33e83d69d87b525f28ab7025727f70affbf17a6afa67cf6d2ff0395bf9` |
