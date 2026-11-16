@@ -1,6 +1,9 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-16", "text": "Cabin trips: a friend opening your trip link goes straight to the trip, with no welcome screens on top."},
+    {"date": "2026-11-16", "text": "Cabin trips: Make a new link in Your group stops an old link from working, to take someone off a shared trip."},
+    {"date": "2026-11-16", "text": "Cabin trips: a shared trip gets the group's latest changes the moment you open it, and two people taking items off the packing list at once both count."},
     {"date": "2026-11-16", "text": "Prime loam: a trail a road splits in two says which part each row is (north part, south part), the same trail isn't listed twice, and the Loam range shown leaves out trails under snow."},
     {"date": "2026-11-16", "text": "Search no longer offers far-away places whose names only look a little like what you typed."},
     {"date": "2026-11-16", "text": "Picking a trail from search now moves the map to it in 3D too, and search finds a trail typed as singular or plural (Half Nelsons finds Half Nelson)."},
