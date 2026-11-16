@@ -557,12 +557,18 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   map.createPane("motoGL").style.zIndex = 360;
   map.getPane("motoGL").style.pointerEvents = "none";
   let gl = null, glLoading = null;
+  // While the 3D map is on, the flat map's roads are let go (its own graphics context and road tiles): kept hidden
+  // under the 3D map, they were a second map's worth of phone memory, and drawn again all at once when going back to
+  // the flat map. The usage page showed the iPhone app dying twice there, on the Roads tab just after the 3D map
+  // (alex 2026-11-16). Back on the flat map they come again (map3d.js sends "tf:3d" once its memory is let go).
+  const flat3d = () => map.getContainer().classList.contains("is3d");
   async function showRoads(on) {
+    if (on && flat3d()) on = false;
     if (!on) { if (gl) { map.removeLayer(gl); gl = null; } return; }
     if (gl || glLoading) return;
     glLoading = window.tfLoadVectorLib ? window.tfLoadVectorLib().catch(() => null) : Promise.resolve(null);
     await glLoading; glLoading = null;
-    if (!isMoto() || !shown.has("roads") || gl || !L.maplibreGL) return;
+    if (!isMoto() || !shown.has("roads") || gl || !L.maplibreGL || flat3d()) return;
     gl = L.maplibreGL({ pane: "motoGL", interactive: false, attributionControl: false, style: { version: 8, sources: { m: OFM }, layers: roadLayers("m", "mt-") } }).addTo(map);
   }
   // BC's forest service and other resource roads (DataBC FTEN), drawn from zoom 9: the OpenStreetMap tiles above only
@@ -2217,6 +2223,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     drawWaypoints();
   }
   window.addEventListener("tf:map3d", (e) => on3d(e.detail));
+  window.addEventListener("tf:3d", () => showRoads(isMoto() && shown.has("roads")));
   if (window.trailMap3d) on3d(window.trailMap3d);
 
   // ---------- high points: snow and frost where the route climbs ----------

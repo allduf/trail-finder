@@ -2572,7 +2572,8 @@
     "Show the whole resort":"Afficher toute la station",
     "Resort website ↗":"Site de la station ↗",
     "Opening dates, hours, lift status and tickets: check the resort's own website. Resort name and lifts from OpenStreetMap.":"Dates d'ouverture, heures, état des remontées et billets : consultez le site de la station. Nom de la station et remontées d'OpenStreetMap.",
-    "Opening dates, hours, lift status and tickets: check the resort's own website. Resort name and lifts from OpenStreetMap, names checked against the resort's website.":"Dates d'ouverture, heures, état des remontées et billets : consultez le site de la station. Nom de la station et remontées d'OpenStreetMap, noms vérifiés sur le site de la station."};
+    "Opening dates, hours, lift status and tickets: check the resort's own website. Resort name and lifts from OpenStreetMap, names checked against the resort's website.":"Dates d'ouverture, heures, état des remontées et billets : consultez le site de la station. Nom de la station et remontées d'OpenStreetMap, noms vérifiés sur le site de la station.",
+    "Adventure moto on a phone: going from the 3D map back to the flat map now frees the 3D map's memory first, which had made the iPhone app restart there. Opening 3D again right after takes a second or two.":"Moto d'aventure sur téléphone : en revenant de la carte 3D à la carte plate, la mémoire de la carte 3D est maintenant libérée d'abord, ce qui faisait redémarrer l'app iPhone à cet endroit. Rouvrir la 3D juste après prend une seconde ou deux."};
   // ---- texts with numbers or names in them (from scripts/i18n/rules.js) ----
   // Each: [pattern on the whole text, French]. A function gets the pieces; tw() translates a piece that's itself a word.
   function tw(s) { var f = D[s]; return f === undefined ? s : f; }

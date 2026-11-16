@@ -820,7 +820,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       g.n++; g.who.add(c.label || c.device.slice(0, 6)); if (c.at > g.last) g.last = c.at; if (c.ms > (g.v || 0)) g.v = c.ms; cg.set(k, g);
     }
     $("crashes").innerHTML = cg.size ? `<tr><th>Where</th><th class="n">Times</th><th>Who</th><th class="n">Last</th><th class="n">Version</th></tr>` + [...cg.entries()].sort((a, b) => (a[1].last < b[1].last ? 1 : -1)).map(([k, g]) => `<tr><td>${k}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td><td class="n">${g.v || "–"}</td></tr>`).join("")
-      : none(5, "No crashes 🎉");
+      : none(5, "No crashes");
 
     // ---- weeks: testers each week, and how many had used it in an earlier week
     const firstWeek = new Map();
@@ -919,7 +919,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const el = [...eg.entries()].sort((a, b) => (a[1].last < b[1].last ? 1 : -1)).slice(0, 30);
     $("errors").innerHTML = el.length
       ? `<tr><th>Error</th><th class="n">Times</th><th>Who</th><th class="n">Last</th><th class="n">Version</th></tr>` + el.map(([k, g]) => `<tr><td class="raw">${esc(k)}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td><td class="n">${g.v || "–"}</td></tr>`).join("")
-      : none(1, "No errors 🎉");
+      : none(1, "No errors");
     paintTodo();
   }
 
