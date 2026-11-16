@@ -26,6 +26,7 @@
       return WW[w] + " : " + ds.split(", ").map(function (d) { return DJ[d]; }).join(", ") + " (" + a.replace(".", ",") + " à " + b.replace(".", ",") + " " + u + ")"; }],
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
+    [/^Part (\d+) of (\d+) \((north|west) to (south|east)\), a road splits it$/, function (m, i, n, a, b) { var C = { north: "nord", south: "sud", west: "ouest", east: "est" }; return "Partie " + i + " sur " + n + " (du " + C[a] + " au " + C[b] + "), une route le coupe"; }],
     [/^added by (.+)$/, function (m, n) { return "ajouté par " + n; }],
     [/^Got it: what you add shows "added by (.+)"\.$/, function (m, n) { return "C'est noté : ce que vous ajoutez affiche « ajouté par " + n + " »."; }],
     [/^(\d+) shared items? (?:has|have) no one yet: tap Who\? beside it\.$/, function (m, n) { return n + (n === "1" ? " article commun n'a" : " articles communs n'ont") + " personne pour l'instant : touchez Qui ? à côté."; }],
