@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-16", "text": "Cabin trips: hold the handle beside a journal note to move it up or down. Your group sees the same order."},
     {"date": "2026-11-16", "text": "Cabin trips: \"Trip plan for a friend\" is now called \"Tell someone your plan\"."},
     {"date": "2026-11-16", "text": "Cabin trips: a friend opening your trip link goes straight to the trip, with no welcome screens on top."},
     {"date": "2026-11-16", "text": "Cabin trips: Make a new link in Your group stops an old link from working, to take someone off a shared trip."},
