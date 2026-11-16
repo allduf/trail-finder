@@ -6,6 +6,10 @@
 // opens that trail, as a tap on it here would. On the website, and in app builds without the plugin, this file does nothing.
 // Only alex sees the button (go-public checklist item 25, Apple rule 2.2: no test features for the public). friends.js
 // keeps "tf-admin" = "1" on alex's devices and fires "tf:admin" when that changes.
+// "Native 3D (test)" next to it (alex 2026-11-16, "Small native 3D trial") opens the same screen in 3D: satellite photos
+// over the mountains, tilted, with the same trails, to feel whether a 3D map drawn by the iPhone turns smoother than the
+// web one. Photos and trails only, in every sport, also alex only. Needs an app build with the 3D engine (TrailMap's
+// MapLibre with terrain); in older builds it opens flat.
 (() => {
   "use strict";
   const C = window.Capacitor, map = window.tfLeaflet, L = window.L;
@@ -19,12 +23,16 @@
   btn.type = "button"; btn.id = "nativeMapBtn";
   btn.title = "Try the map drawn by the iPhone itself: does it move smoother?";
   btn.textContent = "📱 Native map (test)";
-  tools.after(btn);
+  const btn3d = document.createElement("button");
+  btn3d.type = "button"; btn3d.id = "native3dBtn";
+  btn3d.title = "Try the 3D map drawn by the iPhone itself (photos and trails only): does it turn and tilt smoother?";
+  btn3d.textContent = "Native 3D (test)";
+  tools.after(btn, btn3d);
   const adminNow = () => { try { return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
-  btn.hidden = !adminNow();
-  window.addEventListener("tf:admin", () => { btn.hidden = !adminNow(); });
+  btn.hidden = btn3d.hidden = !adminNow();
+  window.addEventListener("tf:admin", () => { btn.hidden = btn3d.hidden = !adminNow(); });
   const css = document.createElement("style");
-  css.textContent = "body.sport-alt #nativeMapBtn, #nativeMapBtn[hidden] { display: none !important; }";   // MTB only, alex only
+  css.textContent = "body.sport-alt #nativeMapBtn, #nativeMapBtn[hidden], #native3dBtn[hidden] { display: none !important; }";   // 2D: MTB only; both alex only
   document.head.append(css);
 
   let open = false, hits = [], pending = 0;
@@ -105,12 +113,14 @@
     else map.fire("click", { latlng, layerPoint: map.latLngToLayerPoint(latlng), containerPoint: map.latLngToContainerPoint(latlng) });
   });
 
-  btn.addEventListener("click", () => {
+  function openNative(threeD) {
     const close = document.getElementById("lmClose");
     if (close) close.click();
     const c = map.getCenter(), base = (document.getElementById("basemap") || {}).value || "osm";
     open = true;
-    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, ...snapshot() })
+    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, ...snapshot() })
       .catch(() => { open = false; });
-  });
+  }
+  btn.addEventListener("click", () => openNative(false));
+  btn3d.addEventListener("click", () => openNative(true));
 })();
