@@ -246,6 +246,7 @@
     render();
     drawWay();
     scrollTo();
+    if (t.share) syncTrip(t.id, true);   // a shared trip: the group's latest the moment it opens, not 30 s later
     if (!t.hut) { nearCabins(); return; }
     if (t.way && t.way.src === "auto" && t.way.v !== WAY_V) { t.way = null; t.wayFail = ""; }
     if (!t.way && !/^(noroad|water)$/.test(t.wayFail || "")) findWay(t);
@@ -816,7 +817,7 @@
 
   function groupHtml(t) {
     const sh = t.share, l = t.group || [], my = me().name || "";
-    const st = sh ? `<p class="sk-note">${sh.err ? `<b style="color:#c92a2a">Not synced yet</b> (${esc(sh.err)}): your changes go to the group when you have signal.` : `✓ Shared: everyone with the link sees and edits the same trip${sh.at ? `, last synced ${esc(new Date(sh.at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" }))}` : ""}${sh.by ? ` (last change by ${esc(sh.by)})` : ""}.`}</p>` : "";
+    const st = sh ? `<p class="sk-note">${sh.dead ? `<b style="color:#c92a2a">Not shared any more</b>: ${esc(sh.err)}. Your copy stays on this phone.` : sh.err ? `<b style="color:#c92a2a">Not synced yet</b> (${esc(sh.err)}): your changes go to the group when you have signal.` : `✓ Shared: everyone with the link sees and edits the same trip${sh.at ? `, last synced ${esc(new Date(sh.at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" }))}` : ""}${sh.by ? ` (last change by ${esc(sh.by)})` : ""}.`}</p>` : "";
     return `<details class="tp-pack tp-grp" ${t.grpOpen ? "open" : ""}><summary>👥 Your group <small>${sh ? "shared" : l.length ? `${l.length} ${l.length > 1 ? "people" : "person"}` : ""}</small></summary>
       <p class="sk-note">Their names are used for who brings what, who cooks, who booked and who paid.</p>
       <ul class="tp-names">${l.map((x) => `<li>${esc(x.n)}<button type="button" data-grm="${esc(x.k)}" aria-label="Take ${esc(x.n)} off the group">✕</button></li>`).join("")}</ul>
@@ -824,8 +825,9 @@
       ${sh && l.length ? `<label class="tp-mine">You are<select data-iamsel="1" aria-label="Who you are in this group"><option value="">Pick your name</option>${l.map((x) => `<option value="${esc(x.k)}" ${x.k === myKey(t) ? "selected" : ""}>${esc(x.n)}</option>`).join("")}</select></label>`
         : `<label class="tp-mine">Your name<input type="text" data-me="name" maxlength="30" value="${esc(my)}" placeholder="So the group sees who changed what" autocomplete="off"></label>`}
       ${st}
-      <div class="tp-btns">${sh ? `<button type="button" class="go" data-tp="sharelink">📤 Send the link again</button><button type="button" data-tp="syncnow">↻ Sync now</button>`
+      <div class="tp-btns">${sh ? (sh.dead ? `<button type="button" data-tp="share">📤 Share it again with a new link</button>` : `<button type="button" class="go" data-tp="sharelink">📤 Send the link again</button><button type="button" data-tp="syncnow">↻ Sync now</button>`)
         : `<button type="button" class="go" data-tp="share">📤 Share this trip with your group</button>`}</div>
+      ${sh && !sh.dead ? `<p class="sk-note">Taking a name off the group doesn't take away their link. To stop someone opening this trip, make a new link: the old one stops working for everyone, then send the new one to the people still going.</p><div class="tp-btns"><button type="button" data-tp="rekey">Make a new link</button></div>` : ""}
       <p class="sk-note">${sh ? "Anyone with the link can see and change this trip, so only send it to your group. Your ticks in the packing list, the trip plan for a friend and your photos stay on your phone." : "Your group opens the link in Trail Finder and gets the same trip: lines, packing list, who brings what, meals, booking and costs. Everyone can add and delete things. Your ticks, your trip plan for a friend and your photos stay yours."}</p></details>`;
   }
 
@@ -908,7 +910,7 @@
     c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
     return new Promise((ok) => c.toBlob((b) => ok(b || file), "image/jpeg", 0.82));
   }
-  const tripKey = (t) => (t.share ? "s:" + t.share.id : t.id);
+  const tripKey = (t) => (t.share ? "s:" + (t.share.pk || t.share.id) : t.id);   // pk: the first link's id, kept through a new link
   const urls = [];
   async function renderPhotos() {
     const el = $("tpPhotos"), t = cur;
@@ -954,6 +956,12 @@
       const o = merge3(map(b), map(m), map(r)), order = [...(r || []).map(id), ...(m || []).map(id)];
       return [...new Set(order)].filter((k) => k in o).map((k) => o[k]);
     }
+    // Lists of names (what was taken off the packing list, its order): both phones' adds and removals kept.
+    const strs = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
+    if (strs(m) && strs(r) && (b === undefined || strs(b))) {
+      const bs = new Set(b || []), ms = new Set(m), gone = new Set([...bs].filter((x) => !ms.has(x)));
+      return [...new Set([...r.filter((x) => !gone.has(x)), ...m.filter((x) => !bs.has(x))])];
+    }
     return m;
   }
   async function rpc(fn, args) {
@@ -974,13 +982,14 @@
     if (syncing) return syncing.then(() => syncTrip(id, quiet));
     syncing = (async () => {
       const t = tripById(id);
-      if (!t || !t.share) return;
+      if (!t || !t.share || t.share.dead) return;
       const sh = t.share, wayBefore = JSON.stringify(t.way || null);
       let changed = false;
       try {
         for (let n = 0; n < 4; n++) {
           const r = await rpc("trip_get", { p_id: sh.id, p_key: sh.key });
           if (!r) { sh.err = "the trip was deleted"; break; }
+          if (r.data && r.data.moved) { sh.dead = 1; sh.err = "this link doesn't work any more: someone in the group made a new one. Ask them to send it"; break; }
           const mine = docOf(t), merged = merge3(sh.base || {}, mine, r.data || {});
           if (!same(merged, mine)) { applyDoc(t, merged); changed = true; }
           Object.assign(sh, { rev: r.rev, base: r.data, by: r.by || "" });
@@ -1002,6 +1011,7 @@
   }
   const pushSoon = (t) => { if (!t.share) return; clearTimeout(pushTimer); const id = t.id; pushTimer = setTimeout(() => syncTrip(id, true), 1200); };
   async function shareTrip(t) {
+    if (t.share && t.share.dead) delete t.share;   // its old link was replaced: sharing again makes a new trip for the group
     if (!t.share) {
       const key = crypto.randomUUID ? crypto.randomUUID() : uid("k"), doc = docOf(t);
       try {
@@ -1017,17 +1027,53 @@
       else { await navigator.clipboard.writeText(`${text}\n${tripLink(t)}`); toast("Link copied: paste it in your group's chat."); }
     } catch (e) { if (!e || e.name !== "AbortError") { try { prompt("Copy this link for your group:", tripLink(t)); } catch {} } }
   }
+  // A new link (alex 2026-11-16, taking a friend off a shared trip): the trip goes to a new row with a new key, and the
+  // old row keeps only { moved } (no trip in it), so the old link stops working for everyone who has it. The share
+  // sheet then opens to send the new link to the people still going.
+  async function rekey(t) {
+    if (!t.share || !confirm("Make a new link? The old link stops working for everyone, and you send the new one to the people still going.")) return;
+    await syncTrip(t.id, true);
+    const old = t.share;
+    if (old.dead) { toast(`Couldn't make a new link: ${old.err}.`); return; }
+    try {
+      const key = crypto.randomUUID ? crypto.randomUUID() : uid("k"), doc = docOf(t);
+      const id = await rpc("trip_new", { p_key: key, p_data: doc, p_by: meOf(t) });
+      let done = false;
+      for (let n = 0; n < 4 && !done; n++) {
+        const r = await rpc("trip_get", { p_id: old.id, p_key: old.key });
+        if (!r) break;
+        const w = await rpc("trip_put", { p_id: old.id, p_key: old.key, p_data: { hut: null, moved: 1 }, p_rev: r.rev, p_by: meOf(t) });
+        done = !!(w && w.ok);
+      }
+      if (!done) throw new Error("the old link couldn't be closed");
+      t.share = { id, key, rev: 1, base: doc, at: Date.now(), by: meOf(t), err: "", pk: old.pk || old.id };
+      putTrip(t, true);
+      if (cur === t) render();
+      toast("New link made: the old one doesn't work any more.");
+    } catch (e) { toast(`Couldn't make a new link: ${e.message || e}.`); return; }
+    shareTrip(t);
+  }
   // Opening a group's link (#trip=id.key, from ski-points.js): the trip on this phone, kept in sync from then on.
   async function join(id, key) {
     const have = trips().find((x) => x.share && x.share.id === id);
-    if (have) { start(have); syncTrip(have.id, true); return; }
+    if (have) { start(have); return; }   // start() syncs it
     try {
       const r = await rpc("trip_get", { p_id: id, p_key: key });
+      if (r && r.data && r.data.moved) { toast("This trip link doesn't work any more: someone in the group made a new one. Ask them to send it."); return; }
       if (!r || !r.data || !r.data.date) { toast("This shared trip doesn't exist any more."); return; }
       const t = { id: uid(""), at: Date.now(), ...r.data, share: { id, key, rev: r.rev, base: r.data, at: Date.now(), by: r.by || "", err: "" } };
+      // The new link of a trip already on this phone (its old link was replaced): it takes the old copy's place, with
+      // this phone's own ticks, trip plan, name and photos.
+      const was = trips().find((x) => x.share && x.share.dead && x.date === t.date && hutName(x) === hutName(t));
+      if (was) {
+        for (const k of ["packed", "plan", "me", "meSkip", "offAt", "snap"]) if (was[k] !== undefined) t[k] = was[k];
+        t.id = was.id; t.share.pk = was.share.pk || was.share.id;
+      }
       putTrip(t, true);
       start(t);
-      toast(`You joined the ${hutName(t)} cabin trip.`);
+      // A friend's first open: shown once "Before you head out" (risk.js) is agreed to, not hidden under it.
+      const hi = () => toast(`You joined the ${hutName(t)} cabin trip.`);
+      if (window.tfTerms && window.tfTerms.pending) document.addEventListener("tf:terms", () => setTimeout(hi, 400), { once: true }); else hi();
     } catch (e) { toast(`Couldn't open the shared trip: ${e.message || e}.`); }
   }
   setInterval(() => { if (cur && cur.share && !card.hidden && document.visibilityState === "visible") syncTrip(cur.id, true); }, 30000);
@@ -1254,7 +1300,7 @@
       <div class="sk-sec" id="tpCost">${costHtml(t)}</div>
       <div class="sk-sec" id="tpPlan">${planHtml(t)}</div>
       <div class="sk-sec" id="tpJour">${journalHtml(t)}</div>
-      <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${offPts(t).length ? "" : "disabled"}>⤓ ${offSaved(t) ? "Change the saved area" : "Save the trip offline"}</button>${t.hut ? `<button type="button" data-tp="hut">Cabin details</button>` : ""}<button type="button" data-tp="del">🗑 Delete</button></div>
+      <div class="sk-sec"><div class="tp-btns"><button type="button" data-tp="off" ${offPts(t).length ? "" : "disabled"}>⤓ ${offSaved(t) ? "Change the saved area" : "Save the trip offline"}</button>${t.hut ? `<button type="button" data-tp="hut">Cabin details</button>` : ""}<button type="button" data-tp="del">🗑 ${t.share ? "Leave this trip" : "Delete"}</button></div>
         <p class="sk-note" id="tpOff">${offHtml(t)}</p>
         ${t.hut && localDate(new Date()) < t.date ? `<div class="tp-btns"><button type="button" data-tp="beforeics">⏰ Remind me the day before</button></div><p class="sk-note">From the day before the trip, each time you open the app with signal, the trip's weather, avalanche danger and offline copy update by themselves. The app can't do it while it's closed: the reminder is a calendar alert the evening before that tells you to open it.</p>` : ""}</div>`;
     if (!t.hut) nearCabins();   // every redraw (a name added, a night more...) brings the cabins list back, not a spinner
@@ -1399,6 +1445,7 @@
     } else if (k === "packclear") { t.packed = {}; putTrip(t); renderPack(); }
     else if (k === "share" || k === "sharelink") shareTrip(t);
     else if (k === "syncnow") syncTrip(t.id);
+    else if (k === "rekey") rekey(t);
     else if (k === "gpx") shareFile(tripGpx(t), `${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}-trip.gpx`, "application/gpx+xml", `Saved the GPX of your ${hutName(t)} trip.`);
     else if (k === "beforeics") shareFile(dayBeforeIcs(t), `before-${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}.ics`, "text/calendar", `Saved the reminder: open it to add it to your calendar.`);
     else if (k === "bookics") shareFile(bookIcs(t), `book-${hutName(t).replace(/[^\w]+/g, "-").toLowerCase()}.ics`, "text/calendar", `Saved the reminder: open it to add it to your calendar.`);

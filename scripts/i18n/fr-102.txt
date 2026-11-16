@@ -1,0 +1,11 @@
+Leave this trip ||| Quitter ce séjour
+Make a new link ||| Créer un nouveau lien
+Share it again with a new link ||| Le partager de nouveau avec un nouveau lien
+Taking a name off the group doesn't take away their link. To stop someone opening this trip, make a new link: the old one stops working for everyone, then send the new one to the people still going. ||| Retirer un nom du groupe ne lui retire pas le lien. Pour empêcher quelqu'un d'ouvrir ce séjour, créez un nouveau lien : l'ancien cesse de fonctionner pour tout le monde, puis envoyez le nouveau aux personnes qui viennent toujours.
+New link made: the old one doesn't work any more. ||| Nouveau lien créé : l'ancien ne fonctionne plus.
+This trip link doesn't work any more: someone in the group made a new one. Ask them to send it. ||| Ce lien de séjour ne fonctionne plus : quelqu'un du groupe en a créé un nouveau. Demandez-lui de vous l'envoyer.
+Make a new link? The old link stops working for everyone, and you send the new one to the people still going. ||| Créer un nouveau lien ? L'ancien lien cesse de fonctionner pour tout le monde, et vous envoyez le nouveau aux personnes qui viennent toujours.
+Not shared any more ||| Plus partagé
+Cabin trips: a friend opening your trip link goes straight to the trip, with no welcome screens on top. ||| Séjours en refuge : un ami qui ouvre le lien de votre séjour arrive directement sur le séjour, sans les écrans d'accueil par-dessus.
+Cabin trips: Make a new link in Your group stops an old link from working, to take someone off a shared trip. ||| Séjours en refuge : Créer un nouveau lien, dans Votre groupe, empêche un ancien lien de fonctionner, pour retirer quelqu'un d'un séjour partagé.
+Cabin trips: a shared trip gets the group's latest changes the moment you open it, and two people taking items off the packing list at once both count. ||| Séjours en refuge : un séjour partagé reçoit les derniers changements du groupe dès que vous l'ouvrez, et si deux personnes retirent des objets de la liste en même temps, les deux comptent.

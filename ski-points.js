@@ -1145,4 +1145,5 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   new MutationObserver(() => { if (sportNow() !== lastSport) { lastSport = sportNow(); readFilt(); placeBox(); points = all.filter((p) => sportOf(p) === sportNow()); if (!isSki()) stopGuide(); onSport(); } })
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
   reload().then(() => { onSport(); openShared(); openTripLink(); });
+  window.addEventListener("hashchange", () => { if (/^#trip=/.test(location.hash)) openTripLink(); });   // a trip link opened in the tab that's already on the app
 })();
