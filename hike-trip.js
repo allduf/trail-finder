@@ -153,7 +153,8 @@
   // A campsite, hut or shelter for each night: the places near the trip that the map has loaded (Hiking's places
   // layer), or one picked with 🏕 Sleep here on its card. "Same as the night before" fills the rest of a base camp.
   // One of each name (a club's hut and the same hut on OpenStreetMap are one place).
-  const oneEach = (l) => { const seen = new Set(); return l.filter((x) => { const k = (x.p.n || "").toLowerCase(); return !seen.has(k) && seen.add(k); }); };
+  // One row per name (a campground mapped twice), and no emergency shelters: they're for emergencies, not for planning a night.
+  const oneEach = (l) => { const seen = new Set(); return l.filter((x) => { const k = (x.p.n || "").toLowerCase(); return !/emergency/.test(k) && !seen.has(k) && seen.add(k); }); };
   const nearSleeps = (t) => { const c = centre(t) || [map.getCenter().lat, map.getCenter().lng]; return oneEach(H.placesNear(c, 25, SLEEP)).slice(0, 14).map((x) => x.p); };
   function campsHtml(t) {
     const near = nearSleeps(t), dates = E.tripDates(t);
@@ -238,10 +239,10 @@
   function daysHtml(t, v) {
     const rows = v.rows.map((r) => {
       const wet = r.code != null && (r.rain >= 5 || r.snow >= 2 || r.code >= 95), c = r.code == null ? "var(--line)" : wet ? "#1c7ed6" : r.lo != null && r.lo <= 0 ? "#74c0fc" : COL;
-      const wx = r.code != null ? `<span class="tp-wx"><big>${deg(r.hi)}</big><br>low ${deg(r.lo)}</span>` : `<span class="tp-wx sk-note">${v.end && r.date > v.end ? "Too far<br>ahead" : "–"}</span>`;
+      const wx = r.code != null ? `<span class="tp-wx"><big>${deg(r.hi)}</big><br><span>low ${deg(r.lo)}</span></span>` : `<span class="tp-wx sk-note">${v.end && r.date > v.end ? "Too far<br>ahead" : "–"}</span>`;
       const bits = r.code != null ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain` : "Dry", ...(r.pop != null && r.rain >= 1 ? [`${r.pop}% chance`] : []),
         `wind ${Math.round(r.wind || 0)} km/h${r.gust >= 50 ? `, gusts ${Math.round(r.gust)}` : ""}`, ...(r.line != null ? [r.line < 200 ? "snow down to the valley" : `snow above about ${r.line.toLocaleString()} m`] : []), ...(r.sunset ? [`sunset ${hm(r.sunset)}`] : [])] : [];
-      return `<li style="--c:${c}"><b>${esc(dayWord(r.date))}${r.tag ? ` · ${r.tag === "first" ? "first day" : "last day"}` : ""}</b>${wx}<span>${esc(wxWord(r.code))}${r.at ? ` <span class="sk-note">at ${esc(r.at)}</span>` : ""}</span>${bits.length ? `<small>${bits.map(esc).join(" · ")}</small>` : ""}</li>`;
+      return `<li style="--c:${c}"><b>${esc(dayWord(r.date))}${r.tag ? ` · ${r.tag === "first" ? "first day" : "last day"}` : ""}</b>${wx}<span>${esc(wxWord(r.code))}${r.at ? ` <span class="sk-note">at ${esc(r.at)}</span>` : ""}</span>${bits.length ? `<small>${bits.map((x) => `<span>${esc(x)}</span>`).join(" · ")}</small>` : ""}</li>`;
     }).join("");
     const far = v.rows.some((r) => r.code == null && v.end && r.date > v.end);
     return `<ul class="tp-days">${rows}</ul>
