@@ -73,6 +73,7 @@ ${P} .tp-days li > small { grid-column: 1 / -1; color: var(--muted); }
 ${P} .tp-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 ${P} .tp-btns > * { font: inherit; font-size: .84rem; font-weight: 800; padding: 9px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
 ${P} .tp-btns .go { background: var(--tp); border-color: var(--tp); color: #fff; flex: 1; justify-content: center; }
+${P} .tp-btns .tp-draw-go { flex: 1 1 100%; font-size: .95rem; padding: 12px; }
 ${P} .tp-closed { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; border: 1.5px solid #e03131; background: color-mix(in srgb, #e03131 10%, var(--panel)); font-size: .8rem; line-height: 1.35; }
 ${P} .tp-closed a { color: #1f5fe0; font-weight: 700; }
 ${P} .tp-winter { margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--chip); border: 1px solid var(--line); font-size: .8rem; line-height: 1.35; }
@@ -340,7 +341,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small>${byHtml(t, x)}</span></button>${K.lineExtra ? K.lineExtra(t, x) : ""}${x.tour && K.canEdit ? `<button type="button" class="tp-rm" data-tledit="${esc(x.tour)}" aria-label="Change ${esc(x.name)}: its points">✎</button>` : ""}<button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
     return `${top || rows ? `<ul class="tp-list tp-tours">${top}${rows}</ul>` : ""}
       ${l.length ? "" : `<p class="sk-note">${K.linesEmpty(t)}</p>`}
-      <div class="tp-btns"><button type="button" data-tp="drawline">✏️ ${esc(K.drawLabel(t))}</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || top ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
+      <div class="tp-btns"><button type="button" data-tp="drawline"${K.drawGo ? ' class="go tp-draw-go"' : ""}>✏️ ${esc(K.drawLabel(t))}</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || top ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
   }
   // "Add to … trip" on a line's card (only once you have a trip): into the trip that's open, your only trip, or the one you pick.
   function offerAdd(after, getItem) {
@@ -928,6 +929,9 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     if (!v.rows) return `<p class="sk-note">Couldn't load the forecast (${esc(v.err)}).</p>`;
     return K.daysHtml(cur, v);
   }
+  // The trip's lines. linesFirst (Moto, alex 2026-11-17: "make the part to make a route more visible, maybe place it
+  // higher"): right under the dates, above the group; what the kit shows after them stays where it was.
+  const linesSec = (t) => `<div class="sk-sec tp-lines" id="tpLines"><h4>${esc(K.w.lines)}</h4>${linesHtml(t)}</div>`;
   function render() {
     const t = cur;
     if (!t) return;
@@ -941,9 +945,10 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       </div>
       <p class="sk-note">${esc(dayWord(t.date))}${t.nights ? ` to ${esc(dayWord(addDays(t.date, t.nights)))}` : ""}${countdown(t)}</p>
       ${K.baseHtml(t)}
+      ${K.linesFirst ? linesSec(t) : ""}
       <div class="sk-sec" id="tpGroup">${groupHtml(t)}</div>
       ${K.midHtml(t)}
-      <div class="sk-sec tp-lines" id="tpLines"><h4>${esc(K.w.lines)}</h4>${linesHtml(t)}</div>
+      ${K.linesFirst ? "" : linesSec(t)}
       ${K.afterLinesHtml ? K.afterLinesHtml(t) : ""}
       <div class="sk-sec" id="tpPack">${packHtml(t)}</div>
       <div class="sk-sec" id="tpMeals">${mealsHtml(t)}</div>
@@ -1166,7 +1171,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   //  packItems(t, view), planText(t, pl), bookTop(t), bookSite(t), bookWhat(t), costHint(t), baseHtml(t), midHtml(t),
   //  linesEmpty(t), drawLabel(t), openLine(t, x), listNote(), offBase(t); and if it has them: shared (more fields for
   //  the group), newTrip(), close(), afterLinesHtml(t), afterRender(t), baseBtn(t), linesTop(t), linesChanged(t),
-  //  canEdit, editLine(t, id), openWay(t), drawExtra(t, layer), extraPts(t), gpxExtra(t, trk, wpt), keyOf(t) (what
+  //  canEdit, editLine(t, id), openWay(t), linesFirst (the lines right under the dates), drawGo (the draw button big), drawExtra(t, layer), extraPts(t), gpxExtra(t, trk, wpt), keyOf(t) (what
   //  makes the forecast change), offUrls(box), onTp(k, t, button), datesChanged(t), nearList(), tutorial, minNights (0 lets
   //  a trip be one day), listInfo(t) (more words on the trip's row in the list).
   const E = {
