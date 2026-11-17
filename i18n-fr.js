@@ -745,6 +745,9 @@
     "People":"Personnes",
     "Weather where you sleep, a weather model's estimate (Open-Meteo, the middle of three models). Up high it can be colder, wetter and windier than at camp.":"Météo où vous dormez, une estimation d'un modèle météo (Open-Meteo, le milieu de trois modèles). En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.",
     "Up high it can be colder, wetter and windier than at camp.":"En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.",
+    "Weather where you sleep, a weather model's estimate (Open-Meteo, the middle of three models).":"Météo où vous dormez, une estimation d'un modèle météo (Open-Meteo, le milieu de trois modèles).",
+    "Add your hikes to also see the weather at their high point. Up high it can be colder, wetter and windier than at camp.":"Ajoutez vos randos pour voir aussi la météo à leur point culminant. En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.",
+    "Hike trips: each day also shows the weather at the high point of your hikes.":"Sorties rando : chaque jour montre aussi la météo au point culminant de vos randos.",
     "Moto trips":"Voyages moto",
     "moto trip":"voyage moto",
     "Riders and bikes":"Motocyclistes et motos",
@@ -2802,6 +2805,8 @@
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
     // Hike trips (hike-trip.js)
+    [/^High point: (-?\d+°|–), low (-?\d+°|–)$/, "Point culminant : $1, min. $2"],
+    [/^High point: the highest spot on your hikes for this trip \((.+), about ([\d,]+) m\), from the map's height data, the same models at that height\.$/, function (m, n, e) { return "Point culminant : le point le plus haut de vos randos pour cette sortie (" + n + ", environ " + e.replace(",", " ") + " m), selon les données d'altitude de la carte, avec les mêmes modèles à cette altitude."; }],
     [/^(.+) \((campsite|hut or shelter|trailhead)\)$/, function (m, n, k) { return n + " (" + tw(k) + ")"; }],
     [/^low (-?\d+)°$/, "min. $1°"],
     [/^at (?!the |least |most |any |all |first |last |night |dawn |dusk )(.+)$/, "à $1"],

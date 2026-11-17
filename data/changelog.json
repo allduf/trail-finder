@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-11-17", "text": "Moto trips: plan a multi-day ride with a route for each day, scenic places along the way with photos, where you sleep (campsites, motels, hotels), the weather each day and, if you want, a gas check for every rider's bike. Ask \"3-day dirt trip from Kamloops\" to start one."},
+    {"date": "2026-11-16", "text": "Hike trips: each day also shows the weather at the high point of your hikes."},
     {"date": "2026-11-16", "text": "Hiking: new Hike trips. Plan a backpacking, car camping or hut trip: where you sleep each night, your hikes, the weather at camp each day, park warnings, water along the way and a camping packing list. Share it with your group like a cabin trip."},
     {"date": "2026-11-16", "text": "MTB: trails mapped as unofficial, closed or no bikes no longer open a trail card on the public map. The base map still shows the path."},
     {"date": "2026-11-16", "text": "Cabin trips: hold the handle beside a journal note to move it up or down. Your group sees the same order."},
