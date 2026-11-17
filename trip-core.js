@@ -38,11 +38,13 @@ window.tfTripEngine = function tfTripEngine(make) {
   const when = (v) => new Date(v).toLocaleString("en-CA", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const toast = (m) => { if (window.tfToast) window.tfToast(m); };
   const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  // "2 nights", or "day trip" for a trip with no night (Fishing allows 0 nights: K.minNights).
+  const nightsW = (t) => (t.nights ? `${t.nights} night${t.nights > 1 ? "s" : ""}` : "day trip");
 
   // ---------- the look (once for every sport: each pane sets its own --tp colour) ----------
   if (!window.tfTripCss) {
     window.tfTripCss = 1;
-    const P = ":is(#skiPane, #hikePane, #motoPane)";
+    const P = ":is(#skiPane, #hikePane, #fishPane, #motoPane)";
     const css = document.createElement("style");
     css.textContent = `
 ${P} .tp-card { border: 1.5px solid var(--tp); background: color-mix(in srgb, var(--tp) 5%, var(--panel)); }
@@ -474,7 +476,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   function bookIcs(t) {
     const d = (t.book && t.book.remind) || localDate(new Date()), at = new Date(d + "T09:00"), site = K.bookSite(t);
     return ics([`UID:tf-book-${t.id}@trail-finder`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(at)}`, `DTEND:${stamp(new Date(at.getTime() + 15 * 60000))}`,
-      `SUMMARY:${icsEsc(`Book ${title(t)} (${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""})`)}`,
+      `SUMMARY:${icsEsc(`Book ${title(t)} (${dayWord(t.date)}, ${nightsW(t)})`)}`,
       `DESCRIPTION:${icsEsc(`${K.bookWhat(t)}${site ? `\n${site}` : ""}`)}`,
       "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEsc(`Book ${title(t)}`)}`, "TRIGGER:PT0M", "END:VALARM"]);
   }
@@ -737,7 +739,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
         if (cur === t) render();
       } catch (e) { toast(`Couldn't share the trip: ${e.message || e}.`); return; }
     }
-    const text = `${title(t)} ${K.w.trip}, ${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""}. Open it in Trail Finder to see the lines and add to the packing list, meals and costs:`;
+    const text = `${title(t)} ${K.w.trip}, ${dayWord(t.date)}, ${nightsW(t)}. Open it in Trail Finder to see the lines and add to the packing list, meals and costs:`;
     try {
       if (navigator.share) await navigator.share({ title: `${title(t)} ${K.w.trip}`, text, url: tripLink(t) });
       else { await navigator.clipboard.writeText(`${text}\n${tripLink(t)}`); toast("Link copied: paste it in your group's chat."); }
@@ -935,7 +937,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
         <label>Nights<span class="tp-step"><button type="button" data-tp="n-" aria-label="One night less">−</button><b>${t.nights}</b><button type="button" data-tp="n+" aria-label="One night more">+</button></span></label>
         <label>People<span class="tp-step"><button type="button" data-tp="p-" aria-label="One person less">−</button><b>${t.people}</b><button type="button" data-tp="p+" aria-label="One person more">+</button></span></label>
       </div>
-      <p class="sk-note">${esc(dayWord(t.date))} to ${esc(dayWord(addDays(t.date, t.nights)))}${countdown(t)}</p>
+      <p class="sk-note">${esc(dayWord(t.date))}${t.nights ? ` to ${esc(dayWord(addDays(t.date, t.nights)))}` : ""}${countdown(t)}</p>
       ${K.baseHtml(t)}
       <div class="sk-sec" id="tpGroup">${groupHtml(t)}</div>
       ${K.midHtml(t)}
@@ -1086,12 +1088,12 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     if (!b || !cur) return;
     const t = cur, k = b.dataset.tp;
     if (b.classList.contains("sk-x")) { close(); return; }
-    if (k === "n-" || k === "n+") { t.nights = Math.max(1, Math.min(10, t.nights + (k === "n+" ? 1 : -1))); putTrip(t); render(); loadDays(t); if (K.datesChanged) K.datesChanged(t); }
+    if (k === "n-" || k === "n+") { t.nights = Math.max(K.minNights == null ? 1 : K.minNights, Math.min(10, t.nights + (k === "n+" ? 1 : -1))); putTrip(t); render(); loadDays(t); if (K.datesChanged) K.datesChanged(t); }
     else if (k === "p-" || k === "p+") { t.people = Math.max(1, Math.min(40, t.people + (k === "p+" ? 1 : -1))); putTrip(t); render(); }
     else if (k === "packshare") {
       const done = packDone(t), left = packList(t).map(([h, items]) => [h, items.filter((x) => !done[x[0]] && !/^(offline|plan)$/.test(x[0]))]).filter((x) => x[1].length);
       const gr = t.gear || {};
-      shareText(`Packing for ${title(t)}`, `Packing for ${title(t)}, ${dayWord(t.date)}, ${t.nights} night${t.nights > 1 ? "s" : ""}:\n` + left.map(([h, items]) => `\n${h}\n${items.map((x) => `- ${x[1]}${gr[x[0]] ? ` (${gr[x[0]]})` : ""}`).join("\n")}`).join("\n"));
+      shareText(`Packing for ${title(t)}`, `Packing for ${title(t)}, ${dayWord(t.date)}, ${nightsW(t)}:\n` + left.map(([h, items]) => `\n${h}\n${items.map((x) => `- ${x[1]}${gr[x[0]] ? ` (${gr[x[0]]})` : ""}`).join("\n")}`).join("\n"));
     } else if (k === "packclear") { t.packed = {}; putTrip(t); renderPack(); }
     else if (k === "share" || k === "sharelink") shareTrip(t);
     else if (k === "syncnow") syncTrip(t.id);
@@ -1139,7 +1141,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${K.w.icon} ${esc(K.w.Trips)}</h3></div>
       <button type="button" class="sk-tripgo" data-newtrip="1">＋ Start a new trip</button>
       ${window.tfTutorials && K.tutorial ? window.tfTutorials.button(K.tutorial) : ""}
-      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(title(t))}${t.share ? " 👥" : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${t.nights} night${t.nights > 1 ? "s" : ""}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}</small></button></li>`).join("")}</ul>` : ""}
+      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(title(t))}${t.share ? " 👥" : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${nightsW(t)}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}${K.listInfo ? esc(K.listInfo(t)) : ""}</small></button></li>`).join("")}</ul>` : ""}
       <p class="sk-note">${K.listNote()}</p>
       <ul class="tp-list" id="tpNear"><li><p class="tp-wait">${esc(K.w.finding)}</p></li></ul>`;
     if (!quiet) scrollTo();
@@ -1163,11 +1165,12 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   //  linesEmpty(t), drawLabel(t), openLine(t, x), listNote(), offBase(t); and if it has them: shared (more fields for
   //  the group), newTrip(), close(), afterLinesHtml(t), afterRender(t), baseBtn(t), linesTop(t), linesChanged(t),
   //  canEdit, editLine(t, id), openWay(t), drawExtra(t, layer), extraPts(t), gpxExtra(t, trk, wpt), keyOf(t) (what
-  //  makes the forecast change), offUrls(box), onTp(k, t, button), datesChanged(t), nearList(), tutorial.
+  //  makes the forecast change), offUrls(box), onTp(k, t, button), datesChanged(t), nearList(), tutorial, minNights (0 lets
+  //  a trip be one day), listInfo(t) (more words on the trip's row in the list).
   const E = {
     map, card, btn, layer, $, esc, store, toast, uid, localDate, addDays, dayWord, fmtM, fmtH, deg, when, tripDates,
     cur: () => cur, view: () => view, daysHtml, setView: (v) => { view = v; }, trips, putTrip, tripById, start, close, render, renderDays, renderLines, renderPack,
-    drawMap, scrollTo, loadDays, addLine, dropLine, linesOf, sameLine, offerAdd, meOf, byHtml, newTrip, showList, offSt, part,
+    drawMap, scrollTo, loadDays, addLine, dropLine, linesOf, sameLine, offerAdd, meOf, byHtml, newTrip, showList, offSt, part, names, nightsW, shareText, renderOrg,
   };
   K = make(E);
   card.id = K.cardId || "tpCard";
