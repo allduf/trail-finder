@@ -1113,6 +1113,8 @@
     drawArrows();
     render();
     if (mode === "tap") loadClimb();
+    // The bike trip (bike-trip.js) puts its "Add to bike trip" in the bar when there's a route to add.
+    window.dispatchEvent(new CustomEvent("tf:plan-drawn", { detail: { el: $("planTrip"), has: allPts().length > 1 } }));
   }
   const levelOf = (w) => {
     if (w.road) return { color: "#8d6e63", lvl: "forest road" };
@@ -1449,7 +1451,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       <div class="plan-btns"><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button>
       <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button>
       <button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button><button type="button" id="planClear">🗑 Clear</button></div></div>
-    <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul>`;
+    <ul class="plan-saved" id="planSaved" hidden aria-label="Saved routes"></ul><div class="plan-trip" id="planTrip"></div>`;
   document.body.appendChild(bar);
   const back = document.createElement("button");
   back.id = "planBack"; back.type = "button"; back.textContent = "✎ Back to my route";
@@ -1656,6 +1658,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     else { mode = e.mode === "pick" ? "pick" : "tap"; nav.load(); if (mode === "pick") restorePicks(); else restore(); draw(); }
   }
   let savedOpen = false;
+  let tripSaved = null;   // the route last saved for a bike trip ({ sig, id }): adding it again reuses it
   function showSaved(on) {
     savedOpen = on; $("planSaved").hidden = !on; $("planSavedBtn").setAttribute("aria-pressed", String(on)); $("planSavedTop").setAttribute("aria-pressed", String(on));
     if (on) { renderSaved(); window.tfAccount?.sync?.(); }   // routes saved on another device come in (account.js)
@@ -1752,6 +1755,18 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       setFind(false);
     },
     has: (ids) => picks.some((p) => p.ways.some((w) => ids.includes(w.id))),
+    // The route being planned as a line for a bike trip (bike-trip.js): saved to 📂 Saved first (once for the same
+    // route), so the trip keeps its id and opens it again from there.
+    item: () => {
+      const pts = allPts().map((p) => (p.lat != null ? [p.lat, p.lng] : [p[0], p[1]]));
+      if (pts.length < 2) return null;
+      const sig = `${pts.length}:${pts[0]}:${pts.at(-1)}:${Math.round(total())}`;
+      let e = tripSaved && tripSaved.sig === sig && savedList().find((x) => x.id === tripSaved.id);
+      if (!e) { e = routeEntry(routeGuess()); setSaved([e, ...savedList()]); tripSaved = { sig, id: e.id }; }
+      return { tour: e.id, name: e.name, ls: [pts] };
+    },
+    openSavedId: (id) => { const e = savedList().find((x) => x.id === id); if (!e) return false; openSaved(e); return true; },
+    close: () => setPlanning(false),
     // Ready-made loops (loops.js): the pieces a tap on piece id picks (of ids, the trail's same-name pieces), and their
     // length; then open a route entry (as tf:planSaved keeps them) without saving it, or save it first.
     groupOf: (id, ids) => {
