@@ -1,0 +1,3 @@
+# ADV topo far dirt roads (adv-map.js, dirt-roads.yml), 2026-11-17
+Adventure moto (ADV): the ADV topo map now shows gravel and dirt roads when zoomed out too, across Canada, from OpenStreetMap. ||| Moto d'aventure (ADV) : la carte Topo ADV montre maintenant les chemins de gravier et de terre aussi en vue éloignée, partout au Canada, d'après OpenStreetMap.
+Adventure moto (ADV): BC forest roads are thinner and lighter when zoomed out, on the flat and 3D maps, and full width from close up. ||| Moto d'aventure (ADV) : les chemins forestiers de la C.-B. sont plus fins et plus pâles en vue éloignée, sur la carte plate et en 3D, et pleine largeur de près.

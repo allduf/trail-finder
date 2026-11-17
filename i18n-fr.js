@@ -1140,6 +1140,8 @@
     "set":"coucher",
     "Sun up all day":"Soleil levé toute la journée",
     "Sun down all day":"Soleil couché toute la journée",
+    "Adventure moto (ADV): the ADV topo map now shows gravel and dirt roads when zoomed out too, across Canada, from OpenStreetMap.":"Moto d'aventure (ADV) : la carte Topo ADV montre maintenant les chemins de gravier et de terre aussi en vue éloignée, partout au Canada, d'après OpenStreetMap.",
+    "Adventure moto (ADV): BC forest roads are thinner and lighter when zoomed out, on the flat and 3D maps, and full width from close up.":"Moto d'aventure (ADV) : les chemins forestiers de la C.-B. sont plus fins et plus pâles en vue éloignée, sur la carte plate et en 3D, et pleine largeur de près.",
     "3D keeps your map style: Map, ADV topo, Topo, Satellite and Sat + names all show over the mountains in 3D, and you can change the style in Layers while in 3D.":"La 3D garde votre style de carte : Carte, Topo ADV, Topo, Satellite et Sat + noms s'affichent tous sur les montagnes en 3D, et vous pouvez changer de style dans Couches en 3D.",
     "3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo.":"Carte 3D : les lignes des sentiers et des itinéraires sont nettes maintenant, dessinées par-dessus les montagnes au lieu d'être peintes floues dans la photo.",
     "Search a route, hut, resort, freeride line or place, or ask in plain words":"Chercher un itinéraire, un refuge, une station, une ligne freeride ou un lieu, ou demander en mots simples",

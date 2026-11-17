@@ -1,6 +1,8 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-17", "text": "Adventure moto (ADV): BC forest roads are thinner and lighter when zoomed out, on the flat and 3D maps, and full width from close up."},
+    {"date": "2026-11-17", "text": "Adventure moto (ADV): the ADV topo map now shows gravel and dirt roads when zoomed out too, across Canada, from OpenStreetMap."},
     {"date": "2026-11-17", "text": "3D keeps your map style: Map, ADV topo, Topo, Satellite and Sat + names all show over the mountains in 3D, and you can change the style in Layers while in 3D."},
     {"date": "2026-11-17", "text": "Sun and shade, in Layers for every sport: pick a date and a time, and the map darkens the ground the terrain keeps in shade at that moment, on the flat map and in 3D. It uses the sun's real position for the place and the day of the year. An estimate from terrain heights."},
     {"date": "2026-11-17", "text": "Adventure moto (ADV) has its own map: ADV topo, with shaded mountains, elevation lines, and gravel and dirt roads standing out in brown. It turns dark after sunset. Pick another style any time in Layers."},
