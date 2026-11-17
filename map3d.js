@@ -2777,10 +2777,10 @@
           // Topo (alex 2026-11-17: "can we have the topo map in 3d too?"): the flat map's Topo style (OpenTopoMap) laid
           // over the real mountains. Only fetched while Topo is picked (a hidden layer loads nothing). 256 px tiles: the
           // map's words are drawn into the pictures, so smaller tiles would make them too small to read.
-          // Under it, like satlo under Summer: the same map at zoom 10 at most, for the far ground the close tiles
-          // don't reach in a tilted view (it was plain pale ground past ~3 km, headless test 2026-11-17).
-          topolo: { type: "raster", tileSize: 256, maxzoom: 10, tiles: ["a", "b", "c"].map((s) => `https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`) },
-          topo: { type: "raster", tileSize: 256, maxzoom: 17, tiles: ["a", "b", "c"].map((s) => `https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`),
+          // From zoom 13 only: OpenTopoMap's zoom 10-12 pictures are orange shading and thick yellow roads, blurry and
+          // blocky in the distance (alex 2026-11-17, circled). Farther away the ground is drawn from the same OpenFreeMap
+          // data as the offline map (woods, open ground, rock, ice, water) with the hills shaded: sharp at any distance.
+          topo: { type: "raster", tileSize: 256, minzoom: 13, maxzoom: 17, tiles: ["a", "b", "c"].map((s) => `https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`),
             attribution: "Topo: &copy; <a href=\"https://opentopomap.org\">OpenTopoMap</a> (CC-BY-SA), SRTM, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
@@ -2803,10 +2803,12 @@
           { id: "off-land", type: "fill", source: "names", "source-layer": "landcover", layout: { visibility: "none" },
             paint: { "fill-color": ["match", ["get", "class"], "wood", "#a7c496", "grass", "#d4e3b5", "rock", "#d3cfc6", "ice", "#f3f7fa", "sand", "#ece2c3", "wetland", "#c2dacb", "farmland", "#e3e6c3", "#d6e0c4"] } },
           { id: "off-water", type: "fill", source: "names", "source-layer": "water", layout: { visibility: "none" }, paint: { "fill-color": "#98c0e4" } },
+          // Topo's far ground: the hills shaded under the land above (under Topo's own pictures nearer, which shade themselves).
+          { id: "topo-shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
+            paint: { "hillshade-exaggeration": 0.45, "hillshade-shadow-color": "#5b5a45", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#6d6a52" } },
           { id: "satlo", type: "raster", source: "satlo", paint: { "raster-fade-duration": 0, "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           { id: "sumhi", type: "raster", source: "sumhi", paint: { "raster-fade-duration": 0 } },
-          { id: "topolo", type: "raster", source: "topolo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           { id: "topo", type: "raster", source: "topo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
@@ -2977,7 +2979,7 @@
     };
     const photoSource = () => ["winter", "live", "topo", "sat"].find((id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none") || "sat";
     // The few big, blurry photos under the sharp ones (Winter: winterlo, Summer: satlo), there long before.
-    const quickPhotos = () => { const lo = ({ winter: "winterlo", sat: "satlo", topo: "topolo" })[photoSource()]; return lo && gl.getSource(lo) ? lo : photoSource(); };
+    const quickPhotos = () => { const lo = ({ winter: "winterlo", sat: "satlo" })[photoSource()]; return lo && gl.getSource(lo) ? lo : photoSource(); };
     // The note goes as soon as the mountains have their shape and a first (blurry) photo on them: the sharp photos
     // then come in, nearest first, while you look. It waited for every sharp photo of the view and for the map to
     // stop moving before, so on a phone it stayed up 5-6 s over mountains already drawn (alex's recording, 2026-11-05).
@@ -3060,7 +3062,7 @@
       for (const id of ["winwide", "winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
       const topo = photos === "topo";
-      for (const id of ["topolo", "topo"]) gl.setLayoutProperty(id, "visibility", topo ? "visible" : "none");
+      gl.setLayoutProperty("topo", "visibility", topo ? "visible" : "none");
       // Topo draws its own roads and paths: the photos' road lines on top would draw each one twice.
       for (const id of ["osm-roads", "osm-paths"]) gl.setLayoutProperty(id, "visibility", topo ? "none" : "visible");
       topoBtn.title = "Topographic map (OpenTopoMap): elevation lines, roads, paths and names over the mountains";
@@ -3077,9 +3079,11 @@
     const offGround = () => {
       const off = !navigator.onLine;
       for (const id of ["off-bg", "off-land", "off-water", "shade"]) gl.setLayoutProperty(id, "visibility", off ? "visible" : "none");
-      if (off) for (const id of ["satlo", "sat", "sumhi", "fill", "live", "topolo", "topo"]) gl.setLayoutProperty(id, "visibility", "none");
-      // Topo: plain light ground under it, so a spot whose map is still coming is pale land, not a hole to the sky.
-      else if (photos === "topo") gl.setLayoutProperty("off-bg", "visibility", "visible");
+      if (off) for (const id of ["satlo", "sat", "sumhi", "fill", "live", "topo"]) gl.setLayoutProperty(id, "visibility", "none");
+      // Topo: past its sharp pictures (and while one is still coming), the land drawn from OpenFreeMap with the hills
+      // shaded, like the offline map (see the topo source).
+      else if (photos === "topo") for (const id of ["off-bg", "off-land", "off-water"]) gl.setLayoutProperty(id, "visibility", "visible");
+      gl.setLayoutProperty("topo-shade", "visibility", !off && photos === "topo" ? "visible" : "none");
     };
     netChange = () => { if (gl && gl.getLayer("off-bg")) setPhotos(photos); };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
@@ -3118,7 +3122,7 @@
     const tileTries = new Map();
     gl.on("idle", () => {
       if (!navigator.onLine) return;
-      for (const id of ["satlo", "sat", "fill", "winwide", "winterlo", "winter", "live", "topolo", "topo"]) {
+      for (const id of ["satlo", "sat", "fill", "winwide", "winterlo", "winter", "live", "topo"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
         for (const t of tiles.getAllIds()) {
