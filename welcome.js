@@ -28,7 +28,7 @@
     ["ski", "⛷", "Skiing", "Ski tours, avalanche forecast, huts and resorts"],
     ["hunt", "🦌", "Hunting", "Zones, open seasons, no-shooting areas and wind"],
     ["fish", "🎣", "Fishing", "Stocked lakes, fishing rules and river flow"],
-    ["moto", "🏍", "Adventure moto", "Gravel and back roads graded for your bike"],
+    ["moto", "🏍", "Adventure moto (ADV)", "Gravel and back roads graded for your bike"],
     ["hike", "🥾", "Hiking", "Hikes by grade, snow on the trail, park passes"],
   ];
   // Step 2 (why location helps) and step 3 (what you'll see), in each sport's own words.

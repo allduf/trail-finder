@@ -1,0 +1,4 @@
+# Sport name Adventure moto (ADV), 2026-11-17
+Adventure moto (ADV) ||| Moto d'aventure (ADV)
+Sport: Adventure moto (ADV). Change sport ||| Sport : Moto d'aventure (ADV). Changer de sport
+The sport is now called Adventure moto (ADV), so riders who say ADV find it right away. ||| Le sport s'appelle maintenant Moto d'aventure (ADV), pour que les motards qui disent ADV le trouvent tout de suite.

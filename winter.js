@@ -5721,7 +5721,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Shows the current sport's icon; one tap opens the three sports, a second tap switches. On phones it is the first
   // chip of the map's chip row, on wide screens it sits at the top of the map tools; the same on the 3D map.
   // [icon, name, short name for the map button when the name is too long for it]
-  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto", "Moto"], hike: ["🥾", "Hiking"] };
+  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto (ADV)", "ADV"], hike: ["🥾", "Hiking"] };
   // Line drawings like Layers, 3D and Me beside it (line-icons.js; interface review 2026-11-02 item 8).
   const line = (e, size) => (window.tfLine ? window.tfLine(e, size) : e);
   const tools = document.querySelector(".map-tools");

@@ -23,9 +23,9 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=5160"></script>
-<script src="wxcheck.js?v=5160"></script>
-<script src="line-icons.js?v=5160"></script>
+<script src="i18n.js?v=5180"></script>
+<script src="wxcheck.js?v=5180"></script>
+<script src="line-icons.js?v=5180"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -1417,7 +1417,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <h1>Trail <span>Finder</span></h1>
         <button type="button" class="peek-search" id="peekSearch"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search trails</span></button>
         <button type="button" class="peek-photo" id="peekPhoto" aria-label="Which trail is this? Find a trail from a photo" title="Which trail is this? Find a trail from a photo">📷</button>
-        <span class="brand-links"><button class="linkish desk-menu-btn" id="deskMenuBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskMenu" title="Everything in the phone's More menu: settings, saved, record and more">☰ Menu</button><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto" data-short="🏍 Moto">🏍 Adventure moto</option><option value="hike">🥾 Hiking</option></select></span>
+        <span class="brand-links"><button class="linkish desk-menu-btn" id="deskMenuBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskMenu" title="Everything in the phone's More menu: settings, saved, record and more">☰ Menu</button><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto" data-short="🏍 ADV">🏍 Adventure moto (ADV)</option><option value="hike">🥾 Hiking</option></select></span>
       </div>
       <div class="peek-quick" id="peekQuick" role="group" aria-label="Quick searches">
         <button type="button" data-q="new">✨ New trails</button><button type="button" data-q="near">◎ Near me</button><button type="button" data-q="prime"><span class="dot" aria-hidden="true"></span>Prime loam</button><button type="button" data-q="today">☀ Today</button>
@@ -1583,7 +1583,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <li><b>Lake depth</b> lines and depth charts are in Layers.</li>
       <li><b>Save a catch</b> with a photo. The Fishing log shows what works for you. Your catches stay private.</li>
     </ul>
-    <h3 id="aboutMoto">🏍 Adventure moto</h3>
+    <h3 id="aboutMoto">🏍 Adventure moto (ADV)</h3>
     <ul class="about-quick">
       <li><b>Pick your bike</b> first: roads turn green (fine for it), orange (hard) or red (not for it).</li>
       <li><b>Tap a road</b> for its surface, mud today, the rules and the nearest gas.</li>
@@ -1625,17 +1625,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="hidden-places.js?v=5160"></script>
-<script src="noback.js?v=5160"></script>
-<script src="risk.js?v=5160"></script>
-<script src="welcome.js?v=5160"></script>
-<script src="native.js?v=5160"></script>
-<script src="keyboard.js?v=5160"></script>
-<script src="rotate.js?v=5160"></script>
-<script src="official.js?v=5160"></script>
-<script src="directions.js?v=5160"></script>
-<script src="ratings.js?v=5160"></script>
-<script src="ebike.js?v=5160"></script>
+<script src="hidden-places.js?v=5180"></script>
+<script src="noback.js?v=5180"></script>
+<script src="risk.js?v=5180"></script>
+<script src="welcome.js?v=5180"></script>
+<script src="native.js?v=5180"></script>
+<script src="keyboard.js?v=5180"></script>
+<script src="rotate.js?v=5180"></script>
+<script src="official.js?v=5180"></script>
+<script src="directions.js?v=5180"></script>
+<script src="ratings.js?v=5180"></script>
+<script src="ebike.js?v=5180"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -4423,7 +4423,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=5160").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=5180").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -8911,51 +8911,51 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=5160"></script>
-<script src="native-map.js?v=5160"></script>
-<script src="contours.js?v=5160"></script>
-<script src="clouds.js?v=5160"></script>
-<script src="smoke.js?v=5160"></script>
-<script src="radar.js?v=5160"></script>
-<script src="photo-slider.js?v=5160"></script>
-<script src="ski-terrain.js?v=5160"></script>
-<script src="place-search.js?v=5160"></script>
-<script src="winter.js?v=5160"></script>
-<script src="hunts.js?v=5160"></script>
-<script src="ski-points.js?v=5160"></script>
-<script src="offline.js?v=5160"></script>
-<script src="ride-stats.js?v=5160"></script>
-<script src="native-gps.js?v=5160"></script>
-<script src="navigate.js?v=5160"></script>
-<script src="go-there.js?v=5160"></script>
-<script src="planner.js?v=5160"></script>
-<script src="loops.js?v=5160"></script>
-<script src="ride-finds.js?v=5160"></script>
-<script src="rides.js?v=5160"></script>
-<script src="community.js?v=5160"></script>
-<script src="ride-files.js?v=5160"></script>
-<script src="rider-trails.js?v=5160"></script>
-<script src="account.js?v=5160"></script>
-<script src="friends.js?v=5160"></script>
-<script src="live.js?v=5160"></script>
-<script src="strava.js?v=5160"></script>
-<script src="moderation.js?v=5160"></script>
-<script src="reports.js?v=5160"></script>
-<script src="grades.js?v=5160"></script>
-<script src="trail-photos.js?v=5160"></script>
-<script src="visitors.js?v=5160"></script>
-<script src="usage.js?v=5160"></script>
-<script src="notify.js?v=5160"></script>
-<script src="closures.js?v=5160"></script>
-<script src="status.js?v=5160"></script>
-<script src="ask.js?v=5160"></script>
-<script src="areas.js?v=5160"></script>
-<script src="alpine.js?v=5160"></script>
-<script src="bikeparks.js?v=5160"></script>
-<script src="photo-find.js?v=5160"></script>
-<script src="whats-new.js?v=5160"></script>
-<script src="tutorials.js?v=5160"></script>
-<script src="app-update.js?v=5160"></script>
+<script src="map3d.js?v=5180"></script>
+<script src="native-map.js?v=5180"></script>
+<script src="contours.js?v=5180"></script>
+<script src="clouds.js?v=5180"></script>
+<script src="smoke.js?v=5180"></script>
+<script src="radar.js?v=5180"></script>
+<script src="photo-slider.js?v=5180"></script>
+<script src="ski-terrain.js?v=5180"></script>
+<script src="place-search.js?v=5180"></script>
+<script src="winter.js?v=5180"></script>
+<script src="hunts.js?v=5180"></script>
+<script src="ski-points.js?v=5180"></script>
+<script src="offline.js?v=5180"></script>
+<script src="ride-stats.js?v=5180"></script>
+<script src="native-gps.js?v=5180"></script>
+<script src="navigate.js?v=5180"></script>
+<script src="go-there.js?v=5180"></script>
+<script src="planner.js?v=5180"></script>
+<script src="loops.js?v=5180"></script>
+<script src="ride-finds.js?v=5180"></script>
+<script src="rides.js?v=5180"></script>
+<script src="community.js?v=5180"></script>
+<script src="ride-files.js?v=5180"></script>
+<script src="rider-trails.js?v=5180"></script>
+<script src="account.js?v=5180"></script>
+<script src="friends.js?v=5180"></script>
+<script src="live.js?v=5180"></script>
+<script src="strava.js?v=5180"></script>
+<script src="moderation.js?v=5180"></script>
+<script src="reports.js?v=5180"></script>
+<script src="grades.js?v=5180"></script>
+<script src="trail-photos.js?v=5180"></script>
+<script src="visitors.js?v=5180"></script>
+<script src="usage.js?v=5180"></script>
+<script src="notify.js?v=5180"></script>
+<script src="closures.js?v=5180"></script>
+<script src="status.js?v=5180"></script>
+<script src="ask.js?v=5180"></script>
+<script src="areas.js?v=5180"></script>
+<script src="alpine.js?v=5180"></script>
+<script src="bikeparks.js?v=5180"></script>
+<script src="photo-find.js?v=5180"></script>
+<script src="whats-new.js?v=5180"></script>
+<script src="tutorials.js?v=5180"></script>
+<script src="app-update.js?v=5180"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
