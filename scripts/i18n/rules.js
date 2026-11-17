@@ -18,8 +18,9 @@
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
     // Hike trips (hike-trip.js)
-    [/^High point: (-?\d+°|–), low (-?\d+°|–)$/, "Point culminant : $1, min. $2"],
-    [/^High point: the highest spot on your hikes for this trip \((.+), about ([\d,]+) m\), from the map's height data, the same models at that height\.$/, function (m, n, e) { return "Point culminant : le point le plus haut de vos randos pour cette sortie (" + n + ", environ " + e.replace(",", " ") + " m), selon les données d'altitude de la carte, avec les mêmes modèles à cette altitude."; }],
+    [/^High point of (.+) \(([\d,]+) m\): (-?\d+°|–), low (-?\d+°|–)$/, function (m, n, e, a, b) { return "Point culminant de " + n + " (" + e.replace(",", " ") + " m) : " + a + ", min. " + b; }],
+    [/^Day (\d+)$/, "Jour $1"],
+    [/^Which day for (.+)$/, "Quel jour pour $1"],
     [/^(.+) \((campsite|hut or shelter|trailhead)\)$/, function (m, n, k) { return n + " (" + tw(k) + ")"; }],
     [/^low (-?\d+)°$/, "min. $1°"],
     [/^at (?!the |least |most |any |all |first |last |night |dawn |dusk )(.+)$/, "à $1"],

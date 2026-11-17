@@ -106,6 +106,8 @@
       hasDays: (t) => !!centre(t),
       keyOf: (t) => JSON.stringify([t.camps || null, t.hut ? t.hut.id : "", linesKey(t)]),
       snapOf, daysHtml, packItems, planText,
+      // Which day each hike is for (alex 2026-11-17), so each day shows the weather at its own hike's high point.
+      lineExtra: (t, x) => `<select class="tp-day" data-hday="${esc(x.id)}" aria-label="Which day for ${esc(x.name)}"><option value="">Any day</option>${E.tripDates(t).map((d, j) => `<option value="${j}"${x.day === j ? " selected" : ""}>Day ${j + 1}</option>`).join("")}</select>`,
       bookTop(t) {
         const l = uniq([...nightCamps(t), t.hut && SLEEP.includes(t.hut.kind) ? t.hut : null]);
         const need = l.some((c) => c.tags.reservation === "required");
@@ -177,6 +179,13 @@
   }
   E.card.addEventListener("change", (e) => {
     const el = e.target, t = cur();
+    if (t && el.dataset.hday) {
+      const x = (t.lines || []).find((l) => l.id === el.dataset.hday);
+      if (!x) return;
+      if (el.value === "") delete x.day; else x.day = +el.value;
+      E.putTrip(t); E.loadDays(t);
+      return;
+    }
     if (!el.dataset.camp || !t) return;
     const i = +el.dataset.camp, v = el.value;
     if (v === "=prev") { setCamp(t, i, campOn(t, i - 1)); return; }
@@ -204,27 +213,31 @@
   // Canada's, ECMWF's and NOAA's models), about a week ahead; the snow line from the freezing level at noon.
   const WX = [[0, "Clear"], [2, "Some cloud"], [3, "Cloudy"], [48, "Fog"], [57, "Drizzle"], [67, "Rain"], [77, "Snow"], [82, "Showers"], [86, "Snow showers"], [99, "Thunderstorms"]];
   const wxWord = (c) => (c == null ? "" : (WX.find((x) => c <= x[0]) || WX.at(-1))[1]);
-  // The high point of the trip's hikes (alex 2026-11-17: also the weather up there each day): up to 100 points spread
-  // over every hike, their heights from Open-Meteo's elevation data, the highest one kept with the trip until the
-  // hikes change.
-  function linesKey(t) { return (t.lines || []).map((l) => l.id).sort().join(","); }
-  async function highPoint(t) {
-    const key = linesKey(t);
-    if (!key) return null;
-    if (t.hp && t.hp.key === key) return t.hp;
-    const pts = [];
-    for (const l of t.lines) for (const seg of l.ls) for (const p of seg) pts.push({ p, name: l.name });
+  // The high point of each hike (alex 2026-11-17: the weather up there each day, for that day's hikes): up to 100
+  // points spread over the hike, their heights from Open-Meteo's elevation data, kept with the trip (t.hpl, by hike).
+  function linesKey(t) { return (t.lines || []).map((l) => l.id + ":" + (l.day == null ? "" : l.day)).sort().join(","); }
+  async function lineTop(t, l) {
+    t.hpl = t.hpl || {};
+    if (t.hpl[l.id]) return t.hpl[l.id];
+    const pts = l.ls.flat();
     if (!pts.length) return null;
     const step = Math.max(1, pts.length / 100), pick = [];
     for (let i = 0; i < pts.length && pick.length < 100; i += step) pick.push(pts[Math.floor(i)]);
     pick.push(pts.at(-1));
-    const q = `latitude=${pick.map((x) => x.p[0].toFixed(4)).join(",")}&longitude=${pick.map((x) => x.p[1].toFixed(4)).join(",")}`;
+    const q = `latitude=${pick.map((p) => p[0].toFixed(4)).join(",")}&longitude=${pick.map((p) => p[1].toFixed(4)).join(",")}`;
     const r = await fetch(`https://api.open-meteo.com/v1/elevation?${q}`).then((x) => (x.ok ? x.json() : null), () => null);
     const el = (r && r.elevation) || [];
     let best = -1;
     el.forEach((e, i) => { if (e != null && (best < 0 || e > el[best])) best = i; });
     if (best < 0) return null;
-    return (t.hp = { key, lat: +pick[best].p[0].toFixed(4), lon: +pick[best].p[1].toFixed(4), ele: Math.round(el[best]), name: pick[best].name });
+    return (t.hpl[l.id] = { lat: +pick[best][0].toFixed(4), lon: +pick[best][1].toFixed(4), ele: Math.round(el[best]) });
+  }
+  // Each day's high point: the highest of that day's hikes; a day with none gets the highest of the hikes with no day.
+  async function dayTops(t, n) {
+    const ls = t.lines || [], tops = [];
+    for (const l of ls) { const h = await lineTop(t, l); if (h) tops.push({ ...h, name: l.name, day: l.day }); }
+    const hi = (l) => l.reduce((a, b) => (!a || b.ele > a.ele ? b : a), null), loose = hi(tops.filter((x) => x.day == null));
+    return Array.from({ length: n }, (_, j) => hi(tops.filter((x) => x.day === j)) || loose);
   }
   async function snapOf(t) {
     const dates = E.tripDates(t), c0 = centre(t);
@@ -240,15 +253,14 @@
       try { got[k] = await H.wx(`https://api.open-meteo.com/v1/forecast?${q}`); } catch (e) { err = e.message || "no signal"; }
     }
     if (!Object.keys(got).length) return { err: err || "no signal" };
-    let top = null, hp = null;
-    try {
-      hp = await highPoint(t);
-      if (hp) {
-        const q = new URLSearchParams({ latitude: hp.lat, longitude: hp.lon, elevation: hp.ele,
-          daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,wind_speed_10m_max,wind_gusts_10m_max", forecast_days: "16", timezone: "auto" });
-        top = (await H.wx(`https://api.open-meteo.com/v1/forecast?${q}`)).daily || null;
-      }
-    } catch { top = null; }
+    const tops = await dayTops(t, dates.length).catch(() => dates.map(() => null)), topWx = {};
+    for (const h of tops) {
+      const k = h && `${h.lat},${h.lon}`;
+      if (!h || k in topWx) continue;
+      const q = new URLSearchParams({ latitude: h.lat, longitude: h.lon, elevation: h.ele,
+        daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,wind_speed_10m_max,wind_gusts_10m_max", forecast_days: "16", timezone: "auto" });
+      try { topWx[k] = (await H.wx(`https://api.open-meteo.com/v1/forecast?${q}`)).daily || null; } catch { topWx[k] = null; }
+    }
     let end = "", ele = 0;
     const rows = dates.map((date, j) => {
       const l = locs[j], w = got[l.ll.map((v) => v.toFixed(3)).join(",")], row = { date, tag: j === 0 ? "first" : j === t.nights ? "last" : "", at: l.name };
@@ -262,17 +274,18 @@
       return Object.assign(row, { code: dd.weather_code[i], hi: dd.temperature_2m_max[i], lo: dd.temperature_2m_min[i], rain: dd.precipitation_sum[i] || 0, snow: dd.snowfall_sum[i] || 0,
         pop: dd.precipitation_probability_max ? dd.precipitation_probability_max[i] : null, wind: dd.wind_speed_10m_max[i], gust: dd.wind_gusts_10m_max[i], sunset: dd.sunset[i],
         line: fl == null ? null : Math.max(0, Math.round((fl - 300) / 100) * 100),
-        top: (() => { const k = top ? top.time.indexOf(date) : -1; return k < 0 ? null : { hi: top.temperature_2m_max[k], lo: top.temperature_2m_min[k], rain: top.precipitation_sum[k] || 0,
-          snow: top.snowfall_sum[k] || 0, wind: top.wind_speed_10m_max[k], gust: top.wind_gusts_10m_max[k] }; })() });
+        top: (() => { const h = tops[j], top = h && topWx[`${h.lat},${h.lon}`], k = top ? top.time.indexOf(date) : -1;
+          return k < 0 ? null : { name: h.name, ele: h.ele, hi: top.temperature_2m_max[k], lo: top.temperature_2m_min[k], rain: top.precipitation_sum[k] || 0,
+            snow: top.snowfall_sum[k] || 0, wind: top.wind_speed_10m_max[k], gust: top.wind_gusts_10m_max[k] }; })() });
     });
-    return { snap: { at: Date.now(), rows, end, ele: Math.round(ele), hp: top && hp ? { name: hp.name, ele: hp.ele } : null } };
+    return { snap: { at: Date.now(), rows, end, ele: Math.round(ele), hp: rows.some((r) => r.top) } };
   }
   const hm = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
   const deg = (v) => (v == null ? "–" : `${Math.round(v) === 0 ? 0 : Math.round(v)}°`);
   // One line under each day: the high point of the hikes, from the same models at that height.
   function topHtml(x) {
     if (!x || x.hi == null) return "";
-    const b = [`High point: ${deg(x.hi)}, low ${deg(x.lo)}`, x.snow >= 0.5 ? `${Math.round(x.snow)} cm of snow` : x.rain >= 1 ? `${Math.round(x.rain)} mm of rain` : "",
+    const b = [`High point of ${x.name} (${x.ele.toLocaleString()} m): ${deg(x.hi)}, low ${deg(x.lo)}`, x.snow >= 0.5 ? `${Math.round(x.snow)} cm of snow` : x.rain >= 1 ? `${Math.round(x.rain)} mm of rain` : "",
       `wind ${Math.round(x.wind || 0)} km/h${x.gust >= 50 ? `, gusts ${Math.round(x.gust)}` : ""}`].filter(Boolean);
     return `<small class="tp-top">${b.map((y) => `<span>${esc(y)}</span>`).join(" · ")}</small>`;
   }
@@ -286,7 +299,7 @@
     }).join("");
     const far = v.rows.some((r) => r.code == null && v.end && r.date > v.end);
     return `<ul class="tp-days">${rows}</ul>
-      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather where you sleep, a weather model's estimate (Open-Meteo, the middle of three models)${far ? `, about two weeks ahead at most: come back closer to the trip` : ""}. ${v.hp ? `High point: the highest spot on your hikes for this trip (${esc(v.hp.name)}, about ${v.hp.ele.toLocaleString()} m), from the map's height data, the same models at that height.` : "Add your hikes to also see the weather at their high point. Up high it can be colder, wetter and windier than at camp."}</p>`;
+      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather where you sleep, a weather model's estimate (Open-Meteo, the middle of three models)${far ? `, about two weeks ahead at most: come back closer to the trip` : ""}. ${v.hp ? "High point: the highest spot on that day's hikes (pick a day beside each hike in Your hikes; hikes with no day count for every day without one), its height from the map's height data, the same models at that height." : "Add your hikes to also see the weather at their high point. Up high it can be colder, wetter and windier than at camp."}</p>`;
   }
 
   // ---------- parks, passes and warnings ----------
