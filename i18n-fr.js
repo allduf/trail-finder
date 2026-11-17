@@ -747,6 +747,7 @@
     "Up high it can be colder, wetter and windier than at camp.":"En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.",
     "Weather where you sleep, a weather model's estimate (Open-Meteo, the middle of three models).":"Météo où vous dormez, une estimation d'un modèle météo (Open-Meteo, le milieu de trois modèles).",
     "Add your hikes to also see the weather at their high point. Up high it can be colder, wetter and windier than at camp.":"Ajoutez vos randos pour voir aussi la météo à leur point culminant. En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.",
+    "Hike trips: each day also shows the weather at the high point of your hikes.":"Sorties rando : chaque jour montre aussi la météo au point culminant de vos randos.",
     "Plan it":"Planifier",
     "Type your plan":"Écrivez votre plan",
     "💬 Or type your plan: start at…, ski…, finish…":"💬 Ou écrivez votre plan : départ à…, descendre…, arrivée à…",
