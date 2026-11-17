@@ -288,7 +288,8 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
 .map-tools .layers-menu button { display: flex; align-items: center; gap: 6px; text-align: left; background: var(--chip, #fff); border: 1px solid var(--line); }
 .map-tools .layers-menu .lm-overlays button::after { content: "Off"; margin-left: auto; font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 10%, transparent); color: var(--muted); }
 .map-tools .layers-menu .lm-overlays button.on::after { content: "On"; background: rgba(255, 255, 255, .25); color: inherit; }
-.mapwrap.is3d .layers-menu .lm-style { display: none; }
+/* Map style works in 3D too (alex 2026-11-17, map3d.js); only Tilt for 3D is for the flat map. */
+.mapwrap.is3d .layers-menu .lm-tilt { display: none; }
 .layers-menu .lm-looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .map-tools .layers-menu .lm-looks button { justify-content: center; padding-left: 4px; padding-right: 4px; font-size: .85rem; }
 .map-tools .layers-menu .lm-looks button[aria-pressed="true"] { background: var(--forest); border-color: var(--forest); color: #fff; }

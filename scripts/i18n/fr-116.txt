@@ -1,0 +1,2 @@
+# Every map style in 3D (map3d.js), 2026-11-17
+3D keeps your map style: Map, ADV topo, Topo, Satellite and Sat + names all show over the mountains in 3D, and you can change the style in Layers while in 3D. ||| La 3D garde votre style de carte : Carte, Topo ADV, Topo, Satellite et Sat + noms s'affichent tous sur les montagnes en 3D, et vous pouvez changer de style dans Couches en 3D.
