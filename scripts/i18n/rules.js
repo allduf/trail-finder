@@ -17,6 +17,30 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // Hike trips (hike-trip.js)
+    [/^(.+) \((campsite|hut or shelter|trailhead)\)$/, function (m, n, k) { return n + " (" + tw(k) + ")"; }],
+    [/^low (-?\d+)°$/, "min. $1°"],
+    [/^at (?!the |least |most |any |all |first |last |night |dawn |dusk )(.+)$/, "à $1"],
+    [/^wind (\d+) km\/h(?:, gusts (\d+))?$/, function (m, w, g) { return "vent " + w + " km/h" + (g ? ", rafales " + g : ""); }],
+    [/^snow above about ([\d,]+) m$/, function (m, n) { return "neige au-dessus d'environ " + n.replace(",", " ") + " m"; }],
+    [/^sunset (.+)$/, "coucher du soleil $1"],
+    [/^(\d+) cm of snow$/, "$1 cm de neige"],
+    [/^(\d+) mm of rain$/, "$1 mm de pluie"],
+    [/^(\d+)% chance$/, "$1 % de risque"],
+    [/^Night (\d+) · (.+)$/, function (m, n, d) { return "Nuit " + n + " · " + tt(d); }],
+    [/^Night (\d+) of (.+)$/, function (m, n, t) { return "Nuit " + n + " de " + t; }],
+    [/^Sleep here: night (\d+) of (.+)$/, function (m, n, t) { return "Dormir ici : nuit " + n + " de " + t; }],
+    [/^Start (.+) here$/, function (m, t) { return "Commencer " + t + " ici"; }],
+    [/^Where you sleep night (\d+)$/, function (m, n) { return "Où vous dormez la nuit " + n; }],
+    [/^Sleeping bag rated to (-?\d+)°C or warmer$/, function (m, n) { return "Sac de couchage pour " + n + " °C ou plus chaud"; }],
+    [/^Tents? (?:for (\d+) \(about (\d+)\))?, poles and pegs$/, function (m, p, n) { return (p ? "Tentes pour " + p + " (environ " + n + ")" : "Tente") + ", arceaux et piquets"; }],
+    [/^Stove and about (\d+) g of fuel$/, function (m, g) { return "Réchaud et environ " + g + " g de combustible"; }],
+    [/^Water bottles or a bladder: 2 L( each)?$/, function (m, e) { return "Gourdes ou sac d'hydratation : 2 L" + (e ? " chacun" : ""); }],
+    [/^Snacks for (\d+) days$/, function (m, n) { return "Collations pour " + n + " jours"; }],
+    [/^Warm layer, toque and gloves: down to (-?\d+)°C at camp$/, function (m, n) { return "Couche chaude, tuque et gants : jusqu'à " + n + " °C au camp"; }],
+    [/^Dry socks for (\d+) nights?$/, function (m, n) { return "Bas secs pour " + n + " nuit" + (n > 1 ? "s" : ""); }],
+    [/^(\d+) breakfasts?, (\d+) lunches and (\d+) dinners?(?: for (\d+))?$/, function (m, b, l, d, p) { return b + " déjeuner" + (b > 1 ? "s" : "") + ", " + l + " dîners et " + d + " souper" + (d > 1 ? "s" : "") + (p ? " pour " + p : ""); }],
+    [/^Bear spray( each)?, where you can reach it$/, function (m, e) { return "Vaporisateur anti-ours" + (e ? " chacun" : "") + ", à portée de main"; }],
     // Weather checked across models (wxcheck.js)
     [/^Middle value of (\d+) weather models checked against each other:?$/, function (m, n) { return "Valeur du milieu de " + n + " modèles météo comparés entre eux :"; }],
     [/^((?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\))(?:, (?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
