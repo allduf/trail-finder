@@ -1001,10 +1001,10 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   }
 
   // A group's trip link (trip-core.js shareTrip): #trip=id.key is a Skiing cabin trip, #trip=id.key.hike a hike trip,
-  // #trip=id.key.fish a fishing trip, .bike a bike trip.
+  // #trip=id.key.fish a fishing trip, #trip=id.key.hunt a hunting trip, .bike a bike trip.
   // That sport opens with the trip, kept in sync.
   function openTripLink() {
-    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})(?:\.(hike|fish|bike))?$/);
+    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})(?:\.(hike|fish|hunt|bike))?$/);
     if (!m) return;
     history.replaceState(null, "", location.pathname + location.search);
     const sport = m[3] || "ski", sel = document.getElementById("sport"), pick = sport === "bike" ? "mtb" : sport;   // a bike trip is MTB's
