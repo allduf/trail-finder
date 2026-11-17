@@ -5646,9 +5646,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts", "moto", "hike", "hike-trip"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts", "moto", "hike", "hike-trip", "hunting-trip"];
   const NEEDS = {
-    hunt: ["crownland", "hunting", "compass"],
+    hunt: ["crownland", "hunting", "compass", "trip-core", "hunting-trip"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
     ski: ["webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts"],
     hike: ["trip-core", "hike", "hike-trip"],
@@ -5677,6 +5677,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const soon = (k) => (JSON.parse(localStorage.getItem("tf:" + k)) || []).some((t) => t && (t.hut || t.camps || (t.lines || []).length) && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
       if (soon("skiTrips")) loadSport("ski").catch(() => {});
       if (soon("hikeTrips")) loadSport("hike").catch(() => {});   // a hike trip (hike-trip.js) the same way
+      if (soon("huntTrips")) loadSport("hunt").catch(() => {});   // and a hunting trip (hunting-trip.js)
     } catch (_) {}
   }, 6000);
   window.tfLoadMoto = () => loadSport("moto");

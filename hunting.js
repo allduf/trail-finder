@@ -1499,6 +1499,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       <p class="hn-note">${fmtLL(lat, lon)}</p>`;
     $("hnGlass").addEventListener("click", (e) => { const b = e.target.closest("[data-glass]"); if (b) glassDo(b.dataset.glass, lat, lon, b); });
     el.querySelector(".hn-x").addEventListener("click", () => { el.hidden = true; spotOpen = null; const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); });
+    window.dispatchEvent(new CustomEvent("tf:hunt-spot", { detail: { el, lat, lon, zone: z.map((u) => (u.p === "bc" ? `MU ${u.id}` : u.p === "ab" ? `WMU ${u.id}` : zoneName(u, true))).join(" / ") } }));   // the Hunting trip adds its button (hunting-trip.js)
     renderNow();
     if (shown.has("lots")) liveLot(lat, lon, z.find((u) => window.tfCrown && window.tfCrown.has(u.p))?.p || pvHere.find((k) => window.tfCrown && window.tfCrown.has(k)), seq);
     if (z.some((u) => u.p === "ab") || (!z.length && inAlberta(lat, lon))) liveAlberta(lat, lon, seq);
@@ -2076,12 +2077,58 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const u = at(Z(), lat, lon)[0];
       return u ? (u.p === "bc" ? `MU ${u.id}` : u.p === "qc" ? `Zone ${u.n}` : zoneName(u)) : "";
     },
+    // The Hunting trip (hunting-trip.js, on trip-core.js): the light, moon, seasons and rules it builds each day from.
+    trip: {
+      ORANGE, svg, IC, compass: (d) => DIRS[Math.round((((d % 360) + 360) % 360) / 45) % 8], openNow, PHASES,
+      // Sunrise, sunset and the moon on a date (YYYY-MM-DD) at a place, on this device's clock.
+      skyOn(lat, lon, date) {
+        const today = new Date().toLocaleDateString("en-CA");
+        const ahead = Math.round((new Date(date + "T12:00") - new Date(today + "T12:00")) / dayMs);
+        const off = -new Date().getTimezoneOffset() * 60000, start = new Date(Math.floor((Date.now() + off) / dayMs) * dayMs - off + ahead * dayMs);
+        // skyDay counts from the spot's clock when the weather has loaded; the trip uses this device's clock, so the
+        // day is found again here from its own midnight (same 5-minute sampling).
+        const step = 5 * 60000, out = { rise: null, set: null };
+        let ps = sunAlt(start, lat, lon);
+        for (let t = start.valueOf() + step; t <= start.valueOf() + dayMs + 12 * 3600000; t += step) {
+          const s = sunAlt(new Date(t), lat, lon), cross = (a, b, h) => new Date(t - step + (step * (h - a)) / (b - a));
+          if (t <= start.valueOf() + dayMs && ps < -0.833 && s >= -0.833 && !out.rise) out.rise = cross(ps, s, -0.833);
+          if (out.rise && ps >= -0.833 && s < -0.833 && !out.set) { out.set = cross(ps, s, -0.833); break; }
+          if (t > start.valueOf() + dayMs && !out.rise) break;
+          ps = s;
+        }
+        const ph = moonPhase(new Date(date + "T22:00")), p = PHASES.find((x) => ph.phase < x[0]) || PHASES[0];
+        return { ...out, moon: { name: p[1], pct: Math.round(ph.fraction * 100) } };
+      },
+      // The hunting zones at a place and the seasons read for each one ([species, who/what, weapon, dates, part-only]),
+      // with where they were read from. The same files as the spot card; rows: null where no dates are read yet.
+      async seasonsAt(lat, lon) {
+        await loadPv(pvsIn(lat, lon, lat, lon));
+        try { zones = zones || (await load("zones")).zones; } catch {}
+        const z = at(Z(), lat, lon), has = (p) => z.some((u) => u.p === p);
+        const get = (k, p) => (has(p) ? load(k).catch(() => null) : null);
+        const [sbc, sab, sqc, son, smb, ...sEast] = await Promise.all([get("seasons-bc", "bc"), get("seasons-ab", "ab"), get("seasons-qc", "qc"), get("seasons-on", "on"), get("seasons-mb", "mb"), ...EAST.map((k) => get(`seasons-${k}`, k))]);
+        const sx = Object.fromEntries(EAST.map((k, i) => [k, ytRows(sEast[i])]));
+        return z.map((u) => {
+          let rows = null, link = PV[u.p] ? PV[u.p].regs : "", src = PV[u.p] ? PV[u.p].regsName : "the regulations";
+          if (u.p === "ab") { rows = sab && sab.wmu[u.id]; link = AB_REGS; src = "Alberta Guide to Hunting Regulations"; }
+          else if (u.p === "bc") { rows = sbc && sbc.mu[u.id]; link = regionPdf(u); src = `BC Hunting and Trapping Regulations Synopsis, Region ${u.r}`; }
+          else if (u.p === "qc") { rows = sqc ? qcKeys(u).flatMap((k) => sqc.zone[k] || []) : null; link = (sqc && sqc.url) || QC_REGS; src = "Québec.ca hunting periods"; }
+          else if (u.p === "on") rows = son && (son.wmu[u.id] || son.wmu[String(u.id).replace(/-\d$/, "")]);
+          else if (sx[u.p]) { rows = sx[u.p].wmu[u.id]; link = sx[u.p].url || link; src = sx[u.p].src || src; }
+          const mb = u.p === "mb" && smb && smb.gha[u.id];
+          return { p: u.p, label: u.p === "bc" ? `MU ${u.id}` : u.p === "ab" ? `WMU ${u.id}` : zoneName(u, true), rows: rows && rows.length ? rows : null, mb: mb || null, link, src };
+        });
+      },
+      openAt: (lat, lon) => { setSpot(lat, lon, "tap"); showSpot(lat, lon); scrollPanel($("hnSpot")); },
+      spot: () => (spot ? { lat: spot.lat, lon: spot.lon, how: spot.how } : null),
+      wx: (url) => (window.tfWx ? window.tfWx.getChecked(url) : fetch(url).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })),
+    },
   };
 
   // ---------- switching sport ----------
   const compassOn = () => document.body.classList.contains("cp-on");   // compass mode (compass.js) takes taps for its target
   map.on("click", (e) => {
-    if (!isHunt() || document.querySelector(".app.riding, .app.planning") || sqMode === "draw" || compassOn()) return;
+    if (!isHunt() || document.querySelector(".app.riding, .app.planning") || document.body.classList.contains("ht-drawing") || sqMode === "draw" || compassOn()) return;
     if (meas) { meas.push(e.latlng); measDraw(); return; }
     setSpot(e.latlng.lat, e.latlng.lng, "tap");
     showSpot(e.latlng.lat, e.latlng.lng);
