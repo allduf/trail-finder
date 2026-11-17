@@ -17,6 +17,7 @@ Each file is copied byte for byte from the official npm release named here (chec
 | maplibre-gl-leaflet-0.1.3.js | @maplibre/maplibre-gl-leaflet@0.1.3 | leaflet-maplibre-gl.js | `1c33367962e7755c1a16d1f85658fdc96b5baa36f81adfca9493174cd1b526ce` |
 | supabase-js-2.99.3.js | @supabase/supabase-js@2.99.3 | dist/umd/supabase.js | `588fb53d9380e3cb8688065c48144fa839205c328b416cc68c11331ba01955ee` |
 | exifr-lite-7.1.3.js | exifr@7.1.3 | dist/lite.umd.js | `530dbaef11cd9d4d65f108abc159b113580eb3dbd7bc69cd1364e25dd40413f9` |
+| maplibre-contour-0.1.1.js | maplibre-contour@0.1.1 (BSD-3-Clause) | dist/index.min.js | `055e45d0a76aaeaaf5a96765b8ce524abba3272456be75e715081e235ebd1262` |
 
 Still loaded from cdn.jsdelivr.net at a fixed version: tesseract.js 5.1.1 (Photo find text reading: its worker, the 3-4 MB reading engine and the English data) and geotiff 2.1.3's JPEG reader (height tiles). Both are too large or split into many module files to copy here for now.
 

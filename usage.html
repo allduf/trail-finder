@@ -257,7 +257,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     "#ridden": "Ridden", "#accessBtn": "Access", "#allBtn": "All trails", "#firstTipOk": "Got it (first-open tip)", "#aboutClose": "Got it (How it works)",
     "#lmClose": "Close the Layers menu", "#sportMapBtn": "Sport button (on the map)", "list:ul": "An item in a list",
     "view=river": "Fishing view: River", "view=ocean": "Fishing view: Ocean", "view=lake": "Fishing view: Lake",
-    "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing", "sport=moto": "Sport: Adventure moto",
+    "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing", "sport=moto": "Sport: Adventure moto (ADV)",
     "Got it": "Got it (closes What's new or a tip)", "Close": "Close (a card or sheet)",
   };
   // The home screen's cards and tiles (data-hub in index.html).
@@ -269,7 +269,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     near: "Near me", photo: "Which trail? (photo)", search: "New trails", start: "Start", layer: "A layer chip", layers: "All layers",
   };
   const MAIN = Object.keys(NAMES).filter((k) => k.startsWith("#"));
-  const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing", moto: "🏍 Adventure moto" };
+  const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing", moto: "🏍 Adventure moto (ADV)" };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // Where a tap happened, in plain words ("Close (in #mtSpot)" → "Adventure moto spot › Close").

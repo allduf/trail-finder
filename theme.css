@@ -605,6 +605,9 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
 /* Skiing's Winter map style (alex 2026-11-03): a 5th tile, only in Skiing */
 .map-tools .layers-menu .lm-tiles .t-winter { background: radial-gradient(circle at 30% 30%, #f4f8fb, #b9c9d6 60%, #5d6f7c); color: #15211a; }
 body:not(.sport-ski) .layers-menu .lm-tiles .t-winter { display: none; }
+/* Adventure moto's own map (adv-map.js), Adventure moto only */
+.map-tools .layers-menu .lm-tiles .t-advtopo { background: repeating-linear-gradient(115deg, transparent 0 9px, #8a4a1c 9px 11px, transparent 11px 14px), repeating-radial-gradient(circle at 30% 70%, #e4ebd0 0 5px, #b08a5a 5px 6px); color: #15211a; }
+body:not(.sport-moto) .layers-menu .lm-tiles .t-advtopo { display: none; }
 body.sport-ski .layers-menu .lm-tiles { grid-template-columns: repeat(5, 1fr); }
 
 /* The status after Forest roads and Wildfires in Layers (alex 2026-11-05): a small live line under the name */
