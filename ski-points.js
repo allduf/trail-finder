@@ -294,6 +294,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     try { all = await dbAll(); } catch { all = []; }
     points = all.filter((p) => sportOf(p) === sportNow());
     draw();
+    window.dispatchEvent(new Event("tf:points"));   // the fishing trip's catch list (fishing-trip.js) follows
   }
 
   // ---------- choosing where ----------
@@ -905,7 +906,9 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const addAt = (lat, lon, preset) => { stopPick(); setPins(true); edit(null, { lat, lon }, preset); };
   const guiding = () => (guideTo ? { lat: guideTo.lat, lon: guideTo.lon, name: guideTo.name } : null);
   window.tfPoints = { add: () => startPick(), addCatch: () => startPick({ kind: "catch" }), addKind: (kind) => startPick({ kind }), addAt, guiding, markTruck, backToTruck, openLog,
-    hasTruck: () => all.some((p) => sportOf(p) === (isFish() ? "fish" : "hunt") && p.kind === "truck") };
+    hasTruck: () => all.some((p) => sportOf(p) === (isFish() ? "fish" : "hunt") && p.kind === "truck"),
+    // The catches in your private Fishing log (fishing-trip.js shows the ones from a trip's dates near its water).
+    catches: () => all.filter((p) => sportOf(p) === "fish" && p.kind === "catch").map((p) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name, day: (p.catch && p.catch.date) || localDay(new Date(p.created)), c: p.catch || {} })) };
 
   // ---------- sharing ----------
   // A point (saved point, or any "This spot" card) goes out as a trailfinderapp.ca link plus its coordinates as plain
@@ -997,10 +1000,11 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     setTimeout(go, 300);
   }
 
-  // A group's trip link (trip-core.js shareTrip): #trip=id.key is a Skiing cabin trip, #trip=id.key.hike a hike trip, .bike a bike trip.
+  // A group's trip link (trip-core.js shareTrip): #trip=id.key is a Skiing cabin trip, #trip=id.key.hike a hike trip,
+  // #trip=id.key.fish a fishing trip, .bike a bike trip.
   // That sport opens with the trip, kept in sync.
   function openTripLink() {
-    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})(?:\.(hike|bike))?$/);
+    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})(?:\.(hike|fish|bike))?$/);
     if (!m) return;
     history.replaceState(null, "", location.pathname + location.search);
     const sport = m[3] || "ski", sel = document.getElementById("sport"), pick = sport === "bike" ? "mtb" : sport;   // a bike trip is MTB's
