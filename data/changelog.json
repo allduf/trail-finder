@@ -2,6 +2,7 @@
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
     {"date": "2026-11-16", "text": "Hike trips: pick a day for each hike, and each day shows the weather at the high point of that day's hike."},
+    {"date": "2026-11-17", "text": "Hunting: plan a hunting trip with Trips. Pick the camp, see each day's wind, legal light and moon, the seasons the app has read for your zone on your dates, the group's licences and tags, and a hunt log of what everyone saw and took. Shared only by private link, never public."},
     {"date": "2026-11-17", "text": "Fishing: plan a fishing trip (Trips): the water, each day's fishing estimate, weather and tides, the rules and licences with links to buy them, boat launches, and a catch log. Your catches stay private unless you share one with the group."},
     {"date": "2026-11-16", "text": "Hike trips: each day also shows the weather at the high point of your hikes."},
     {"date": "2026-11-16", "text": "Hiking: new Hike trips. Plan a backpacking, car camping or hut trip: where you sleep each night, your hikes, the weather at camp each day, park warnings, water along the way and a camping packing list. Share it with your group like a cabin trip."},
