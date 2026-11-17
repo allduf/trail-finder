@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#1f6f4a">
 <title>App Usage · Trail Finder</title>
 <style>
-/* Private page for alex: what testers do in the iPhone app (usage.js, supabase/usage.sql). Not linked from the app. */
+/* Private page for alex: what people do in the iPhone app, the Android app and the website (usage.js, supabase/usage.sql). Not linked from the app. */
 :root {
   --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --chip: #e8ece8;
   --accent: #1f6f4a; --accent-fg: #ffffff; --bar: #8cc7a6; --err: #c0392b;
@@ -107,7 +107,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
 <main>
   <header class="head">
     <h1>App usage</h1>
-    <p class="lead">What testers do in the iPhone app. Only you can see this page.</p>
+    <p class="lead">What people do in the iPhone app, the Android app and the website (from November 17, 2026; the iPhone app only before). Only you can see this page.</p>
   </header>
   <div id="msg" class="muted">Loading…</div>
   <div id="setup" class="note" hidden>One step left to see searches, speed, crashes and every tester: paste <b>supabase/usage-more.sql</b> into the Supabase SQL Editor and run it. Until then the app can't send them.</div>
@@ -318,6 +318,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   const phoneOf = (d) => {
     const m = /^iOS ([\d.]+) · (.+)$/.exec(d.os || "");
     if (m) return `${MODELS[m[2]] || m[2]} · iOS ${m[1]}`;
+    if (/^(Android|Web)\b/.test(d.os || "")) return d.os.replace(/^Web · /, "Website · ") + (d.screen ? ` · screen ${d.screen}` : "");
     return `iOS not known yet (old app build) · screen ${d.screen || "?"}`;
   };
   const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
@@ -600,7 +601,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     // Still unnamed and no model: who could it be, by screen size? (Not for blank opens: nobody used those.)
     const blank = blankDevices();
     for (const d of phones.values()) {
-      if (!isFree(d) || modelOf(d) || blank.has(d.device)) continue;
+      if (!isFree(d) || modelOf(d) || blank.has(d.device) || /^(Android|Web)\b/.test(d.os || "")) continue;   // only iPhones are on TestFlight
       const fits = SCREENS[d.screen] || [];
       const who = testers.filter((t) => isOpen(t) && fits.includes(t.model)).map((t) => t.name);
       if (who.length) guesses.push({ d, who });
@@ -637,7 +638,9 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   const RIDE_TEXT = /^(▶ )?(record|follow|go|start|navigate|ride|track|plan a (route|tour|moto route))\b/i;
   // A spot, route or hut card being opened (other sports don't send "view" like the MTB trail card does).
   const CARD = /^(#(fsSpot|mtSpot|mtRoute)|list:#(results|list|trailHits|wantList))|\(in #(fsSpot|mtSpot|mtRoute|detail)\)$/;
-  const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask", Area: "🗺️ Where to look", "Ski find": "⛷ Skiing search" };
+  const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask", Area: "🗺️ Where to look", "Ski find": "⛷ Skiing search", "Heli cat": "🚁 Heli and cat skiing", "Ski areas": "⛰ Ski areas" };
+  // Where a search was made, from the phone's os line (usage.js).
+  const fromOf = (os) => (/^Web\b/.test(os || "") ? "Website" : /^Android\b/.test(os || "") ? "Android app" : "iPhone app");
   const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["list", "New trails list"], ["3dshape", "3D mountains shown"], ["3d", "3D sharp photos all in"]];
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
@@ -683,7 +686,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       const box = String(r.what).split(":")[0], q = String(r.what).slice(box.length + 1).trim();
       const t = new Date(r.at);
       const picked = s.ev.slice(i + 1).some((o) => o.kind === "pick" && o.what === box && new Date(o.at) - t < 180e3);
-      searches.push({ box, q, n: r.ms, picked, device: r.device, at: r.at });
+      searches.push({ box, q, n: r.ms, picked, device: r.device, at: r.at, from: fromOf(r.os) });
     });
     const empty = searches.filter((x) => x.n === 0).length, noPick = searches.filter((x) => x.n > 0 && !x.picked).length;
 
@@ -744,15 +747,15 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
 
     const sg = new Map();
     for (const x of searches) {
-      const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, last: x.n, at: x.at };
-      g.n++; g.who.add(x.device); if (x.n === 0) g.empty++; if (x.picked) g.picked++; g.last = x.n; if (x.at > g.at) g.at = x.at; sg.set(k, g);
+      const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, gone: 0, last: x.n, at: x.at, from: new Set() };
+      g.n++; g.who.add(x.device); g.from.add(x.from); if (x.n === 0) g.empty++; if (x.n == null && x.box === "Ask") g.gone++; if (x.picked) g.picked++; g.last = x.n; if (x.at > g.at) g.at = x.at; sg.set(k, g);
     }
     // Newest first by default, so a search just made is at the top (alex 2026-11-05: "i dont see it"); Most searched groups.
     const sl = [...sg.values()].sort(searchSort === "most" ? (a, b) => b.n - a.n || b.empty - a.empty || (b.at > a.at ? 1 : -1) : (a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0)).slice(0, 60);
     $("searches").innerHTML = (searches.length ? `<caption class="muted" style="text-align:left;padding-bottom:6px">${searches.length} searches: ${empty} found nothing, ${noPick} got answers but no pick. <span class="days" style="display:inline-flex;margin-left:6px"><button type="button" data-ssort="new" aria-pressed="${searchSort !== "most"}">Newest first</button><button type="button" data-ssort="most" aria-pressed="${searchSort === "most"}">Most searched</button></span></caption>` : "") +
       `<tr><th>Searched for</th><th>What happened</th></tr>` +
-      (sl.map((g) => `<tr><td><span class="q">${esc(g.q)}</span><br><span class="muted">${esc(BOX[g.box] || g.box)} · ${g.n === 1 ? "once" : `${g.n} times`}${g.who.size > 1 ? ` by ${g.who.size} testers` : ""}${g.last == null ? "" : ` · ${g.last} result${g.last === 1 ? "" : "s"}`} · ${g.n === 1 ? "" : "last "}${agoShort(g.at)}</span></td>
-        <td style="width:1%">${g.empty === g.n ? `<span class="tag bad">Nothing found</span>` : g.picked ? `<span class="tag good">Picked one${g.picked < g.n ? ` (${g.picked} of ${g.n})` : ""}</span>` : `<span class="tag bad">Didn't pick one</span>`}</td></tr>`).join("") || none(2, all ? "No searches yet" : "Searches show here once usage-more.sql is run"));
+      (sl.map((g) => `<tr><td><span class="q">${esc(g.q)}</span><br><span class="muted">${esc(BOX[g.box] || g.box)} · ${esc([...g.from].join(", "))} · ${g.n === 1 ? "once" : `${g.n} times`}${g.who.size > 1 ? ` by ${g.who.size} testers` : ""}${g.last == null ? "" : ` · ${g.last} result${g.last === 1 ? "" : "s"}`} · ${g.n === 1 ? "" : "last "}${agoShort(g.at)}</span></td>
+        <td style="width:1%">${g.gone === g.n ? `<span class="tag">Left before the answer</span>` : g.empty === g.n ? `<span class="tag bad">Nothing found</span>` : g.picked ? `<span class="tag good">Picked one${g.picked < g.n ? ` (${g.picked} of ${g.n})` : ""}</span>` : `<span class="tag bad">Didn't pick one</span>`}</td></tr>`).join("") || none(2, all ? "No searches yet" : "Searches show here once usage-more.sql is run"));
 
     const rg = new Map();
     for (const r of shown) if (r.kind === "result") { const g = rg.get(r.what) || { n: 0, empty: 0, counts: [] }; g.n++; if (!r.ms) g.empty++; g.counts.push(r.ms || 0); rg.set(r.what, g); }

@@ -239,6 +239,13 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     }
     head.innerHTML = `<p class="ask-wait">Reading your question…</p>`;
     out.innerHTML = "";
+    // Every question goes on the usage page, also one replaced by a newer question or stopped partway (until
+    // 2026-11-17 only finished answers were sent): its count of answers is then unknown (null).
+    let sent = false;
+    const sendUse = (n) => { if (!sent) { sent = true; logUse("search", "Ask:" + q, n); } };
+    try { await answerOf(q, sp, my, head, out, sendUse); } finally { sendUse(null); }
+  }
+  async function answerOf(q, sp, my, head, out, sendUse) {
     const ai = await aiParse(q, sp);
     if (my !== token) return;
     const p = ai.ok ? fromAi(ai, q, sp) : localParse(q, sp);
@@ -259,10 +266,10 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
     if (!at && sp === "ski" && (planAsk || planLike(q))) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
     if (!at && sp === "moto" && (planAsk || motoRide(q))) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
-    if (!at) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
+    if (!at) { sendUse(0); out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
     out.innerHTML = `<p class="ask-wait">Looking ${at.you ? "around you" : at.mid ? "around the middle of the map" : "near " + esc(at.name)}…</p>`;
-    try { await ANSWER[sp](p, at, out, () => my !== token); if (my === token) logUse("search", "Ask:" + q, out.querySelectorAll("button").length); }
-    catch (e) { if (my === token) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Something went wrong (${esc(e.message || e)}). Try again.</p>`; } }
+    try { await ANSWER[sp](p, at, out, () => my !== token); if (my === token) sendUse(out.querySelectorAll("button").length); }
+    catch (e) { if (my === token) { sendUse(0); out.innerHTML = `<p class="ask-note ask-warn">Something went wrong (${esc(e.message || e)}). Try again.</p>`; } }
   }
 
   // ---------- reading the question ----------

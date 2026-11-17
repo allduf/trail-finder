@@ -70,7 +70,7 @@ window.tfDragSort = (root, o) => {
   "use strict";
   const map = window.tfLeaflet, sel = document.getElementById("sport"), avyBtn = document.getElementById("avyBtn"), T = window.tfTerrain;
   if (!map || !sel || !window.L || !T) return;
-  // What's typed in the Skiing search box goes to the usage page (usage.js, iPhone app only).
+  // What's typed in the Skiing search box goes to the usage page (usage.js).
   const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },

@@ -1,5 +1,6 @@
-// How testers use the iPhone app, so alex can see what people really do and make the app more practical.
-// Inside the app only (Capacitor); on the website this file does nothing. Sends, in batches: page opens, the sport,
+// How people use Trail Finder, so alex can see what people really do and make the app more practical.
+// The iPhone app, the Android app and the website (alex 2026-11-17: the website and Android too, the same way: on,
+// with Don't share in More; until then only the iPhone app sent it). Sends, in batches: page opens, the sport,
 // taps on buttons (their id, or a short button label), errors, how long each visit lasted, what is typed in the search
 // boxes and Ask (and how many results came back), how long the page, map and 3D take to load, restarts after a
 // crash, and the named area the map shows (a zone like "Whistler" or a province, never a point). Each phone is the
@@ -7,8 +8,10 @@
 // Read on usage.html by accounts listed in tf_admins. See supabase/usage.sql.
 (() => {
   const C = window.Capacitor, acct = window.tfAccount;
-  // iPhone app only (alex, 2026-10-26; the privacy page says so): not the Android app.
-  if (!C || !C.isNativePlatform || !C.isNativePlatform() || (C.getPlatform && C.getPlatform() !== "ios") || !acct || !acct.enabled) { window.tfUse = () => {}; window.tfUseQ = []; return; }
+  if (!acct || !acct.enabled) { window.tfUse = () => {}; window.tfUseQ = []; return; }
+  // Where it runs: "ios", "android" or "web" (the website, phone or computer).
+  const native = !!(C && C.isNativePlatform && C.isNativePlatform());
+  const plat = native ? ((C.getPlatform && C.getPlatform()) || "ios") : "web";
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
   // More → How the app is used: Don't share stops it at once and drops what wasn't sent yet (tf:useOff, this device).
@@ -35,11 +38,21 @@
   const page = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "") || "index";
   // The iOS in the user agent is frozen (it reads 18.7 on iOS 26), so builds with the Device plugin send the real
   // version and the model code (e.g. "iOS 26.5 · iPhone17,1"): alex matches them to the TestFlight tester list.
-  const uaOs = ((navigator.userAgent.match(/OS (\d+[_\d]*) like Mac/) || [])[1] || "").replace(/_/g, ".");
-  let os = uaOs ? `iOS ${uaOs}` : "iOS";
-  try {
+  // The Android app sends "Android 15 · Pixel 8"; the website "Web · Safari on iPhone" (browser and system only).
+  const ua = navigator.userAgent;
+  const uaOs = ((ua.match(/OS (\d+[_\d]*) like Mac/) || [])[1] || "").replace(/_/g, ".");
+  const webOs = () => {
+    const sys = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPad" : /Android/.test(ua) ? "Android"
+      : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /CrOS/.test(ua) ? "Chromebook" : /Linux/.test(ua) ? "Linux" : "other";
+    const br = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\/|FxiOS/.test(ua) ? "Firefox" : /Chrome\/|CriOS/.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "browser";
+    return `Web · ${br} on ${sys}`;
+  };
+  const uaAndroid = (ua.match(/Android (\d+(?:\.\d+)*)/) || [])[1] || "";
+  let os = plat === "web" ? webOs() : plat === "android" ? (uaAndroid ? `Android ${uaAndroid}` : "Android") : uaOs ? `iOS ${uaOs}` : "iOS";
+  if (native) try {
     const Device = C.registerPlugin ? C.registerPlugin("Device") : (C.Plugins || {}).Device;
-    if (Device) Device.getInfo().then((i) => { if (i && i.osVersion) os = `iOS ${i.osVersion}${i.model ? ` · ${i.model}` : ""}`; }).catch(() => {});
+    const name = plat === "android" ? "Android" : "iOS";
+    if (Device) Device.getInfo().then((i) => { if (i && i.osVersion) os = `${name} ${i.osVersion}${i.model ? ` · ${i.model}` : ""}`.slice(0, 40); }).catch(() => {});
   } catch {}
   const screenSize = `${Math.min(screen.width, screen.height)}x${Math.max(screen.width, screen.height)}`;
 
@@ -77,7 +90,12 @@
       let q = String(what).slice(box.length + 1).replace(/\s+/g, " ").trim();
       if (q.length < 2) return;
       if (/-?\d{1,3}[.,]\d+/.test(q)) q = "GPS point";
+      // Ask gets one call per question once it's answered (ask.js), so it goes at once. In a box still being typed in,
+      // a new search that isn't the same words typed on (or backed up) sends the one before it, so it isn't lost.
+      if (box === "Ask") { sendSearch(box); add("search", `${box}: ${q.slice(0, 60)}`, n == null ? null : Math.max(0, Math.round(n))); return; }
       const t = typing.get(box) || {};
+      const was = t.q ? t.q.slice(box.length + 2).toLowerCase() : "", now = `${q.slice(0, 60)}`.toLowerCase();
+      if (was && !now.startsWith(was) && !was.startsWith(now)) sendSearch(box);
       clearTimeout(t.timer);
       typing.set(box, { q: `${box}: ${q.slice(0, 60)}`, n: n == null ? null : Math.max(0, Math.round(n)), timer: setTimeout(() => sendSearch(box), 2500) });
       return;

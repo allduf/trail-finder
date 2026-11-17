@@ -356,6 +356,9 @@ ul.ps-hits:empty { display: none; }
       const loc = q.length >= 2 && o.local ? (o.local(q) || []).slice(0, 5) : [];
       const all = [...loc, ...townHits(q, 5 - Math.min(loc.length, 3))].slice(0, 5);
       addNew(all, live(q, () => { if (input.value.trim() === q) typed(); }), 7);
+      // What's typed counts as a search too (the usage page), not only Go: most people tap a place from this list.
+      // Sent once the typing stops (usage.js), with how many places showed by then.
+      if (q.length >= 2) logUse("search", "Place:" + q, all.length);
       show(all, q.length >= 2 ? (all.length ? "Not in the list? Press Go to search every place." : q.length >= 3 && !parseGps(q) && !Array.isArray(liveCache.get(norm(q))) ? "Looking…" : "Keep typing, or press Go to search every place.") : "");
     };
     input.addEventListener("input", () => { typed(); if (!towns) loadTowns(() => { if (document.activeElement === input || input.value.trim()) typed(); }); });
