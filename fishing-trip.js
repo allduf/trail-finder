@@ -203,7 +203,7 @@ html body #fishPane .fs-actions.trips { grid-template-columns: repeat(5, 1fr); }
     return { snap: { at: Date.now(), rows, end, models: (w.check && w.check.models) || [], tideAt: tides ? tides.name : "",
       flow: flow ? { name: flow.name, word: flow.word, color: flow.color, tip: flow.tip, ratio: flow.ratio, light: flow.light } : null } };
   }
-  const stars = (n) => `<span class="fs-stars" aria-label="${n} of 5">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`;
+  const stars = (n) => `<span class="fs-stars" data-no-line aria-label="${n} of 5">${"★".repeat(n)}<i>${"★".repeat(5 - n)}</i></span>`;
   const deg = (v) => (v == null ? "–" : `${Math.round(v) === 0 ? 0 : Math.round(v)}°`);
   function daysHtml(t, v) {
     const rows = v.rows.map((r) => {
