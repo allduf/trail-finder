@@ -935,12 +935,22 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     try { const [h] = window.tfPlan && window.tfPlan.heights ? await window.tfPlan.heights([[p[0], p[1]]]) : []; if (h != null) return h; } catch {}
     return getJ(`https://api.open-meteo.com/v1/elevation?latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}`, 8000).then((j) => j.elevation && j.elevation[0]).catch(() => null);
   }
+  // A campsite from OpenStreetMap that is also a BC rec site (same place, within 500 m) gets the site's record too.
+  function recIdAt(k, p) {
+    if (k === "rec") return p[4] || "";
+    if (k !== "camp") return "";
+    let best = "", bestKm = 0.5;
+    for (const r of recList()) { const d = Math.abs(r[0] - p[0]) < 0.01 ? kmBetween([r[0], r[1]], [p[0], p[1]]) : 9; if (d < bestKm) { bestKm = d; best = r[4]; } }
+    return best || "";
+  }
+  const heights = new Map();   // one height ask per point for the card and its weather
+  const heightMemo = (p) => { const k = `${p[0]},${p[1]}`; if (!heights.has(k)) heights.set(k, heightOf(p)); return heights.get(k); };
   async function pinDetails(k, p) {
     const id = k === "rec" ? "" : String(p[4] || ""), key = id || `${p[0]},${p[1]}`;
     if (pinCache.has(key)) return pinCache.get(key);
     const [osm, ele] = await Promise.all([
       /^[nwr][0-9a-z]+$/.test(id) ? getJ(`https://api.openstreetmap.org/api/0.6/${OSM_TYPE[id[0]]}/${parseInt(id.slice(1), 36)}.json`, 10000).catch(() => null) : null,
-      heightOf(p)]);
+      heightMemo(p)]);
     const el = osm && osm.elements && osm.elements[0], t = (el && el.tags) || {};
     const facts = [], rows = [];
     const fact = (txt, no) => facts.push(`<li${no ? ' class="no"' : ""}>${esc(txt)}</li>`);
@@ -971,7 +981,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       if (t.second_hand === "yes" || t.shop === "motorcycle") fact("Sales");
     }
     if (t.seasonal && t.seasonal !== "no") fact(t.seasonal === "yes" ? "Seasonal" : `Open ${t.seasonal}`);
-    if (k === "rec") { if (p[5]) row("Upkeep", esc(p[5])); row("More", `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(p[4] || "")}" target="_blank" rel="noopener">BC rec site page</a> (fees, access, closures)`); }
+    if (k === "rec") { row("More", `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(p[4] || "")}" target="_blank" rel="noopener">BC rec site page</a> (fees, access, closures)`); }
     if (t.brand && t.brand !== p[2]) row("Brand", esc(t.brand));
     if (t.operator && t.operator !== p[2]) row("Run by", esc(t.operator));
     if (t.opening_hours) row("Hours", esc(t.opening_hours === "24/7" ? "Open 24 hours" : t.opening_hours));
@@ -1005,11 +1015,15 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const g = gradeOfTile(s.road), f = fitOf(g, cap);
       gradeHtml = `<p><span class="mt-badge" style="--c:${FIT[f][1]}">${esc(FIT[f][0])}</span></p><p><b>Grade ${g}: ${esc(GRADES[g][0])}</b> · ${esc(GRADES[g][1])}</p><p class="mt-note" data-osm>Looking up this road's details…</p>`;
     }
-    el.innerHTML = head + pinLine + gradeHtml + `<div data-can><p class="mt-note">Checking where you can ride…</p></div><div data-near></div>`;
+    el.innerHTML = head + pinLine + gradeHtml + (s.pin ? `<div data-here></div>` : "") + `<div data-can><p class="mt-note">Checking where you can ride…</p></div><div data-near></div>`;
     el.querySelector(".mt-x").onclick = () => { el.hidden = true; spot = null; spotLayer.removeLayer(spotMarker); spotSeq++; renderNear(); };
     const ap = el.querySelector("[data-addpt]");
     if (ap) ap.onclick = () => addPoint([s.lat, s.lon]);
     if (s.pin) cardDrawn("pin", el, s.pin);
+    // At this spot (point-info.js): the weather there for 3 days, checked across 3 models, at its own height, sunrise
+    // and sunset, BC fire bans and wildfires, and a BC rec site's full record.
+    if (s.pin && window.tfPointInfo) window.tfPointInfo.fill(el.querySelector("[data-here]"), s.lat, s.lon,
+      { rec: recIdAt(s.pin.k, s.pin.p), isCurrent: () => my === spotSeq });
     if (s.pin) pinDetails(s.pin.k, s.pin.p).then((h) => { const box = my === spotSeq && el.querySelector("[data-pin]"); if (box) box.innerHTML = h; });
     // The road's own tags (OpenStreetMap), through the router's map: the way's id, then its tags.
     if (s.road) roadDetails(s.lat, s.lon).then((d) => {

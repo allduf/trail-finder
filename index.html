@@ -23,9 +23,10 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=5210"></script>
-<script src="wxcheck.js?v=5210"></script>
-<script src="line-icons.js?v=5210"></script>
+<script src="i18n.js?v=5300"></script>
+<script src="wxcheck.js?v=5300"></script>
+<script src="point-info.js?v=5300"></script>
+<script src="line-icons.js?v=5300"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -979,6 +980,17 @@ body.box-on .leaflet-bottom.leaflet-left { visibility: hidden; }   /* the Key bu
 /* tall enough that the details can always scroll up to the top of the panel, even while they are still loading */
 .panel.detail-open .detail { min-height: 100%; box-sizing: border-box; }
 .detail { flex: 1; overflow-y: auto; min-height: 0; padding: 12px 16px 24px; }
+/* A tapped trailhead, parking, water, toilet, repair stand, shelter or BC rec site: its card, Skiing style (alex 2026-11-17). */
+.mtb-pt { margin: 10px 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
+.mtb-pt header { display: flex; align-items: center; gap: 8px; }
+.mtb-pt header h3 { flex: 1; margin: 0; font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere; }
+.mtb-pt .mp-ic { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; }
+.mtb-pt .mp-ic svg { width: 16px; height: 16px; }
+.mtb-pt .mp-x { border: 0; background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); width: 30px; height: 30px; border-radius: 50%; font-size: 1rem; cursor: pointer; flex: none; }
+.mtb-pt .mp-kind { margin: 0; font-weight: 700; font-size: .85rem; }
+.mtb-pt p { margin: 0; font-size: .85rem; line-height: 1.4; }
+.mtb-pt .mp-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.mtb-pt .mp-row a { border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: .85rem; color: var(--fg); text-decoration: none; }
 .panel { overflow-y: auto; overscroll-behavior: contain; }
 .panel .list, .panel .detail { flex: none; overflow: visible; min-height: auto; }
 .detail .back { padding: 4px 0; margin-bottom: 8px; }
@@ -1511,6 +1523,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <button class="btn box-btn box-draw" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">or draw a square</button></div>
     </div>
     <div class="results" id="results">
+    <section class="mtb-pt" id="mtbPoint" hidden></section>
     <div class="boxres" id="boxRes" hidden></div>
     <div class="status" id="status" role="status">Pick an area and tap Find new trails.</div>
     <details class="debug" id="debug" hidden><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
@@ -1629,17 +1642,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="hidden-places.js?v=5210"></script>
-<script src="noback.js?v=5210"></script>
-<script src="risk.js?v=5210"></script>
-<script src="welcome.js?v=5210"></script>
-<script src="native.js?v=5210"></script>
-<script src="keyboard.js?v=5210"></script>
-<script src="rotate.js?v=5210"></script>
-<script src="official.js?v=5210"></script>
-<script src="directions.js?v=5210"></script>
-<script src="ratings.js?v=5210"></script>
-<script src="ebike.js?v=5210"></script>
+<script src="hidden-places.js?v=5300"></script>
+<script src="noback.js?v=5300"></script>
+<script src="risk.js?v=5300"></script>
+<script src="welcome.js?v=5300"></script>
+<script src="native.js?v=5300"></script>
+<script src="keyboard.js?v=5300"></script>
+<script src="rotate.js?v=5300"></script>
+<script src="official.js?v=5300"></script>
+<script src="directions.js?v=5300"></script>
+<script src="ratings.js?v=5300"></script>
+<script src="ebike.js?v=5300"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2061,7 +2074,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   function loadAdv() {
     if (!advLoading) advLoading = loadVectorLib()
       .then(() => window.mlcontour || loadScript("vendor/maplibre-contour-0.1.1.js").catch(() => null))
-      .then(() => window.tfAdvMap || loadScript("adv-map.js?v=5210"))
+      .then(() => window.tfAdvMap || loadScript("adv-map.js?v=5300"))
       .catch((e) => { advLoading = null; throw e; });
     return advLoading;
   }
@@ -4464,7 +4477,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=5210").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=5300").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -7245,23 +7258,64 @@ out body;`;
   function drawAccess() {
     if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
     const view = map.getBounds().pad(0.2);
-    accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng()) && !m.isPopupOpen()) { accessLayer.removeLayer(m); accessPins.delete(id); } });
+    accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng())) { accessLayer.removeLayer(m); if (m.dot) accessLayer.removeLayer(m.dot); accessPins.delete(id); } });
     accessZonesIn(view).then((zs) => zs.forEach((z) => accessZone(z).then((pts) => {
       if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) return;
       const now = map.getBounds().pad(0.2);
       pts.forEach((x) => {
         const ll = L.latLng(x.lat, x.lon), k = ACCESS[x.k];
         if (!now.contains(ll) || accessPins.has(x.id)) return;
-        accessPins.set(x.id, L.marker(ll, { icon: pinIcon(k), keyboard: false, title: `${k.label}: ${accessName(x)}` }).bindPopup(() => {
-          const info = accessInfo(x), road = nearestRoad([x.lat, x.lon], [roadData.get(x.z)], ROAD_NEAR_M);
-          return `<div class="road-pop"><h4>${esc(accessName(x))}</h4><p><span class="st">${esc(k.label)}</span>${info.length ? `<br>${info.map(esc).join(" · ")}` : ""}</p>
-            ${roadData.get(x.z) ? `<p>${roadLine(road, "No forest road within 300 m.")}</p>` : ""}<p class="src">${accessLinks(x)}</p></div>`;
-        }, { maxWidth: 280 }));
-        accessLayer.addLayer(accessPins.get(x.id));
+        // A tap opens its card in the panel (openAccessPoint), as Skiing's huts do. A small dot of the same colour sits
+        // under the pin: the 3D map copies tappable dots (map3d.js), not pins, so the point is there and tappable in 3D too.
+        const open = (e) => { if (e) L.DomEvent.stopPropagation(e); openAccessPoint(x); };
+        const m = L.marker(ll, { icon: pinIcon(k), keyboard: false, title: `${k.label}: ${accessName(x)}` }).on("click", open);
+        m.dot = L.circleMarker(ll, { radius: 6, color: "#fff", weight: 2, fillColor: k.bg, fillOpacity: 1 }).on("click", open);
+        accessPins.set(x.id, m);
+        accessLayer.addLayer(m.dot); accessLayer.addLayer(m);
       });
     })));
   }
   map.on("moveend", drawAccess);
+  // The card of a tapped access point: what it is, its facts, the forest road it's on, then "At this spot"
+  // (point-info.js): the weather there for 3 days (3 models checked), sunrise and sunset, BC fire bans and wildfires,
+  // and for a BC rec site its full record. Phones: the sheet comes up to half with the card at the top.
+  function openAccessPoint(x) {
+    const el = $("mtbPoint"), k = ACCESS[x.k];
+    if (!el || !k) return;
+    const isRec = x.k === "rec";
+    const info = isRec ? [x.t && x.t.type].filter(Boolean) : accessInfo(x), road = roadData.get(x.z) ? nearestRoad([x.lat, x.lon], [roadData.get(x.z)], ROAD_NEAR_M) : null;
+    el.hidden = false;
+    el.dataset.id = x.id;
+    el.innerHTML = `<header><span class="mp-ic" style="background:${k.bg}">${k.svg}</span><h3>${esc(accessName(x))}</h3>${window.tfShareBtn ? window.tfShareBtn(x.lat, x.lon, { sport: "mtb", name: accessName(x) }) : ""}<button type="button" class="mp-x" aria-label="Close">✕</button></header>
+      <p class="mp-kind" style="color:${k.bg}">${esc(k.label)}</p>
+      ${info.length ? `<p>${info.map(esc).join(" · ")}</p>` : ""}
+      ${roadData.get(x.z) ? `<p>${roadLine(road, "No forest road within 300 m.")}</p>` : ""}
+      <div data-loam></div>
+      <div class="mp-row">${accessLinks(x).split(" · ").join("")}</div>
+      <div data-here></div>`;
+    el.querySelector(".mp-x").onclick = () => { el.hidden = true; el.innerHTML = ""; delete el.dataset.id; };
+    const live = () => !el.hidden && el.dataset.id === x.id;
+    // Where rides start (trailheads, parking, rec sites, repair stands): the Loam index there today, the same reading
+    // as the trails' (Open-Meteo soil moisture, tuned by rider reports).
+    if (["th", "p", "rec", "fix"].includes(x.k)) (async () => {
+      const key = cellOf({ center: L.latLng(x.lat, x.lon) });
+      if (staleCells([key]).length) await fetchLoamCells([key]).catch(() => {});
+      const c = loamCells.get(key), box = live() && el.querySelector("[data-loam]");
+      if (!box || !c) return;
+      if (isSnowy(c.snow)) { box.innerHTML = `<p><b>Snow on the ground here</b> <span class="mp-muted">(Open-Meteo snow depth, an estimate)</span></p>`; return; }
+      if (c.lmi == null) return;
+      const lv = lmiLevel(c.lmi), ride = LMI_RIDE[LMI_LEVELS.indexOf(lv)];
+      box.innerHTML = `<p><b style="color:${ride[0]}">Loam index ${c.lmi}: ${esc(lv[1])}</b>. ${esc(lv[2])} <span class="mp-muted">Soil moisture around here today from Open-Meteo, tuned by rider reports. An estimate: trails differ.</span></p>`;
+    })();
+    // A rec site's full record replaces the short lines from the nightly file; if the province's record can't be read
+    // (no signal, or a rec trail), the short lines come back.
+    const short = () => { if (!live()) return; const more = accessInfo(x).filter((s) => !info.includes(s)); if (more.length) el.querySelector(".mp-kind").insertAdjacentHTML("afterend", `<p>${more.map(esc).join(" · ")}</p>`); };
+    if (window.tfPointInfo) window.tfPointInfo.fill(el.querySelector("[data-here]"), x.lat, x.lon, { rec: isRec ? x.id : "", isCurrent: live })
+      .then(() => { if (isRec && live() && !el.querySelector("[data-pi-rec]").innerHTML.trim()) short(); });
+    else if (isRec) short();
+    if (window.tfSnapTo && matchMedia("(max-width: 760px)").matches) { const p = $("panel"); if (!p || p.classList.contains("sheet-peek")) window.tfSnapTo("half"); }
+    setTimeout(() => panelScrollTo(el), 320);
+  }
   function syncAccessBtn() {
     const b = $("accessBtn");
     b.setAttribute("aria-pressed", String(state.access));
@@ -8952,52 +9006,52 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=5210"></script>
-<script src="native-map.js?v=5210"></script>
-<script src="contours.js?v=5210"></script>
-<script src="shade.js?v=5210"></script>
-<script src="clouds.js?v=5210"></script>
-<script src="smoke.js?v=5210"></script>
-<script src="radar.js?v=5210"></script>
-<script src="photo-slider.js?v=5210"></script>
-<script src="ski-terrain.js?v=5210"></script>
-<script src="place-search.js?v=5210"></script>
-<script src="winter.js?v=5210"></script>
-<script src="hunts.js?v=5210"></script>
-<script src="ski-points.js?v=5210"></script>
-<script src="offline.js?v=5210"></script>
-<script src="ride-stats.js?v=5210"></script>
-<script src="native-gps.js?v=5210"></script>
-<script src="navigate.js?v=5210"></script>
-<script src="go-there.js?v=5210"></script>
-<script src="planner.js?v=5210"></script>
-<script src="loops.js?v=5210"></script>
-<script src="ride-finds.js?v=5210"></script>
-<script src="rides.js?v=5210"></script>
-<script src="community.js?v=5210"></script>
-<script src="ride-files.js?v=5210"></script>
-<script src="rider-trails.js?v=5210"></script>
-<script src="account.js?v=5210"></script>
-<script src="friends.js?v=5210"></script>
-<script src="live.js?v=5210"></script>
-<script src="strava.js?v=5210"></script>
-<script src="moderation.js?v=5210"></script>
-<script src="reports.js?v=5210"></script>
-<script src="grades.js?v=5210"></script>
-<script src="trail-photos.js?v=5210"></script>
-<script src="visitors.js?v=5210"></script>
-<script src="usage.js?v=5210"></script>
-<script src="notify.js?v=5210"></script>
-<script src="closures.js?v=5210"></script>
-<script src="status.js?v=5210"></script>
-<script src="ask.js?v=5210"></script>
-<script src="areas.js?v=5210"></script>
-<script src="alpine.js?v=5210"></script>
-<script src="bikeparks.js?v=5210"></script>
-<script src="photo-find.js?v=5210"></script>
-<script src="whats-new.js?v=5210"></script>
-<script src="tutorials.js?v=5210"></script>
-<script src="app-update.js?v=5210"></script>
+<script src="map3d.js?v=5300"></script>
+<script src="native-map.js?v=5300"></script>
+<script src="contours.js?v=5300"></script>
+<script src="shade.js?v=5300"></script>
+<script src="clouds.js?v=5300"></script>
+<script src="smoke.js?v=5300"></script>
+<script src="radar.js?v=5300"></script>
+<script src="photo-slider.js?v=5300"></script>
+<script src="ski-terrain.js?v=5300"></script>
+<script src="place-search.js?v=5300"></script>
+<script src="winter.js?v=5300"></script>
+<script src="hunts.js?v=5300"></script>
+<script src="ski-points.js?v=5300"></script>
+<script src="offline.js?v=5300"></script>
+<script src="ride-stats.js?v=5300"></script>
+<script src="native-gps.js?v=5300"></script>
+<script src="navigate.js?v=5300"></script>
+<script src="go-there.js?v=5300"></script>
+<script src="planner.js?v=5300"></script>
+<script src="loops.js?v=5300"></script>
+<script src="ride-finds.js?v=5300"></script>
+<script src="rides.js?v=5300"></script>
+<script src="community.js?v=5300"></script>
+<script src="ride-files.js?v=5300"></script>
+<script src="rider-trails.js?v=5300"></script>
+<script src="account.js?v=5300"></script>
+<script src="friends.js?v=5300"></script>
+<script src="live.js?v=5300"></script>
+<script src="strava.js?v=5300"></script>
+<script src="moderation.js?v=5300"></script>
+<script src="reports.js?v=5300"></script>
+<script src="grades.js?v=5300"></script>
+<script src="trail-photos.js?v=5300"></script>
+<script src="visitors.js?v=5300"></script>
+<script src="usage.js?v=5300"></script>
+<script src="notify.js?v=5300"></script>
+<script src="closures.js?v=5300"></script>
+<script src="status.js?v=5300"></script>
+<script src="ask.js?v=5300"></script>
+<script src="areas.js?v=5300"></script>
+<script src="alpine.js?v=5300"></script>
+<script src="bikeparks.js?v=5300"></script>
+<script src="photo-find.js?v=5300"></script>
+<script src="whats-new.js?v=5300"></script>
+<script src="tutorials.js?v=5300"></script>
+<script src="app-update.js?v=5300"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

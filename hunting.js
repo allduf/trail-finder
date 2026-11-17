@@ -1496,7 +1496,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       <details id="hnLiveBox" hidden><summary>Land and forest</summary><div id="hnLive"></div></details>
       <div class="hn-row" id="hnGlass" data-at="${lat},${lon}">${glassRow(`${lat},${lon}`)}</div>
       <p class="hn-note" id="hnGlassNote"${glass && glass.at === `${lat},${lon}` ? "" : " hidden"}>${GLASS_NOTE}</p>
+      <details id="hnFireBox" hidden><summary>Fire bans and wildfires</summary><div id="hnFire"></div></details>
       <p class="hn-note">${fmtLL(lat, lon)}</p>`;
+    // BC Wildfire Service's bans and wildfires near the spot (point-info.js), for hunters camping or making a fire.
+    if (window.tfPointInfo) window.tfPointInfo.fireInto($("hnFire"), lat, lon, { isCurrent: () => seq === spotSeq }).then((sum) => {
+      const box = seq === spotSeq && $("hnFireBox");
+      if (box && sum) { box.hidden = false; box.querySelector("summary").textContent = `Fire: ${sum.toLowerCase()}`; if (/ban|wildfire/.test(sum) && !/^No/.test(sum)) box.open = true; }
+    });
     $("hnGlass").addEventListener("click", (e) => { const b = e.target.closest("[data-glass]"); if (b) glassDo(b.dataset.glass, lat, lon, b); });
     el.querySelector(".hn-x").addEventListener("click", () => { el.hidden = true; spotOpen = null; const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); });
     window.dispatchEvent(new CustomEvent("tf:hunt-spot", { detail: { el, lat, lon, zone: z.map((u) => (u.p === "bc" ? `MU ${u.id}` : u.p === "ab" ? `WMU ${u.id}` : zoneName(u, true))).join(" / ") } }));   // the Hunting trip adds its button (hunting-trip.js)

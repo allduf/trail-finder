@@ -1,0 +1,33 @@
+# Tap a point: "At this spot" in every sport (point-info.js), 2026-11-17
+Weather here ||| Météo ici
+Looking up the forecast for this point… ||| Recherche de la prévision pour ce point…
+Today ||| Aujourd'hui
+Tomorrow ||| Demain
+Dry ||| Sec
+Fire ||| Feu
+Recreation Sites and Trails BC ||| Sites et sentiers récréatifs de la C.-B.
+Closure on record ||| Fermeture inscrite
+About the site ||| À propos du site
+Getting there, as the site record describes it ||| Pour s'y rendre, selon la fiche du site
+Access on record ||| Accès inscrit
+Activities ||| Activités
+Upkeep ||| Entretien
+No wildfire still burning within 30 km on BC Wildfire Service's list. ||| Aucun feu de forêt encore actif à moins de 30 km sur la liste du BC Wildfire Service.
+No fire ban or area restriction from BC Wildfire Service covers this spot on their map right now. ||| Aucune interdiction de feu ni restriction de zone du BC Wildfire Service ne couvre cet endroit sur leur carte en ce moment.
+Couldn't get the forecast right now (no signal or the weather service is busy). ||| Impossible d'obtenir la prévision pour l'instant (pas de signal ou service météo occupé).
+Fire bans and wildfires ||| Interdictions de feu et feux de forêt
+Fire: no ban or wildfire listed ||| Feu : aucune interdiction ni feu de forêt listé
+No ban or wildfire listed ||| Aucune interdiction ni feu de forêt listé
+Fire ban or restriction here ||| Interdiction de feu ou restriction ici
+Toilets ||| Toilettes
+Picnic tables ||| Tables de pique-nique
+Fire rings ||| Foyers
+Boat launch ||| Mise à l'eau
+Dock ||| Quai
+Shelter ||| Abri
+Tent pads ||| Plateformes de tente
+Food cache ||| Cache à nourriture
+Water source ||| Source d'eau
+Info kiosk ||| Kiosque d'information
+Snow on the ground here ||| Neige au sol ici
+Tap a point on the map for more about it, in every sport: the weather there for 3 days (3 forecast models checked against each other), sunrise and sunset, BC fire bans and wildfires nearby, and for BC rec sites the province's record (closures, what's there, access). MTB trailheads and parking now open a card with today's loam, in 2D and 3D. Estimates, with their sources. ||| Touchez un point sur la carte pour en savoir plus, dans tous les sports : la météo à cet endroit sur 3 jours (3 modèles de prévision comparés), le lever et le coucher du soleil, les interdictions de feu et feux de forêt de la C.-B. à proximité, et pour les sites récréatifs de la C.-B. la fiche de la province (fermetures, installations, accès). Les départs de sentier et stationnements en vélo de montagne ouvrent maintenant une fiche avec le loam du jour, en 2D et en 3D. Des estimations, avec leurs sources.
