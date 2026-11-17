@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22   # wrangler 4.160 needs Node 22.12+
       - name: Install osmium and tippecanoe
         run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool tippecanoe && tippecanoe --version
       - name: Download each province and keep its dirt roads
