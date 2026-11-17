@@ -1032,7 +1032,7 @@ body.nav-night .nav-strip.driving { background: #1c262e; color: #fff; }
 body.nav-night .nav-strip.driving .nav-nums span { color: rgba(255,255,255,.7); }
 body.nav-night .nav-strip.driving .nav-btns button:not(.stop) { background: rgba(255,255,255,.12); border-color: transparent; color: #fff; }
 body.nav-night .nav-strip.driving .nav-tip { background: rgba(255,255,255,.12); color: #fff; }
-body.nav-night .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
+body.nav-night:not(.base-adv) .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
 .app.riding .leaflet-top { margin-top: var(--nav-turn-h, 0px); }
 `;
   document.head.appendChild(turnCss);

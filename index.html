@@ -1306,7 +1306,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body #layersMenu .lm-offline small { display: block; font-size: .78rem; opacity: .75; }
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=24">
+<link rel="stylesheet" href="theme.css?v=25">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1353,6 +1353,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
              still the fallbacks when one doesn't load, and the vector map is what Offline maps shows with no signal. -->
         <div class="lm-tiles" id="lmTiles" role="radiogroup" aria-label="Map style">
         <button type="button" role="radio" data-base="osm" class="t-osm"><span>Map</span></button>
+        <!-- Adventure moto only (alex 2026-11-17: "a more professional map by default for moto mode"): adv-map.js -->
+        <button type="button" role="radio" data-base="advtopo" class="t-advtopo"><span>ADV topo</span></button>
         <button type="button" role="radio" data-base="topo" class="t-topo"><span>Topo</span></button>
         <button type="button" role="radio" data-base="sat" class="t-sat"><span>Satellite</span></button>
         <button type="button" role="radio" data-base="sathybrid" class="t-sathybrid"><span>Sat + names</span></button>
@@ -1373,6 +1375,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <option value="sathybrid">Satellite + names</option>
         <option value="winter">Winter photos</option>
         <option value="vector">Sharp outdoor (vector)</option>
+        <option value="advtopo">ADV topo</option>
         </select></div>
         <div class="lm-head lm-looks-head">Quick looks</div>
         <div class="lm-looks" id="lmLooks" role="group" aria-label="Quick looks: turn on the layers for">
@@ -2013,6 +2016,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
     // Skiing only: last winter's photos (map3d.js tfWinterTile) over the summer photo, which shows where there are none.
     winter: [ESRI_SAT, { maxZoom: 22, attribution: SAT_ATTR + ' | Winter: <a href="https://www.esa.int/Applications/Observing_the_Earth/Copernicus/Sentinel-2">Copernicus Sentinel-2</a>' }],
     // OpenMapTiles vector map hosted free by OpenFreeMap: drawn by the browser, so it's sharp at any zoom and on retina screens.
+    // Adventure moto's own map (adv-map.js): topo with dirt roads standing out, dark after sunset. Moto only.
+    advtopo: [null, { maxZoom: 22, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' + OSM_ATTR + ' | Heights: <a href="https://mapterhorn.com/attribution">&copy; Mapterhorn</a>' }],
     vector: ["https://tiles.openfreemap.org/styles/liberty", { maxZoom: 22, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' + OSM_ATTR }],
   };
   const SAT_NAMES = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
@@ -2038,6 +2043,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const [url, base] = BASEMAPS[key];
     const opt = { ...base, ...FAST_TILES };
     if (key === "vector") { await loadVectorLib(); return L.maplibreGL({ style: url, attributionControl: { customAttribution: opt.attribution } }); }
+    if (key === "advtopo") return advBase(opt);
     // The plain street map is toned down a little (alex 2026-11-02, interface review: the bright pink towns and greens of
     // the OpenStreetMap style read as "a web map" next to AllTrails or onX); trails, zones and pins drawn on top keep
     // their full colour. Photos and the topo style are left as they are.
@@ -2048,6 +2054,34 @@ body.sport-alt #rideMapBtn { display: none !important; }
     if (key !== "sathybrid") return layer;
     return L.layerGroup([layer, summerPhotos(), L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 22, ...FAST_TILES })]);
   }
+  // ADV topo (adv-map.js, with maplibre-contour for its elevation lines), loaded on first use. Day or night colours from
+  // the sun where the map is, checked every minute while it shows.
+  let advLoading = null, advLayer = null, advNight = null, advTimer = 0;
+  function loadAdv() {
+    if (!advLoading) advLoading = loadVectorLib()
+      .then(() => window.mlcontour || loadScript("vendor/maplibre-contour-0.1.1.js").catch(() => null))
+      .then(() => window.tfAdvMap || loadScript("adv-map.js?v=5180"))
+      .catch((e) => { advLoading = null; throw e; });
+    return advLoading;
+  }
+  const advIsNight = () => { const c = map.getCenter(); return window.tfAdvMap.night(c.lat, c.lng); };
+  function advSync() {
+    const on = !!(advLayer && map.hasLayer(advLayer));
+    document.body.classList.toggle("base-adv", on);   // navigate.js doesn't darken it again after sunset: it's dark already
+    document.body.classList.toggle("base-night", on && advNight === true);
+    if (!on) { clearInterval(advTimer); advTimer = 0; return; }
+    const n = advIsNight();
+    if (n !== advNight) { advNight = n; const m = advLayer.getMaplibreMap && advLayer.getMaplibreMap(); if (m) m.setStyle(window.tfAdvMap.style(n)); document.body.classList.toggle("base-night", n); }
+  }
+  async function advBase(opt) {
+    await loadAdv();
+    advNight = advIsNight();
+    advLayer = L.maplibreGL({ style: window.tfAdvMap.style(advNight), attributionControl: { customAttribution: opt.attribution } });
+    advLayer.on("add", () => { advSync(); if (!advTimer) advTimer = setInterval(advSync, 60000); });
+    advLayer.on("remove", () => setTimeout(advSync, 0));
+    return advLayer;
+  }
+  window.tfAdvNight = () => !!(advLayer && map.hasLayer(advLayer) && advNight);
   // Skiing's Winter map style: last winter's photos drawn by the 3D map's workers (map3d.js tfWinterTile), zooms 6 to
   // 16 (sharper close-ups from 15), enlarged past that. See-through where there are none, so the summer photo shows.
   function winterPhotos() { return photoGrid((z, x, y, s) => window.tfWinterTile ? window.tfWinterTile(z, x, y, s) : Promise.resolve(null), { maxNativeZoom: 16 }); }
@@ -2127,6 +2161,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   async function tileWorks(key) {
     if (key === "osm" && FROM_FILE) return false;
     if (key === "vector") { try { await loadVectorLib(); return true; } catch { return false; } }
+    if (key === "advtopo") { try { await loadAdv(); return true; } catch { return false; } }
     if (key in tileOk) return tileOk[key];
     const url = BASEMAPS[key][0].replace("{s}", "a").replace("{z}", "10").replace("{x}", "161").replace("{y}", "348").replace("{r}", "");
     if (!FROM_FILE) return (tileOk[key] = true); // on a website every style loads normally
@@ -2153,7 +2188,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     $("basemap").value = use;
     satSync(use);
     syncTiles(use);
-    if (remember) store.set(skiing() ? "basemapSki" : "basemap4", key);
+    if (remember) store.set(skiing() ? "basemapSki" : moto() ? "basemapMoto" : "basemap4", key);
     const note = $("mapNote");
     note.hidden = use === key;
     if (use !== key) note.textContent = key === "osm" && FROM_FILE
@@ -2161,20 +2196,24 @@ body.sport-alt #rideMapBtn { display: none !important; }
       : "That map style didn't load here, so a similar one is shown.";
   }
   // The 4 styles riders pick from; a style saved from before (CyclOSM, Light streets…) opens as Map.
-  const PICKS = ["osm", "topo", "sat", "sathybrid", "winter"];
+  const PICKS = ["osm", "advtopo", "topo", "sat", "sathybrid", "winter"];
   function syncTiles(k) {
     const cur = PICKS.includes(k) ? k : "osm";
     document.querySelectorAll("#lmTiles [data-base]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.base === cur)));
   }
   $("lmTiles").addEventListener("click", (e) => { const b = e.target.closest("[data-base]"); if (b) setBasemap(b.dataset.base, true); });
   // Skiing keeps its own map style, Winter at first; the other sports share theirs and never get Winter.
+  // Adventure moto keeps its own too, ADV topo at first (alex 2026-11-17); only Adventure moto gets ADV topo.
   const skiing = () => document.body.classList.contains("sport-ski");
+  const moto = () => document.body.classList.contains("sport-moto");
+  const ownOnly = (k) => (k === "winter" && !skiing()) || (k === "advtopo" && !moto());
   const savedBase = () => {
-    if (skiing()) { const k = store.get("basemapSki", "winter"); return PICKS.includes(k) ? k : "winter"; }
+    if (skiing()) { const k = store.get("basemapSki", "winter"); return PICKS.includes(k) && !ownOnly(k) ? k : "winter"; }
+    if (moto()) { const k = store.get("basemapMoto", "advtopo"); return PICKS.includes(k) && !ownOnly(k) ? k : "advtopo"; }
     const k = store.get("basemap4", "osm");
-    return PICKS.includes(k) && k !== "winter" ? k : "osm";
+    return PICKS.includes(k) && !ownOnly(k) ? k : "osm";
   };
-  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) && saved !== "winter" ? saved : "osm", !PICKS.includes(saved)); }
+  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) && saved !== "winter" && saved !== "advtopo" ? saved : "osm", !PICKS.includes(saved)); }
   window.addEventListener("tf:sport", () => {
     if (!navigator.onLine && $("basemap").value === "vector") return;   // no signal: the saved offline map stays (offline.js)
     const want = savedBase();
@@ -2188,7 +2227,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const cur = $("basemap").value;
     if (!isSat(cur)) store.set("basemapPrev", cur);
     const prev = store.get("basemapPrev", "osm");
-    setBasemap(isSat(cur) ? (PICKS.includes(prev) && (prev !== "winter" || skiing()) ? prev : "osm") : "sathybrid", true);
+    setBasemap(isSat(cur) ? (PICKS.includes(prev) && !ownOnly(prev) ? prev : savedBase()) : "sathybrid", true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 

@@ -1123,6 +1123,8 @@
     "Adventure moto (ADV)":"Moto d'aventure (ADV)",
     "Sport: Adventure moto (ADV). Change sport":"Sport : Moto d'aventure (ADV). Changer de sport",
     "The sport is now called Adventure moto (ADV), so riders who say ADV find it right away.":"Le sport s'appelle maintenant Moto d'aventure (ADV), pour que les motards qui disent ADV le trouvent tout de suite.",
+    "ADV topo":"Topo ADV",
+    "Adventure moto (ADV) has its own map: ADV topo, with shaded mountains, elevation lines, and gravel and dirt roads standing out in brown. It turns dark after sunset. Pick another style any time in Layers.":"La Moto d'aventure (ADV) a sa propre carte : Topo ADV, avec le relief ombré, les courbes de niveau, et les chemins de gravier et de terre bien visibles en brun. Elle devient sombre après le coucher du soleil. Choisissez un autre style quand vous voulez dans Couches.",
     "3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo.":"Carte 3D : les lignes des sentiers et des itinéraires sont nettes maintenant, dessinées par-dessus les montagnes au lieu d'être peintes floues dans la photo.",
     "Search a route, hut, resort, freeride line or place, or ask in plain words":"Chercher un itinéraire, un refuge, une station, une ligne freeride ou un lieu, ou demander en mots simples",
     "Search a trail, town or riding area anywhere in Canada, or ask in plain words":"Chercher un sentier, une ville ou un secteur partout au Canada, ou demander en mots simples",

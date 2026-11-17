@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-17", "text": "Adventure moto (ADV) has its own map: ADV topo, with shaded mountains, elevation lines, and gravel and dirt roads standing out in brown. It turns dark after sunset. Pick another style any time in Layers."},
     {"date": "2026-11-17", "text": "The sport is now called Adventure moto (ADV), so riders who say ADV find it right away."},
     {"date": "2026-11-17", "text": "Moto: Plan a route is now at the top of a moto trip, as a big button. In Plan a route you can type the ride you want, like \"Squamish to Pemberton, mostly dirt\" or \"200 km dirt loop from Kamloops\", and the app plans it for your bike."},
     {"date": "2026-11-17", "text": "Topo map in 3D: pick Topo on the 3D map, or in Map style, to see the topographic map over the mountains. And slide two fingers up on the flat map to open 3D (Tilt for 3D, in Layers)."},

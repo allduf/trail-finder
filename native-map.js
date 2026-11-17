@@ -116,7 +116,7 @@
   function openNative(threeD) {
     const close = document.getElementById("lmClose");
     if (close) close.click();
-    const c = map.getCenter(), base = (document.getElementById("basemap") || {}).value || "osm";
+    const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm", base = sel === "advtopo" ? "vector" : sel;   // the native map has no ADV topo: its closest
     open = true;
     TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, ...snapshot() })
       .catch(() => { open = false; });
