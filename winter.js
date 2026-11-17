@@ -5646,9 +5646,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts", "moto", "moto-trip", "hike", "hike-trip", "fishing-trip"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts", "moto", "moto-trip", "hike", "hike-trip", "fishing-trip", "hunting-trip"];
   const NEEDS = {
-    hunt: ["crownland", "hunting", "compass"],
+    hunt: ["crownland", "hunting", "compass", "trip-core", "hunting-trip"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing", "trip-core", "fishing-trip"],
     ski: ["webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts"],
     hike: ["trip-core", "hike", "hike-trip"],
@@ -5678,6 +5678,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (soon("skiTrips")) loadSport("ski").catch(() => {});
       if (soon("hikeTrips")) loadSport("hike").catch(() => {});   // a hike trip (hike-trip.js) the same way
       if (soon("fishingTrips")) loadSport("fish").catch(() => {});   // and a fishing trip (fishing-trip.js)
+      if (soon("huntTrips")) loadSport("hunt").catch(() => {});   // and a hunting trip (hunting-trip.js)
       if (soon("motoTrips")) loadSport("moto").catch(() => {});   // and a moto trip (moto-trip.js)
     } catch (_) {}
   }, 6000);
