@@ -1122,6 +1122,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // "River · Very low"); a tap opens the details (alex: "make the fishing mode user friendly", like Hunting's #298).
   const unhead = (h) => String(h || "").replace(/^\s*<h4>[\s\S]*?<\/h4>/, "");
   const textOf = (h) => String(h || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  const FIRE_IC = '<path d="M12 21c-3.9 0-7-2.6-7-6.4 0-3.4 2.8-5.4 4-9.6 2 1.5 3 3.4 3 5.4.9-.8 1.5-2 1.6-3.2C16 9.2 19 12 19 14.6c0 3.8-3.1 6.4-7 6.4z"/>';
   function fold(key, icon, title, sum, body, open = false) {
     if (!body) return "";
     return `<details class="fs-sec" data-sec="${key}"${open ? " open" : ""}><summary>${svg(icon, 16)}<b>${esc(title)}</b><span>${sum || ""}</span></summary><div class="fs-secb">${body}</div></details>`;
@@ -1145,7 +1146,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "fish", name: title }) : ""}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsDepth"></div><div id="fsBait"></div>
-      <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsLand"></div><div id="fsAcc"></div>`;
+      <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsLand"></div><div id="fsAcc"></div><div id="fsFire"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     // The fishing trip (fishing-trip.js) adds its "Plan a fishing trip here" button under the header.
     window.dispatchEvent(new CustomEvent("tf:fish-spot", { detail: { el, lat, lon, name: title || "" } }));
@@ -1170,6 +1171,13 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     flowHtml(lat, lon).then((h) => fill("fsFlow", secFlow(h)));
     tideHtml(lat, lon).then((h) => fill("fsTide", secTide(h)));
     fill("fsAcc", secAcc(accessHtml(lat, lon)));
+    // BC Wildfire Service's bans and wildfires near the spot (point-info.js), for a fire on the shore or a camp.
+    if (window.tfPointInfo && window.tfPointInfo.inBC(lat, lon)) {
+      const box = document.createElement("div");
+      window.tfPointInfo.fireInto(box, lat, lon, { isCurrent: () => seq === spotSeq }).then((sum) => {
+        if (sum) fill("fsFire", fold("fire", FIRE_IC, "Fire", esc(sum), box.innerHTML.replace(/^/, '<div class="pi">') + "</div>", /ban|wildfire/i.test(sum) && !/^No/.test(sum)));
+      });
+    }
     landHtml(lat, lon, prov).then((h) => fill("fsLand", h));
     // What to use: the fish the province lists here, plus what's stocked close by and what the eating guide lists.
     const baitSp = new Set();

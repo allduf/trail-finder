@@ -743,8 +743,13 @@ out center tags qt;`;
           <a class="hk-pill go" href="${dirUrl(p.ll)}" target="_blank" rel="noopener">${svg(IC.car, 16)}Directions</a>
           ${book ? `<a class="hk-pill" href="${esc(book)}" target="_blank" rel="noopener">${t["reservation:website"] ? "Book" : "Website"}</a>` : ""}
         </div>
+        <div data-here></div>
         ${p.id[0] !== "j" ? `<p class="hk-note">On <a href="https://www.openstreetmap.org/${{ n: "node", w: "way", r: "relation" }[p.id[0]]}/${p.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>.</p>` : ""}`;
       cardDrawn("place", el, p);
+      // At this spot (point-info.js): weather there for 3 days (3 models checked), sunrise and sunset, BC fire bans and
+      // wildfires, and a BC rec site's record when OpenStreetMap links the place to one.
+      const rec = /\bREC\d{3,6}\b/i.exec([p.x.website, p.x.url, p.x.ref, p.x["ref:bc_rec"], t.website].filter(Boolean).join(" "));
+      if (window.tfPointInfo) window.tfPointInfo.fill(el.querySelector("[data-here]"), p.ll[0], p.ll[1], { ele: p.x.ele ? +p.x.ele : null, rec: rec ? rec[0] : "", isCurrent: () => curPlace === p });
     };
     render(p.club || null);
     showCard(el);
