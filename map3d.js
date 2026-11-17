@@ -124,6 +124,9 @@
     const link = document.createElement("link");
     link.rel = "stylesheet"; link.href = LIB + ".css";
     document.head.append(link);
+    // The flat map's loader (index.html) when it's there, so the library is never loaded twice at once: a second copy
+    // replaced the first, and what was set up on it (ADV topo's dirt roads, elevation lines) was lost in 3D.
+    if (window.tfLoadMaplibre) return (libLoading = window.tfLoadMaplibre().catch(() => { libLoading = null; throw new Error("3D map library didn't load"); }));
     libLoading = new Promise((ok, fail) => {
       const s = document.createElement("script");
       s.src = LIB + ".js"; s.onload = ok; s.onerror = () => { libLoading = null; fail(new Error("3D map library didn't load")); };
