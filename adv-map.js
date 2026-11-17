@@ -21,21 +21,9 @@
   };
 
   // Gravel and dirt roads for zooms 7 to 12 (13 and closer: OpenFreeMap's own), from every province's OpenStreetMap
-  // roads each week (scripts/build-dirt-roads.mjs, .github/workflows/dirt-roads.yml), on four Cloudflare Pages sites
-  // picked by the zoom-7 tile, like the Winter far view. A tile that isn't there (no dirt roads) draws as empty.
-  const dirtSite = (z, x, y) => (z < 7 ? 0 : ((x >> (z - 7)) * 31 + (y >> (z - 7))) % 4);
+  // roads each week: index.html's tfdirt:// (window.tfDirtProtocol), shared with "Roads for my bike" (moto.js).
   let dirtReady = false;
-  function dirtProtocol() {
-    if (dirtReady || !window.maplibregl || !window.maplibregl.addProtocol) return dirtReady;
-    window.maplibregl.addProtocol("tfdirt", async (params, abort) => {
-      const [z, x, y] = params.url.replace("tfdirt://", "").split("/").map(Number);
-      try {
-        const r = await fetch(`https://trailfinder-dirt-${dirtSite(z, x, y)}.pages.dev/dirt/${z}/${x}/${y}.pbf`, { signal: abort.signal });
-        return { data: r.ok ? await r.arrayBuffer() : new ArrayBuffer(0) };
-      } catch (e) { if (abort.signal.aborted) throw e; return { data: new ArrayBuffer(0) }; }
-    });
-    return (dirtReady = true);
-  }
+  const dirtProtocol = () => (dirtReady = !!(window.tfDirtProtocol && window.tfDirtProtocol()));
 
   // Elevation lines: maplibre-contour (vendor/, see SOURCES.md) draws them from the height tiles in a worker, once.
   let contourUrl = null;

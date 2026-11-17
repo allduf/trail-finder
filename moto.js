@@ -551,17 +551,37 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const cap = capOf(cur()), col = (g) => FIT[fitOf(g, cap)][1];
     return ["case", ["==", ["get", "class"], "track"], col(3), col(2)];
   }
-  function roadLayers(src, prefix) {
+  // The far dirt roads (index.html's tfdirt://, zoom 7 to 12): "c" is "t" for a track, "r" for a gravel road.
+  function farPaint() {
+    const cap = capOf(cur()), col = (g) => FIT[fitOf(g, cap)][1];
+    return ["case", ["==", ["get", "c"], "t"], col(3), col(2)];
+  }
+  const DIRT = { type: "vector", minzoom: 7, maxzoom: 11, tiles: ["tfdirt://{z}/{x}/{y}"], attribution: "Dirt roads: OpenStreetMap" };
+  // OpenFreeMap carries gravel roads only from zoom 13 and tracks from 14, so zoomed out (or far off in a tilted 3D
+  // view, which draws the distance from zoomed-out tiles) the dirt roads went missing (alex 2026-11-17, recording: the
+  // green dashed roads vanished as the 3D map tilted). Up to zoom 13 they come from our own far dirt-road tiles (far =
+  // that source's id, when tfdirt:// is set up), as in ADV topo; from 13, OpenFreeMap's own.
+  function roadLayers(src, prefix, far) {
     const width = ["interpolate", ["linear"], ["zoom"], 9, 1.2, 12, 2.6, 15, 4.5];
-    return [
-      { id: prefix + "case", type: "line", source: src, "source-layer": "transportation", filter: ROAD_FILTER, layout: { "line-cap": "round", "line-join": "round" },
+    const z = far ? { minzoom: 13 } : {};
+    const farLayers = !far ? [] : [
+      { id: prefix + "far-case", type: "line", source: far, "source-layer": "dirt", maxzoom: 13, minzoom: 9, layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#fff", "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.2, 12.9, 4.4] } },
+      { id: prefix + "far-road", type: "line", source: far, "source-layer": "dirt", maxzoom: 13, filter: ["!=", ["get", "c"], "t"], layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": farPaint(), "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 10, 1.1, 12.9, 2.5] } },
+      { id: prefix + "far-track", type: "line", source: far, "source-layer": "dirt", maxzoom: 13, filter: ["==", ["get", "c"], "t"], layout: { "line-join": "round" },
+        paint: { "line-color": farPaint(), "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 10, 1.1, 12.9, 2.5], "line-dasharray": [2, 1] } },
+    ];
+    return [...farLayers,
+      { id: prefix + "case", type: "line", source: src, "source-layer": "transportation", filter: ROAD_FILTER, layout: { "line-cap": "round", "line-join": "round" }, ...z,
         paint: { "line-color": "#fff", "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.6, 12, 4.6, 15, 7] } },
-      { id: prefix + "road", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["!=", ["get", "class"], "track"]], layout: { "line-cap": "round", "line-join": "round" },
+      { id: prefix + "road", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["!=", ["get", "class"], "track"]], layout: { "line-cap": "round", "line-join": "round" }, ...z,
         paint: { "line-color": roadPaint(), "line-width": width } },
-      { id: prefix + "track", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["==", ["get", "class"], "track"]], layout: { "line-join": "round" },
+      { id: prefix + "track", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["==", ["get", "class"], "track"]], layout: { "line-join": "round" }, ...z,
         paint: { "line-color": roadPaint(), "line-width": width, "line-dasharray": [2, 1] } },
     ];
   }
+  const dirtOk = () => !!(window.tfDirtProtocol && window.tfDirtProtocol());
   map.createPane("motoGL").style.zIndex = 360;
   map.getPane("motoGL").style.pointerEvents = "none";
   let gl = null, glLoading = null;
@@ -577,7 +597,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     glLoading = window.tfLoadVectorLib ? window.tfLoadVectorLib().catch(() => null) : Promise.resolve(null);
     await glLoading; glLoading = null;
     if (!isMoto() || !shown.has("roads") || gl || !L.maplibreGL || flat3d()) return;
-    gl = L.maplibreGL({ pane: "motoGL", interactive: false, attributionControl: false, style: { version: 8, sources: { m: OFM }, layers: roadLayers("m", "mt-") } }).addTo(map);
+    gl = L.maplibreGL({ pane: "motoGL", interactive: false, attributionControl: false, style: { version: 8, sources: dirtOk() ? { m: OFM, d: DIRT } : { m: OFM }, layers: roadLayers("m", "mt-", dirtOk() ? "d" : null) } }).addTo(map);
   }
   // BC's forest service and other resource roads (DataBC FTEN), drawn from zoom 9: the OpenStreetMap tiles above only
   // carry dirt roads from zoom 13 and tracks from 14, too close in to plan a day. Coloured like a good gravel road for
@@ -598,6 +618,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     for (const m of [g, gl3]) {
       if (!m || !m.getLayer) continue;
       for (const id of ["mt-road", "mt-track"]) if (m.getLayer(id)) m.setPaintProperty(id, "line-color", paint);
+      for (const id of ["mt-far-road", "mt-far-track"]) if (m.getLayer(id)) m.setPaintProperty(id, "line-color", farPaint());
     }
   }
   // The dirt road under a point of the map, from the drawn tiles: { name, class, surface } or null.
@@ -2222,7 +2243,9 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       }
       g.setLayoutProperty("mt-ften", "visibility", on && shown.has("roads") ? "visible" : "none");
       if (!g.getSource("mt-ofm")) g.addSource("mt-ofm", OFM);
-      for (const l of roadLayers("mt-ofm", "mt-")) {
+      const far = !g.getLayer("mt-case") || g.getLayer("mt-far-road") ? dirtOk() : false;   // not added under roads already drawn without them
+      if (far && !g.getSource("mt-dirt")) g.addSource("mt-dirt", DIRT);
+      for (const l of roadLayers("mt-ofm", "mt-", far ? "mt-dirt" : null)) {
         if (!g.getLayer(l.id)) g.addLayer(l);
         g.setLayoutProperty(l.id, "visibility", on && shown.has("roads") ? "visible" : "none");
       }
