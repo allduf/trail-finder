@@ -17,6 +17,16 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // Fishing trips (fishing-trip.js)
+    [/^wind (\d+) km\/h (N|NE|E|SE|S|SW|W|NW)(?:, gusts (\d+))?$/, function (m, w, d, g) { return "vent " + w + " km/h " + d.replace(/W/g, "O") + (g ? ", rafales " + g : ""); }],
+    [/^sun (.+) to (.+)$/, "soleil $1 à $2"],
+    [/^(\d+) mm of rain \((\d+)% chance\)$/, "$1 mm de pluie ($2 % de risque)"],
+    [/^(high|low) tide (.+), (-?[\d.]+) m$/, function (m, k, t, h) { return "marée " + (k === "high" ? "haute" : "basse") + " " + t + ", " + h.replace(".", ",") + " m"; }],
+    [/^Fish here on (.+)$/, "Pêcher ici pendant $1"],
+    [/^The water of your trip: (.+)$/, "Le plan d'eau de votre voyage : $1"],
+    [/^River now: (.+)$/, "Rivière maintenant : $1"],
+    [/^Flies for (\w+): (.+)$/, function (m, mo, f) { return "Mouches pour " + tt(mo).toLowerCase() + " : " + f; }],
+    [/^(\d+) fish$/, function (m, n) { return n + " poisson" + (n > 1 ? "s" : ""); }],
     // Hike trips (hike-trip.js)
     [/^High point of (.+) \(([\d,]+) m\): (-?\d+°|–), low (-?\d+°|–)$/, function (m, n, e, a, b) { return "Point culminant de " + n + " (" + e.replace(",", " ") + " m) : " + a + ", min. " + b; }],
     [/^Day (\d+)$/, "Jour $1"],
