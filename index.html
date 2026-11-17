@@ -4039,6 +4039,10 @@ out body;`;
     }, 2000);
   };
   const cellOf = (t) => { const m = t.loamAt || t.center || L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 50) / 50).toFixed(2)},${(Math.round(m.lng * 50) / 50).toFixed(2)}`; };
+  // The Loam moisture index for other parts of the app (bike-trip.js: the loam estimate each day of a bike trip), read
+  // the same way as a trail's: the same cell, soil type and rider tuning.
+  window.tfLoam = { cell: (lat, lng) => cellOf({ loamAt: { lat, lng } }), at: (h, i, key) => lmiAt(h, i, key), snow: (h, i) => snowAt(h, i), isSnowy: (cm) => isSnowy(cm),
+    level: (v) => { const l = lmiLevel(v); return l ? { word: l[1], ride: LMI_RIDE[LMI_LEVELS.indexOf(l)] } : null; }, isPrime: (v) => isPrimeLoam(v), ready: () => loamTuneReady };
   function loamOf(t) {
     const c = loamCells.get(cellOf(t));
     return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
@@ -4759,6 +4763,12 @@ out body;`;
     if (real && window.tfTrailPhotos) window.tfTrailPhotos.show(t);   // trail-photos.js
     if (real) loadAbout(t);
     leaveFullMap(t);
+    // The bike trip (bike-trip.js) adds its "Add to bike trip" under the card's buttons.
+    if (real) {
+      const ll = (p) => (p && p.lat != null ? [p.lat, p.lng] : p);
+      const ls = (t.segments && t.segments.length ? t.segments : [t.geom]).map((g) => (g || []).map(ll));
+      window.dispatchEvent(new CustomEvent("tf:mtb-card", { detail: { el: d, after: d.querySelector(".go"), item: { rid: String(t.id), name: trailName(t), label: (t.catLabel || CAT_LABEL[t.cat] || ""), ls } } }));
+    }
   }
 
   // No rating from any source yet: estimate one from the slope (ratings.js), then show it in the open details.
@@ -5630,7 +5640,7 @@ out body;`;
   const navStack = [];                 // pages over the map, oldest first: "find", "ride", "saved", "more", "search", "results"
   const navTop = () => navStack[navStack.length - 1] || "map";
   const ROOTS = { find: "find", new: "find", ski: "find", hunt: "find", fish: "find", moto: "find", hike: "find", ride: "ride", saved: "saved", more: "more" };
-  const TITLES = { get find() { return words().find; }, get ride() { return words().tab; }, saved: "Saved", more: "More", search: "New trails", results: "Results" };
+  const TITLES = { get find() { return words().find; }, get ride() { return words().tab; }, saved: "Saved", more: "More", search: "New trails", results: "Results", trip: "Bike trip" };
   // Words for each sport (alex, 2026-10-24): riding words in MTB only. Skiing and Hunting record a track, save
   // offline maps for skiing or hunting, and their bell is about avalanches or plain notifications, not loam.
   // function declarations: setSheetH runs syncTabbar before this part of the script has run
@@ -5685,6 +5695,7 @@ out body;`;
       <p class="hub-note">${w.note}</p>
       ${mtb ? card("plan", "✎", "Plan a route", "Tap points, or pick the trails you want") : ""}
       ${mtb ? card("routes", "📂", "Ride a saved route", "Routes you planned and saved") : ""}
+      ${mtb ? card("biketrip", "🏕", "Bike trips", "Bikepacking or a base camp: camps, rides, loam each day") : ""}
       ${sportOf() === "moto" ? card("moto-plan", "✎", "Plan a moto route", "Most dirt, a mix, or curvy paved roads, for your bike") + card("moto-routes", "📂", "Ride a saved moto route", "Routes you planned and saved") : ""}
       ${card("offline", "⤓", "Offline maps", w.offline)}
       ${window.tfLive ? card("live", "📡", "Share my live location", window.tfLive.sharing() ? "On now: tap to send the link or stop" : "Friends and family see where you are") : ""}`;   // My rides and Add a trail live in Saved
@@ -5778,7 +5789,7 @@ out body;`;
     if (top === "saved" && phone && !isAlt()) renderFolders();
     panelEl.classList.toggle("hub-on", phone && page);
     panelEl.classList.toggle("nav-search", phone && top === "search");
-    panelEl.classList.toggle("nav-results", phone && top === "results");
+    panelEl.classList.toggle("nav-results", phone && (top === "results" || top === "trip"));   // a bike trip's card (bike-trip.js) sits at the top of the results
     panelEl.classList.toggle("nav-alt", phone && top === "find" && isAlt());
     syncSportWait();
     const bar = phone && top !== "map";
@@ -5808,6 +5819,8 @@ out body;`;
     if (navTop() !== page) navStack.push(page);
     showNav(snap);
   }
+  // The bike trip's card (bike-trip.js): its own page on phones, from Ride › Bike trips; closing it goes back.
+  window.tfNavTrip = (on) => { if (!phoneMQ.matches) return; if (on) { if (navTop() !== "trip") navTo("trip", { snap: "half" }); } else if (navTop() === "trip") navBack(); };
   function navBack() {
     if (!$("about").hidden) { $("about").hidden = true; return; }
     if (!$("layersMenu").hidden && $("layersBtn").getAttribute("aria-expanded") === "true") { $("layersBtn").click(); return; }
@@ -5972,6 +5985,7 @@ out body;`;
     else if (act === "start") { if (window.tfRide) window.tfRide.start(); }
     else if (act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
     else if (act === "routes") { if (window.tfPlan) window.tfPlan.saved(); }
+    else if (act === "biketrip") { (window.tfLoadSport ? window.tfLoadSport("mtb") : Promise.resolve()).catch(() => {}).then(() => { const T = window.tfTrips && window.tfTrips.bike; if (T) T.list(); }); }
     else if (act === "offline") { lowerSheet(); $("offlineBtn").click(); }
     else if (act === "live") { if (window.tfLive) window.tfLive.open(); }
     else if (act === "alerts") document.querySelector(".brand .notify-btn")?.click();
