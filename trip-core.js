@@ -87,6 +87,7 @@ ${P} .sk-tripgo { font: inherit; font-size: .9rem; font-weight: 800; padding: 10
 ${P} .tp-tours li { display: flex; gap: 4px; }
 ${P} .tp-tours li > button:first-child { flex: 1; }
 ${P} .tp-tours small { color: var(--muted); white-space: normal; }
+${P} .tp-tours .tp-day { flex: none; width: 88px; align-self: center; font-size: 16px; padding: 6px 4px; }
 ${P} .tp-list .tp-star { flex: none; width: 48px; justify-content: center; align-items: center; font-size: 1.3rem; color: #f08c00; }
 ${P} details.tp-pack > summary, ${P} details.tp-plan > summary { font-size: .92rem; font-weight: 800; padding: 4px 0; }
 ${P} details summary small { font-weight: 600; color: var(--muted); margin-left: 4px; }
@@ -324,6 +325,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     if (!ls.length) return;
     const y = { id: x.rid || x.tour || "l" + Date.now().toString(36), rid: x.rid || "", tour: x.tour || "", name: String(x.name || K.w.line).slice(0, 80), label: x.label || "", ls, km: +lineKm(ls).toFixed(1), c: x.c ? r5(x.c) : ls[0][0] }, old = linesOf(t).find((z) => sameLine(z, y)), ab = (old && old.ab) || meOf(t);
     if (ab) y.ab = ab;
+    if (old && old.day != null) y.day = old.day;   // the day it's planned for (Hike trips) stays when it's added again
     t.lines = [...linesOf(t).filter((z) => !sameLine(z, y)), y];
     putTrip(t);
     if (cur === t) { renderLines(); if (K.linesChanged) K.linesChanged(t); drawMap(); }
@@ -335,7 +337,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   }
   function linesHtml(t) {
     const l = linesOf(t), top = K.linesTop ? K.linesTop(t) : "";
-    const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small>${byHtml(t, x)}</span></button>${x.tour && K.canEdit ? `<button type="button" class="tp-rm" data-tledit="${esc(x.tour)}" aria-label="Change ${esc(x.name)}: its points">✎</button>` : ""}<button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
+    const rows = l.map((x) => `<li><button type="button" data-tl="${esc(x.id)}"><span><i class="tp-sw"></i>${esc(x.name)} <small>${[x.label, x.km.toFixed(1) + " km"].filter(Boolean).map(esc).join(" · ")}</small>${byHtml(t, x)}</span></button>${K.lineExtra ? K.lineExtra(t, x) : ""}${x.tour && K.canEdit ? `<button type="button" class="tp-rm" data-tledit="${esc(x.tour)}" aria-label="Change ${esc(x.name)}: its points">✎</button>` : ""}<button type="button" class="tp-rm" data-tlrm="${esc(x.id)}" aria-label="Take ${esc(x.name)} off this trip">✕</button></li>`).join("");
     return `${top || rows ? `<ul class="tp-list tp-tours">${top}${rows}</ul>` : ""}
       ${l.length ? "" : `<p class="sk-note">${K.linesEmpty(t)}</p>`}
       <div class="tp-btns"><button type="button" data-tp="drawline">✏️ ${esc(K.drawLabel(t))}</button>${l.length ? `<button type="button" data-tp="fitall">🗺 See them all</button>` : ""}${l.length || top ? `<button type="button" data-tp="gpx">⬇ GPX of the whole trip</button>` : ""}</div>`;
