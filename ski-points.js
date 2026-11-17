@@ -997,17 +997,19 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     setTimeout(go, 300);
   }
 
-  // A group's cabin trip link (#trip=id.key, cabin-trip.js shareTrip): Skiing opens with that trip, kept in sync.
+  // A group's trip link (trip-core.js shareTrip): #trip=id.key is a Skiing cabin trip, #trip=id.key.hike a hike trip.
+  // That sport opens with the trip, kept in sync.
   function openTripLink() {
-    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})$/);
+    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})(?:\.(hike))?$/);
     if (!m) return;
     history.replaceState(null, "", location.pathname + location.search);
-    const sel = document.getElementById("sport");
-    if (sel && sel.value !== "ski") { sel.value = "ski"; sel.dispatchEvent(new Event("change")); }
+    const sport = m[3] || "ski", sel = document.getElementById("sport");
+    if (sel && sel.value !== sport) { sel.value = sport; sel.dispatchEvent(new Event("change")); }
     let tries = 0;
     const go = () => {
-      if (!(window.tfCabinTrip && window.tfCabinTrip.join)) { if (++tries < 60) setTimeout(go, 250); return; }   // up to 15 s while Skiing loads
-      window.tfCabinTrip.join(m[1], m[2]);
+      const T = window.tfTrips && window.tfTrips[sport];
+      if (!(T && T.join)) { if (++tries < 60) setTimeout(go, 250); return; }   // up to 15 s while the sport loads
+      T.join(m[1], m[2]);
     };
     setTimeout(go, 300);
   }
