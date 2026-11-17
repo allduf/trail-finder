@@ -7,7 +7,8 @@
 //  - Skiing: tours, nordic, snowshoe or snowmobile routes with their risk light, huts, the avalanche forecast (winter.js).
 //  - Hunting: the spot card at the place (zone, what's open, rules: hunting.js).
 //  - Fishing: stocked waters near the place, for the fish named (fishing.js), or the spot card.
-//  - Adventure moto: ADV routes near the place (data/moto-routes.json), or the spot card.
+//  - Adventure moto: ADV routes near the place (data/moto-routes.json), or the spot card. A trip ("3-day dirt trip from
+//    Kamloops") also offers to start a Moto trip there (moto-trip.js), for those days, to add the routes to.
 // When the AI isn't there (no signal to it, its daily limit reached, the function not updated yet) the words are read
 // here, more simply, and the answer says so.
 (() => {
@@ -36,7 +37,7 @@
     ski: { ph: "Simple ski tour near Whistler", ex: ["Simple ski tour near Whistler", "Huts near Rogers Pass", "Avalanche danger near Revelstoke tomorrow"] },
     hunt: { ph: "What can I hunt near Pemberton", ex: ["What can I hunt near Pemberton", "Elk near Canmore", "Deer season near Kamloops"] },
     fish: { ph: "Lakes stocked with rainbow trout near Kamloops", ex: ["Lakes stocked with rainbow trout near Kamloops", "Where to fish near Squamish", "Fishing rules near Banff"] },
-    moto: { ph: "Dirt route under 300 km near Kamloops", ex: ["Dirt route under 300 km near Kamloops", "ADV routes near Revelstoke", "Gas and camping near Lillooet"] },
+    moto: { ph: "Dirt route under 300 km near Kamloops", ex: ["Dirt route under 300 km near Kamloops", "3-day dirt trip from Kamloops", "ADV routes near Revelstoke", "Gas and camping near Lillooet"] },
   };
 
   const css = document.createElement("style");
@@ -1068,6 +1069,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     // Adventure moto: ADV routes near the place (data/moto-routes.json), or the spot card.
     async moto(p, at, out, stale) {
       const spot = () => { close(); map.setView(at.c, Math.max(map.getZoom(), 11)); map.fire("click", { latlng: L.latLng(at.c[0], at.c[1]) }); };
+      if (p.what === "spot" && motoNights(p.q)) p.what = "routes";   // "3-day camping trip": a trip, not this spot's campsites
       if (p.what === "spot") {
         out.innerHTML = `<button type="button" class="ask-act" data-go>🏍 Open ${at.you ? "this spot" : esc(at.name)}: gas, camping, can I ride here</button>`;
         out.querySelector("[data-go]").addEventListener("click", spot);
@@ -1084,14 +1086,36 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       if (hard) rs = rs.filter((x) => (x.t.grade || 2) >= 3);
       if (dirt) rs = rs.filter((x) => (x.t.dirtPct || 0) >= 50);
       rs.sort((a, b) => a.d - b.d);
+      // A trip of more than a day (alex 2026-11-17, Moto trip: "with the Ask search"): start one there, then add routes.
+      const nights = motoNights(s);
+      const startBtn = nights ? `<button type="button" class="ask-act" data-mtrip>Start a ${nights + 1}-day moto trip ${at.you ? "from where you are" : at.mid ? "from the middle of the map" : `from ${esc(at.name)}`}, ${esc(dayName(p.date))}</button>` : "";
       const rows = rs.slice(0, 10).map(({ t, d }) => ({ title: esc(t.n), sub: `${fmtKm(t.km || 0)}${t.dirtPct != null ? ` · ${t.dirtPct}% dirt` : ""} · grade ${t.grade || 2}${t.season ? ` · ${esc(t.season)}` : ""} · starts ${fmtKm(d)} away`,
         go: async () => { if (window.tfLoadMoto) await window.tfLoadMoto().catch(() => {}); if (window.tfMoto && window.tfMoto.openTrip) window.tfMoto.openTrip(t.id); } }));
-      out.innerHTML = rows.length ? `<h3>ADV routes near ${esc(nearName(at))}</h3>${listHtml(rows)}<p class="ask-note">Grade 1 is paved, 5 is the roughest. Tap one for its gas stops, camps and Plan it for my bike.</p>`
-        : `<p class="ask-note">No ADV route like that within ${R} km of ${esc(nearName(at))}.</p>`;
+      out.innerHTML = startBtn + (rows.length ? `<h3>ADV routes near ${esc(nearName(at))}</h3>${listHtml(rows)}<p class="ask-note">Grade 1 is paved, 5 is the roughest. Tap one for its gas stops, camps and Plan it for my bike${nights ? ", and + Add to moto trip" : ""}.</p>`
+        : `<p class="ask-note">No ADV route like that within ${R} km of ${esc(nearName(at))}${nights ? ": plan your own routes in the trip" : ""}.</p>`);
       wire(out, rows);
+      const sb = out.querySelector("[data-mtrip]");
+      if (sb) sb.addEventListener("click", async () => {
+        if (window.tfLoadMoto) await window.tfLoadMoto().catch(() => {});
+        let n = 0; while (!window.tfMotoTrip && n++ < 40) await new Promise((ok) => setTimeout(ok, 250));
+        if (!window.tfMotoTrip) return;
+        window.tfMotoTrip.startNear({ ll: at.c, name: at.you ? "Where you are" : at.mid ? "" : at.name, date: p.date, nights });
+        if (rows.length) { sb.disabled = true; sb.textContent = "Trip started. Tap a route below, then + Add to moto trip."; } else close();
+      });
     },
   };
 
+  // A Moto trip in the words: "3-day trip", "2 nights", "weekend trip", "multi-day": how many nights (0 = not a trip).
+  const NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  function motoNights(s) {
+    s = String(s || "").toLowerCase();
+    const m = s.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)[- ]?(days?|nights?)\b/), n = m ? +m[1] || NUM[m[1]] : 0;
+    if (m && /night/.test(m[2])) return Math.min(10, Math.max(1, n));
+    if (m && n > 1 && /\btrip|\btour|\bride|\badventure|\bloop|\broute/.test(s)) return Math.min(10, n - 1);
+    if (/\bweekend\b/.test(s) && /\btrip\b/.test(s)) return 2;
+    if (/\bmulti[- ]?day\b|\bovernight\b|\b(moto|motorcycle|bike|adv|dirt) trip\b|\btrip\b/.test(s) && !/\bday trip\b/.test(s)) return 2;
+    return 0;
+  }
   // looks: whether words read like a question (the sport's search box hands those to Ask, winter.js and place-search.js
   // also when no place has that name).
   window.tfAsk = { html: (sp) => boxHtml(sp), open, parse: localParse, looks: (q) => asks(q || "") };

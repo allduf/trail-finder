@@ -1001,6 +1001,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     el.querySelector(".mt-x").onclick = () => { el.hidden = true; spot = null; spotLayer.removeLayer(spotMarker); spotSeq++; renderNear(); };
     const ap = el.querySelector("[data-addpt]");
     if (ap) ap.onclick = () => addPoint([s.lat, s.lon]);
+    if (s.pin) cardDrawn("pin", el, s.pin);
     if (s.pin) pinDetails(s.pin.k, s.pin.p).then((h) => { const box = my === spotSeq && el.querySelector("[data-pin]"); if (box) box.innerHTML = h; });
     // The road's own tags (OpenStreetMap), through the router's map: the way's id, then its tags.
     if (s.road) roadDetails(s.lat, s.lon).then((d) => {
@@ -1887,7 +1888,10 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       planChanged(); renderRoute();
     }));
     el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
+    if (r) cardDrawn("route", el, r);
   }
+  // A card drawn again (a planned route, an ADV route, a campsite): the Moto trip (moto-trip.js) adds its buttons to it.
+  const cardDrawn = (kind, el, item) => window.dispatchEvent(new CustomEvent("tf:moto-card", { detail: { kind, el, item } }));
   function routeAct(a, btn) {
     if (a === "loop") { planLoop = !planLoop; store.set("motoLoop", planLoop); drawWaypoints(); buildRoute(); renderRoute(); }
     else if (a === "edit") setPlanning(true);
@@ -2618,6 +2622,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     el.querySelectorAll("[data-trip]").forEach((x) => (x.onclick = () => showTrip(x.dataset.trip)));
     const pb = el.querySelector('[data-t="plan"]'); if (pb) pb.onclick = () => planTrip(open);
     const bb = el.querySelector('[data-t="back"]'); if (bb) bb.onclick = () => { tripOpen = null; tripLayer.clearLayers(); renderTrips(); };
+    if (open) cardDrawn("adv", el, open);
   }
   // One route with all it has: photo, what it is, highlights, the hardest part, water, ferries, permits, best months,
   // gas stops (gaps longer than your range in red) and camps along it, trip reports.
@@ -2684,6 +2689,27 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       else if (what === "log") openLog();
       else if (what === "trips") openTrips();
     },
+  };
+  // The Moto trip (moto-trip.js, on trip-core.js): the bikes, gas, camps, routes and cards it builds from.
+  // A route as one of the trip's lines (ls: its points), and one line planned again here (turns, surfaces, Ride it).
+  const planLine = (ll, name) => { planTrip({ n: name, line: ll }); };
+  window.tfMoto.trip = {
+    ACC, svg, IC, TYPES, TIRES, SKILL, GRADES, RESERVE, rangeOf, usable, capOf, fitOf, loadModels, typeOfKg, kmBetween, fmtKm, realName, PT,
+    bikes: () => bikes.slice(), myBike: () => bike(),
+    fuelReady: () => listOf("fuel").length > 0,
+    fuelPlan: (line) => (line && line.length > 1 ? fuelPlan({ line }) : null),
+    // Campsites and BC rec sites near ll (the map's data: all of Canada for campsites, rec sites once the map has been there).
+    campsNear: (ll, km, n = 12) => nearest(campsAll(), ll[0], ll[1], n, km).map(([d, p]) => ({ d, p })),
+    kindLine,
+    routeItem: () => (route && route.line && route.line.length > 1 ? { name: route.name || "My adventure route", ls: [route.line], km: route.km, time: route.time } : null),
+    advItem: (t) => { const ll = tripLine(t); return ll.length > 1 ? { rid: "adv:" + t.id, name: t.n, label: `grade ${t.grade || 2}`, ls: [ll] } : null; },
+    advRoutes: () => loadTrips(),
+    openAdv: async (id) => { toPanel(); await openTrips(); showTrip(id); },
+    planLine: (ll, name) => { toPanel(); planLine(ll, name); },
+    planFrom: (ll) => { toPanel(); planPts = ll ? [[+ll[0].toFixed(5), +ll[1].toFixed(5)]] : []; route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); setPlanning(true); renderRoute(); showCard($("mtRoute")); },
+    openSpot: (lat, lon) => { map.setView([lat, lon], Math.max(map.getZoom(), 12)); setSpot(lat, lon, "tap"); toPanel(); },
+    cellNear: async (lat, lon) => { const c = await loadCell(); return c ? cellNear(lat, lon) : null; },
+    showCard, toPanel, hint, getJ, postJ, OVERPASS,
   };
   // Offline maps (offline.js) saved in Moto keep the gas, camping and hot spring lists too.
   window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json", "data/moto-models.json"] : []);

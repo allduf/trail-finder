@@ -15,7 +15,7 @@
     // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
     // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
     // lists' merges read it.
-    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans", "hikeTrips", "hikePack", "fishingTrips", "fishingPack", "huntTrips", "huntPack"];
+    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans", "hikeTrips", "hikePack", "fishingTrips", "fishingPack", "huntTrips", "huntPack", "motoTrips", "motoPack"];
   const STAMP = "tf:settingsAt";   // when this device last changed a setting (ms)
 
   const api = window.tfAccount = { enabled: !!(SUPABASE_URL && SUPABASE_ANON_KEY), url: SUPABASE_URL, key: SUPABASE_ANON_KEY, client: null, user: null, ready: null };
@@ -564,7 +564,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // when the app comes back to the screen, and when a page asks (tfAccount.sync(), e.g. opening 📂 Saved).
   const KEYAT = "tf:settingsKeyAt";
   const LIVE = new Set(["planSaved", "planGone", "notifyRead", "loamAlert", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
-    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans", "hikeTrips", "hikePack", "fishingTrips", "fishingPack", "huntTrips", "huntPack"]);   // read fresh by the page, so no reload
+    "listGone", "skiTrips", "skiTours", "tripPack", "skiWatch", "avyAlert", "fishAlert", "huntAlarms", "motoRoutes", "motoBikes", "motoBike", "hikeSaved", "hikePlans", "hikeTrips", "hikePack", "fishingTrips", "fishingPack", "huntTrips", "huntPack", "motoTrips", "motoPack"]);   // read fresh by the page, so no reload
   const jparse = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch { return d; } };
   // A saved list both devices add to: items by id, the newer edit wins, minus those deleted (tf:listGone) after their
   // last edit. sorted: newest first (else this device's order, then the account's new ones). max: the page's own cap.
@@ -586,6 +586,13 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   const MERGE = {
     // Your own packing items and the ones you leave out (cabin-trip.js): both devices' kept, so signing in never drops one.
     tripPack: (a, b) => {
+      const x = jparse(a, null) || {}, y = jparse(b, null) || {};
+      if (!a && !b) return null;
+      const own = [], seen = new Set();
+      [...(x.own || []), ...(y.own || [])].forEach((o) => { const k = o && String(o.label || "").toLowerCase(); if (k && !seen.has(k)) { seen.add(k); own.push(o); } });
+      return JSON.stringify({ own, hide: [...new Set([...(x.hide || []), ...(y.hide || [])])] });
+    },
+    motoPack: (a, b) => {   // the same for moto trips (moto-trip.js)
       const x = jparse(a, null) || {}, y = jparse(b, null) || {};
       if (!a && !b) return null;
       const own = [], seen = new Set();
@@ -621,6 +628,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     },
     skiTrips: listMerge("skiTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20),         // cabin trips (cabin-trip.js)
     hikeTrips: listMerge("hikeTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20),       // hike trips (hike-trip.js)
+    motoTrips: listMerge("motoTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20),       // moto trips (moto-trip.js)
     fishingTrips: listMerge("fishingTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20), // fishing trips (fishing-trip.js)
     huntTrips: listMerge("huntTrips", (t) => t.id, (t) => t.ed || t.at || 0, true, 20),       // hunting trips (hunting-trip.js)
     skiTours: listMerge("skiTours", (t) => t.id, (t) => t.ed || t.at || 0, true, 50),         // Skiing: planned tours saved (winter.js)
@@ -678,6 +686,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     motoRoutes: [(v) => arr(v).length, "this route"],
     skiTrips: [(v) => arr(v).length, "this cabin trip"],
     hikeTrips: [(v) => arr(v).length, "this hike trip"],
+    motoTrips: [(v) => arr(v).length, "this moto trip"],
     fishingTrips: [(v) => arr(v).length, "this fishing trip"],
     huntTrips: [(v) => arr(v).length, "this hunting trip"],
     skiTours: [(v) => arr(v).length, "this tour"],
