@@ -173,6 +173,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     <section data-panel="searches">
       <h2>What people search for</h2>
       <p class="muted">Everything typed in a search box or Ask. Red tags are where the app let them down.</p>
+      <p class="muted" id="thisBrowser"></p>
       <div class="card"><table id="searches"></table></div>
 
       <h2>Find results</h2>
@@ -389,6 +390,18 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     document.querySelectorAll("[data-days]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     load();
   }));
+
+  // This browser's own sending (usage.js keeps how its last send went): the website on this computer sends too.
+  function thisBrowser() {
+    let last = null, waiting = 0;
+    try { last = JSON.parse(localStorage.getItem("tf:useLast") || "null"); waiting = JSON.parse(localStorage.getItem("tf:useQueue") || "[]").length; } catch {}
+    const off = localStorage.getItem("tf:useOff") === "1";
+    $("thisBrowser").innerHTML = off ? "This browser: Don't share is on (More › How the app is used), so it sends nothing."
+      : !last ? `This browser hasn't sent anything yet${waiting ? ` (${waiting} waiting)` : ""}. Open Trail Finder here, use it, then come back.`
+      : last.ok ? `This browser last sent ${last.n} events ${agoShort(last.t)}${waiting ? `; ${waiting} waiting` : ""}.`
+      : `<span class="tag bad">Not sending</span> This browser's last send failed ${agoShort(last.t)}: ${esc(last.why || "no answer")}${waiting ? ` (${waiting} waiting)` : ""}.`;
+  }
+  thisBrowser();
 
   async function load() {
     $("msg").hidden = false; $("msg").textContent = "Loading…";

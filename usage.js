@@ -116,11 +116,18 @@
       method: "POST", keepalive: !!leaving,
       headers: { "Content-Type": "application/json", apikey: acct.key, Authorization: `Bearer ${acct.key}` },
       body: JSON.stringify({ device, os, screen: screenSize, events: batch }),
-    }).then((res) => {
-      if (!res.ok) return;
+    }).then(async (res) => {
+      // How the last send went (tf:useLast), shown on usage.html opened in this same browser, so a phone or browser
+      // whose usage never arrives can be told apart from one that sent nothing (alex 2026-11-17).
+      if (!res.ok) {
+        const why = await res.text().catch(() => "");
+        lsSet("tf:useLast", JSON.stringify({ t: Date.now(), ok: false, why: `${res.status} ${why}`.slice(0, 300), n: batch.length }));
+        // A batch the server refuses (400: bad data) would be refused forever and hold back everything after it.
+        if (res.status !== 400) return;
+      } else lsSet("tf:useLast", JSON.stringify({ t: Date.now(), ok: true, n: batch.length }));
       queue = queue.slice(batch.length);
       lsSet(QKEY, JSON.stringify(queue));
-    }).catch(() => {}).finally(() => { sending = false; });
+    }).catch((e) => { lsSet("tf:useLast", JSON.stringify({ t: Date.now(), ok: false, why: String((e && e.message) || e).slice(0, 300), n: batch.length })); }).finally(() => { sending = false; });
   }
   setInterval(flush, 30e3);
 
