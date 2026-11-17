@@ -583,7 +583,13 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // carry dirt roads from zoom 13 and tracks from 14, too close in to plan a day. Coloured like a good gravel road for
   // your bike (most are), since the map image can't say which; tap one for its own details.
   const FTEN = "pub:WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW";
-  const ftenSld = () => `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>${FTEN}</Name><UserStyle><FeatureTypeStyle><Rule><LineSymbolizer><Stroke><CssParameter name="stroke">${FIT[fitOf(2, capOf(cur()))][1]}</CssParameter><CssParameter name="stroke-width">2</CssParameter><CssParameter name="stroke-opacity">0.8</CssParameter></Stroke></LineSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
+  // Thin and light when far out (alex 2026-11-17, "it looks weird with all the dirt roads": a whole island of 2 px green
+  // lines), full width from zoom 13. DataBC draws each rule at its own map scale (zoom 11 and out, 12, 13 and in).
+  const ftenSld = () => {
+    const c = FIT[fitOf(2, capOf(cur()))][1];
+    const rule = (min, max, w, o) => `<Rule>${min ? `<MinScaleDenominator>${min}</MinScaleDenominator>` : ""}${max ? `<MaxScaleDenominator>${max}</MaxScaleDenominator>` : ""}<LineSymbolizer><Stroke><CssParameter name="stroke">${c}</CssParameter><CssParameter name="stroke-width">${w}</CssParameter><CssParameter name="stroke-opacity">${o}</CssParameter></Stroke></LineSymbolizer></Rule>`;
+    return `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>${FTEN}</Name><UserStyle><FeatureTypeStyle>${rule(200000, 0, 0.7, 0.45)}${rule(100000, 200000, 1.2, 0.65)}${rule(0, 100000, 2, 0.8)}</FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
+  };
   const ftenLayer = L.tileLayer.wms("https://openmaps.gov.bc.ca/geo/pub/wms", { layers: FTEN, styles: "", format: "image/png", transparent: true, SLD_BODY: ftenSld(), minZoom: 9, maxZoom: 19, pane: "motoGL", bounds: L.latLngBounds([48.2, -139.1], [60, -114]), attribution: "DataBC" });
   function paintRoads() {
     if (ftenLayer._map) ftenLayer.setParams({ SLD_BODY: ftenSld() });
@@ -2212,7 +2218,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
         g.__mtSld = sld;
         g.addSource("mt-ften", { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 17, bounds: [-139.1, 48.2, -114, 60],
           tiles: [`https://openmaps.gov.bc.ca/geo/pub/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(FTEN)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(sld)}&BBOX={bbox-epsg-3857}`] });
-        g.addLayer({ id: "mt-ften", type: "raster", source: "mt-ften", minzoom: 8, paint: { "raster-opacity": 0.9 } });
+        g.addLayer({ id: "mt-ften", type: "raster", source: "mt-ften", minzoom: 8, paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 11, 0.8, 13, 0.95] } });
       }
       g.setLayoutProperty("mt-ften", "visibility", on && shown.has("roads") ? "visible" : "none");
       if (!g.getSource("mt-ofm")) g.addSource("mt-ofm", OFM);

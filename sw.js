@@ -132,6 +132,7 @@ async function savedFirst(req) {
 const TILES = [
   { name: "tf-tiles-photos", max: 4000, days: 30, test: (u) => (u.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev|trailfinder-sharp-\d+\.pages\.dev|trailfinder-sharpca-\d+\.pages\.dev|trailfinder-wide-\d+\.pages\.dev)$/.test(u.hostname)) && /\/trail-finder-(winter2?|summer|wide)\/\d+\/\d+\/\d+\.webp$/.test(u.pathname) },
   { name: "tf-tiles-heights", max: 200, days: 7, test: (u) => u.hostname === "tiles.mapterhorn.com" },
+  { name: "tf-tiles-dirt", max: 1500, days: 7, test: (u) => /^trailfinder-dirt-\d\.pages\.dev$/.test(u.hostname) },   // ADV topo's far dirt roads (adv-map.js)
   { name: "tf-tiles-osm", max: 2000, days: 7, fresh: 1, test: (u) => u.hostname === "tile.openstreetmap.org" },
 ];
 const DAY_MS = 864e5;
