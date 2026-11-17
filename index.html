@@ -1359,6 +1359,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <!-- Skiing only (alex 2026-11-03: "is there anyway to have a better winter map?"): last winter's photos, the same as the 3D map's Winter. -->
         <button type="button" role="radio" data-base="winter" class="t-winter"><span>Winter</span></button>
         </div>
+        <!-- alex 2026-11-17: "could we add the option if you tilt in the 2d map it turn 3d?" (map3d.js tiltTo3d) -->
+        <div class="lm-list lm-overlays lm-tilt"><button id="tilt3dBtn" type="button" aria-pressed="true" class="on" title="Tilt the flat map to switch to 3D: slide two fingers up on a phone, or right-drag (or Ctrl+drag) up with a mouse"><span class="lm-nm">Tilt for 3D<small class="lm-stat">Slide two fingers up on the flat map to see it in 3D</small></span></button></div>
         <select id="basemap" aria-label="Map style" hidden>
         <option value="osm">Standard</option>
         <option value="cyclosm">CyclOSM</option>
