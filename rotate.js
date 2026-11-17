@@ -236,7 +236,7 @@
   // and its end would fly the 3D map back to this map's bearing.
   function mouseRotate(map) {
     const box = map.getContainer();
-    let down = null, replaying = false, lastTurn = 0;
+    let down = null, replaying = false, lastTurn = 0, tilted = false;
     const angleAt = (e) => { const r = box.getBoundingClientRect(); return Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2) * 180 / Math.PI; };
     const onMove = (e) => {
       if (!down) return;
@@ -250,6 +250,9 @@
           if (-dy < TILT_PX) return;
           lastTurn = Date.now();
           onUp(null);
+          // Windows sends the right-click after the button goes up, and the page may only get it seconds later while 3D
+          // opens: it opened "New spot" (alex's recording, 2026-11-17). The next right-click before a new press is dropped.
+          tilted = true;
           window.tfTilt3d.go();
           e.preventDefault();
           return;
@@ -274,6 +277,7 @@
       }
     };
     box.addEventListener("mousedown", (e) => {
+      tilted = false;
       if (!(e.button === 2 || (e.button === 0 && e.ctrlKey)) || e.target.closest(".leaflet-control, .leaflet-popup, #map3d") || !map.options.rotate) return;
       if (box.classList.contains("drawing")) return;   // drawing a square to find trails
       if (e.button === 0) { e.stopPropagation(); e.preventDefault(); }   // Ctrl+drag: turn, don't pan
@@ -285,6 +289,7 @@
     }, true);
     box.addEventListener("contextmenu", (e) => {
       if (replaying) return;
+      if (tilted) { tilted = false; e.preventDefault(); e.stopPropagation(); return; }
       if (down) {                                     // Mac and Linux send it on the press: hold it until the release
         e.preventDefault(); e.stopPropagation();
         down.menu = { target: e.target, x: e.clientX, y: e.clientY, sx: e.screenX, sy: e.screenY, ctrl: e.ctrlKey };

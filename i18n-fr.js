@@ -1140,6 +1140,7 @@
     "set":"coucher",
     "Sun up all day":"Soleil levé toute la journée",
     "Sun down all day":"Soleil couché toute la journée",
+    "3D keeps your map style: Map, ADV topo, Topo, Satellite and Sat + names all show over the mountains in 3D, and you can change the style in Layers while in 3D.":"La 3D garde votre style de carte : Carte, Topo ADV, Topo, Satellite et Sat + noms s'affichent tous sur les montagnes en 3D, et vous pouvez changer de style dans Couches en 3D.",
     "3D map: trail and route lines are sharp now, drawn on top of the mountains instead of painted soft into the photo.":"Carte 3D : les lignes des sentiers et des itinéraires sont nettes maintenant, dessinées par-dessus les montagnes au lieu d'être peintes floues dans la photo.",
     "Search a route, hut, resort, freeride line or place, or ask in plain words":"Chercher un itinéraire, un refuge, une station, une ligne freeride ou un lieu, ou demander en mots simples",
     "Search a trail, town or riding area anywhere in Canada, or ask in plain words":"Chercher un sentier, une ville ou un secteur partout au Canada, ou demander en mots simples",
