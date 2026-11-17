@@ -107,7 +107,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   const QWORD = /\b(near|nearby|around|loop|loops|where|what|which|how|when|best|today|tomorrow|tonight|weekend|stocked|danger|hours?|km|under|i|me)\b/i;
   // (not in MTB, where trail names like "Walk in the Park" are searched by name)
   const QMORE = /\b(in the|plan|touring|simple|easy|beginner|intermediate|advanced|challenging|want|find|show)\b/i;
-  const asks = (q) => !document.body.classList.contains("sport-hike") && !!SP[sportOf()] && q.trim().split(/\s+/).length >= 3 && (QWORD.test(q) || (sportOf() !== "mtb" && QMORE.test(q)) || (sportOf() === "ski" && planLike(q)));
+  const asks = (q) => !document.body.classList.contains("sport-hike") && !!SP[sportOf()] && q.trim().split(/\s+/).length >= 3 && (QWORD.test(q) || (sportOf() !== "mtb" && QMORE.test(q)) || (sportOf() === "ski" && planLike(q)) || (sportOf() === "moto" && motoRide(q)));
   // (Skiing: a plan of the day typed without "I want…", like "start at the top of Showcase, ski DOA, finish in Lakeside
   // Bowl", goes to Ask too, which makes it a tour; the video thread found it running a place search, 2026-11-05.)
   document.addEventListener("submit", (e) => {
@@ -222,7 +222,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
   let token = 0;
   async function open(q, o) {
     const sp = sportOf(), my = ++token;
-    if (o) planAsk = !!o.plan && sp === "ski";
+    if (o) planAsk = !!o.plan && (sp === "ski" || sp === "moto");
     dlg.querySelector(".ask-top").innerHTML = boxHtml(sp, "ask-in-dlg");
     const inp = dlg.querySelector(".ask-in");
     inp.value = q || "";
@@ -230,7 +230,8 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     const head = dlg.querySelector(".ask-head"), out = dlg.querySelector(".ask-out");
     if (!q) {
       head.innerHTML = "";
-      out.innerHTML = planAsk ? `<p class="ask-note">Type your plan of the day: where you start, the lines you want to ski or climb, and where you finish. For example:</p><div class="ask-ex">${PLAN_EX.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div>`
+      out.innerHTML = planAsk && sp === "moto" ? `<p class="ask-note">Type the ride you want: where you start, places on the way, where you finish or a loop, how long, and dirt or paved. For example:</p><div class="ask-ex">${MOTO_PLAN_EX.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div>`
+        : planAsk ? `<p class="ask-note">Type your plan of the day: where you start, the lines you want to ski or climb, and where you finish. For example:</p><div class="ask-ex">${PLAN_EX.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div>`
         : `<p class="ask-note">Type what you're after, the way you'd ask a friend. For example:</p><div class="ask-ex">${SP[sp].ex.map((x) => `<button type="button">${esc(x)}</button>`).join("")}</div>`;
       out.querySelectorAll(".ask-ex button").forEach((b) => b.addEventListener("click", () => open(b.textContent)));
       setTimeout(() => inp.focus(), 50);
@@ -257,6 +258,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     }
     // A ski tour typed as a plan names its own pieces: when the place isn't found, they're looked for around the map.
     if (!at && sp === "ski" && (planAsk || planLike(q))) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
+    if (!at && sp === "moto" && (planAsk || motoRide(q))) { const m = map.getCenter(); at = { c: [m.lat, m.lng], mid: true }; }
     if (!at) { logUse("search", "Ask:" + q, 0); out.innerHTML = `<p class="ask-note ask-warn">Couldn't find “${esc(p.place)}” on the map. Try the town's name, or move the map there and ask “near here”.</p>`; return; }
     out.innerHTML = `<p class="ask-wait">Looking ${at.you ? "around you" : at.mid ? "around the middle of the map" : "near " + esc(at.name)}…</p>`;
     try { await ANSWER[sp](p, at, out, () => my !== token); if (my === token) logUse("search", "Ask:" + q, out.querySelectorAll("button").length); }
@@ -1068,6 +1070,9 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
 
     // Adventure moto: ADV routes near the place (data/moto-routes.json), or the spot card.
     async moto(p, at, out, stale) {
+      // A ride typed in Plan a route (or "Squamish to Pemberton" in the search box): planned, not looked up.
+      if ((p.plan || motoRide(p.q)) && (await askMotoPlan(p, at, out, stale))) return;
+      if (stale()) return;
       const spot = () => { close(); map.setView(at.c, Math.max(map.getZoom(), 11)); map.fire("click", { latlng: L.latLng(at.c[0], at.c[1]) }); };
       if (p.what === "spot" && motoNights(p.q)) p.what = "routes";   // "3-day camping trip": a trip, not this spot's campsites
       if (p.what === "spot") {
@@ -1104,6 +1109,129 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       });
     },
   };
+
+  // ---------- Adventure moto: a ride typed in Plan a route ----------
+  // alex 2026-11-17: "one you click on plan a route i want to see the same ask box as skiing so the user can tell the
+  // app what ride they want to do". The words are cut into the start, the places on the way and the finish, plus a
+  // loop, a length and the style (dirt, mix, paved); each place is found with the place search, near the one before.
+  // Plan a route (moto.js tfMoto.trip.planAsk) then plans it for the rider's bike, the same as tapped points.
+  const MOTO_PLAN_EX = ["Squamish to Pemberton, mostly dirt", "200 km dirt loop from Kamloops", "Whistler to Lillooet and back, paved"];
+  const MOTO_STOP = new Set(["the", "a", "an", "at", "in", "on", "of", "to", "it", "there", "some", "and", "with", "along", "road", "roads", "way", "i", "we", "me", "us", "go", "ride", "for"]);
+  // A ride typed in Moto's own search box goes to Ask as a ride too: "Squamish to Pemberton", "loop from Kamloops".
+  function motoRide(q) {
+    q = String(q || "");
+    if (motoNights(q)) return false;
+    return /\b(?:start|starting|leaving)\b.*\b(?:to|through|via|finish\w*)\b|\bloop from\b|\bfrom \S.*\s(?:to|via)\s|\bvia\b/i.test(q) || (!/\bnear\b|\bwhere\b|\bgas\b|\bcamp/i.test(q) && /^\s*[a-zà-ÿ'.-]+(?: [a-zà-ÿ'.-]+){0,3} to [a-zà-ÿ]/i.test(q));
+  }
+  function motoSteps(q) {
+    let s = " " + String(q || "").toLowerCase().replace(/[’']/g, "'").replace(/[,;.!?]+/g, " , ") + " ";
+    const o = { loop: false, style: "", start: "", vias: [], end: "", here: false };
+    const dirt = /\b(?:dirt|gravel|off[- ]?road|forest (?:service )?roads?|fsrs?|logging roads?|unpaved)\b/.test(s), paved = /\b(?:paved|pavement|asphalt|tarmac|twisties|twisty)\b/.test(s);
+    o.style = /\bmix(?:ed)?\b|\bsome dirt\b|\ba (?:bit|little) of dirt\b/.test(s) || (dirt && paved) ? "mix" : dirt ? "dirt" : paved ? "paved" : "";
+    if (/\bloop\b|\bround[- ]?trip\b|\bout and back\b/.test(s)) o.loop = true;
+    // The style, the length and the day aren't places.
+    s = s.replace(/\s(?:(?:on|by|using|with|mostly|all|lots of|only|some|a bit of|a little of|more|most)\s+)*(?:dirt|gravel|off[- ]?road|forest (?:service )?roads?|fsrs?|logging roads?|unpaved|paved|pavement|asphalt|tarmac|twisties|twisty|mix(?:ed)?|back ?roads|back ?country)(?:\s+(?:roads?|first|only|as possible|please))*(?=\s)/g, " ");
+    s = s.replace(/\s(?:(?:about|around|under|over|less than|max|up to|of|a|an|roughly|maybe)\s+)*\d+(?:[.,]\d+)?\s*-?\s*(?:km|kms|kilomet\w*|h|hr|hrs|hours?|min\w*)(?:\s+(?:long|ride|loop))?(?=\s)/g, " ");
+    s = s.replace(/\s(?:today|tomorrow|tonight|this (?:morning|afternoon|weekend)|(?:on |next |this )?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|the day after tomorrow|half[- ]day|full[- ]day|all[- ]day)(?=\s)/g, " ");
+    if (/\sfrom (?:here|where i am|me|my location|my place|home)\s/.test(s) || /\s(?:start|starting|leave|leaving) (?:here|from here|where i am)\s/.test(s)) { o.here = true; s = s.replace(/\s(?:from|start(?:ing)?|leav(?:e|ing))(?: from)? (?:here|where i am|me|my location|my place|home)(?=\s)/g, " "); }
+    // Back where you started: a loop. "back to Whistler" is a finish (the same place as the start makes it a loop).
+    s = s.replace(/\s(?:and |then )?(?:come |coming |ride |riding |go |going |head |heading )?(?:back|return(?:ing)?)(?: to (?:the )?(?:start|where (?:i|we) started|home))?(?!\s*(?:to|country|roads?)\b)(?=\s)/g, () => { o.loop = true; return " "; });
+    s = s.replace(/\s(?:and |then )?(?:come |coming |ride |riding |go |going |head |heading )?(?:back|return(?:ing)?) to(?=\s)/g, " |E ");
+    s = s.replace(/\s(?:i|we)(?:'d| would)? (?:like|want|wanna|need) to(?=\s)|\s(?:plan|make|find|give)(?: me| us)?(?=\s)|\s(?:please|can you|could you)(?=\s)|\s(?:on|for|with) (?:my|our) (?:bike|bikes|moto\w*|\w+ \d+|ktm|bmw|gs)(?=\s)|\s(?:ride|riding|route|trip|day|moto(?:rcycle)?|adv|loop|round[- ]?trip|out and back|my|our)(?=\s)/g, " ");
+    // A cut before each step word, and at "and" / "then" / commas.
+    s = s.replace(/\s(?:starting|start|begin(?:ning)?|leav(?:e|ing))(?: (?:at|in|from))?(?=\s)/g, " |S ").replace(/\sfrom(?=\s)/g, " |S ")
+      .replace(/\s(?:finish(?:ing)?|end(?:ing)?(?: up)?|sleep(?:ing)?|stop(?:ping)? for the night)(?: (?:at|in))?(?=\s)/g, " |E ")
+      .replace(/\s(?:to|towards?|into|up to)(?=\s)/g, " |E ")
+      .replace(/\s(?:via|through|thru|by way of|passing(?: by| through)?|over|along|stop(?:ping)? (?:at|in)|on)(?=\s)/g, " |V ")
+      .replace(/\s(?:and then|then|and|,)(?=\s)/g, " | ");
+    for (const c of s.split("|").map((x) => x.trim()).filter(Boolean)) {
+      let kind = "", n = c;
+      const m = c.match(/^([SEV])\s+/);
+      if (m) { kind = m[1]; n = c.slice(m[0].length); } else if (/^[SEV]$/.test(c)) continue;
+      for (let k = 0; k < 3; k++) n = n.replace(/^(?:the|at|in|on|of|to|go|a|an)\s+/, "");
+      n = n.replace(/\s+(?:and|then|please|the)$/, "").trim();
+      if (!n || n.length < 2 || n.split(/\s+/).every((w) => MOTO_STOP.has(w))) continue;
+      if (/^(?:here|me|where i am|my location)$/.test(n)) { if (kind === "S" || (!kind && !o.start)) o.here = true; continue; }
+      if (kind === "S") { if (o.start) o.vias.unshift(o.start); o.start = n; }
+      else if (kind === "E") { if (o.end) o.vias.push(o.end); o.end = n; }
+      else if (kind === "V") o.vias.push(n);
+      else if (!o.start && !o.end && !o.vias.length && !o.here) o.start = n;
+      else if (o.end) { o.vias.push(o.end); o.end = n; }
+      else o.vias.push(n);
+    }
+    return o;
+  }
+  // A place by its name, in Canada first, nearest the place before it.
+  async function motoGeo(name, near) {
+    const ps = window.tfPlaceSearch;
+    if (!ps) return null;
+    const hits = await Promise.race([ps.search(name).catch(() => null), new Promise((r) => setTimeout(() => r(null), 9000))]);
+    if (!hits || !hits.length) return null;
+    // The name as typed first, then a town over a river or a lake of that name ("Lillooet" is the town, not the
+    // Lillooet River), then the nearest.
+    const n = norm(name), rank = (x) => (norm(x.name) === n ? 0 : norm(x.name).includes(n) ? 2 : 4) + (/^(Town|Village|Hamlet|Place|Neighbourhood)$/.test(x.kind || "") ? 0 : 1);
+    const pool = hits.filter((x) => x.ca).length ? hits.filter((x) => x.ca) : hits;
+    const ok = pool.filter((x) => kmTo(near, [x.lat, x.lon]) < 600);
+    const h = ok.sort((a, b) => rank(a) - rank(b) || kmTo(near, [a.lat, a.lon]) - kmTo(near, [b.lat, b.lon]))[0] || pool[0];
+    return { ll: [h.lat, h.lon], name: h.name };
+  }
+  async function askMotoPlan(p, at, out, stale) {
+    const M = window.tfMoto && window.tfMoto.trip;
+    if (!M || !M.planAsk) return false;
+    const st = motoSteps(p.q || ""), now = M.planNow(), style = st.style || now.style;
+    const names = [st.start, ...st.vias, st.end].filter(Boolean);
+    if (!names.length && !st.loop && !p.km && !p.hours) return false;
+    out.innerHTML = `<p class="ask-wait">${names.length ? `Finding ${esc(names.join(", "))}…` : "Reading your ride…"}</p>`;
+    let start = null;
+    if (st.here) { const y = at.you ? at : await youOr(); if (stale()) return true; if (y.you) start = { ll: y.c, name: "Where you are" }; }
+    else if (st.start) start = at && at.name && !at.you && !at.mid && norm(at.name).includes(norm(st.start)) ? { ll: at.c, name: at.name } : await motoGeo(st.start, at.c);
+    // No start in the words: the route's start already there (a moto trip plans from the end of the last day), or you.
+    let ends = { vias: st.vias.slice(), end: st.end };
+    if (!st.start && !st.here) {
+      if (now.pts.length) start = { ll: now.pts[0].ll, name: now.pts[0].name || "Your start" };
+      else if (at.you) start = { ll: at.c, name: "Where you are" };
+    } else if (st.start && !st.end && !st.vias.length && !st.loop && !p.km && !p.hours && now.pts.length === 1 && !st.here) {
+      // Only a place, with a start already there: that's where you're going.
+      ends = { vias: [], end: st.start };
+      start = { ll: now.pts[0].ll, name: now.pts[0].name || "Your start" };
+    }
+    if (stale()) return true;
+    const miss = [];
+    if (st.start && !start && !st.here) miss.push(st.start);
+    let prev = start ? start.ll : at.c;
+    const vias = [];
+    for (const v of ends.vias) { const g = await motoGeo(v, prev); if (stale()) return true; if (g) { vias.push(g); prev = g.ll; } else miss.push(v); }
+    let end = null;
+    if (ends.end) { end = await motoGeo(ends.end, prev); if (stale()) return true; if (!end) miss.push(ends.end); }
+    if (!start) {
+      out.innerHTML = `<p class="ask-note ask-warn">${miss.length ? `Couldn't find ${miss.map((x) => `“${esc(x)}”`).join(", ")} on the map. ` : ""}Say where you start, like “from Squamish”, or turn on your location (◎ on the map) and say “from here”.</p>`;
+      return true;
+    }
+    let loop = st.loop;
+    if (end && kmTo(end.ll, start.ll) < 3) { loop = true; end = null; }
+    let km = p.km || (p.hours ? Math.round(p.hours * ({ dirt: 40, mix: 50, paved: 60 }[style] || 50)) : 0), guess = false;
+    if (!end && !vias.length && km) loop = true;
+    if (loop && !end && !vias.length && !km) { km = 150; guess = true; }
+    const pts = [start, ...vias, ...(end ? [end] : [])];
+    const SL = { dirt: "Most dirt", mix: "Mix", paved: "Paved back roads" };
+    const hd = dlg.querySelector(".ask-head .ask-said"), ch = dlg.querySelector(".ask-head .ask-chips");
+    if (hd) hd.textContent = loop && pts.length === 1 ? `A loop from ${start.name}` : `A ride from ${start.name}${vias.map((v) => `, via ${v.name}`).join("")}${end ? ` to ${end.name}` : ""}${loop ? ", and back" : ""}`;
+    if (ch) ch.innerHTML = `<li>Plan a route</li><li>${esc(SL[style] || "Most dirt")}</li>${loop ? "<li>Loop</li>" : ""}${km && loop && pts.length === 1 ? `<li>About ${km} km</li>` : ""}`;
+    const rows = [`<li><b>Start</b> at ${esc(start.name)}</li>`, ...vias.map((v) => `<li><b>Through</b> ${esc(v.name)}</li>`)];
+    if (end) rows.push(loop ? `<li><b>Out to</b> ${esc(end.name)}</li>` : `<li><b>Finish</b> at ${esc(end.name)}</li>`);
+    if (loop && pts.length === 1) rows.push(`<li><b>A loop</b> of about ${km} km${guess ? " (you didn't say how long: type it, like “250 km loop”)" : ""}. The app picks two points on the way to make it that long: gas stations${style === "dirt" ? ", campsites or BC rec sites" : ""}.</li>`);
+    else if (loop) rows.push(`<li><b>Back</b> to ${esc(start.name)}</li>`);
+    const one = pts.length === 1 && !loop;
+    out.innerHTML = `<h3>Your ride</h3><ol class="ask-plan">${rows.join("")}</ol>
+      ${miss.length ? `<p class="ask-note ask-warn">Couldn't find ${miss.map((x) => `“${esc(x)}”`).join(", ")} on the map: left out. Tap the map to add it once the route is drawn.</p>` : ""}
+      <button type="button" class="ask-act" data-mplan>${one ? "Start here, then tap where you want to go" : "Plan this route on the map"}</button>
+      <p class="ask-note">${esc(SL[style] || "Most dirt")}, for your bike, on OpenStreetMap roads (Valhalla). Its card shows the surfaces, closures and gas on the way. Roads and conditions change: check before you go and decide on the ground.</p>`;
+    out.querySelector("[data-mplan]").addEventListener("click", () => {
+      logUse("pick", "Ask moto plan"); close();
+      M.planAsk({ pts, style, loop, km: loop && pts.length === 1 ? km : 0 });
+    });
+    return true;
+  }
 
   // A Moto trip in the words: "3-day trip", "2 nights", "weekend trip", "multi-day": how many nights (0 = not a trip).
   const NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };

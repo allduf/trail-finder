@@ -144,8 +144,9 @@
       ${centre(t) ? `<div class="sk-sec" id="tpDays"><h4>Each day</h4>${E.daysHtml()}</div>` : ""}`,
       afterLinesHtml: (t) => (E.linesOf(t).length ? `<div class="sk-sec tp-fuel" id="tpFuel"><h4>${svg(IC.fuel, 18)}Gas for every bike</h4>${fuelHtml(t)}</div>
       <div class="sk-sec tp-sights" id="tpSights"><h4>${svg(IC.peak, 18)}Scenic places along the way</h4>${sightsHtml(t)}</div>` : ""),
-      linesEmpty: () => `No routes yet. Plan one with Plan a route below, or open an ADV route, a saved route or a planned route and tap <b>+ Add to moto trip</b>. Add them in the order you ride them: the first is day 1.`,
+      linesEmpty: () => `No routes yet. Tap <b>Plan a route</b>: type the ride you want, like "Squamish to Pemberton, mostly dirt", or tap the map. Or open an ADV route or a saved route and tap <b>+ Add to moto trip</b>. Add them in the order you ride them: the first is day 1.`,
       drawLabel: () => "Plan a route",
+      linesFirst: true, drawGo: true,   // alex 2026-11-17: Plan a route more visible, higher up, easier to use
       linesChanged: (t) => { t.sights = null; E.render(); E.drawMap(); loadSights(t); E.loadDays(t); },
       openLine, drawExtra, extraPts,
       gpxExtra: (t, trk, wpt) => uniq(nightStops(t)).map((c) => wpt(c.lat, c.lon, c.name)).join("") + (t.start ? wpt(t.start.lat, t.start.lon, `Start: ${t.start.name}`) : "")
@@ -186,7 +187,7 @@
     }).join("");
     const known = rs.map((r) => bikeOf(t, r.k)).filter((b) => b && rangeKm(b));
     const low = known.length ? known.reduce((a, b) => (usableKm(b) < usableKm(a) ? b : a)) : null;
-    return `${rows}${(t.group || []).length ? "" : `<p class="sk-note">Riding with friends? Add their names in Your group (below) and each gets a bike here.</p>`}
+    return `${rows}${(t.group || []).length ? "" : `<p class="sk-note">Riding with friends? Add their names in Your group (above) and each gets a bike here.</p>`}
       ${low && known.length > 1 ? `<p class="sk-note">Shortest range in the group: <b>${esc(low.n)}</b>, about ${usableKm(low)} km before it's down to 20% of the tank. The gas check below uses each bike's own range.</p>` : ""}
       <p class="sk-note">Ranges are estimates from the tank and fuel use entered: wind, speed, load and dirt can use a lot more. Check them against your own bikes.</p>`;
   }
@@ -451,7 +452,7 @@
       const end = dayEnd(t, i);
       return `<label class="tp-night"><b>Night ${i + 1} · ${esc(dayWord(dates[i]))}</b><select data-stop="${i}" aria-label="Where you sleep night ${i + 1}"><option value="">${c ? "Not picked" : "Pick where you sleep"}</option>${i > 0 && stopOn(t, i - 1) && !(c && c.id === stopOn(t, i - 1).id) ? `<option value="=prev">Same as night ${i}: ${esc(stopOn(t, i - 1).name)}</option>` : ""}${opts.map((p) => `<option value="${esc(p.id)}" ${c && c.id === p.id ? "selected" : ""}>${esc(p.name)} (${esc(kindWord(p.kind))}${p.away != null && end ? `, ${fmtKm(p.away)} from the end of day ${i + 1}` : ""})</option>`).join("")}</select></label>`;
     }).join("");
-    return `${rows}<p class="sk-note">${E.linesOf(t).length ? "Near the end of each day's route (the routes in order are the days). " : "Add your routes below for places near the end of each day. "}Or tap a campsite on the map, then <b>Sleep here</b>. Campsites from OpenStreetMap and BC Recreation Sites, motels and hotels from OpenStreetMap: check with them before you go.</p>`;
+    return `${rows}<p class="sk-note">${E.linesOf(t).length ? "Near the end of each day's route (the routes in order are the days). " : "Add your routes above for places near the end of each day. "}Or tap a campsite on the map, then <b>Sleep here</b>. Campsites from OpenStreetMap and BC Recreation Sites, motels and hotels from OpenStreetMap: check with them before you go.</p>`;
   }
   const renderStops = () => { const el = E.part("tpStops"), t = cur(); if (el && t) el.innerHTML = `<h4>${svg(TENT, 18)}Where you sleep</h4>${stopsHtml(t)}`; };
   function setStop(t, i, p) {
@@ -587,7 +588,7 @@
     drawingFor = t.id;
     const last = E.linesOf(t).length ? dayEnd(t, E.linesOf(t).length - 1) : null, c = last || (t.start ? [t.start.lat, t.start.lon] : null);
     H.planFrom(c);
-    toast("Tap the map where you're going. Then tap + Add to the trip on the route's card.");
+    toast("Tap the map where you're going, or type the ride you want. Then tap + Add to the trip on the route's card.");
   }
 
   // ---------- the cards: a planned route, an ADV route, a campsite ----------

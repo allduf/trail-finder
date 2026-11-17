@@ -347,6 +347,14 @@ dialog.mt-dlg .mt-xb { font: inherit; border: 0; background: var(--chip); color:
 .mt-planbar button { font: inherit; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 6px 12px; cursor: pointer; }
 .mt-planbar button.go { background: ${ACC}; border-color: ${ACC}; color: #fff; }
 @media (max-width: 760px) { .mt-planbar { top: calc(env(safe-area-inset-top, 0px) + 84px); left: 12px; right: 12px; transform: none; justify-content: space-between; white-space: normal; } }
+/* The ride typed in plain words (alex 2026-11-17: "the same ask box as skiing"), under the tip while there's no route. */
+.mt-planbar.asking { flex-wrap: wrap; border-radius: 18px; white-space: normal; max-width: calc(100% - 24px); box-sizing: border-box; padding: 8px 8px 8px 14px; }
+@media (min-width: 761px) { .mt-planbar.asking { width: 460px; } .mt-planbar.asking #mtPlanTip { flex: 1; } }
+.mt-planbar .mt-ask { flex: 1 1 100%; display: flex; gap: 6px; margin: 0; }
+.mt-planbar .mt-ask[hidden] { display: none; }
+.mt-planbar .mt-ask input { flex: 1; min-width: 0; font: inherit; font-size: 16px; font-weight: 400; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--fg); }
+.mt-planbar .mt-ask button { background: ${ACC}; border-color: ${ACC}; color: #fff; font-weight: 700; }
+#motoPane .mt-asked { font-size: .8rem; border-left: 4px solid ${ACC}; padding: 4px 0 4px 9px; display: flex; flex-direction: column; gap: 6px; }
 body.sport-moto .nav-strip button { min-height: 48px; }
 #motoPane .mt-saferow .mt-pill { flex: 1; justify-content: center; }
 #motoPane .mt-saferow .mt-pill.armed { border-color: #2f9e44; color: #2b8a3e; }
@@ -1095,11 +1103,22 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   let planning = false, planPts = store.get("motoPlan", []), planStyle = store.get("motoStyle", "dirt"), planLoop = store.get("motoLoop", false), route = null, routeSeq = 0, routeErr = "";
   const planBar = document.createElement("div");
   planBar.className = "mt-planbar"; planBar.hidden = true;
-  planBar.innerHTML = `<span id="mtPlanTip">Tap the map: start, then where you want to go</span><button type="button" id="mtPlanUndo">↶</button><button type="button" class="go" id="mtPlanDone">Done</button>`;
+  planBar.innerHTML = `<span id="mtPlanTip">Tap the map: start, then where you want to go</span><button type="button" id="mtPlanUndo">↶</button><button type="button" class="go" id="mtPlanDone">Done</button>
+    <form class="mt-ask" role="search" hidden><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type the ride you want" placeholder="Or type the ride you want"><button type="submit">Plan it</button></form>`;
   document.querySelector(".mapwrap").append(planBar);
   L.DomEvent.disableClickPropagation(planBar);
   $("mtPlanUndo").onclick = () => { planPts.pop(); planChanged(); };
   $("mtPlanDone").onclick = () => setPlanning(false);
+  // Or the ride in plain words, like Skiing's Plan a tour: Ask (ask.js) reads it ("Squamish to Pemberton, mostly dirt",
+  // "200 km dirt loop from Kamloops") and planAsk() below plans it.
+  const askBar = planBar.querySelector(".mt-ask");
+  askBar.addEventListener("submit", (e) => { e.preventDefault(); const i = askBar.querySelector("input"), q = i.value.trim(); i.blur(); askRide(q); });
+  function askRide(q) {
+    if (!window.tfAsk) { hint("Ask isn't loaded yet: try again in a moment."); return; }
+    window.tfAsk.open(q, { plan: true });
+  }
+  // Words that read like a ride, not one place: "to", "via", "loop", a length, dirt or paved.
+  const rideLike = (q) => /\s(?:to|via|through|then|and back)\s|\bloop\b|\bround trip\b|\d\s*(?:km|h\b|hours?)|\b(?:dirt|gravel|paved|pavement|twisties|mix|mixed)\b/i.test(" " + q + " ");
   function setPlanning(on) {
     planning = on;
     planBar.hidden = !on;
@@ -1133,7 +1152,11 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       renderRoute();
     }
   }, 10 * 60000);
-  const tip = () => { $("mtPlanTip").textContent = !planPts.length ? "Tap the map where you start" : planPts.length === 1 ? "Now tap where you want to go" : `${planPts.length} points · tap to add more`; };
+  const tip = () => {
+    $("mtPlanTip").textContent = !planPts.length ? "Tap the map where you start" : planPts.length === 1 ? "Now tap where you want to go" : `${planPts.length} points · tap to add more`;
+    const on = planPts.length < 2;
+    if (askBar.hidden === on) { askBar.hidden = !on; planBar.classList.toggle("asking", on); if (planBox && !phone()) renderRoute(); }
+  };
   function addPoint(ll) {
     planPts.push([+ll[0].toFixed(5), +ll[1].toFixed(5)]);
     if (!planning && planPts.length === 1) setPlanning(true);
@@ -1819,9 +1842,12 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (!planBox) {
       planBox = window.tfPlaceSearch.box({ button: "Add", label: "Type a place to add to the route", onPick: addPlace });
       planBox.classList.add("mt-place");
+      // One box: a ride typed here ("to Lillooet via the Hurley, mostly dirt") goes to Ask, a place is added as a point.
+      planBox.addEventListener("submit", (e) => { const q = planBox.tfInput.value.trim(); if (!q || !rideLike(q)) return; e.preventDefault(); e.stopImmediatePropagation(); planBox.tfInput.value = ""; planBox.tfInput.blur(); planBox.querySelector(".ps-msg").textContent = ""; planBox.querySelector(".ps-hits").innerHTML = ""; askRide(q); }, true);
+      planBox.tfInput.addEventListener("input", () => { const b = planBox.querySelector(".ps-go"); if (b) b.textContent = rideLike(planBox.tfInput.value) ? "Plan it" : "Add"; });
       planBox.addEventListener("focusout", () => setTimeout(() => { if (renderLater && !planBox.contains(document.activeElement)) { renderLater = false; renderRoute(); } }, 300));
     }
-    planBox.tfInput.placeholder = planPts.length ? "Type where you want to go" : "Type where you start";
+    planBox.tfInput.placeholder = planPts.length >= 2 ? "Type where you want to go" : "Type a place or a ride";
     return planBox;
   }
   function addPlace(p) {
@@ -1845,7 +1871,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     let body = "";
     if (loading && !r) body = `<p class="mt-note">${esc(offProg || "Finding the roads…")}</p>`;
     else if (routeErr) body = `<div class="mt-warn">${esc(routeErr)}</div>`;
-    else if (!r) body = `<p class="mt-note">${planPts.length ? "Tap where you want to go, or type it above." : "Tap the map where you start, type a place above, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
+    else if (!r) body = `<p class="mt-note">${planPts.length ? planPts.length === 1 ? "Tap where you want to go, or type it or the ride you want." : "Tap where you want to go, or type it above." : "Type the ride you want above, like “Squamish to Pemberton, mostly dirt” or “200 km dirt loop from Kamloops”. Or tap the map where you start, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
     else {
       const st = routeStats(r), fp = fuelPlan(r), cap = capOf(b), tr = r.edges && trafficOf(r), dirtPct = r.edges ? Math.round((100 * st.dirt) / Math.max(0.1, r.km)) : null;
       const bar = r.edges ? `<div class="mt-bar" aria-label="Surfaces along the route">${[1, 2, 3, 4, 5].map((g) => st.byG[g] > 0 ? `<i style="width:${(100 * st.byG[g]) / r.km}%;background:${g === 1 ? "#495057" : FIT[fitOf(g, cap)][1]}" title="Grade ${g}: ${fmtKm(st.byG[g])}"></i>` : "").join("")}</div>
@@ -1863,15 +1889,17 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
         <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time + (tr ? tr.delay : 0))}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
         ${r.offline ? `<div class="mt-warn ok">${svg(IC.cell, 14)} Planned with no signal, from the roads in your saved offline maps. Closures and road reports from today weren't checked: plan again when you have signal.</div>` : ""}
-        ${bar}${hard}${trafficHtml(r)}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
+        ${askedHtml(r)}${bar}${hard}${trafficHtml(r)}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
         ${camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping near the end (${camps.length})</summary><ul class="mt-list">${camps.map(([d, p]) => `<li style="--c:${PT.camp.c}"><b>${esc(p[2] || "Campsite")}</b><small>${p[3] ? esc(p[3]) + " · " : ""}${fmtKm(d)} from the end</small></li>`).join("")}</ul></details>` : ""}
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
         <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button><button type="button" class="mt-pill" data-r="fly">${svg(IC.fly, 16)}Fly it in 3D</button></div>`;
     }
-    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}<div class="mt-placeslot"></div>${wpListHtml()}${body}
+    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div class="mt-placeslot"></div>${styles}${tools}${wpListHtml()}${body}
       <p class="mt-note">For your ${esc(b.name || TYPES[b.type].label)} (rides grade ${capOf(b)} well). Routes by Valhalla on OpenStreetMap roads.</p>${window.tfRiskLine ? window.tfRiskLine() : ""}`;
     const slot = el.querySelector(".mt-placeslot"), pb = planPlaceBox();
     if (pb) slot.replaceWith(pb); else slot.remove();
+    // On a computer, while the box on the map is there, it's the one box (a phone's sheet can cover the map: both stay).
+    if (pb) pb.hidden = planning && !askBar.hidden && !phone();
     el.querySelector(".mt-x").onclick = () => { setPlanning(false); route = null; routeErr = ""; drawRoute(); renderRoute(); drawRange(); pane.querySelector('[data-act="plan"]').classList.remove("on"); };
     el.querySelectorAll("[data-style]").forEach((x) => (x.onclick = () => { planStyle = x.dataset.style; store.set("motoStyle", planStyle); renderRoute(); buildRoute(); }));
     el.querySelectorAll("[data-show]").forEach((x) => (x.onclick = () => { const [a, z] = x.dataset.show.split(",").map(Number); const seg = route.line.slice(a, z + 1); if (seg.length) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); const bb = L.latLngBounds(seg).pad(0.6); map.fitBounds(bb, { maxZoom: 15 }); if (in3d()) gl3.fitBounds([[bb.getWest(), bb.getSouth()], [bb.getEast(), bb.getNorth()]], { maxZoom: 15, padding: 40 }); } }));
@@ -1895,8 +1923,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   function routeAct(a, btn) {
     if (a === "loop") { planLoop = !planLoop; store.set("motoLoop", planLoop); drawWaypoints(); buildRoute(); renderRoute(); }
     else if (a === "edit") setPlanning(true);
+    else if (a === "reloop" && askLoop) { btn.disabled = true; planAsk({ pts: [{ ll: askLoop.at, name: askLoop.name }], loop: true, km: askLoop.km, turn: askLoop.turn + 1 }); }
     else if (a === "unavoid") { avoidMine = []; store.set("motoAvoid", avoidMine); buildRoute(); }
-    else if (a === "clear") { planPts = []; avoidMine = []; store.set("motoAvoid", avoidMine); route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
+    else if (a === "clear") { askLoop = null; planPts = []; avoidMine = []; store.set("motoAvoid", avoidMine); route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
     else if (a === "me") {
       if (!you) { hint("Turn on your location (◎ on the map) first."); return; }
       planPts.unshift([+you.lat.toFixed(5), +you.lon.toFixed(5)]);
@@ -2676,6 +2705,82 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     showCard($("mtRoute"));
   }
 
+  // ---------- a ride typed in plain words (Ask, ask.js) ----------
+  // alex 2026-11-17: "one you click on plan a route i want to see the same ask box as skiing so the user can tell the
+  // app what ride they want to do". Ask reads the words (start, places on the way, finish, loop, length, dirt or
+  // paved) and finds the places; here they become the route points and the style. A loop with only a start and a length
+  // ("200 km dirt loop from Kamloops") gets two points on the way: mapped gas stations (and, for Most dirt, campsites
+  // and BC rec sites, which sit on forest roads), picked so the loop comes out about that long. Another loop picks other
+  // ones. The router then plans it the same as tapped points: the rider checks it and decides.
+  let askLoop = null;   // { at, name, km, turn, got (km planned), kinds }
+  const destOf = (p, deg, km) => { const b = (deg * Math.PI) / 180; return [p[0] + (km / 111.2) * Math.cos(b), p[1] + (km / (111.2 * Math.cos((p[0] * Math.PI) / 180))) * Math.sin(b)]; };
+  async function loopVias(o) {
+    await Promise.all([loadPts("fuel"), loadPts("camp")].map((x) => Promise.resolve(x).catch(() => {})));
+    const S = o.at, box = o.km / 2 / 111.2 + 0.1;
+    const inBox = (p) => Math.abs(p[0] - S[0]) < box && Math.abs(p[1] - S[1]) < box / Math.cos((S[0] * Math.PI) / 180);
+    const cands = [...listOf("fuel").filter(inBox).map((p) => ({ p, k: "gas" })), ...(planStyle === "dirt" ? campsAll().filter(inBox).map((p) => ({ p, k: "camp" })) : [])]
+      .map((c) => ({ ...c, ll: [c.p[0], c.p[1]] }));   // Leaflet takes [lat, lon] only, not the point's name and extras
+    const near = (q, max) => { let best = null, bd = max; for (const c of cands) { const d = kmBetween(q, c.ll); if (d < bd) { bd = d; best = c; } } return best ? { ...best, d: bd } : null; };
+    // A triangle from the start: two points d km out, 60° apart (3 sides of d, and roads wind about 20% more).
+    const pick = (d) => {
+      const opts = [];
+      for (let k = 0; k < 12; k++) {
+        const th = k * 30, A = destOf(S, th - 30, d), B = destOf(S, th + 30, d), a = near(A, d * 0.35), b = near(B, d * 0.35);
+        if (!a || !b || a.p === b.p || kmBetween(a.ll, b.ll) < d * 0.4 || kmBetween(S, a.ll) < d * 0.5 || kmBetween(S, b.ll) < d * 0.5) continue;
+        opts.push({ th, a, b, s: a.d + b.d });
+      }
+      opts.sort((x, y) => x.s - y.s);
+      const out = [];   // ways that face different directions first, so Another loop gives another loop
+      for (const x of opts) if (!out.some((y) => Math.abs(((x.th - y.th + 540) % 360) - 180) < 75)) out.push(x);
+      return out.length ? out : opts;
+    };
+    let d = o.km / 3.6, opts = pick(d);
+    if (!opts.length) return null;
+    let w = opts[o.turn % opts.length];
+    // The length on the roads, once: too short or too long by a third, the points move in or out.
+    try {
+      const r = await routeOnce([S, w.a.ll, w.b.ll, S], [], null);
+      const f = o.km / Math.max(1, r.km);
+      if (f < 0.75 || f > 1.33) {
+        d *= Math.max(0.4, Math.min(2.5, f));
+        const again = pick(d).sort((x, y) => Math.abs(((x.th - w.th + 540) % 360) - 180) - Math.abs(((y.th - w.th + 540) % 360) - 180));
+        if (again.length) w = again[0];
+      }
+    } catch { /* no answer from the router: buildRoute says why */ }
+    return { pts: [w.a, w.b] };
+  }
+  async function planAsk(o) {
+    toPanel();
+    if (o.style && STYLES[o.style]) { planStyle = o.style; store.set("motoStyle", planStyle); }
+    planLoop = !!o.loop; store.set("motoLoop", planLoop);
+    const pts = (o.pts || []).map((x) => { const q = [+x.ll[0].toFixed(5), +x.ll[1].toFixed(5)]; if (x.name) wpNames.set(wpKey(q), x.name); return q; });
+    if (!pts.length) return;
+    askLoop = null; route = null; routeErr = ""; avoidMine = []; store.set("motoAvoid", avoidMine);
+    if (planLoop && pts.length === 1 && o.km) {
+      planPts = pts; drawWaypoints(); routeErr = ""; $("mtRoute").hidden = false; offProg = "Picking points on the way for your loop…"; renderRoute(true); showCard($("mtRoute"));
+      const v = await loopVias({ at: pts[0], km: o.km, turn: o.turn || 0 });
+      offProg = "";
+      if (!v) { routeErr = `No gas stations${planStyle === "dirt" ? " or campsites" : ""} mapped in the right places for a loop of about ${Math.round(o.km)} km from here: tap the map where you want to go.`; setPlanning(true); renderRoute(); return; }
+      v.pts.forEach((x) => { const q = [+x.p[0].toFixed(5), +x.p[1].toFixed(5)]; wpNames.set(wpKey(q), realName(x.p[2]) || (x.k === "gas" ? "Gas station" : "Campsite")); pts.push(q); });
+      askLoop = { at: pts[0], name: o.pts[0].name || "", km: o.km, turn: o.turn || 0, kinds: [...new Set(v.pts.map((x) => x.k))] };
+    }
+    planPts = pts;
+    store.set("motoPlan", planPts);
+    if (pts.length < 2) { drawWaypoints(); drawRoute(); setPlanning(true); map.setView(pts[0], Math.max(map.getZoom(), 10)); showCard($("mtRoute")); return; }
+    if (planning) setPlanning(false);
+    drawWaypoints(); drawRoute();
+    map.fitBounds(L.latLngBounds(pts).pad(0.15));
+    showCard($("mtRoute"));
+    await buildRoute();
+  }
+  // On the route's card: what Ask did with the words.
+  function askedHtml(r) {
+    if (!askLoop || !planLoop || !planPts.length || wpKey(planPts[0]) !== wpKey(askLoop.at)) return "";
+    const what = askLoop.kinds.length > 1 ? "a gas station or a campsite" : askLoop.kinds[0] === "camp" ? "a campsite" : "a gas station";
+    return `<div class="mt-asked"><span>You asked for a loop of about ${Math.round(askLoop.km)} km${askLoop.name ? ` from ${esc(askLoop.name)}` : ""}: this one is ${fmtKm(r.km)}. Points 1 and 2 are each ${what} the app picked to make the loop that long. Drag them, or try another.</span>
+      <div class="mt-row"><button type="button" class="mt-pill" data-r="reloop">${svg(IC.loop, 16)}Another loop</button></div></div>`;
+  }
+
   // ---------- for other scripts ----------
   window.tfMoto = {
     spot(lat, lon) { setSpot(lat, lon, "tap"); toPanel(); },   // a shared spot (ski-points.js #pin=)
@@ -2706,6 +2811,9 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     advRoutes: () => loadTrips(),
     openAdv: async (id) => { toPanel(); await openTrips(); showTrip(id); },
     planLine: (ll, name) => { toPanel(); planLine(ll, name); },
+    planAsk,   // Ask (ask.js): { pts: [{ ll, name }], style, loop, km }
+    planNow: () => ({ pts: planPts.map((p) => ({ ll: p, name: wpNames.get(wpKey(p)) || "" })), style: planStyle, loop: planLoop, planning }),
+    STYLES,
     planFrom: (ll) => { toPanel(); planPts = ll ? [[+ll[0].toFixed(5), +ll[1].toFixed(5)]] : []; route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); setPlanning(true); renderRoute(); showCard($("mtRoute")); },
     openSpot: (lat, lon) => { map.setView([lat, lon], Math.max(map.getZoom(), 12)); setSpot(lat, lon, "tap"); toPanel(); },
     cellNear: async (lat, lon) => { const c = await loadCell(); return c ? cellNear(lat, lon) : null; },
