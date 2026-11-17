@@ -2768,10 +2768,11 @@
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
-          // Under the Summer photos, like winterlo under Winter: the same photos at zoom 9 at most, so a spot whose sharp
-          // photo is still coming is a blurry photo, not a hole to the sky (MTB, Hunting, Fishing, Moto; alex's
-          // recordings, 2026-10-29).
-          satlo: { type: "raster", tileSize: 256, maxzoom: 9, tiles: ["tfsat://{z}/{x}/{y}"] },
+          // Under the Summer photos, like winterlo under Winter: the same photos at zoom 11 at most, so a spot whose sharp
+          // photo is still coming is a softer photo, not a hole to the sky (MTB, Hunting, Fishing, Moto; alex's
+          // recordings, 2026-10-29). Zoom 9 until 2026-11-17: zooming out and tilting showed big blurry squares for a
+          // few seconds around the sharp middle (alex's recording at Cumberland); zoom 11 is still only a few tiles.
+          satlo: { type: "raster", tileSize: 256, maxzoom: 11, tiles: ["tfsat://{z}/{x}/{y}"] },
           sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfsat://{z}/{x}/{y}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Over the Summer photo: the late-summer mountains (SUMMER above), see-through below the trees.
