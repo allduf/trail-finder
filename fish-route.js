@@ -740,6 +740,9 @@
       ${window.tfRiskLine ? window.tfRiskLine() : ""}
     </div>`;
     bindFrom(box, c.spot, c.name);
+    // The fishing trip (fishing-trip.js) offers to keep this walk in a trip's lines.
+    const nm = c.name && c.name !== "This spot" ? c.name : "the spot";
+    window.dispatchEvent(new CustomEvent("tf:fish-route", { detail: { box: box.querySelector(".fr"), item: { tour: `walk:${c.spot[0].toFixed(4)},${c.spot[1].toFixed(4)}`, name: `Walk in to ${nm}`, label: "walk in", ls: d.runs.map((r) => r.pts) } } }));
     box.querySelector('[data-fr="x"]').addEventListener("click", clear);
     box.querySelector('[data-fr="go"]').addEventListener("click", () => {
       if (!window.tfRide || !window.tfRide.follow) return;
