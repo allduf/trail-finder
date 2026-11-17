@@ -20,6 +20,23 @@
     path: "#8b939b", text: "#e9ecef", halo: "#11161b", park: "#5d8f6c", contour: "#55606a", contourText: "#8b96a0", waterText: "#6ea0c6", peak: "#c9cfd4",
   };
 
+  // Gravel and dirt roads for zooms 7 to 12 (13 and closer: OpenFreeMap's own), from every province's OpenStreetMap
+  // roads each week (scripts/build-dirt-roads.mjs, .github/workflows/dirt-roads.yml), on four Cloudflare Pages sites
+  // picked by the zoom-7 tile, like the Winter far view. A tile that isn't there (no dirt roads) draws as empty.
+  const dirtSite = (z, x, y) => (z < 7 ? 0 : ((x >> (z - 7)) * 31 + (y >> (z - 7))) % 4);
+  let dirtReady = false;
+  function dirtProtocol() {
+    if (dirtReady || !window.maplibregl || !window.maplibregl.addProtocol) return dirtReady;
+    window.maplibregl.addProtocol("tfdirt", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfdirt://", "").split("/").map(Number);
+      try {
+        const r = await fetch(`https://trailfinder-dirt-${dirtSite(z, x, y)}.pages.dev/dirt/${z}/${x}/${y}.pbf`, { signal: abort.signal });
+        return { data: r.ok ? await r.arrayBuffer() : new ArrayBuffer(0) };
+      } catch (e) { if (abort.signal.aborted) throw e; return { data: new ArrayBuffer(0) }; }
+    });
+    return (dirtReady = true);
+  }
+
   // Elevation lines: maplibre-contour (vendor/, see SOURCES.md) draws them from the height tiles in a worker, once.
   let contourUrl = null;
   function contours() {
@@ -61,6 +78,18 @@
       { id: "river", type: "line", source: "omt", "source-layer": "waterway", paint: { "line-color": P.river, "line-width": W(8, 0.4, 16, 3) } },
       { id: "park", type: "line", source: "omt", "source-layer": "park", paint: { "line-color": P.park, "line-width": 1.6, "line-opacity": 0.55, "line-dasharray": [4, 2] } },
     ];
+    const far = [];
+    if (dirtProtocol()) {
+      sources.dirt = { type: "vector", minzoom: 7, maxzoom: 11, tiles: ["tfdirt://{z}/{x}/{y}"], attribution: "Dirt roads: OpenStreetMap" };
+      // Thin and light far out (a whole region's roads), as wide as the close-up ones by zoom 12.
+      const fw = ["interpolate", ["linear"], ["zoom"], 7, 0.5, 10, 1, 12.9, ["case", ["==", ["get", "c"], "t"], 1.4, 1.8]];
+      far.push(
+        { id: "dirt-far-halo", type: "line", source: "dirt", "source-layer": "dirt", maxzoom: 13, minzoom: 9, layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": P.dirtHalo, "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.4, 12.9, 3.6] } },
+        { id: "dirt-far", type: "line", source: "dirt", "source-layer": "dirt", maxzoom: 13, layout: { "line-join": "round" },
+          paint: { "line-color": P.dirt, "line-opacity": ["interpolate", ["linear"], ["zoom"], 7, 0.55, 10, 0.85, 12, 1], "line-width": fw,
+            "line-dasharray": ["step", ["zoom"], ["literal", [1, 0]], 11, ["literal", [2.2, 1.1]]] } });
+    }
     const lines = contours();
     if (lines) {
       sources.contours = { type: "vector", minzoom: 11, maxzoom: 15, tiles: [lines] };
@@ -73,11 +102,12 @@
     }
     const road = (id, f, color, width, extra = {}) => ({ id, type: "line", source: "omt", "source-layer": T, filter: ["all", isLine, notTunnel, ...f],
       layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": color, "line-width": width }, ...extra });
+    layers.push(...far);   // over the elevation lines, under the paved roads, like the close-up dirt roads
     const dirtCls = cls("minor", "service", "track", "tertiary", "secondary");
     layers.push(
       road("path", [cls("path")], P.path, W(13, 0.6, 18, 2), { minzoom: 13, layout: { "line-join": "round" }, paint: { "line-color": P.path, "line-width": W(13, 0.6, 18, 2), "line-dasharray": [1.5, 1.5], "line-opacity": 0.8 } }),
-      road("dirt-halo", [dirtCls, unpaved], P.dirtHalo, W(10, 2.5, 18, 12), { paint: { "line-color": P.dirtHalo, "line-opacity": 0.85, "line-width": W(10, 2.5, 18, 12) } }),
-      road("dirt", [dirtCls, unpaved], P.dirt, W(10, 1.4, 18, 7), { layout: { "line-join": "round" }, paint: { "line-color": P.dirt, "line-width": W(10, 1.4, 18, 7), "line-dasharray": [2.2, 1.1] } }),
+      road("dirt-halo", [dirtCls, unpaved], P.dirtHalo, W(10, 2.5, 18, 12), { minzoom: dirtReady ? 13 : 0, paint: { "line-color": P.dirtHalo, "line-opacity": 0.85, "line-width": W(10, 2.5, 18, 12) } }),
+      road("dirt", [dirtCls, unpaved], P.dirt, W(10, 1.4, 18, 7), { minzoom: dirtReady ? 13 : 0, layout: { "line-join": "round" }, paint: { "line-color": P.dirt, "line-width": W(10, 1.4, 18, 7), "line-dasharray": [2.2, 1.1] } }),
       road("minor-case", [cls("minor", "service"), paved], P.pavedCase, W(11, 1.2, 18, 14), { minzoom: 11 }),
       road("minor", [cls("minor", "service"), paved], P.paved, W(11, 0.6, 18, 11), { minzoom: 11 }),
       road("major-case", [cls("tertiary", "secondary"), paved], P.pavedCase, W(8, 1.5, 18, 20)),
