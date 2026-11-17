@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-17", "text": "The website and the Android app now share how the app is used, like the iPhone app: screens, taps, searches and errors, with no name, email or location, to fix bugs and make the app easier. To stop it: More (☰ Menu on a computer), How the app is used, Don't share. Places picked while typing, and every Ask, now count too."},
     {"date": "2026-11-17", "text": "Tap a point on the map for more about it, in every sport: the weather there for 3 days (3 forecast models checked against each other), sunrise and sunset, BC fire bans and wildfires nearby, and for BC rec sites the province's record (closures, what's there, access). MTB trailheads and parking now open a card with today's loam, in 2D and 3D. Estimates, with their sources."},
     {"date": "2026-11-17", "text": "Adventure moto (ADV): BC forest roads are thinner and lighter when zoomed out, on the flat and 3D maps, and full width from close up."},
     {"date": "2026-11-17", "text": "Adventure moto (ADV): the ADV topo map now shows gravel and dirt roads when zoomed out too, across Canada, from OpenStreetMap."},
