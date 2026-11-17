@@ -70,6 +70,7 @@
   const TWIST_DEG = 12;   // two fingers must turn this far before the map starts turning with them
   const PINCH_LOCK = 1.25;   // ...and before the pinch has zoomed by this much (in or out), or it's a zoom and never turns
   const PINCH_START = Math.log(1.05);   // fingers must spread or close 5% before the map starts to zoom
+  const TILT_PX = 36;   // two fingers slid up this far together (or a right-drag up) is a tilt: 3D opens (map3d.js tfTilt3d)
 
   const norm = (d) => ((d % 360) + 540) % 360 - 180;   // -180..180
   window.tfRotate = { onCompass: null };
@@ -156,6 +157,7 @@
         this._startZoom = map.getZoom();
       }
       this._rotating = !!this.rotate;
+      this._tiltFrom = { mid: p1.add(p2)._divideBy(2), dist: p1.distanceTo(p2), done: false };
       this._startAngle = angleOf(map, e);
       this._startBearing = map.getBearing();
       this._twist = 0;            // 0 until the fingers have turned TWIST_DEG, then +-TWIST_DEG (taken off so the map doesn't jump)
@@ -168,6 +170,19 @@
       if (!e.touches || e.touches.length !== 2 || !(this._zooming || this._rotating)) return;
       const map = this._map;
       const p1 = map.mouseEventToContainerPoint(e.touches[0]), p2 = map.mouseEventToContainerPoint(e.touches[1]);
+      // Tilt for 3D (map3d.js): both fingers slid up together, before any zoom or turn has started, opens 3D.
+      // Fingers that spread, close or twist first are a pinch or a turn as before; sliding down does nothing here.
+      const tf = this._tiltFrom;
+      if (tf && !tf.done && !this._moved && !this._twist && window.tfTilt3d && window.tfTilt3d.ok()) {
+        const m = p1.add(p2)._divideBy(2), dy = m.y - tf.mid.y, dx = m.x - tf.mid.x;
+        if (dy < -TILT_PX && Math.abs(dx) < -dy * 0.6 && Math.abs(Math.log(p1.distanceTo(p2) / tf.dist)) < PINCH_START * 2) {
+          tf.done = true;
+          this._onTouchEnd();
+          window.tfTilt3d.go();
+          L.DomEvent.preventDefault(e);
+          return;
+        }
+      }
       // A pinch that has already zoomed clearly is a zoom: fingers drifting round as they spread don't turn the map then.
       const dist = p1.distanceTo(p2);
       if (this._zooming && !this._twist) { const s = dist / this._firstDist; if (s > PINCH_LOCK || s < 1 / PINCH_LOCK) this._rotating = false; }
@@ -227,7 +242,18 @@
       if (!down) return;
       if (e.buttons === 0) { onUp(null); return; }   // the button went up where we didn't hear it: stop turning
       if (!down.moved) {
-        if (Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) < 5) return;
+        const dx = e.clientX - down.x, dy = e.clientY - down.y;
+        if (Math.abs(dx) + Math.abs(dy) < 5) return;
+        // Tilt for 3D: a drag going straight up waits until it's clearly that (then opens 3D, as MapLibre's own
+        // right-drag up tilts the 3D map); any other way it turns the map as before.
+        if (window.tfTilt3d && window.tfTilt3d.ok() && dy < 0 && Math.abs(dx) < -dy * 0.6) {
+          if (-dy < TILT_PX) return;
+          lastTurn = Date.now();
+          onUp(null);
+          window.tfTilt3d.go();
+          e.preventDefault();
+          return;
+        }
         down.moved = true; box.classList.add("map-turning"); map.fire("rotatestart", { user: true });
       }
       const r = box.getBoundingClientRect();
