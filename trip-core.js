@@ -42,7 +42,7 @@ window.tfTripEngine = function tfTripEngine(make) {
   // ---------- the look (once for every sport: each pane sets its own --tp colour) ----------
   if (!window.tfTripCss) {
     window.tfTripCss = 1;
-    const P = ":is(#skiPane, #hikePane)";
+    const P = ":is(#skiPane, #hikePane, #motoPane)";
     const css = document.createElement("style");
     css.textContent = `
 ${P} .tp-card { border: 1.5px solid var(--tp); background: color-mix(in srgb, var(--tp) 5%, var(--panel)); }
