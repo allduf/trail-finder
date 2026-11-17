@@ -5646,12 +5646,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts", "moto", "hike"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts", "moto", "hike", "hike-trip"];
   const NEEDS = {
     hunt: ["crownland", "hunting", "compass"],
     fish: ["crownland", "fish-bait", "fish-route", "fishing"],
-    ski: ["webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts"],
-    hike: ["hike"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts"],
+    hike: ["trip-core", "hike", "hike-trip"],
     moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
   };
   const jsLoads = {};
@@ -5669,13 +5669,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   const loadSport = (s) => Promise.all(SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n)).map(loadJs));
   window.tfLoadSport = loadSport;
-  // A cabin trip starting tomorrow or under way: Skiing's files load a few seconds after the app opens, whatever the
-  // sport, so the trip's forecast and offline copy update by themselves (cabin-trip.js refreshAhead, alex 2026-11-11).
+  // A cabin trip (or a hike trip) starting tomorrow or under way: that sport's files load a few seconds after the app
+  // opens, whatever the sport, so the trip's forecast and offline copy update by themselves (trip-core.js refreshAhead, alex 2026-11-11).
   setTimeout(() => {
     try {
       const today = new Date().toLocaleDateString("en-CA"), day = (d, n) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() + n); return x.toLocaleDateString("en-CA"); };
-      const soon = (JSON.parse(localStorage.getItem("tf:skiTrips")) || []).some((t) => t && t.hut && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
-      if (soon) loadSport("ski").catch(() => {});
+      const soon = (k) => (JSON.parse(localStorage.getItem("tf:" + k)) || []).some((t) => t && (t.hut || t.camps || (t.lines || []).length) && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
+      if (soon("skiTrips")) loadSport("ski").catch(() => {});
+      if (soon("hikeTrips")) loadSport("hike").catch(() => {});   // a hike trip (hike-trip.js) the same way
     } catch (_) {}
   }, 6000);
   window.tfLoadMoto = () => loadSport("moto");
