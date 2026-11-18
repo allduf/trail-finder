@@ -174,6 +174,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       <h2>What people search for</h2>
       <p class="muted">Everything typed in a search box or Ask. Red tags are where the app let them down.</p>
       <p class="muted" id="thisBrowser"></p>
+      <p><button class="btn" type="button" id="checkBrowser">Check this browser</button> <span class="muted" id="checkOut"></span></p>
       <div class="card"><table id="searches"></table></div>
 
       <h2>Find results</h2>
@@ -402,6 +403,27 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       : `<span class="tag bad">Not sending</span> This browser's last send failed ${agoShort(last.t)}: ${esc(last.why || "no answer")}${waiting ? ` (${waiting} waiting)` : ""}.`;
   }
   thisBrowser();
+  // Check this browser (alex 2026-11-18, website searches never arrived): how full its storage is, its device code,
+  // and one test event sent the way the app sends them, with the server's own answer.
+  $("checkBrowser").addEventListener("click", async () => {
+    const out = $("checkOut"), acct = window.tfAccount, lines = [];
+    let size = 0, full = false;
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); size += k.length + (localStorage.getItem(k) || "").length; } } catch {}
+    try { localStorage.setItem("tf:useCheck", "x".repeat(2000)); localStorage.removeItem("tf:useCheck"); } catch { full = true; }
+    const device = localStorage.getItem("tf:device") || "";
+    lines.push(`Storage ${Math.round(size * 2 / 1024)} KB${full ? " (FULL: the app can't save anything new here)" : ""}`);
+    lines.push(`device code ${device ? device.slice(0, 8) + "… (" + device.length + " characters)" : "none"}`);
+    lines.push(`Don't share ${localStorage.getItem("tf:useOff") === "1" ? "ON" : "off"}`);
+    out.textContent = lines.join(" · ") + " · sending a test…";
+    if (!device || !acct || !acct.enabled) { out.textContent = lines.join(" · ") + " · no test sent (no device code or no account set up)."; return; }
+    try {
+      const res = await fetch(`${acct.url}/rest/v1/rpc/tf_use`, { method: "POST", headers: { "Content-Type": "application/json", apikey: acct.key, Authorization: `Bearer ${acct.key}` },
+        body: JSON.stringify({ device, os: "Web · usage page check", screen: `${Math.min(screen.width, screen.height)}x${Math.max(screen.width, screen.height)}`, events: [{ s: "usagecheck", t: new Date().toISOString(), p: "usage", k: "tap", w: "Usage page: Check this browser" }] }) });
+      const body = await res.text().catch(() => "");
+      lines.push(res.ok ? "test sent and saved by the server" : `server refused the test: ${res.status} ${body.slice(0, 200)}`);
+    } catch (e) { lines.push(`test couldn't reach the server: ${(e && e.message) || e}`); }
+    out.textContent = lines.join(" · ");
+  });
 
   async function load() {
     $("msg").hidden = false; $("msg").textContent = "Loading…";
