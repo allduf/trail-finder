@@ -397,8 +397,11 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     let last = null, waiting = 0;
     try { last = JSON.parse(localStorage.getItem("tf:useLast") || "null"); waiting = JSON.parse(localStorage.getItem("tf:useQueue") || "[]").length; } catch {}
     const off = localStorage.getItem("tf:useOff") === "1";
+    // www.trailfinderapp.ca and trailfinderapp.ca both serve the app, and a browser keeps each one's saved things apart
+    // (alex 2026-11-18: his map tab was on www, this page on the plain address, so it said nothing was ever sent).
+    const h = location.hostname, other = /trailfinderapp\.ca$/.test(h) ? (h.startsWith("www.") ? h.slice(4) : "www." + h) : "";
     $("thisBrowser").innerHTML = off ? "This browser: Don't share is on (More › How the app is used), so it sends nothing."
-      : !last ? `This browser hasn't sent anything yet${waiting ? ` (${waiting} waiting)` : ""}. Open Trail Finder here, use it, then come back.`
+      : !last ? `This browser hasn't sent anything from ${esc(location.host)} yet${waiting ? ` (${waiting} waiting)` : ""}.${other ? ` If you use Trail Finder at ${esc(other)}, the browser keeps that apart: <a href="https://${esc(other)}/usage">check this page there</a>.` : " Open Trail Finder here, use it, then come back."}`
       : last.ok ? `This browser last sent ${last.n} events ${agoShort(last.t)}${waiting ? `; ${waiting} waiting` : ""}.`
       : `<span class="tag bad">Not sending</span> This browser's last send failed ${agoShort(last.t)}: ${esc(last.why || "no answer")}${waiting ? ` (${waiting} waiting)` : ""}.`;
   }
@@ -693,7 +696,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const blank = blankDevices();
     const keep = (device) => (showBlank || !blank.has(device)) && (view === "all" || (view === "me") === meSet.has(device));
     document.querySelectorAll("[data-who]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.who === view)));
-    $("whoHint").textContent = meSet.size ? "" : "Tip: in Testers, tap “This is me” on your own phone to leave it out.";
+    $("whoHint").textContent = meSet.size ? (view === "others" ? "Your own phone and computer (named Me) are left out. Pick Everyone or Only me to see what you did." : "") : "Tip: in Testers, tap “This is me” on your own phone to leave it out.";
     const shown = rows.filter((r) => realError(r) && keep(r.device));
     const devices = new Map(), sessions = new Map();
     for (const r of shown) {
