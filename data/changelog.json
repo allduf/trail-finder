@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-18", "text": "Skiing: Webcams now start on for signed-in people too, so the live cameras show on the map. Turn them off in Layers, Snow and weather."},
     {"date": "2026-11-18", "text": "MTB trail ratings: Smithers Bluff trails show the Smithers Mountain Bike Association's notes (Penetralia rated blue), and Kelowna's Lost Lake Loop (blue) and Big Drop (black) take the level Kelowna.com gives them."},
     {"date": "2026-11-18", "text": "Which trail is this?: a first list shows as soon as the words in the picture are read, while the AI is still looking, and the AI starts right away, so the full list comes sooner."},
     {"date": "2026-11-18", "text": "Search, every sport: after Enter or Go, the answer stays on screen instead of the list going back to \"Not in the list? Press Go\", so it no longer looks like nothing happened."},
