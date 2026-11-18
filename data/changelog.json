@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-18", "text": "Which trail is this?: a first list shows as soon as the words in the picture are read, while the AI is still looking, and the AI starts right away, so the full list comes sooner."},
     {"date": "2026-11-18", "text": "Search, every sport: after Enter or Go, the answer stays on screen instead of the list going back to \"Not in the list? Press Go\", so it no longer looks like nothing happened."},
     {"date": "2026-11-18", "text": "Search, every sport: every place you search gets a red pin on the map, big towns and regions too (tap the pin or its x to take it away), and pressing Enter goes straight to the place named exactly what you typed."},
     {"date": "2026-11-17", "text": "3D map: while the sharp photos load after you tilt or zoom out, the ground around them is much less blurry."},
