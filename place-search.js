@@ -35,8 +35,10 @@ ul.ps-hits:empty { display: none; }
 .ps-more { color: #1f5fe0; font-weight: 700; font-size: .88rem; }
 .ps-pin { position: relative; width: 0; height: 0; cursor: pointer; }
 .ps-pin-dot { position: absolute; left: -15px; top: -40px; width: 30px; height: 40px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
-.ps-pin-name { position: absolute; left: 0; bottom: 44px; transform: translateX(-50%); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
-  font: 700 13px/1.2 var(--font-body, system-ui); color: #111; background: #fff; padding: 4px 9px; border-radius: 9px; box-shadow: 0 1px 5px rgba(0,0,0,.45); }
+.ps-pin-name { position: absolute; left: 0; bottom: 44px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; white-space: nowrap; max-width: 240px;
+  font: 700 13px/1.2 var(--font-body, system-ui); color: #111; background: #fff; padding: 4px 6px 4px 9px; border-radius: 9px; box-shadow: 0 1px 5px rgba(0,0,0,.45); }
+.ps-pin-tx { overflow: hidden; text-overflow: ellipsis; }
+.ps-pin-x { flex: none; width: 16px; height: 16px; padding: 2px; border-radius: 50%; background: #e9e9ec; color: #333; box-sizing: border-box; }
 `;
   document.head.append(css);
 
@@ -184,7 +186,8 @@ ul.ps-hits:empty { display: none; }
     const el = document.createElement("div");
     el.className = "ps-pin";
     el.title = p.name + " (tap to take the pin away)";
-    el.innerHTML = `<span class="ps-pin-name">${esc(p.name)}</span>${PIN_SVG}`;
+    // The x says a tap takes it away (alex 2026-11-18: "how do we make that marker disappear?"); a tap anywhere on it does.
+    el.innerHTML = `<span class="ps-pin-name"><span class="ps-pin-tx">${esc(p.name)}</span><svg class="ps-pin-x" viewBox="0 0 12 12" aria-label="Take the pin away" role="img"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg></span>${PIN_SVG}`;
     return el;
   };
   function clearPin() {
@@ -204,7 +207,10 @@ ul.ps-hits:empty { display: none; }
     clearPin();
     if (!p || !p.name || p.lat == null) return;
     pinAt = { name: p.name, lat: p.lat, lon: p.lon };
-    pin2 = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: pinEl(pinAt).outerHTML, iconSize: [0, 0], iconAnchor: [0, 0] }), zIndexOffset: 2000, title: p.name, keyboard: false })
+    // Its own layer above every other marker (fuel, camps, webcams...), which covered its name and took the tap meant
+    // to take it away.
+    if (!map.getPane("psPin")) map.createPane("psPin").style.zIndex = 680;
+    pin2 = L.marker([p.lat, p.lon], { pane: "psPin", icon: L.divIcon({ className: "", html: pinEl(pinAt).outerHTML, iconSize: [0, 0], iconAnchor: [0, 0] }), zIndexOffset: 2000, title: p.name, keyboard: false })
       .on("click", (e) => { L.DomEvent.stopPropagation(e); clearPin(); }).addTo(map);
     pin3d();
   }
