@@ -1642,16 +1642,29 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // No place by that name and several words: it's a question, so Ask answers it (alex 2026-11-06: "Simple ski tour
       // in the duffeys" said "No place named …": "Not clear where to ask").
       if (!found.length && window.tfAsk && q.split(/\s+/).length >= 3) { msg.textContent = ""; $("skFind").blur(); window.tfAsk.open(q); return; }
+      // A place by the very name typed: straight there, no list to tap.
+      const same = P.sameName ? P.sameName(found, q) : null;
+      if (same || found.length === 1) { $("skFind").blur(); pickPlace(same || found[0]); return; }
       msg.textContent = found.length ? "Tap a place to go there." : `No place named “${q}”.`;
       $("skFind").blur();   // the phone keyboard out of the way of the list
       renderPlaces();
     } catch { msg.textContent = "Couldn't reach the place search. Check your signal, or move the map yourself."; }
   }
-  $("skFindForm").addEventListener("submit", (e) => { e.preventDefault(); if (findTimer) findNow(); askPlaces(); });
+  // Enter or Go with a resort, route or place by the very name typed already in the list: go there now, as a tap on
+  // it would (alex 2026-11-18: typed "squamish", pressed Enter and still had to tap). Otherwise every place is searched.
+  $("skFindForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (findTimer) findNow();
+    const P = window.tfPlaceSearch, same = P && P.sameName ? P.sameName(placeRows, findText) : null;
+    if (same) { pickPlace(same); return; }
+    askPlaces();
+  });
   $("skPlaces").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.hasAttribute("data-more")) { askPlaces(); return; }
-    const p = placeRows[+b.dataset.i]; if (!p) return;
+    const p = placeRows[+b.dataset.i]; if (p) pickPlace(p);
+  });
+  function pickPlace(p) {
     logUse("pick", "Ski find");
     findText = ""; $("skFind").value = ""; $("skFind").blur();
     renderPlaces();
@@ -1676,7 +1689,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (p.helicat && window.tfHeliCat) window.tfHeliCat.open(p.helicat);
     if (p.access && window.tfLifts) window.tfLifts.open(p.access);
     renderList();
-  });
+  }
   // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
   // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
   // is the named peak closest to the route, found by the nightly job).

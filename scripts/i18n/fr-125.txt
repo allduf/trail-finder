@@ -1,0 +1,2 @@
+# Search: a pin on every searched place + Enter goes straight there (place-search.js, winter.js, index.html), 2026-11-18
+Search, every sport: every place you search gets a red pin on the map, big towns and regions too, and pressing Enter goes straight to the place named exactly what you typed. ||| Recherche, tous les sports : chaque endroit recherché reçoit une épingle rouge sur la carte, grandes villes et régions aussi, et appuyer sur Entrée mène directement à l'endroit qui porte exactement le nom tapé.

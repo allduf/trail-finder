@@ -167,14 +167,17 @@ ul.ps-hits:empty { display: none; }
     // In 3D it's also looked at less tilted for a search, so the place fills the screen, not the far valleys behind it.
     if (d3 && window.tf3dSearchView) window.tf3dSearchView({ lat: b.getCenter().lat, lon: b.getCenter().lng, dy: (br.y - tl.y) / 2, km: (bb[1] - bb[0]) * 111.32 });
     map.setView(map.unproject(c, z), z, { animate: false });
-    if (o.pin !== false) dropPin(p, bb);
+    if (o.pin !== false) dropPin(o.pinAt || p);
   }
 
   // ---------- the place's pin ----------
   // A red pin with the place's name on the spot found, on the flat map and the 3D map (alex 2026-11-09, recording of a
   // search for Microwave Ridge: "it not clear where it is exactly": the ridge's name was one small label among the
-  // peaks'). Not for a whole region (its middle isn't a place). It stays until the next search, a tap on it, or another
-  // sport.
+  // peaks'). Every place searched gets it, a big town or a region too (alex 2026-11-18: "why sometime there is a marker
+  // on the location you search for and sometime there is no marker": a town whose outline was over ~16 km tall, like
+  // Squamish or Whistler from the place search, got none, and MTB's town search never had one). It sits on the spot
+  // the search gives for the place (a town's centre, a region's labelled point). It stays until the next search, a tap
+  // on it, or another sport.
   const PIN_SVG = `<svg class="ps-pin-dot" viewBox="0 0 30 40" aria-hidden="true"><path d="M15 39C15 39 28 24.5 28 14A13 13 0 0 0 2 14C2 24.5 15 39 15 39Z" fill="#e0262b" stroke="#fff" stroke-width="2.4"/><circle cx="15" cy="14" r="5" fill="#fff"/></svg>`;
   let pin2 = null, pin3 = null, pinAt = null;
   const pinEl = (p) => {
@@ -197,9 +200,9 @@ ul.ps-hits:empty { display: none; }
     el.addEventListener("click", (e) => { e.stopPropagation(); clearPin(); });
     pin3 = new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([pinAt.lon, pinAt.lat]).addTo(gl);
   }
-  function dropPin(p, bb) {
+  function dropPin(p) {
     clearPin();
-    if (!p || !p.name || p.lat == null || (bb && bb[1] - bb[0] > 0.15)) return;
+    if (!p || !p.name || p.lat == null) return;
     pinAt = { name: p.name, lat: p.lat, lon: p.lon };
     pin2 = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: pinEl(pinAt).outerHTML, iconSize: [0, 0], iconAnchor: [0, 0] }), zIndexOffset: 2000, title: p.name, keyboard: false })
       .on("click", (e) => { L.DomEvent.stopPropagation(e); clearPin(); }).addTo(map);
@@ -330,6 +333,9 @@ ul.ps-hits:empty { display: none; }
 
   const hitHtml = (p, i) => `<li><button type="button" data-i="${i}"><span class="ps-ic" aria-hidden="true">${esc(p.ic || "📍")}</span><span class="ps-tx"><b>${esc(p.name)}</b><small>${esc(p.sub || "")}</small></span></button></li>`;
 
+  // The place in a list named exactly what's typed (accents, case and dashes aside), a Canadian one first.
+  const sameName = (list, q) => { const n = norm(q); const all = (list || []).filter((x) => x && x.name && norm(x.name) === n); return all.find((x) => x.ca !== false) || all[0] || null; };
+
   // ---------- a search box ----------
   // box({ placeholder, label, local(q) -> places shown while typing, onPick(place) (default: go there) })
   function box(o = {}) {
@@ -366,6 +372,9 @@ ul.ps-hits:empty { display: none; }
       e.preventDefault();
       const q = input.value.trim();
       if (!q) return;
+      // Enter or Go with the place already in the list by that very name: go there now, no second search.
+      const shown = sameName(rows, q);
+      if (shown) { pick(shown); return; }
       const loc = o.local ? o.local(q) || [] : [];
       msg.textContent = `Finding ${q}…`;
       try {
@@ -376,6 +385,10 @@ ul.ps-hits:empty { display: none; }
         // A sport's own search box: several words that aren't a place are a question for Ask (one box for everything).
         if (!all.length && !o.onPick && window.tfAsk && !document.body.classList.contains("sport-hike") && q.split(/\s+/).length >= 3) { show([]); input.blur(); window.tfAsk.open(q); return; }
         if (!all.length) { show([], `Couldn't find “${q}”. Try a town or mountain name.`); return; }
+        // The place by the very name typed goes straight there, as a tap on it would (alex 2026-11-18: typed
+        // "squamish", pressed Enter and got a list to tap instead of the map going there). Canada first.
+        const same = sameName(all, q);
+        if (same) { pick(same); return; }
         if (all.length === 1) { pick(all[0]); return; }
         input.blur();   // the phone keyboard out of the way of the list
         show(all, "Tap the one you mean.");
@@ -388,5 +401,5 @@ ul.ps-hits:empty { display: none; }
   // towns(q, n, then): the Canadian towns and places named q while typing (Skiing's find box); then() runs once the
   // list has loaded, the first time.
   const townsNamed = (q, n, then) => { if (!towns) loadTowns(then); return townHits(q, n); };
-  window.tfPlaceSearch = { search, go, clearPin, box, parseGps, hitHtml, towns: townsNamed, live, addNew, slips, norm };
+  window.tfPlaceSearch = { search, go, clearPin, sameName, box, parseGps, hitHtml, towns: townsNamed, live, addNew, slips, norm };
 })();

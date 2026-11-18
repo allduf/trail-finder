@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-18", "text": "Search, every sport: every place you search gets a red pin on the map, big towns and regions too, and pressing Enter goes straight to the place named exactly what you typed."},
     {"date": "2026-11-17", "text": "3D map: while the sharp photos load after you tilt or zoom out, the ground around them is much less blurry."},
     {"date": "2026-11-17", "text": "Adventure moto (ADV): the Dirt roads for my bike layer stays on when the 3D map is tilted or zoomed out, on every map style, and ADV topo's dirt roads and elevation lines now show in 3D too."},
     {"date": "2026-11-17", "text": "The website and the Android app now share how the app is used, like the iPhone app: screens, taps, searches and errors, with no name, email or location, to fix bugs and make the app easier. To stop it: More (☰ Menu on a computer), How the app is used, Don't share. Places picked while typing, and every Ask, now count too."},
