@@ -1,0 +1,2 @@
+# Search: Enter/Go answer no longer redrawn by late suggestions (place-search.js), 2026-11-18
+Search, every sport: after Enter or Go, the answer stays on screen instead of the list going back to "Not in the list? Press Go", so it no longer looks like nothing happened. ||| Recherche, tous les sports : après Entrée ou Go, la réponse reste à l’écran au lieu que la liste revienne à « Pas dans la liste? Appuyez sur Go », donc on ne dirait plus que rien ne se passe.
