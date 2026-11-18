@@ -36,8 +36,13 @@ jobs:
         # The runner's Ubuntu mirror (azure.archive.ubuntu.com) stopped sending files on 2026-11-11 and the install
         # hung until the 25 min limit, twice. The browser's system files come from the main Ubuntu mirror instead, and
         # apt gives up on a dead download after 15 s and tries again, not 20 s per file forever.
+        # 2026-11-18: runners came up on us-east-2.ec2.archive.ubuntu.com instead (about 1 small file a second, the
+        # install hit 25 min three times on PR #808), so every regional mirror name is switched, not only azure's.
+        # Newer runners list mirrors through "mirror+file:/etc/apt/apt-mirrors.txt", so that file is rewritten too.
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          sudo sed -i -E 's#http://[a-z0-9.-]+\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#mirror\+file:/etc/apt/apt-mirrors\.txt#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          [ -f /etc/apt/apt-mirrors.txt ] && echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt >/dev/null || true
+          grep -h "^URIs\|^deb " /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null | sort -u || true
           printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
           npm install --no-save --no-package-lock playwright@1.48.2
           npx playwright install --with-deps webkit
