@@ -804,6 +804,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     ["skiShort", "skiMineOff", "skiSnowAdded", "skiParkAdded", "skiGuest"].forEach((k) => store.set(k, true));   // the older one-time changes don't touch it after
     store.set("skiLayers2", [...shown]);
   }
+  // alex 2026-11-18 ("we lost the live webcam?", signed in at Whistler): signed-in devices start with Webcams on too.
+  // Every device gets it once ("skiCamsOn"); after that a Webcams switched off stays off.
+  if (!store.get("skiCamsOn", false)) {
+    try { localStorage.setItem("tf:skiCams", "true"); } catch {}
+    store.set("skiCamsOn", true);
+  }
   if (!store.get("skiShort", false)) {
     ["other", "snow", "hut"].forEach((k) => shown.delete(k));
     store.set("skiSnowAdded", true); store.set("skiParkAdded", true); store.set("skiShort", true); store.set("skiLayers2", [...shown]);
