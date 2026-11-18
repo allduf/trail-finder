@@ -352,6 +352,10 @@ ul.ps-hits:empty { display: none; }
       <p class="ps-msg" role="status"></p><ul class="ps-hits"></ul>`;
     const input = el.querySelector("input"), msg = el.querySelector(".ps-msg"), ul = el.querySelector("ul");
     let rows = [];
+    // What was last sent with Enter or Go. The suggestions asked for while typing can come back after that, and they
+    // used to redraw the list over the search's answer, back to "Not in the list? Press Go" (alex 2026-11-18,
+    // recording: typed "pemberton", pressed Enter and Go, and it looked like nothing happened).
+    let sent = "";
     const show = (list, note) => {
       rows = list;
       ul.innerHTML = list.map(hitHtml).join("");
@@ -367,17 +371,18 @@ ul.ps-hits:empty { display: none; }
       const q = input.value.trim();
       const loc = q.length >= 2 && o.local ? (o.local(q) || []).slice(0, 5) : [];
       const all = [...loc, ...townHits(q, 5 - Math.min(loc.length, 3))].slice(0, 5);
-      addNew(all, live(q, () => { if (input.value.trim() === q) typed(); }), 7);
+      addNew(all, live(q, () => { if (input.value.trim() === q && sent !== q) typed(); }), 7);
       // What's typed counts as a search too (the usage page), not only Go: most people tap a place from this list.
       // Sent once the typing stops (usage.js), with how many places showed by then.
       if (q.length >= 2) logUse("search", "Place:" + q, all.length);
       show(all, q.length >= 2 ? (all.length ? "Not in the list? Press Go to search every place." : q.length >= 3 && !parseGps(q) && !Array.isArray(liveCache.get(norm(q))) ? "Looking…" : "Keep typing, or press Go to search every place.") : "");
     };
-    input.addEventListener("input", () => { typed(); if (!towns) loadTowns(() => { if (document.activeElement === input || input.value.trim()) typed(); }); });
+    input.addEventListener("input", () => { sent = ""; typed(); if (!towns) loadTowns(() => { if ((document.activeElement === input || input.value.trim()) && sent !== input.value.trim()) typed(); }); });
     el.addEventListener("submit", async (e) => {
       e.preventDefault();
       const q = input.value.trim();
       if (!q) return;
+      sent = q;
       // Enter or Go with the place already in the list by that very name: go there now, no second search.
       const shown = sameName(rows, q);
       if (shown) { pick(shown); return; }
