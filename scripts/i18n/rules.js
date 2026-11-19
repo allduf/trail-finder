@@ -17,6 +17,16 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // Day ride (moto-day.js)
+    [/^Checking loop ideas on the roads \((\d+)\)…$/, "Vérification des idées de boucles sur les routes ($1)…"],
+    [/^No hot springs, viewpoints or scenic roads mapped in the right places for a (\d+) h loop from here\. Try another riding time, or plan your own in Plan a route\.$/, "Aucune source chaude, aucun point de vue ni aucune route panoramique cartographiés aux bons endroits pour une boucle de $1 h à partir d'ici. Essayez un autre temps de route, ou planifiez la vôtre dans Planifier un itinéraire."],
+    [/^None of the loop ideas came close to (\d+) h on the roads\. Try another riding time or other roads\.$/, "Aucune idée de boucle n'approche $1 h sur les routes. Essayez un autre temps de route ou d'autres routes."],
+    [/^Highest point, about ([\d,]+) m: new snow next 24 h$/, function (m, h) { return "Point le plus haut, environ " + h.replace(/,/g, " ") + " m : neige fraîche, prochaines 24 h"; }],
+    [/^About (.+) from the road$/, "À environ $1 de la route"],
+    [/^Surface: (paved|partly gravel|gravel)$/, function (m, x) { return "Surface : " + tw(x); }],
+    [/^No closures, gates, washouts or fire closures found on it in the sources the app reads \(couldn't load (.+)\)\.$/, "Aucune fermeture, barrière, route emportée ou fermeture pour feu trouvée sur le trajet dans les sources que lit l'app (impossible de charger $1)."],
+    [/^Via (.+) and (.+)$/, "Par $1 et $2"],
+    [/^Via (.+)$/, "Par $1"],
     // Fishing trips (fishing-trip.js)
     [/^wind (\d+) km\/h (N|NE|E|SE|S|SW|W|NW)(?:, gusts (\d+))?$/, function (m, w, d, g) { return "vent " + w + " km/h " + d.replace(/W/g, "O") + (g ? ", rafales " + g : ""); }],
     [/^sun (.+) to (.+)$/, "soleil $1 à $2"],

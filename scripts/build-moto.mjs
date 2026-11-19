@@ -1,4 +1,5 @@
-// Gas stations, campsites, hot springs, motorcycle shops and ferry landings across Canada, for Moto adventure mode
+// Gas stations, campsites, hot springs, motorcycle shops, ferry landings and places to see (named viewpoints,
+// waterfalls and lighthouses, for Day ride: moto-day.js) across Canada, for Moto adventure mode
 // (moto.js: fuel range, Fuel & camp, and fuel stops along a planned route). alex 2026-10-26: "the best app adapted
 // for moto adventure ride", all of Canada.
 // Runs inside the nightly Canada job (.github/workflows/canada-data.yml), on each province's Geofabrik extract:
@@ -30,6 +31,8 @@ function kindOf(t) {
   if (t.natural === "hot_spring") return "hot";
   if (t.shop === "motorcycle" || t.shop === "motorcycle_repair" || (t.shop === "tyres" && /motorcycle/i.test(t.name || ""))) return "shop";
   if (t.amenity === "ferry_terminal") return "ferry";
+  // Places to stop and see on a Day ride (moto-day.js): named viewpoints, waterfalls and lighthouses.
+  if (t.name && (t.tourism === "viewpoint" || t.waterway === "waterfall" || t.natural === "waterfall" || t.man_made === "lighthouse")) return "sight";
   return null;
 }
 // The one-word extra after the name: the brand for fuel (and 24/7), the kind and fee for camping.
@@ -39,6 +42,7 @@ function extraOf(k, t) {
     const kind = t.tourism === "camp_site" ? (t.backcountry === "yes" || t.camp_site === "basic" ? "basic" : "camp") : t.tourism === "caravan_site" ? "rv" : "hut";
     return [kind, t.fee === "no" ? "free" : t.fee === "yes" ? "fee" : ""].filter(Boolean).join(" ");
   }
+  if (k === "sight") return t.tourism === "viewpoint" ? "view" : t.man_made === "lighthouse" ? "light" : "fall";
   if (k === "shop") return t.shop === "motorcycle_repair" || t["service:vehicle:motorcycle_repair"] === "yes" || t.repair === "yes" ? "repair" : "";
   return "";
 }
@@ -87,7 +91,7 @@ function finish() {
   }
   mkdirSync(OUT, { recursive: true });
   const built = new Date().toISOString();
-  for (const k of ["fuel", "camp", "hot", "shop", "ferry"]) {
+  for (const k of ["fuel", "camp", "hot", "shop", "ferry", "sight"]) {
     // the same place twice (a node and the area around it, or a border) is kept once
     const keep = new Map();
     for (const p of all[k] || []) { const key = `${p[0].toFixed(3)},${p[1].toFixed(3)}`; if (!keep.has(key)) keep.set(key, p); }

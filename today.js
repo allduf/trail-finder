@@ -12,8 +12,8 @@
 //    score: GPS-collar studies find time of year moves deer far more than the weather.
 //  - Hiking: the weather here, the nearest hikes with no snow or closure found first (hike.js todayPicks), and your
 //    saved hikes with their weather.
-//  - Adventure moto: rain in the last 2 days and today, the nearest adventure routes (moto-routes.json) and your
-//    saved routes, with the rain at their start.
+//  - Adventure moto: rain in the last 2 days and today, Day ride (moto-day.js: loops from here for the time you want
+//    to ride), the nearest adventure routes (moto-routes.json) and your saved routes, with the rain at their start.
 // Weather: one call for every place on the card, the middle value of GEM, ECMWF and GFS (wxcheck.js), labelled as an
 // estimate with its sources. Wording: facts and sources only; nothing promises conditions, access or safety, and no
 // travel advice. "Don't show when the app opens" turns the automatic card off (tf:todayAuto); the More page's Today
@@ -283,6 +283,9 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
       .map((x) => ({ ...x, d: kmTo(from.ll, x.ll) })).sort((a, b) => a.d - b.d).slice(0, 5)
       .map(({ r, ll, d }) => ({ ll, name: r.name || "Route", d, facts: r.km ? `${r.km} km` : "", open: () => { if (window.tfMoto && window.tfMoto.hub) window.tfMoto.hub("routes"); else map.setView(ll, 11); } }));
     const wet = (s) => (s ? `Rain or snow at the start: ${mm(s.wetPast2)} in the last 2 days, ${mm(s.wetNext)} in the next 24 h` : "");
+    // Day ride (moto-day.js, alex 2026-11-19): round-trip loops from here for the time you want to ride, with stops.
+    near.unshift({ ll: null, name: "Day ride: loops from here", d: null, facts: "Pick how long you want to ride: loops that come back here, with hot springs, viewpoints and scenic roads on the way",
+      open: () => { if (window.tfLoadSport) window.tfLoadSport("moto").then(() => { if (window.tfMotoDay) window.tfMotoDay.open({ from: { ll: from.ll, name: from.how === "you" ? "Where you are" : "The middle of the map" } }); }).catch(() => {}); } });
     return {
       near, saved, fish: false,
       here: (s) => (s ? kv("Rain or snow, last 2 days", mm(s.wetPast2)) + kv("Rain or snow, next 24 h", mm(s.wetNext)) + kv("New snow, next 24 h", cm(s.snowNext)) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) : ""),

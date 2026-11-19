@@ -204,7 +204,7 @@ body.sport-moto .leaflet-ridesPane-pane { display: none; }
 #motoPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #motoPane a { color: var(--accent); }
 #motoPane .mt-note { color: var(--muted); font-size: .76rem; margin: 0; }
-#motoPane .mt-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#motoPane .mt-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 #motoPane .mt-act { font: inherit; font-size: .74rem; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 58px; padding: 6px 4px;
   border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; text-align: center; line-height: 1.15; }
 #motoPane .mt-act svg { color: ${ACC}; }
@@ -382,6 +382,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   pane.innerHTML = `
     <div class="mt-actions" role="toolbar" aria-label="Adventure moto tools">
       <button type="button" class="mt-act" data-act="plan">${svg(IC.plan)}Plan a route</button>
+      <button type="button" class="mt-act" data-act="day">${svg(IC.loop)}Day ride</button>
       <button type="button" class="mt-act" data-act="stops">${svg(IC.fuel)}Fuel &amp; camp</button>
       <button type="button" class="mt-act" data-act="mud">${svg(IC.drop)}Mud today</button>
       <button type="button" class="mt-act" data-act="trips">${svg(IC.trips)}ADV routes</button>
@@ -391,6 +392,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     <div class="mt-row mt-saferow" id="mtSafeRow"></div>
     <div class="mt-card" id="mtTrips" hidden></div>
     <div class="mt-card" id="mtLog" hidden></div>
+    <div class="mt-card" id="mtDay" hidden></div>
     <div class="mt-card" id="mtRoute" hidden></div>
     <div class="mt-card" id="mtSpot" hidden></div>
     <div class="mt-card" id="mtNear" hidden></div>
@@ -1966,7 +1968,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     else if (a === "edit") setPlanning(true);
     else if (a === "reloop" && askLoop) { btn.disabled = true; planAsk({ pts: [{ ll: askLoop.at, name: askLoop.name }], loop: true, km: askLoop.km, turn: askLoop.turn + 1 }); }
     else if (a === "unavoid") { avoidMine = []; store.set("motoAvoid", avoidMine); buildRoute(); }
-    else if (a === "clear") { askLoop = null; planPts = []; avoidMine = []; store.set("motoAvoid", avoidMine); route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
+    else if (a === "clear") { askLoop = null; dayStops = null; planPts = []; avoidMine = []; store.set("motoAvoid", avoidMine); route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
     else if (a === "me") {
       if (!you) { hint("Turn on your location (◎ on the map) first."); return; }
       planPts.unshift([+you.lat.toFixed(5), +you.lon.toFixed(5)]);
@@ -2133,6 +2135,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     else if (act === "stops") { setView("stops"); renderStops(); }
     else if (act === "mud") { renderNow(); showCard($("mtNow")); }
     else if (act === "trips") openTrips();
+    else if (act === "day") { if (window.tfMotoDay && window.tfMotoDay.open) window.tfMotoDay.open(); else hint("Day ride is still loading: try again in a moment."); }
   });
   function renderStops() {
     const el = $("mtNear"), at = you ? [you.lat, you.lon] : (() => { const c = map.getCenter(); return [c.lat, c.lng]; })();
@@ -2799,6 +2802,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const pts = (o.pts || []).map((x) => { const q = [+x.ll[0].toFixed(5), +x.ll[1].toFixed(5)]; if (x.name) wpNames.set(wpKey(q), x.name); return q; });
     if (!pts.length) return;
     askLoop = null; route = null; routeErr = ""; avoidMine = []; store.set("motoAvoid", avoidMine);
+    dayStops = o.stops && o.stops.length ? { at: pts[0], list: o.stops, title: o.title || "" } : null;
     if (planLoop && pts.length === 1 && o.km) {
       planPts = pts; drawWaypoints(); routeErr = ""; $("mtRoute").hidden = false; offProg = "Picking points on the way for your loop…"; renderRoute(true); showCard($("mtRoute"));
       const v = await loopVias({ at: pts[0], km: o.km, turn: o.turn || 0 });
@@ -2816,8 +2820,15 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     showCard($("mtRoute"));
     await buildRoute();
   }
-  // On the route's card: what Ask did with the words.
+  // On the route's card: what Ask did with the words, or the stops of a Day ride loop (moto-day.js).
+  let dayStops = null;   // { at, title, list: [{ name, kind, ll, src, from }] }
+  function stopsHtml() {
+    if (!dayStops || !planPts.length || wpKey(planPts[0]) !== wpKey(dayStops.at)) return "";
+    return `<div class="mt-asked"><span>${dayStops.title ? `<b>${esc(dayStops.title)}</b>. ` : ""}<span>Stops on this loop</span>:</span><ul class="mt-list">${dayStops.list.map((x) =>
+      `<li><b>${esc(x.name)}</b><small><span>${esc(x.kind)}</span>${x.from ? ` · <span>${esc(x.from)}</span>` : ""}${x.src ? ` · <a href="${esc(x.src)}" target="_blank" rel="noopener">source</a>` : ""} · <button type="button" class="mt-link" data-ll="${x.ll[0]},${x.ll[1]}">Show</button></small></li>`).join("")}</ul></div>`;
+  }
   function askedHtml(r) {
+    if (dayStops) return stopsHtml();
     if (!askLoop || !planLoop || !planPts.length || wpKey(planPts[0]) !== wpKey(askLoop.at)) return "";
     const what = askLoop.kinds.length > 1 ? "a gas station or a campsite" : askLoop.kinds[0] === "camp" ? "a campsite" : "a gas station";
     return `<div class="mt-asked"><span>You asked for a loop of about ${Math.round(askLoop.km)} km${askLoop.name ? ` from ${esc(askLoop.name)}` : ""}: this one is ${fmtKm(r.km)}. Points 1 and 2 are each ${what} the app picked to make the loop that long. Drag them, or try another.</span>
@@ -2854,7 +2865,21 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     advRoutes: () => loadTrips(),
     openAdv: async (id) => { toPanel(); await openTrips(); showTrip(id); },
     planLine: (ll, name) => { toPanel(); planLine(ll, name); },
-    planAsk,   // Ask (ask.js): { pts: [{ ll, name }], style, loop, km }
+    planAsk,   // Ask (ask.js): { pts: [{ ll, name }], style, loop, km }; Day ride (moto-day.js) adds stops and title
+    // For Day ride (moto-day.js): the points lists, the router with a given style, surfaces, closures and heights.
+    ptsOf: async (k) => { await Promise.resolve(loadPts(k)).catch(() => {}); return listOf(k); },
+    routeStyled: async (locs, style) => { const was = planStyle; planStyle = STYLES[style] ? style : was; try { return await routeOnce(locs, [], null); } finally { planStyle = was; } },
+    // Surfaces (OpenStreetMap through Valhalla) and closures along a routed loop: { pct (dirt %), longest, closures }.
+    checkLoop: async (r, locs) => {
+      const ed = await edgesOf(r.line, r.legAt).catch(() => ({ edges: null, line: r.line }));
+      if (ed.line !== r.line) { reindexParts(r.parts, ed.line); r.line = ed.line; }
+      r.edges = ed.edges;
+      const st = r.edges ? routeStats(r) : null, c = await closuresOf(r, locs).catch(() => null);
+      return { pct: st ? Math.round((100 * st.dirt) / Math.max(0.1, r.km)) : null, longest: st ? st.longest : null, closures: c };
+    },
+    heightsOf: async (line, km) => { const step = Math.max(250, Math.round((km * 1000) / 1500)); const h = await postJ(`${VALHALLA}/height`, { encoded_polyline: encode6(line), resample_distance: step }, 30000); const sh = h.shape ? h.shape.map((p) => [p.lat, p.lon]) : h.encoded_polyline ? decode6(h.encoded_polyline) : []; return sh.map((p, i) => ({ p, m: (h.height || [])[i], km: (i * step) / 1000 })).filter((x) => x.m != null); },
+    you: () => (you ? [you.lat, you.lon] : null),
+    fmtH, VALHALLA,
     planNow: () => ({ pts: planPts.map((p) => ({ ll: p, name: wpNames.get(wpKey(p)) || "" })), style: planStyle, loop: planLoop, planning }),
     STYLES,
     planFrom: (ll) => { toPanel(); planPts = ll ? [[+ll[0].toFixed(5), +ll[1].toFixed(5)]] : []; route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); setPlanning(true); renderRoute(); showCard($("mtRoute")); },

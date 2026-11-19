@@ -161,6 +161,18 @@ for (const sport of SPORTS) {
   await page.keyboard.press("Escape").catch(() => {});
   await wait(300);
 
+  // Adventure moto's Day ride (moto-day.js): the card opens, and Find loops answers with the route server cut off.
+  if (sport === "moto") {
+    await step(p, sport, "Day ride", async () => {
+      await page.evaluate(() => window.tfMotoDay && window.tfMotoDay.open());
+      await page.waitForSelector("#mtDay:not([hidden]) [data-d=find]", { timeout: 8000 });
+      await page.locator("#mtDay [data-d=find]").click({ timeout: 8000 });
+      await page.locator("#tfRisk [data-rk=ok]").click({ timeout: 4000 }).catch(() => {});   // the route risk note (risk.js), once
+      await page.waitForFunction(() => { const o = document.getElementById("mdOut"); return o && o.textContent.trim() && !document.querySelector("#mdOut .md-wait"); }, null, { timeout: 60_000 });
+    }, 1000);
+    await page.evaluate(() => window.tfMotoDay && window.tfMotoDay.close());
+  }
+
   // The bottom bar's tabs this sport shows (Map, the sport's own Find/Routes/Hunt/Fish/Roads, Ride, Saved, More).
   const tabs = await page.$$eval("#tabbar button[data-nav]", (bs) => bs.filter((b) => b.offsetParent && getComputedStyle(b).display !== "none")
     .map((b) => ({ nav: b.dataset.nav, label: b.textContent.trim() })));
