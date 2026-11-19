@@ -13,7 +13,9 @@
 //    same trip, merged item by item), a new link to stop someone opening it.
 //  - Meals for each day, Booking (with a reminder for the calendar), Costs and who pays whom, the journal with notes
 //    (shared) and photos (this phone only).
-//  - Tell someone your plan: the plan as text and a late alert for a friend's calendar; overdue in red.
+//  - Tell someone your plan: the plan as text and a late alert for a friend's calendar; overdue in red. With a plan sent,
+//    "I'm back" (alex 2026-11-19): at the return time, if you haven't tapped I'm back, your own phone reminds you to tell
+//    your contact (a notification in the phone apps, a bar on the screen on the website). It never contacts anyone.
 //  - Each day: the kit's forecast for the trip's dates, kept with the trip for no signal, and updated by itself each
 //    time the app opens from the day before the trip; Save the trip offline (offline.js), with a calendar reminder.
 // Nothing in here is advice: the facts each kit shows come with their source, and the rest is the group's own notes.
@@ -441,7 +443,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   // What AdventureSmart asks you to leave with someone: who, where, when you'll be out and when to call for help. It goes
   // out through the share sheet (text, email...). The late alert is a calendar event for the friend that rings at the
   // "call for help" time, with what to do in it: it works with no signal on your side, and no server. On your phone the
-  // trip turns red once your out time has passed, until you tap We're out safe.
+  // trip turns red once your out time has passed, until you tap I'm back.
   const me = () => store.get("tripMe", {});
   // Who you are in a shared trip (alex 2026-11-11): your name from its group, picked the first time you open it
   // ("Who are you?"). t.me (the group key) stays on this phone. A group name the same as your usual name counts as you.
@@ -473,7 +475,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     const pl = planOf(t), at = new Date(pl.help), who = pl.who || "your friend";
     return ics([`UID:tf-trip-${t.id}@trail-finder`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(at)}`, `DTEND:${stamp(new Date(at.getTime() + 30 * 60000))}`,
       `SUMMARY:${icsEsc(`Heard from ${who}? (${title(t)} trip)`)}`, ...(t.hut ? [`GEO:${t.hut.lat.toFixed(5)};${t.hut.lon.toFixed(5)}`] : []),
-      `DESCRIPTION:${icsEsc(`Not heard from ${who} yet? If they haven't told you they're out safe, call 911 and say they're overdue on ${K.w.overdue}.\n\n${K.planText(t, pl)}`)}`,
+      `DESCRIPTION:${icsEsc(`Not heard from ${who} yet? If they haven't told you they're back, call 911 and say they're overdue on ${K.w.overdue}.\n\n${K.planText(t, pl)}`)}`,
       "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEsc(`Not heard from ${who}? Call 911`)}`, "TRIGGER:PT0M", "END:VALARM"]);
   }
   function bookIcs(t) {
@@ -503,23 +505,99 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       return true;
     } catch (e) { if (e && e.name === "AbortError") return false; try { prompt("Copy this:", text); } catch {} return true; }
   }
+  // ---------- I'm back (alex 2026-11-19) ----------
+  // With a plan sent, at the return time ("out"), your own phone reminds you to tell your contact, unless you've tapped
+  // I'm back. In the phone apps it's a notification set on the phone itself (Capacitor LocalNotifications: it rings with
+  // no signal and nothing goes to a server); older app builds and the website show a bar at the top of the screen while
+  // the app is open. It only reminds you: nothing is ever sent to anyone by itself.
+  const CAP = window.Capacitor;
+  const LN = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.PluginHeaders || []).some((h) => h.name === "LocalNotifications")
+    ? (CAP.registerPlugin ? CAP.registerPlugin("LocalNotifications") : (CAP.Plugins || {}).LocalNotifications) : null;
+  const tr = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
+  const nid = (id) => { let h = 7; for (const c of `${K.id}:${id}`) h = (h * 31 + c.charCodeAt(0)) | 0; return (h & 0x3fffffff) || 1; };
+  const waiting = (t) => !!(t.plan && t.plan.sent && !t.plan.safe);
+  let askFor = "";   // the trip whose plan shows the "Reminder at your return time?" ask
+  const askHtml = (t) => (askFor === t.id ? `<div class="tp-iam"><h4>Reminder at your return time?</h4>
+      <p class="sk-note">Trail Finder can show a notification on this phone at your return time if you haven't tapped I'm back, so you remember to tell your contact. It never contacts anyone for you.</p>
+      <div class="tp-btns"><button type="button" class="go" data-tp="backon">Turn on</button><button type="button" data-tp="backno">Not now</button></div></div>` : "");
+  async function remindOff(id) { if (LN) try { await LN.cancel({ notifications: [{ id: nid(id) }] }); } catch {} }
+  async function remindSet(t, ask) {
+    if (!LN) return;
+    try {
+      await remindOff(t.id);
+      const pl = planOf(t), at = new Date(pl.out);
+      if (!waiting(t) || !(at.getTime() > Date.now())) return;
+      let p = await LN.checkPermissions();
+      // Not allowed yet: first a short why on the plan (askHtml), and the phone's own Allow box only after Turn on.
+      // Not now (or the phone's Don't Allow) means it never asks again (tf:backAsk, this phone only), like #822's ask.
+      if (/^prompt/.test(p.display) && ask === true && !store.get("backAsk", 0)) { askFor = t.id; if (cur && cur.id === t.id) renderPlan(); return; }
+      if (/^prompt/.test(p.display) && ask === "go") p = await LN.requestPermissions();
+      if (p.display !== "granted") { if (ask === "go") { store.set("backAsk", 1); toast("Notifications are off for Trail Finder: the reminder shows only when the app is open."); } return; }
+      await LN.schedule({ notifications: [{ id: nid(t.id), title: tr("Back from your trip?"), body: `${title(t)}: ${tr("your return time has passed. Tap I'm back in Trail Finder and tell your contact.")}`,
+        schedule: { at, allowWhileIdle: true }, extra: { tfTrip: t.id, sport: K.id } }] });
+    } catch {}
+  }
+  // The bar: one for every sport (each sport's trips add their own rows), at the top of whatever screen is open.
+  const snoozed = () => { try { return JSON.parse(sessionStorage.getItem("tf:backLater") || "{}"); } catch { return {}; } };
+  function backSync() {
+    let bar = document.getElementById("tpBackBar");
+    if (!bar) {
+      const st = document.createElement("style");
+      st.textContent = `#tpBackBar { position: fixed; z-index: 3000; left: 8px; right: 8px; top: calc(env(safe-area-inset-top, 0px) + 8px); max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
+#tpBackBar[hidden] { display: none; }
+#tpBackBar .tpb { background: var(--panel, #fff); color: var(--fg, #222); border: 2px solid #c92a2a; border-radius: 14px; padding: 10px 12px; box-shadow: 0 6px 20px rgba(0,0,0,.25); font-size: .88rem; line-height: 1.35; }
+#tpBackBar .tpb p { margin: 0 0 8px; }
+#tpBackBar .tpb b { display: flex; align-items: center; gap: 6px; font-size: .95rem; margin-bottom: 2px; }
+#tpBackBar .tpb div { display: flex; gap: 8px; }
+#tpBackBar .tpb button { font: inherit; font-size: .88rem; font-weight: 800; padding: 9px 12px; border-radius: 11px; border: 1px solid var(--line, #ccc); background: var(--bg, #fff); color: var(--fg, #222); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+#tpBackBar .tpb button.go { background: #c92a2a; border-color: #c92a2a; color: #fff; flex: 1; justify-content: center; }
+#tpBackBar svg { flex: none; }`;
+      document.head.append(st);
+      bar = document.createElement("div"); bar.id = "tpBackBar"; bar.setAttribute("role", "alert"); bar.hidden = true;
+      document.body.append(bar);
+    }
+    bar.querySelectorAll(`[data-k^="${K.id}:"]`).forEach((x) => x.remove());
+    const sn = snoozed(), icon = (e) => (window.tfLine ? window.tfLine(e, 18) : "");
+    for (const t of trips().filter((x) => late(x) && Date.now() - new Date(planOf(x).out).getTime() < 3 * 864e5)) {   // up to 3 days after
+      const key = `${K.id}:${t.id}`;
+      if ((sn[key] || 0) > Date.now()) continue;
+      const pl = planOf(t), row = document.createElement("div");
+      row.className = "tpb"; row.dataset.k = key;
+      row.innerHTML = `<p><b>${icon("⏰")}<span>Back from your trip?</span></b><span>${esc(title(t))}</span> · <span>Return time:</span> <span>${esc(when(pl.out))}</span><br><span>Tap I'm back and tell your contact.</span></p>
+        <div><button type="button" class="go" data-back="1">${icon("✅")}<span>I'm back</span></button><button type="button" data-later="1">Not yet</button></div>`;
+      row.querySelector("[data-back]").onclick = () => {
+        const x = tripById(t.id) || t;
+        x.plan = { ...(x.plan || {}), safe: Date.now() }; putTrip(x); remindOff(x.id); backSync();
+        if (cur && cur.id === x.id) renderPlan();
+        shareText("Back", `${pl.who || "We"}: back from ${title(x)}, ${when(Date.now())}. You can delete the late alert.`);
+      };
+      row.querySelector("[data-later]").onclick = () => {   // away for 30 minutes, then back until I'm back is tapped
+        const s = snoozed(); s[key] = Date.now() + 30 * 60000;
+        try { sessionStorage.setItem("tf:backLater", JSON.stringify(s)); } catch {}
+        backSync();
+      };
+      bar.append(row);
+    }
+    bar.hidden = !bar.children.length;
+  }
   function planHtml(t) {
     const pl = planOf(t), isLate = late(t);
-    const status = pl.safe ? `<p class="sk-note">✅ Out safe ${esc(when(pl.safe))}.</p>`
-      : isLate ? `<p class="tp-late">Past your out time (${esc(when(pl.out))}). Out safe? Tell ${esc(pl.friend || "your friend")} now${Date.now() > new Date(pl.help).getTime() ? ": their alert has gone off" : `, before the alert goes off at ${esc(when(pl.help))}`}.</p>`
-      : pl.sent ? `<p class="sk-note">Sent ${esc(when(pl.sent))}: their alert goes off at ${esc(when(pl.help))} unless you tell them you're out.</p>` : "";
+    const status = pl.safe ? `<p class="sk-note">✅ <span>You tapped I'm back:</span> <span>${esc(when(pl.safe))}</span></p>`
+      : isLate ? `<p class="tp-late"><span>Past your return time:</span> <span>${esc(when(pl.out))}</span><br><span>Back? Tap I'm back and tell your contact.</span>${Date.now() > new Date(pl.help).getTime() ? ` <span>Their calendar alert has gone off.</span>` : ""}</p>`
+      : pl.sent ? `<p class="sk-note"><span>Sent:</span> <span>${esc(when(pl.sent))}</span><br><span>Your reminder:</span> <span>${esc(when(pl.out))}</span><br><span>Their calendar alert:</span> <span>${esc(when(pl.help))}</span></p>` : "";
     return `<details class="tp-plan" ${t.planOpen || isLate ? "open" : ""}><summary>🛟 Tell someone your plan${isLate ? ` <small class="tp-late-tag">Overdue</small>` : pl.sent ? " <small>sent</small>" : ""}</summary>
       <p class="sk-note">Leave it with someone at home: if you don't check in, they call for help.</p>
       <div class="tp-plan-form">
         <label>Who's going<input type="text" data-pl="who" value="${esc(pl.who)}" placeholder="Your names" autocomplete="off"></label>
         <label>Friend at home<input type="text" data-pl="friend" value="${esc(pl.friend)}" placeholder="Their name" autocomplete="off"></label>
         <label class="wide">Car<input type="text" data-pl="car" value="${esc(pl.car)}" placeholder="Colour, make, plate" autocomplete="off"></label>
-        <label class="wide">Out by<input type="datetime-local" data-pl="out" value="${esc(pl.out)}"></label>
+        <label class="wide">Return time<input type="datetime-local" data-pl="out" value="${esc(pl.out)}"></label>
         <label class="wide">Call for help at (if no word from you)<input type="datetime-local" data-pl="help" value="${esc(pl.help)}"></label>
       </div>
-      ${status}
+      ${status}${askHtml(t)}
       <div class="tp-btns"><button type="button" class="go" data-tp="plansend">📤 Send the trip plan</button><button type="button" data-tp="planics">⏰ Late alert for their calendar</button>
-        ${window.tfLive ? `<button type="button" data-tp="live">📍 Live location</button>` : ""}${pl.sent && !pl.safe ? `<button type="button" data-tp="safe">✅ We're out safe</button>` : ""}</div>
+        ${window.tfLive ? `<button type="button" data-tp="live">📍 Live location</button>` : ""}${pl.sent && !pl.safe ? `<button type="button" data-tp="safe">✅ I'm back</button>` : ""}</div>
+      <p class="sk-note">${LN ? "If you haven't tapped I'm back by your return time, this phone reminds you to tell your contact." : "If you haven't tapped I'm back by your return time, Trail Finder reminds you to tell your contact when it's open."} It's only a reminder: Trail Finder never contacts anyone for you.</p>
       <p class="sk-note">The late alert is a calendar event: it rings on their phone at "Call for help at" with what to do. Live location only sends where you have signal.</p><p class="sk-note">Trail Finder doesn't call for help itself: your friend does.</p></details>`;
   }
 
@@ -1084,7 +1162,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       if (k === "out" && el.value && !(cur.plan.helpSet)) { const d = new Date(el.value); d.setHours(d.getHours() + 4); cur.plan.help = `${localDate(d)}T${d.toTimeString().slice(0, 5)}`; }
       if (k === "help") cur.plan.helpSet = 1;
       if (/^(who|car|friend)$/.test(k)) store.set("tripMe", { ...me(), [k]: el.value.trim() });   // the next trip starts with them
-      putTrip(cur); if (k === "out" || k === "help") renderPlan(); return;
+      putTrip(cur); if (k === "out" || k === "help") renderPlan(); if (k === "out") { remindSet(cur, false); backSync(); } return;
     }
     if (el.dataset.tp !== "date" || !el.value) return;
     cur.date = e.target.value; putTrip(cur); render(); loadDays(cur); if (K.datesChanged) K.datesChanged(cur);
@@ -1120,16 +1198,20 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       if (new Date(pl.help) <= new Date(pl.out)) { toast("Call for help at must be after your out time."); return; }
       const go = k === "plansend" ? shareText(`Trip plan: ${title(t)}`, K.planText(t, pl))
         : shareFile(alertIcs(t), `trip-alert-${slug(t)}.ics`, "text/calendar", `Add this to your calendar: it rings at ${when(pl.help)} if you haven't heard from ${pl.who || "me"}.`);
-      go.then((ok) => { if (!ok) return; t.plan = { ...(t.plan || {}), who: pl.who, car: pl.car, friend: pl.friend, out: pl.out, help: pl.help, sent: t.plan && t.plan.sent || Date.now(), safe: 0 }; putTrip(t); renderPlan(); renderPack(); });
+      go.then((ok) => { if (!ok) return; t.plan = { ...(t.plan || {}), who: pl.who, car: pl.car, friend: pl.friend, out: pl.out, help: pl.help, sent: t.plan && t.plan.sent || Date.now(), safe: 0 }; putTrip(t); renderPlan(); renderPack(); remindSet(t, true); backSync(); });
     } else if (k === "safe") {
+      // I'm back: the trip is marked back (the reminder is cancelled) and the message to your contact is ready to send.
       const pl = planOf(t);
-      shareText("Out safe", `${pl.who || "We"}: out safe from ${title(t)}, back at the car ${when(Date.now())}. You can delete the late alert.`)
-        .then((ok) => { if (!ok) return; t.plan = { ...(t.plan || {}), safe: Date.now() }; putTrip(t); renderPlan(); });
+      t.plan = { ...(t.plan || {}), safe: Date.now() }; putTrip(t); renderPlan(); remindOff(t.id); backSync();
+      shareText("Back", `${pl.who || "We"}: back from ${title(t)}, ${when(Date.now())}. You can delete the late alert.`);
+    } else if (k === "backon" || k === "backno") {
+      askFor = ""; renderPlan();
+      if (k === "backon") remindSet(t, "go"); else store.set("backAsk", 1);
     } else if (k === "live" && window.tfLive) window.tfLive.open();
     else if (k === "del") {
       if (!confirm(t.share ? `Take the ${title(t)} trip off your phone? The rest of the group keeps it.` : `Delete your trip to ${title(t)}?`)) return;
       if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone(K.key, t.id);   // so the account doesn't bring it back
-      store.set(K.key, trips().filter((x) => x.id !== t.id)); close();
+      store.set(K.key, trips().filter((x) => x.id !== t.id)); close(); remindOff(t.id); backSync();
     } else if (k === "off") {
       // The square to save opens on the map, around the trip, to move and resize before saving (alex 2026-11-11).
       if (!window.tfOffline || !window.tfOffline.pickBox) { toast("Offline maps aren't available in this browser."); return; }
@@ -1189,10 +1271,17 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshAhead(); });
   window.addEventListener("online", () => refreshAhead());
   window.addEventListener("tf:sport", () => { if (!K.isOn()) close(); else if (cur) drawMap(); });
-  { const o = trips().find(late); if (o) setTimeout(() => toast(`Past your out time from ${title(o)}: open ${K.w.btn} and tap We're out safe.`), 2500); }
+  // The I'm back reminders: the phone's own reminders brought in line with the trips (made on another device, back,
+  // deleted), and the bar on the screen once a return time has passed.
+  setTimeout(() => { for (const t of trips()) remindSet(t, false); backSync(); }, 2500);
+  setInterval(() => { if (document.visibilityState === "visible") backSync(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backSync(); });
   // Trips from the rider's other devices (account.js): the list shows them, and an open trip changed or deleted there follows.
   window.addEventListener("tf:settings-synced", (e) => {
-    if (!e.detail.includes(K.key) || card.hidden) return;
+    if (!e.detail.includes(K.key)) return;
+    for (const t of trips()) remindSet(t, false);
+    backSync();
+    if (card.hidden) return;
     if (!cur) { showList(true); return; }
     const t = trips().find((x) => x.id === cur.id);
     if (!t) close();

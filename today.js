@@ -341,7 +341,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
   function auto(tries = 20) {
     if (store.get("todayAuto", true) === false) return;
     if (/^#\w+=/.test(location.hash)) return;   // opened from a shared link (#pin=, #trail=, #route=, #trip=, #live=...): that comes first
-    if ((window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked) || document.querySelector(".welc, .nt-ask, .acct-nudge, #tpBackBar, dialog[open]")) {
+    if ((window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked) || document.querySelector(".welc, .nt-ask, .acct-nudge, #tpBackBar:not([hidden]), dialog[open]")) {
       if (tries > 0) setTimeout(() => auto(tries - 1), 1000);
       return;
     }
