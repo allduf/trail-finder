@@ -906,6 +906,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const addAt = (lat, lon, preset) => { stopPick(); setPins(true); edit(null, { lat, lon }, preset); };
   const guiding = () => (guideTo ? { lat: guideTo.lat, lon: guideTo.lon, name: guideTo.name } : null);
   window.tfPoints = { add: () => startPick(), addCatch: () => startPick({ kind: "catch" }), addKind: (kind) => startPick({ kind }), addAt, guiding, markTruck, backToTruck, openLog,
+    // The Today card (today.js): this sport's saved points, without their photos.
+    list: (sp) => all.filter((p) => sportOf(p) === sp && p.lat != null).map((p) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name || "", kind: p.kind || "" })),
     hasTruck: () => all.some((p) => sportOf(p) === (isFish() ? "fish" : "hunt") && p.kind === "truck"),
     // The catches in your private Fishing log (fishing-trip.js shows the ones from a trip's dates near its water).
     catches: () => all.filter((p) => sportOf(p) === "fish" && p.kind === "catch").map((p) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name, day: (p.catch && p.catch.date) || localDay(new Date(p.created)), c: p.catch || {} })) };

@@ -301,4 +301,17 @@
     [/^(7 am|1 pm) (?:about ([\d,]+) m|(down to the valley)|(none below 3,000 m))$/, function (m, h, n, v, x) { return (h === "7 am" ? "7 h" : "13 h") + " " + (n ? "environ " + n.replace(/,/g, " ") + " m" : v ? "jusqu'au fond de la vallée" : "aucun sous 3 000 m"); }],
     [/^Freeze line: the height where the soil reaches 0°C, the middle of 3 weather models \((.+)\)\. An estimate: shade, sun and snow change it on the ground\.$/, function (m, l) { return "Limite de gel : la hauteur où le sol atteint 0 °C, la valeur du milieu de 3 modèles météo (" + l.replace(/(\d),(\d)/g, "$1 $2").replace(/over /g, "plus de ") + "). Une estimation : l'ombre, le soleil et la neige la changent sur le terrain."; }],
     [/^(All|\d+ of \d+) trails?: ground likely frozen now \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : sol probablement gelé maintenant (estimation de la température du sol)"; }],
+    // The Today card in every sport (today.js), 2026-11-19
+    [/^In season today \(from (.+)\): (.+)$/, function (m, f, l) { return "En saison aujourd'hui (selon " + f + ") : " + tl(l); }],
+    [/^Nothing in season today \(from (.+)\)$/, "Rien en saison aujourd'hui (selon $1)"],
+    [/^New snow (\d+) cm in the last 24 h, (\d+) cm forecast in the next 24 h$/, "Neige fraîche : $1 cm dans les dernières 24 h, $2 cm prévus dans les prochaines 24 h"],
+    [/^Bite estimate (\d)\/5(?:: (.+))?$/, function (m, n, w) { return "Activité estimée " + n + "/5" + (w ? " : " + w.split(", ").map(tt).join(", ") : ""); }],
+    [/^Rain or snow at the start: (\d+) mm in the last 2 days, (\d+) mm in the next 24 h$/, "Pluie ou neige au départ : $1 mm dans les 2 derniers jours, $2 mm dans les prochaines 24 h"],
+    [/^(Wind )?from (N|NE|E|SE|S|SW|W|NW), up to (\d+) km\/h(?:, gusts (\d+))?(?:: your scent drifts (N|NE|E|SE|S|SW|W|NW))?$/, function (m, w, d, v, g, sc) { var o = function (x) { return x.replace(/W/g, "O"); }; return (w ? "Vent du " : "du ") + o(d) + ", jusqu'à " + v + " km/h" + (g ? ", rafales " + g : "") + (sc ? " : votre odeur dérive vers le " + o(sc) : ""); }],
+    [/^(\d+) mm of rain or snow$/, "$1 mm de pluie ou de neige"],
+    [/^rain or snow (\d+)%$/, "pluie ou neige $1 %"],
+    [/^(\d+) cm new snow$/, "$1 cm de neige fraîche"],
+    [/^(\d+) km · (\d+)% dirt · season (.+)$/, function (m, k, d, se) { return k + " km · " + d + " % de terre · saison " + dt(se.replace("-", " - ")); }],
+    [/^Bite estimate$/, "Activité estimée"],
+    [/^([1-5]) (Low|Moderate|Considerable|High|Extreme)$/, function (m, n, w) { return n + " " + { Low: "Faible", Moderate: "Modéré", Considerable: "Marqué", High: "Fort", Extreme: "Extrême" }[w]; }],
   ];
