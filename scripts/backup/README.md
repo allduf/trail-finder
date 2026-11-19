@@ -1,5 +1,7 @@
 # Nightly backup
 
+Until the four secrets below are added, the nightly job skips quietly (a note in the run, no failure).
+
 The Supabase free plan keeps no backups. Every night `.github/workflows/backup.yml` makes one encrypted file with
 the whole database (accounts, settings, saved trips, tours, rides, spots, cabin trips, posts, I agree records,
 usage) and every stored photo, and keeps it 30 days in a private Cloudflare R2 bucket.

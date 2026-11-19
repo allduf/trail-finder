@@ -51,7 +51,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Check the secrets are there
+      - name: Check the secrets are there (until alex adds them, the job skips quietly)
+        id: secrets
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
@@ -60,14 +61,21 @@ jobs:
         run: |
           missing=""
           for s in SUPABASE_DB_URL BACKUP_PASSWORD R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do [ -n "${!s}" ] || missing="$missing $s"; done
-          if [ -n "$missing" ]; then echo "::error::Add these repository secrets (steps in scripts/backup/README.md):$missing"; exit 1; fi
+          if [ -n "$missing" ]; then
+            echo "::notice::Backup not set up yet, skipped. Add these repository secrets (steps in scripts/backup/README.md):$missing"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install the Postgres 17 tools (they can copy Postgres 15 and 17 databases)
+        if: steps.secrets.outputs.ready == 'true'
         run: |
           sudo apt-get install -y -qq postgresql-common >/dev/null
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
           sudo apt-get install -y -qq postgresql-client-17 >/dev/null
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
       - name: Make the encrypted backup and check it opens
+        if: steps.secrets.outputs.ready == 'true'
         id: make
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -78,6 +86,7 @@ jobs:
           file="$(bash scripts/backup/backup.sh | tail -1)"
           echo "file=$file" >> "$GITHUB_OUTPUT"
       - name: Upload to the private R2 bucket, read it back, delete copies older than 30 days
+        if: steps.secrets.outputs.ready == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
