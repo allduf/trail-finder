@@ -361,7 +361,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       const b = e.target.closest("button"), x = b && getItem();
       if (!x) return;
       e.stopPropagation();
-      const into = (id) => { const t = tripById(id); if (!t) return; addLine(t, x); toast(`Added to your trip to ${title(t)}.`); draw(); };
+      const into = (id) => { const t = tripById(id); if (!t) return; addLine(t, x); toast(`Added to your trip to ${title(t)}.`); window.tfHappy && window.tfHappy("trip line"); draw(); };
       if (b.dataset.addrm) { const t = tripById(b.dataset.addrm), y = t && linesOf(t).find((z) => sameLine(z, x)); if (y) dropLine(t, y.id); draw(); }
       else if (b.dataset.addto) into(b.dataset.addto);
       else if (b.dataset.addgo) {

@@ -436,7 +436,7 @@
         box.querySelector("button").addEventListener("click", () => {
           const x = H.planItem(); if (!x) return;
           E.addLine(t, x); drawingFor = null;
-          toast(`Added to your trip to ${title(t)}.`);
+          toast(`Added to your trip to ${title(t)}.`); window.tfHappy && window.tfHappy("hike trip");
           if (!cur() || cur().id !== t.id) E.start(t); else E.scrollTo();
         });
         after.after(box);

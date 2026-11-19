@@ -643,6 +643,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       record();
       if (failed.length) throw new Error("missing");
       ok = true;
+      if (!auto && window.tfHappy) window.tfHappy("offline area");   // a save they started, not a retry on its own
       showState("ok", "✓ Saved: works with no signal", `${name} (${mb(bytes)}) is on this ${phone() ? "phone" : "device"}. Tap Show below to see it on the map.`, 100);
       if (auto && card.hidden && window.tfToast) window.tfToast(`✓ ${name} finished saving: it works with no signal now.`);
     } catch (e) {
