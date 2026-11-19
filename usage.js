@@ -9,6 +9,11 @@
 (() => {
   const C = window.Capacitor, acct = window.tfAccount;
   if (!acct || !acct.enabled) { window.tfUse = () => {}; window.tfUseQ = []; return; }
+  // Tests send nothing (as visitors.js): test browsers on the live site (Playwright: navigator.webdriver), and the
+  // Android app's own test on GitHub (android-app/test/phone-check.mjs), which opens the pull request's website from
+  // the runner at http://10.0.2.2:8080 and restarts the app on purpose. Its restarts read as crashes and its slow
+  // simulator as slow opens on the usage page (2026-11-19: 2 "crashes" and a 12 s "slow" that were only tests).
+  if (navigator.webdriver || location.hostname === "10.0.2.2") { window.tfUse = () => {}; window.tfUseQ = []; return; }
   // Where it runs: "ios", "android" or "web" (the website, phone or computer).
   const native = !!(C && C.isNativePlatform && C.isNativePlatform());
   const plat = native ? ((C.getPlatform && C.getPlatform()) || "ios") : "web";
