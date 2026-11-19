@@ -1,0 +1,111 @@
+# Hike trips with camping (hike-trip.js, 2026-11-16)
+Hike trip ||| Sortie rando
+Hike trips ||| Sorties rando
+hike trip ||| sortie rando
+My hike trip ||| Ma sortie rando
+Plan a hike trip here ||| Planifier une sortie rando ici
+Add to hike trip ||| Ajouter à la sortie rando
+Add to the trip ||| Ajouter à la sortie
+Or start from a place: tap a campsite, hut or trailhead (the brown and purple dots) on the map, then ||| Ou partez d'un lieu : touchez un camping, un refuge ou un départ de sentier (les points bruns et violets) sur la carte, puis
+or pick one near the middle of the map ||| ou choisissez-en un près du centre de la carte
+Finding campsites and huts… ||| Recherche des campings et refuges…
+No campsites or huts loaded near here yet: zoom the map in on where you're going (the brown dots), or ||| Aucun camping ni refuge chargé ici pour l'instant : zoomez la carte sur l'endroit où vous allez (les points bruns), ou
+Plan a hiking, camping or hut trip: where you sleep each night, your hikes, the forecast for each day, offline ||| Planifiez une sortie rando, camping ou en refuge : où vous dormez chaque nuit, vos randos, la prévision de chaque jour, hors ligne
+campsite ||| camping
+hut or shelter ||| refuge ou abri
+trailhead ||| départ de sentier
+First day ||| Premier jour
+first day ||| premier jour
+last day ||| dernier jour
+Backpacking ||| Longue randonnée
+Car camping ||| Camping en voiture
+Huts ||| Refuges
+How you sleep ||| Comment vous dormez
+Where you sleep ||| Où vous dormez
+where you sleep ||| où vous dormez
+Where we sleep ||| Où nous dormons
+Not picked ||| Pas choisi
+Pick where you sleep ||| Choisissez où vous dormez
+Same as the night before ||| Comme la nuit d'avant
+Sleep here ||| Dormir ici
+Or tap a campsite or hut on the map, then ||| Ou touchez un camping ou un refuge sur la carte, puis
+Campsites and huts come from OpenStreetMap and the clubs: check with whoever runs them before you go. ||| Les campings et refuges viennent d'OpenStreetMap et des clubs : vérifiez auprès de qui les gère avant de partir.
+Some cloud ||| Quelques nuages
+Snow showers ||| Averses de neige
+snow down to the valley ||| neige jusque dans la vallée
+Parks, passes and warnings ||| Parcs, laissez-passer et avertissements
+Park rules ||| Règles du parc
+Couldn't check which park the trip is in right now. ||| Impossible de vérifier dans quel parc se trouve la sortie pour l'instant.
+Couldn't check the warnings right now (no signal or the server is busy). ||| Impossible de vérifier les avertissements pour l'instant (pas de signal ou serveur occupé).
+No closures or wildfires reported near the trip in the parks' and wildfire services' lists. They post new ones often: check before you go. ||| Aucune fermeture ni feu de forêt signalé près de la sortie dans les listes des parcs et des services des feux de forêt. Ils en ajoutent souvent : vérifiez avant de partir.
+Water along your hikes ||| Eau le long de vos randos
+drinking water ||| eau potable
+Drinking water ||| Eau potable
+Your hikes for this trip ||| Vos randos pour cette sortie
+No hikes yet. Tap a hike on the map and then ||| Aucune rando pour l'instant. Touchez une rando sur la carte, puis
+Draw a hike ||| Tracer une rando
+Tap the map along your hike, then Done. Then tap 🏕 Add to the trip on the plan's card. ||| Touchez la carte le long de votre rando, puis Terminé. Touchez ensuite 🏕 Ajouter à la sortie sur la fiche du plan.
+must be booked ahead (as mapped) ||| réservation obligatoire (selon la carte)
+first come, first served (as mapped) ||| premier arrivé, premier servi (selon la carte)
+can be booked (as mapped) ||| réservable (selon la carte)
+no booking info on the map ||| pas d'info de réservation sur la carte
+needs booking ||| à réserver
+Book it ||| Réserver
+Campsites and huts in busy parks often need booking months ahead: check the park's or the club's own page. ||| Dans les parcs achalandés, les campings et refuges se réservent souvent des mois à l'avance : consultez la page du parc ou du club.
+Add the camp fees, park passes, gas, food and anything else the group shares. ||| Ajoutez les frais de camping, les laissez-passer de parc, l'essence, la nourriture et tout ce que le groupe partage.
+Camp or hut fees ||| Frais de camping ou de refuge
+Booking confirmation ||| Confirmation de réservation
+How the trails were, where you camped, what to bring next time. ||| L'état des sentiers, où vous avez campé, quoi apporter la prochaine fois.
+Campsite details ||| Détails du camping
+Hut details ||| Détails du refuge
+Place details ||| Détails du lieu
+no place yet ||| pas encore de lieu
+Too far ahead ||| Trop loin
+Essentials ||| Essentiels
+Sleeping ||| Dormir
+Cooking and water ||| Cuisine et eau
+Camp ||| Camp
+Map and compass or GPS (this trip saved offline) ||| Carte et boussole ou GPS (cette sortie enregistrée hors ligne)
+Headlamp and spare batteries ||| Lampe frontale et piles de rechange
+Satellite messenger or PLB (inReach, Zoleo): many trails have no cell signal ||| Messager satellite ou balise PLB (inReach, Zoleo) : bien des sentiers n'ont pas de réseau
+First aid kit ||| Trousse de premiers soins
+Knife or multi-tool, repair kit and tape ||| Couteau ou outil multifonction, trousse de réparation et ruban
+Fire starter and waterproof matches ||| Allume-feu et allumettes imperméables
+Emergency blanket or bivy ||| Couverture de survie ou bivy
+Sunglasses, sunscreen and a hat ||| Lunettes de soleil, crème solaire et chapeau
+Bear spray each, where you can reach it ||| Un vaporisateur anti-ours chacun, à portée de main
+Phone charged + power bank ||| Téléphone chargé + batterie externe
+Hiking boots or trail shoes, broken in ||| Bottes de rando ou souliers de trail, déjà faits
+Trekking poles ||| Bâtons de marche
+Backpack big enough for camp (50-70 L) with a rain cover ||| Sac assez grand pour camper (50-70 L) avec housse de pluie
+Day pack with a rain cover ||| Sac de jour avec housse de pluie
+Microspikes: snow or ice possible up high in the forecast ||| Microcrampons : neige ou glace possibles en altitude selon la prévision
+Sleeping bag ||| Sac de couchage
+Sleeping pad ||| Matelas de sol
+Pillow or a stuff sack of clothes ||| Oreiller ou sac de vêtements
+Hut slippers or camp shoes ||| Pantoufles de refuge ou souliers de camp
+Camp shoes ||| Souliers de camp
+Camp chairs and a table cloth ||| Chaises de camping et nappe
+Cooler and ice ||| Glacière et glace
+Water filter or tablets: treat water from lakes and streams ||| Filtre ou comprimés : traitez l'eau des lacs et ruisseaux
+Food storage away from bears: a canister, a bag to hang, or the camp's food locker ||| Nourriture à l'abri des ours : un contenant, un sac à suspendre ou le casier du camping
+One spare day of food ||| Une journée de nourriture de plus
+Rain jacket ||| Manteau de pluie
+Rain jacket and pants: rain in the forecast ||| Manteau et pantalon de pluie : pluie dans la prévision
+Warm layer and a toque ||| Couche chaude et tuque
+Trowel and toilet paper: not every camp has an outhouse ||| Truelle et papier de toilette : tous les campings n'ont pas de toilettes sèches
+Campfire rules: check the park or the wildfire service for fire bans ||| Feux de camp : vérifiez les interdictions auprès du parc ou du service des feux de forêt
+Garbage bag: pack everything out ||| Sac à ordures : rapportez tout
+Trip saved offline (button below) ||| Sortie enregistrée hors ligne (bouton plus bas)
+Trip plan left with a friend (below) ||| Plan laissé à un ami (plus bas)
+Hiking: new Hike trips. Plan a backpacking, car camping or hut trip: where you sleep each night, your hikes, the weather at camp each day, park warnings, water along the way and a camping packing list. Share it with your group like a cabin trip. ||| Randonnée : nouvelles sorties rando. Planifiez une longue randonnée, du camping en voiture ou une sortie en refuge : où vous dormez chaque nuit, vos randos, la météo au camp chaque jour, les avertissements des parcs, l'eau en chemin et une liste de bagages pour camper. Partagez-la avec votre groupe comme un séjour en refuge.
+Each day ||| Chaque jour
+Nights ||| Nuits
+People ||| Personnes
+Weather where you sleep, a weather model's estimate (Open-Meteo, the middle of three models). Up high it can be colder, wetter and windier than at camp. ||| Météo où vous dormez, une estimation d'un modèle météo (Open-Meteo, le milieu de trois modèles). En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.
+Up high it can be colder, wetter and windier than at camp. ||| En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.
+Weather where you sleep, a weather model's estimate (Open-Meteo, the middle of three models). ||| Météo où vous dormez, une estimation d'un modèle météo (Open-Meteo, le milieu de trois modèles).
+Add your hikes to also see the weather at their high point. Up high it can be colder, wetter and windier than at camp. ||| Ajoutez vos randos pour voir aussi la météo à leur point culminant. En altitude, il peut faire plus froid, plus humide et plus venteux qu'au camp.
+Hike trips: each day also shows the weather at the high point of your hikes. ||| Sorties rando : chaque jour montre aussi la météo au point culminant de vos randos.
+Any day ||| N'importe quel jour
+Hike trips: pick a day for each hike, and each day shows the weather at the high point of that day's hike. ||| Sorties rando : choisissez un jour pour chaque rando, et chaque jour montre la météo au point culminant de sa rando.

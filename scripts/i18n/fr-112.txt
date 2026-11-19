@@ -1,0 +1,22 @@
+# Moto: Plan a route easier to find + the ride typed in plain words (moto.js, moto-trip.js, ask.js), 2026-11-17
+Moto: Plan a route is now at the top of a moto trip, as a big button. In Plan a route you can type the ride you want, like "Squamish to Pemberton, mostly dirt" or "200 km dirt loop from Kamloops", and the app plans it for your bike. ||| Moto : Planifier un itinéraire est maintenant en haut d'un voyage moto, en gros bouton. Dans Planifier un itinéraire, vous pouvez écrire la balade que vous voulez, comme « Squamish à Pemberton, surtout de la terre » ou « boucle de terre de 200 km depuis Kamloops », et l'appli la planifie pour votre moto.
+Or type the ride you want ||| Ou écrivez la balade voulue
+Type the ride you want ||| Écrivez la balade voulue
+Type a place or a ride ||| Un lieu ou une balade
+Plan it ||| Planifier
+Another loop ||| Une autre boucle
+Your ride ||| Votre balade
+Through ||| Par
+A loop ||| Une boucle
+Plan this route on the map ||| Planifier cet itinéraire sur la carte
+Start here, then tap where you want to go ||| Partir d'ici, puis touchez où vous voulez aller
+Picking points on the way for your loop… ||| Choix de points en chemin pour votre boucle…
+Type the ride you want: where you start, places on the way, where you finish or a loop, how long, and dirt or paved. For example: ||| Écrivez la balade voulue : d'où vous partez, les lieux en chemin, où vous finissez ou une boucle, la longueur, et terre ou asphalte. Par exemple :
+No routes yet. Tap ||| Aucun itinéraire pour l'instant. Touchez
+: type the ride you want, like "Squamish to Pemberton, mostly dirt", or tap the map. Or open an ADV route or a saved route and tap ||| : écrivez la balade voulue, comme « Squamish to Pemberton, mostly dirt », ou touchez la carte. Ou ouvrez un itinéraire ADV ou un itinéraire enregistré et touchez
+. Add them in the order you ride them: the first is day 1. ||| . Ajoutez-les dans l'ordre où vous les roulez : le premier est le jour 1.
+Add your routes above for places near the end of each day. ||| Ajoutez vos itinéraires ci-dessus pour voir les endroits près de la fin de chaque jour.
+Type the ride you want above, like “Squamish to Pemberton, mostly dirt” or “200 km dirt loop from Kamloops”. Or tap the map where you start, or use From where I am. Points can be dragged; tap one to remove it. ||| Écrivez la balade voulue ci-dessus, comme « Squamish to Pemberton, mostly dirt » ou « 200 km dirt loop from Kamloops ». Ou touchez la carte où vous partez, ou utilisez D'où je suis. Les points peuvent être glissés; touchez-en un pour le retirer.
+Tap the map where you're going, or type the ride you want. Then tap + Add to the trip on the route's card. ||| Touchez la carte où vous allez, ou écrivez la balade voulue. Puis touchez + Ajouter au voyage sur la fiche de l'itinéraire.
+Out to ||| Jusqu'à
+Tap where you want to go, or type it or the ride you want. Points can be dragged; tap one to remove it. ||| Touchez où vous voulez aller, ou écrivez-le ou la balade voulue. Les points peuvent être glissés; touchez-en un pour le retirer.

@@ -9,6 +9,7 @@
 // A "⛰ Ski areas" switch in the Skiing part of the Layers menu turns the pins on and off (on by default).
 (() => {
   "use strict";
+  const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
   const map = window.tfLeaflet;
   if (!map || !window.L) return;
   const $ = (id) => document.getElementById(id);
@@ -197,8 +198,10 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
       }
       list.innerHTML = html || `<p class="sa-small">No area matches.</p>`;
       list.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => open(areas.find((a) => a.id === b.dataset.id))));
+      if (q.length >= 2) list.querySelectorAll("[data-id]").forEach((b) => b.addEventListener("click", () => logUse("pick", "Ski areas")));
     };
-    box.addEventListener("input", () => { query = box.value; fill(); });
+    // What's typed goes on the usage page's "What people search for" (sent once the typing stops, usage.js).
+    box.addEventListener("input", () => { query = box.value; fill(); const q = query.trim(); if (q.length >= 2) logUse("search", "Ski areas:" + q, list.querySelectorAll("[data-id]").length); });
     fill();
     if (!dlg.open) dlg.showModal();
     dlg.scrollTop = 0;

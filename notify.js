@@ -236,7 +236,9 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       const soon = window.tfLoamSoon ? await window.tfLoamSoon(pts).catch(() => pts.map(() => null)) : pts.map(() => null);
       // Snow on the ground (same readings): the soil under snow can read prime, but it isn't.
       const snow = window.tfSnowAt ? await window.tfSnowAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null);
-      const primeAt = (i) => isPrime(vals[i]) && !(snow[i] >= (window.tfSnowCm || 5));
+      // Frozen ground (soil surface at or below 0°C): frozen water reads as moisture, so it isn't prime either.
+      const frozen = window.tfFrozenAt ? await window.tfFrozenAt(pts).catch(() => pts.map(() => false)) : pts.map(() => false);
+      const primeAt = (i) => isPrime(vals[i]) && !(snow[i] >= (window.tfSnowCm || 5)) && !frozen[i];
       const now = [], areas = new Map(), seen = new Set();
       const mark = (key, prime) => { const was = alertState[key]; if (prime) { if (!was || !was.p) alertState[key] = { p: 1, r: 0 }; } else if (was) alertState[key] = { p: 0, r: 1 }; };
       ride.forEach((t, i) => {
@@ -718,7 +720,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const on = q("ntPushOn");
     on.checked = !!pushId() && pushOk && perm() === "granted";
     on.disabled = !pushOk;
-    if (!pushOk) return pushMsg(CAP && CAP.isNativePlatform && CAP.isNativePlatform() ? "Update Trail Finder in TestFlight to get notifications in the app."
+    if (!pushOk) return pushMsg(CAP && CAP.isNativePlatform && CAP.isNativePlatform() ? (CAP.getPlatform && CAP.getPlatform() === "android"
+      ? "Phone notifications aren't in the Android app yet. They're coming in a later version." : "Update Trail Finder in TestFlight to get notifications in the app.")
       : iPhone && !navigator.standalone
       ? "On iPhone, this works from the Home Screen: in Safari tap Share, then Add to Home Screen. Open Trail Finder from that icon and turn this on there."
       : iPhone ? "Phone notifications need iOS 16.4 or newer." : "This browser can't show notifications.");

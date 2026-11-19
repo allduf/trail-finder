@@ -294,6 +294,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     try { all = await dbAll(); } catch { all = []; }
     points = all.filter((p) => sportOf(p) === sportNow());
     draw();
+    window.dispatchEvent(new Event("tf:points"));   // the fishing trip's catch list (fishing-trip.js) follows
   }
 
   // ---------- choosing where ----------
@@ -905,7 +906,9 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const addAt = (lat, lon, preset) => { stopPick(); setPins(true); edit(null, { lat, lon }, preset); };
   const guiding = () => (guideTo ? { lat: guideTo.lat, lon: guideTo.lon, name: guideTo.name } : null);
   window.tfPoints = { add: () => startPick(), addCatch: () => startPick({ kind: "catch" }), addKind: (kind) => startPick({ kind }), addAt, guiding, markTruck, backToTruck, openLog,
-    hasTruck: () => all.some((p) => sportOf(p) === (isFish() ? "fish" : "hunt") && p.kind === "truck") };
+    hasTruck: () => all.some((p) => sportOf(p) === (isFish() ? "fish" : "hunt") && p.kind === "truck"),
+    // The catches in your private Fishing log (fishing-trip.js shows the ones from a trip's dates near its water).
+    catches: () => all.filter((p) => sportOf(p) === "fish" && p.kind === "catch").map((p) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name, day: (p.catch && p.catch.date) || localDay(new Date(p.created)), c: p.catch || {} })) };
 
   // ---------- sharing ----------
   // A point (saved point, or any "This spot" card) goes out as a trailfinderapp.ca link plus its coordinates as plain
@@ -997,17 +1000,20 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     setTimeout(go, 300);
   }
 
-  // A group's cabin trip link (#trip=id.key, cabin-trip.js shareTrip): Skiing opens with that trip, kept in sync.
+  // A group's trip link (trip-core.js shareTrip): #trip=id.key is a Skiing cabin trip, #trip=id.key.hike a hike trip,
+  // #trip=id.key.fish a fishing trip, #trip=id.key.hunt a hunting trip, #trip=id.key.moto a moto trip, .bike a bike trip.
+  // That sport opens with the trip, kept in sync.
   function openTripLink() {
-    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})$/);
+    const m = location.hash.match(/^#trip=([0-9a-f-]{36})\.([0-9a-zA-Z-]{8,64})(?:\.(hike|fish|hunt|moto|bike))?$/);
     if (!m) return;
     history.replaceState(null, "", location.pathname + location.search);
-    const sel = document.getElementById("sport");
-    if (sel && sel.value !== "ski") { sel.value = "ski"; sel.dispatchEvent(new Event("change")); }
+    const sport = m[3] || "ski", sel = document.getElementById("sport"), pick = sport === "bike" ? "mtb" : sport;   // a bike trip is MTB's
+    if (sel && sel.value !== pick) { sel.value = pick; sel.dispatchEvent(new Event("change")); }
     let tries = 0;
     const go = () => {
-      if (!(window.tfCabinTrip && window.tfCabinTrip.join)) { if (++tries < 60) setTimeout(go, 250); return; }   // up to 15 s while Skiing loads
-      window.tfCabinTrip.join(m[1], m[2]);
+      const T = window.tfTrips && window.tfTrips[sport];
+      if (!(T && T.join)) { if (++tries < 60) setTimeout(go, 250); return; }   // up to 15 s while the sport loads
+      T.join(m[1], m[2]);
     };
     setTimeout(go, 300);
   }
@@ -1145,4 +1151,5 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   new MutationObserver(() => { if (sportNow() !== lastSport) { lastSport = sportNow(); readFilt(); placeBox(); points = all.filter((p) => sportOf(p) === sportNow()); if (!isSki()) stopGuide(); onSport(); } })
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
   reload().then(() => { onSport(); openShared(); openTripLink(); });
+  window.addEventListener("hashchange", () => { if (/^#trip=/.test(location.hash)) openTripLink(); });   // a trip link opened in the tab that's already on the app
 })();

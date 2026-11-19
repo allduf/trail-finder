@@ -12,6 +12,10 @@ import UIKit
 //   solid); dots carry r (radius), c, w, f (fill), fo (fill opacity). A named trail or dot carries n (its name), and
 //   i (its number on the page) when it has its own tap handler there.
 //   dashes: the dash keys in use, joined by "|", each a dash pattern in line widths ("2.00,1.20"; "0,2.2" is dots).
+// threeD: true opens it in 3D instead (alex 2026-11-16, "Small native 3D trial"): satellite photos draped over the
+// mountains (Mapterhorn heights), tilted, with the same trails, to feel whether a 3D map drawn by the iPhone turns and
+// tilts smoother than the web one. Photos and trails only: none of the web 3D map's own layers (avalanche, slopes,
+// winter photos...).
 // Events back to the page: "moved" { lat, lon, zoom, bearing } after each move (the page loads the trails there and
 // sends them with update), and "closed" { lat, lon, zoom, bearing, details, open, tapLat, tapLon } when it's left:
 // details is true when "Details" was pressed on a trail's card, open is that trail's i (-1 when it has none) and
@@ -31,12 +35,12 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func open(_ call: CAPPluginCall) {
         let center = CLLocationCoordinate2D(latitude: call.getDouble("lat") ?? 50.1, longitude: call.getDouble("lon") ?? -122.95)
         let zoom = call.getDouble("zoom") ?? 12, bearing = call.getDouble("bearing") ?? 0
-        let base = call.getString("base") ?? "osm"
+        let base = call.getString("base") ?? "osm", threeD = call.getBool("threeD") ?? false
         let lines = call.getString("lines") ?? "", dots = call.getString("dots") ?? "", dashes = call.getString("dashes") ?? ""
         DispatchQueue.main.async {
             if let s = self.screen { s.setData(lines: lines, dots: dots, dashes: dashes); call.resolve(); return }
             guard let host = self.bridge?.viewController else { call.reject("No screen to show the map on"); return }
-            let s = TrailMapScreen(center: center, zoom: zoom, bearing: bearing, base: base)
+            let s = TrailMapScreen(center: center, zoom: zoom, bearing: bearing, base: base, threeD: threeD)
             s.onEvent = { [weak self] name, data in
                 self?.notifyListeners(name, data: data)
                 if name == "closed" { self?.screen = nil }
@@ -69,13 +73,23 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
 
     // The map styles, in the order the style button goes through them. Raster ones are the web map's own pictures;
     // "vector" is OpenFreeMap's outdoor map, drawn by the phone (sharp at every zoom).
-    private static let styles: [(key: String, name: String)] = [("osm", "Map"), ("topo", "Topo"), ("sat", "Satellite"), ("vector", "Sharp")]
+    private static let flatStyles: [(key: String, name: String)] = [("osm", "Map"), ("topo", "Topo"), ("sat", "Satellite"), ("vector", "Sharp")]
+    // In 3D the photo comes first; "vector" is left out (its own style has no room for the heights).
+    private static let styles3D: [(key: String, name: String)] = [("sat", "Satellite"), ("topo", "Topo"), ("osm", "Map")]
+    private var styles: [(key: String, name: String)] { threeD ? TrailMapScreen.styles3D : TrailMapScreen.flatStyles }
+    // Heights: Mapterhorn (free, open), Terrarium-coded 512 px tiles. It has every spot down to zoom 12 (~12 m a pixel
+    // here) and only some places deeper; a missing deeper tile would leave a hole, so the map stops asking at 12.
+    private static let demTiles = "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp"
+    private static let demCredit = "© Mapterhorn"
+    private static let tilt: CGFloat = 65        // the web 3D map eases to 70
     private static let ink = UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 1)
     private static let paper = UIColor(red: 0.95, green: 0.94, blue: 0.91, alpha: 1)
 
     private let start: CLLocationCoordinate2D
     private let startZoom: Double
     private let startBearing: Double
+    private let threeD: Bool
+    private var tilted = false
     private var base: String
     private var map: MLNMapView!
     private var lineShape: MLNShape?
@@ -92,10 +106,12 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private let cardName = UILabel()
     private let cardSwatch = UIView()
 
-    init(center: CLLocationCoordinate2D, zoom: Double, bearing: Double, base: String) {
+    init(center: CLLocationCoordinate2D, zoom: Double, bearing: Double, base: String, threeD: Bool = false) {
         start = center; startZoom = zoom; startBearing = bearing
+        self.threeD = threeD
         let b = base == "sathybrid" ? "sat" : base
-        self.base = TrailMapScreen.styles.contains { $0.key == b } ? b : "osm"
+        let list = threeD ? TrailMapScreen.styles3D : TrailMapScreen.flatStyles
+        self.base = threeD ? "sat" : (list.contains { $0.key == b } ? b : "osm")
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
@@ -106,7 +122,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         map = MLNMapView(frame: view.bounds, styleURL: styleURL(base))
         map.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         map.delegate = self
-        map.isPitchEnabled = false
+        map.isPitchEnabled = threeD
+        if threeD {
+            map.maximumPitch = 80
+            // New ground fills in over a few frames instead of all in one (which can stall a frame while turning).
+            map.terrainLoadMode = .balanced
+            map.isCenterClampedToGround = true
+        }
         map.logoView.isHidden = true
         map.setCenter(start, zoomLevel: startZoom, direction: startBearing, animated: false)
         map.showsUserLocation = true
@@ -118,7 +140,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
 
         let back = pill("← Back", #selector(backTapped))
         let tag = UILabel()
-        tag.text = "  Native map (test)  "
+        tag.text = threeD ? "  Native 3D (test)  " : "  Native map (test)  "
         tag.font = .systemFont(ofSize: 12, weight: .semibold)
         tag.textColor = .white
         tag.backgroundColor = UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 0.75)
@@ -208,7 +230,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         return b
     }
     private func styleTitle() -> String {
-        "▦ " + (TrailMapScreen.styles.first { $0.key == base }?.name ?? "Map")
+        "▦ " + (styles.first { $0.key == base }?.name ?? "Map")
     }
 
     @objc private func backTapped() { leave(details: false) }
@@ -218,7 +240,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         map.userTrackingMode = map.userTrackingMode == .none ? .follow : .none
     }
     @objc private func styleTapped() {
-        let all = TrailMapScreen.styles
+        let all = styles
         let at = all.firstIndex { $0.key == base } ?? 0
         base = all[(at + 1) % all.count].key
         styleBtn.configuration?.title = styleTitle()
@@ -254,14 +276,19 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             default: return (["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], 19, osm)
             }
         }()
+        var sources: [String: Any] = ["base": ["type": "raster", "tiles": tiles, "tileSize": 256, "maxzoom": maxzoom, "attribution": credit]]
+        if threeD {
+            sources["dem"] = ["type": "raster-dem", "encoding": "terrarium", "tiles": [TrailMapScreen.demTiles], "tileSize": 512,
+                              "maxzoom": 12, "attribution": TrailMapScreen.demCredit]
+        }
         let style: [String: Any] = [
             "version": 8,
-            "sources": ["base": ["type": "raster", "tiles": tiles, "tileSize": 256, "maxzoom": maxzoom, "attribution": credit]],
+            "sources": sources,
             "layers": [["id": "background", "type": "background", "paint": ["background-color": "#f2efe7"]],
                        ["id": "base", "type": "raster", "source": "base"]]
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: style) else { return nil }
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("trail-map-\(key).json")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("trail-map-\(key)\(threeD ? "-3d" : "").json")
         do { try data.write(to: file, options: .atomic) } catch { return nil }
         return file
     }
@@ -273,6 +300,11 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let dots = MLNShapeSource(identifier: "tf-dots", shape: dotShape, options: nil)
         style.addSource(lines)
         style.addSource(dots)
+        if threeD {
+            // The ground is draped over the heights (a little taller than life, like the web 3D map).
+            style.terrainSourceIdentifier = "dem"
+            style.terrainExaggeration = 1.15
+        }
         style.addLayer(lineLayer(id: "tf-line", source: lines, dash: ""))
         let dot = MLNCircleStyleLayer(identifier: "tf-dots", source: dots)
         dot.circleRadius = NSExpression(forKeyPath: "r")
@@ -282,6 +314,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         dot.circleStrokeWidth = NSExpression(forKeyPath: "w")
         style.addLayer(dot)
         addDashLayers()
+        // 3D opens flat where the flat map was, then tilts in (as the web 3D map does).
+        if threeD && !tilted {
+            tilted = true
+            let cam = mapView.camera
+            cam.pitch = TrailMapScreen.tilt
+            mapView.setCamera(cam, withDuration: 1.2, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
+        }
     }
 
     private func lineLayer(id: String, source: MLNSource, dash: String) -> MLNLineStyleLayer {

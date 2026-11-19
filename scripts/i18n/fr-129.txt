@@ -1,0 +1,2 @@
+# Webcams on once for signed-in devices too (winter.js), 2026-11-18
+Skiing: Webcams now start on for signed-in people too, so the live cameras show on the map. Turn them off in Layers, Snow and weather. ||| Ski : les webcams sont maintenant activées au départ aussi pour les personnes connectées, donc les caméras en direct s'affichent sur la carte. Désactivez-les dans Couches, Neige et météo.

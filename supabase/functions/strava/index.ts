@@ -3,8 +3,8 @@
 // kept in the strava_links table (supabase/strava.sql, run once), which only this function can read. Any device signed
 // in to the account can then ask for the rider's newest rides and each ride's GPS track.
 // Setup (once):
-// 1. strava.com/settings/api → create an app: Website https://allduf.github.io/trail-finder/, Authorization Callback
-//    Domain allduf.github.io. It gives a Client ID and a Client Secret.
+// 1. strava.com/settings/api → create an app: Website https://trailfinderapp.ca/, Authorization Callback
+//    Domain trailfinderapp.ca. It gives a Client ID and a Client Secret.
 // 2. Supabase dashboard → Edge Functions → deploy this file named "strava" (FN in strava.js must match), Verify JWT off
 //    (the page Strava sends the rider back to may be in a browser that isn't signed in: the one-time state says who).
 // 3. Edge Functions → Secrets → add STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET.
@@ -15,7 +15,7 @@
 // list { after, before } (bike rides with GPS, newest first), streams { id } (the GPS track), disconnect.
 
 const ORIGINS = [/^https:\/\/allduf\.github\.io$/, /^https:\/\/(www\.)?trailfinderapp\.ca$/, /^http:\/\/localhost(:\d+)?$/];
-const BACK = /^(https:\/\/allduf\.github\.io\/trail-finder\/|http:\/\/localhost(:\d+)?\/)[\w./-]*$/;
+const BACK = /^(https:\/\/(www\.)?trailfinderapp\.ca\/|https:\/\/allduf\.github\.io\/trail-finder\/|http:\/\/localhost(:\d+)?\/)[\w./-]*$/;
 const BIKES = new Set(["MountainBikeRide", "EMountainBikeRide", "Ride", "EBikeRide", "GravelRide"]);
 const STATE_MS = 30 * 60e3;
 

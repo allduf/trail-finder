@@ -17,5 +17,14 @@ Each file is copied byte for byte from the official npm release named here (chec
 | maplibre-gl-leaflet-0.1.3.js | @maplibre/maplibre-gl-leaflet@0.1.3 | leaflet-maplibre-gl.js | `1c33367962e7755c1a16d1f85658fdc96b5baa36f81adfca9493174cd1b526ce` |
 | supabase-js-2.99.3.js | @supabase/supabase-js@2.99.3 | dist/umd/supabase.js | `588fb53d9380e3cb8688065c48144fa839205c328b416cc68c11331ba01955ee` |
 | exifr-lite-7.1.3.js | exifr@7.1.3 | dist/lite.umd.js | `530dbaef11cd9d4d65f108abc159b113580eb3dbd7bc69cd1364e25dd40413f9` |
+| maplibre-contour-0.1.1.js | maplibre-contour@0.1.1 (BSD-3-Clause) | dist/index.min.js | `055e45d0a76aaeaaf5a96765b8ce524abba3272456be75e715081e235ebd1262` |
 
 Still loaded from cdn.jsdelivr.net at a fixed version: tesseract.js 5.1.1 (Photo find text reading: its worker, the 3-4 MB reading engine and the English data) and geotiff 2.1.3's JPEG reader (height tiles). Both are too large or split into many module files to copy here for now.
+
+## iPhone app (ios-app/), not served by the site
+
+The iPhone app's TrailMap plugin (ios-app/plugins/TrailMap) gets MapLibre Native as a ready-built framework that Xcode downloads and checks against this sha256 (Swift Package Manager refuses it if one byte differs). Since 2026-11-16 it is a community build with 3D mountains, because the official MapLibre Native has none yet (maplibre-native issue #252). It is **not an official MapLibre release**. Only the alex-only "Native map (test)" and "Native 3D (test)" screens use it.
+
+| File | From | sha256 |
+|---|---|---|
+| MapLibre.dynamic.xcframework.zip | github.com/kaiuhl/maplibre-native release `glassing-terrain-20261109-337f1b4ba8a3` (feature/terrain-3d branch, 2026-11-09) | `49fcee33e83d69d87b525f28ab7025727f70affbf17a6afa67cf6d2ff0395bf9` |

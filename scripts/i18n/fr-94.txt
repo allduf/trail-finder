@@ -1,0 +1,8 @@
+# Weather checked across three models (wxcheck.js), alex 2026-11-14
+Still an estimate ||| Ça reste une estimation
+Environment Canada (GEM) ||| Environnement Canada (GEM)
+ECMWF (Europe) ||| ECMWF (Europe)
+NOAA (GFS) ||| NOAA (GFS, États-Unis)
+The models disagree on these, so treat them as less certain ||| Les modèles ne s'entendent pas sur ces valeurs, à considérer comme moins sûres
+Weather from Open-Meteo's automatic model choice, not checked against other models this time. An estimate. ||| Météo selon le modèle choisi automatiquement par Open-Meteo, pas vérifiée avec d'autres modèles cette fois. Une estimation.
+Weather in Skiing, Hiking, Hunting and Fishing is now checked across three weather models (Environment Canada, ECMWF and NOAA): the cards show the middle value and list the days where the models disagree. Forecasts stay estimates. ||| La météo en ski, randonnée, chasse et pêche est maintenant comparée entre trois modèles météo (Environnement Canada, ECMWF et NOAA) : les cartes affichent la valeur du milieu et indiquent les jours où les modèles ne s'entendent pas. Les prévisions restent des estimations.
