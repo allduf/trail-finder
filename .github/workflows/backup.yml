@@ -1,0 +1,110 @@
+name: Nightly backup
+
+# Every night: an encrypted copy of the database (accounts, settings, saved trips, tours, rides, spots, posts, I agree
+# records, usage) and every stored photo, kept 30 days in a PRIVATE Cloudflare R2 bucket. The Supabase free plan has
+# no backups of its own. Steps to set it up and to put things back: scripts/backup/README.md.
+# The repository and these logs are PUBLIC: the scripts print "done" lines only, never names, ids or counts, and the
+# backup file is encrypted (AES-256, BACKUP_PASSWORD) before it leaves the runner. Nothing is kept as an artifact.
+# Secrets: SUPABASE_DB_URL, BACKUP_PASSWORD, SUPABASE_SECRET_KEY (already there), R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY.
+# On a pull request that changes the backup: only the local test (made-up data in a throwaway database), no secrets.
+on:
+  schedule:
+    - cron: "23 11 * * *"   # 11:23 UTC, 3:23 am in BC (winter time)
+  workflow_dispatch:
+  pull_request:
+    paths: ["scripts/backup/**", ".github/workflows/backup.yml", ".github/workflows/restore.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+env:
+  R2_BUCKET: trailfinder-backups
+  R2_ENDPOINT: https://9ad76bdf11abb4440ad064451cf06d9a.r2.cloudflarestorage.com   # same Cloudflare account as pages.yml
+  KEEP_DAYS: "30"   # the privacy page says 30 days: change both together
+  AWS_DEFAULT_REGION: auto
+  AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+  AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+
+jobs:
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the runner's own Postgres (throwaway, made-up data)
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres psql -X -q -c "alter user postgres password 'pw'"
+      - name: Back up, then restore three ways, and compare every row and photo
+        env:
+          PGBASE: postgresql://postgres:pw@localhost
+        run: bash scripts/backup/test/run.sh
+
+  backup:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the secrets are there (until alex adds them, the job skips quietly)
+        id: secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          missing=""
+          for s in SUPABASE_DB_URL BACKUP_PASSWORD R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do [ -n "${!s}" ] || missing="$missing $s"; done
+          if [ -n "$missing" ]; then
+            echo "::notice::Backup not set up yet, skipped. Add these repository secrets (steps in scripts/backup/README.md):$missing"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install the Postgres 17 tools (they can copy Postgres 15 and 17 databases)
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Make the encrypted backup and check it opens
+        if: steps.secrets.outputs.ready == 'true'
+        id: make
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          OUT: ${{ runner.temp }}/backup
+        run: |
+          file="$(bash scripts/backup/backup.sh | tail -1)"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+      - name: Upload to the private R2 bucket, read it back, delete copies older than 30 days
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          FILE: ${{ steps.make.outputs.file }}
+        run: |
+          set -euo pipefail
+          s3() { aws s3 "$@" --endpoint-url "$R2_ENDPOINT" --only-show-errors; }
+          name="$(basename "$FILE")"
+          s3 cp "$FILE" "s3://$R2_BUCKET/nightly/$name"
+          s3 cp "s3://$R2_BUCKET/nightly/$name" "$RUNNER_TEMP/readback.gpg"
+          cmp -s "$FILE" "$RUNNER_TEMP/readback.gpg" || { echo "::error::The copy in R2 does not match."; exit 1; }
+          echo "Saved and read back from R2."
+          cutoff="$(date -u -d "-$KEEP_DAYS days" +%F)"
+          all="$(aws s3 ls "s3://$R2_BUCKET/nightly/" --endpoint-url "$R2_ENDPOINT" | awk '{print $4}' | grep -E '^tf-backup-[0-9-]{10}\.tgz\.gpg$' || true)"
+          kept="$(echo "$all" | grep -c . || true)"
+          for n in $all; do
+            d="${n#tf-backup-}"; d="${d%.tgz.gpg}"
+            if [[ "$d" < "$cutoff" ]]; then s3 rm "s3://$R2_BUCKET/nightly/$n"; kept=$((kept-1)); fi
+          done
+          echo "Copies older than $KEEP_DAYS days deleted; $kept nightly copies kept."
+          rm -f "$FILE" "$RUNNER_TEMP/readback.gpg"

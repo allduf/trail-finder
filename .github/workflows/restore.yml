@@ -1,0 +1,92 @@
+name: Restore from backup
+
+# Puts things back from a nightly backup (backup.yml). Run it by hand: Actions, "Restore from backup", Run workflow.
+# Rows that are already in the database are never changed or deleted: only missing rows and photos are added.
+# Modes (scripts/backup/README.md explains when to use each):
+#   check        opens the backup and checks every file in it; changes nothing
+#   person       puts back one person's missing things (give their user id from Supabase, Authentication, Users)
+#   missing      puts back every missing row and photo of people who still have an account (deleted accounts stay deleted)
+#   new-project  loads everything into a NEW, EMPTY Supabase project (needs the NEW_SUPABASE_* secrets)
+# The logs are PUBLIC: the script prints counts only, never names or contents.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: What to do
+        type: choice
+        options: [check, person, missing, new-project]
+        default: check
+      day:
+        description: Backup date (YYYY-MM-DD), or "latest"
+        default: latest
+      user_id:
+        description: For "person" only, the person's user id
+        default: ""
+      table:
+        description: For "missing" only, one table (for example shared_trips), or empty for all
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+env:
+  R2_BUCKET: trailfinder-backups
+  R2_ENDPOINT: https://9ad76bdf11abb4440ad064451cf06d9a.r2.cloudflarestorage.com
+  AWS_DEFAULT_REGION: auto
+  AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+  AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the Postgres 17 tools
+        run: |
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Fetch the backup from R2
+        id: get
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          DAY: ${{ inputs.day }}
+        run: |
+          set -euo pipefail
+          if [ "$DAY" = latest ] || [ -z "$DAY" ]; then
+            name="$(aws s3 ls "s3://$R2_BUCKET/nightly/" --endpoint-url "$R2_ENDPOINT" | awk '{print $4}' | grep -E '^tf-backup-' | sort | tail -1)"
+          else
+            [[ "$DAY" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "::error::Day must look like 2026-11-19 or say latest."; exit 1; }
+            name="tf-backup-$DAY.tgz.gpg"
+          fi
+          [ -n "$name" ] || { echo "::error::No backup found in R2."; exit 1; }
+          aws s3 cp "s3://$R2_BUCKET/nightly/$name" "$RUNNER_TEMP/$name" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          echo "file=$RUNNER_TEMP/$name" >> "$GITHUB_OUTPUT"
+          echo "Using $name"
+      - name: Restore
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          MODE: ${{ inputs.mode }}
+          USER_ID: ${{ inputs.user_id }}
+          TABLE: ${{ inputs.table }}
+          FILE: ${{ steps.get.outputs.file }}
+          # new-project writes to the new project; every other mode writes to the live one.
+          SUPABASE_DB_URL: ${{ inputs.mode == 'new-project' && secrets.NEW_SUPABASE_DB_URL || secrets.SUPABASE_DB_URL }}
+          SUPABASE_URL: ${{ inputs.mode == 'new-project' && secrets.NEW_SUPABASE_URL || 'https://fohdmserpbkurcvcrbbb.supabase.co' }}
+          SUPABASE_SECRET_KEY: ${{ inputs.mode == 'new-project' && secrets.NEW_SUPABASE_SECRET_KEY || secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$USER_ID" ] && echo "::add-mask::$USER_ID"
+          case "$MODE" in
+            person) bash scripts/backup/restore.sh person "$FILE" "$USER_ID" ;;
+            missing) bash scripts/backup/restore.sh missing "$FILE" ${TABLE:+"public.${TABLE#public.}"} ;;
+            *) bash scripts/backup/restore.sh "$MODE" "$FILE" ;;
+          esac
+          rm -f "$FILE"
