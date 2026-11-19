@@ -839,7 +839,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   document.head.appendChild(askCss);
   function showAsk(sp) {
     if (pushIsOn() || document.querySelector(".nt-ask")) return;
-    if (document.querySelector(".acct-nudge")) { const st = askState(); st.shown = Math.max(0, (st.shown || 1) - 1); st.at = 0; askPut(st); return; }   // the Sign in card came up for this save: one card per save, so ask at the next one
+    if (document.querySelector(".acct-nudge, dialog[open]")) { const st = askState(); st.shown = Math.max(0, (st.shown || 1) - 1); st.at = 0; askPut(st); return; }   // the Sign in card (or a dialog: Today card, a sheet) is up: one card at a time, so ask at the next save
     const el = document.createElement("div");
     el.className = "nt-ask"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Phone notifications");
     el.innerHTML = `<strong></strong><p class="nt-ask-why"></p><p class="nt-ask-small"></p><div class="nt-ask-row"><button type="button" data-a="no">Not now</button><button type="button" class="go" data-a="on">Turn on</button></div>`;
