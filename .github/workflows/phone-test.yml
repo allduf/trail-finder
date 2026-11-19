@@ -22,7 +22,9 @@ jobs:
     # Pinned (2026-11-11): ubuntu-latest moved to 26.04, where playwright 1.48.2's --with-deps asks for 24.04 packages
     # (libicu74, libvpx9, libx264-164) that aren't there, and the browser install failed before any test ran.
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # 45 (was 25), 2026-11-19: with archive.ubuntu.com slow, the browser's system files alone took over 20 min and runs
+    # were cancelled near the end of the download. A normal run takes about 7 min.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Add the data jobs' files
