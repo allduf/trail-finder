@@ -98,6 +98,18 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
 .addf { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .addf input { flex: 1; min-width: 180px; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
 .flag { padding: 10px 0; border-bottom: 1px solid var(--line); }
+/* Join the test sign-ups and Send feedback (supabase/testers.sql, 2026-11-19) */
+.jrow, .fbrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.jrow:last-child, .fbrow:last-child { border-bottom: 0; }
+.jrow .em { font-weight: 600; overflow-wrap: anywhere; }
+.jrow .acts, .fbrow .acts { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+.jrow .btn, .fbrow .btn { padding: 4px 10px; font-size: .85rem; }
+.fbrow .body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0; }
+.fbrow img { display: block; max-width: 160px; max-height: 220px; border-radius: 8px; border: 1px solid var(--line); margin: 6px 0; cursor: zoom-in; }
+.fbrow img.big { max-width: 100%; max-height: none; cursor: zoom-out; }
+.fbrow.done { opacity: .6; }
+.jtop { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.jtop .days { margin: 0; }
 .flag:last-child { border-bottom: 0; }
 .flag .acts { margin-top: 6px; display: flex; gap: 8px; }
 @media (max-width: 560px) { main { padding: 12px; } .tabs { margin: 10px -12px 0; padding: 8px 12px; } .stats { grid-template-columns: repeat(2, 1fr); } .flabel { display: none; } .filters { gap: 8px; } .days button { padding: 6px 10px; } }
@@ -230,6 +242,16 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   </div>
 
   <section data-panel="manage" id="manage" hidden>
+    <div id="joinBox" hidden>
+      <h2>Join the test sign-ups</h2>
+      <p class="muted">People who asked on <a href="join.html">the Join the test page</a>. Nobody gets the app from that page: add them yourself (TestFlight → Friends, or Play Console → closed test → testers), then tap Added. Google needs 12 Android testers opted in for 14 days in a row, so aim for 20 to 25.</p>
+      <div class="card" id="joins"></div>
+    </div>
+    <div id="fbBox" hidden>
+      <h2>Feedback</h2>
+      <p class="muted">Sent from More → Send feedback in the app, in every sport.</p>
+      <div class="card" id="fbs"></div>
+    </div>
     <div id="flagsBox" hidden>
       <h2>Reported posts</h2>
       <p class="muted">Trail reports, photos and grades riders flagged (⚑). 3 reports hide a post until you keep or remove it.</p>
@@ -374,15 +396,17 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   document.addEventListener("click", (e) => { const g = e.target.closest("[data-go]"); if (g) showTab(g.dataset.go, true); });
   const badge = (k, n) => { const b = $(`badge-${k}`); b.hidden = !n; b.textContent = n > 99 ? "99+" : String(n || ""); };
   // ---- "Needs you": the few things worth acting on, each one tap from its tab. Filled by paint() and loadFlags().
-  const need = { flags: 0, data: [] };
+  const need = { flags: 0, joins: 0, fbs: 0, data: [] };
   const paintTodo = () => {
     const items = [];
     if (need.flags) items.push(["manage", `${need.flags} reported post${need.flags === 1 ? "" : "s"} to keep or remove`, ""]);
+    if (need.joins) items.push(["manage", `${need.joins} new tester sign-up${need.joins === 1 ? "" : "s"} to add`, "soft"]);
+    if (need.fbs) items.push(["manage", `${need.fbs} new feedback note${need.fbs === 1 ? "" : "s"} to read`, "soft"]);
     items.push(...need.data);
     $("todo").innerHTML = items.length
       ? items.map(([go, text, soft]) => `<button type="button" data-go="${go}"><span class="dot${soft ? " soft" : ""}"></span>${esc(text)}</button>`).join("")
       : `<p class="ok">Nothing needs you right now. 👍</p>`;
-    badge("manage", need.flags);
+    badge("manage", need.flags + need.joins + need.fbs);
   };
 
   document.querySelectorAll("[data-who]").forEach((b) => b.addEventListener("click", () => {
@@ -467,6 +491,8 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     };
     loadFlags();
     loadFriends();
+    loadJoins();
+    loadFeedback();
     const [rep, dev, ros, kin, lim] = await Promise.all([
       report(), acct.client.rpc("tf_use_devices_all"), acct.client.rpc("tf_use_roster_get"),
       acct.client.rpc("tf_visits_by_kind", { days }), acct.client.rpc("tf_use_limits"),
@@ -555,6 +581,79 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       if (confirm(`${f.email} will stop seeing unofficial trails.`)) set(f.email, false, b);
     }));
     $("friendAdd").addEventListener("submit", (e) => { e.preventDefault(); set($("friendEmail").value.trim(), true, e.submitter || e.target.querySelector("button")); });
+  }
+  // Join the test sign-ups (join.html → supabase/testers.sql). alex adds each person by hand: no public test link.
+  const JSPORT = { mtb: "MTB", ski: "Skiing", hike: "Hiking", fish: "Fishing", hunt: "Hunting", moto: "Moto" };
+  const PHONE = { iphone: "iPhone", android: "Android", both: "iPhone + Android" };
+  let joinShow = "new";
+  try { joinShow = localStorage.getItem("tf:usageJoinShow") || "new"; } catch {}
+  const notSetUp = (box, error) => {
+    box.innerHTML = /Could not find|does not exist/.test(error.message)
+      ? `<p class="muted" style="padding:10px">Not set up yet: paste <b>supabase/testers.sql</b> into the Supabase SQL Editor and run it.</p>`
+      : `<p class="muted" style="padding:10px">Couldn't load: ${esc(error.message)}</p>`;
+  };
+  const copyText = async (txt, b) => {
+    try { await navigator.clipboard.writeText(txt); b.textContent = "Copied"; } catch { prompt("Copy:", txt); }
+  };
+  async function loadJoins() {
+    const acct = window.tfAccount, box = $("joins");
+    if (!acct || !acct.client || !acct.user) return;
+    const { data, error } = await acct.client.rpc("tf_join_list");
+    $("joinBox").hidden = false;
+    need.joins = error ? 0 : data.filter((j) => j.status === "new").length; paintTodo();
+    if (error) { notSetUp(box, error); return; }
+    const isA = (j) => j.phone !== "iphone", isI = (j) => j.phone !== "android";
+    const added = data.filter((j) => j.status === "added");
+    const list = data.filter((j) => joinShow === "all" || j.status === joinShow);
+    const fresh = data.filter((j) => j.status === "new");
+    box.innerHTML = `<div class="jtop"><div class="days" role="group" aria-label="Show">${[["new", "New"], ["added", "Added"], ["no", "Not now"], ["all", "All"]].map(([k, n]) => `<button type="button" data-jshow="${k}" aria-pressed="${joinShow === k}">${n}</button>`).join("")}</div>
+      ${fresh.some(isA) ? `<button class="btn" type="button" id="copyAnd">Copy new Android emails</button>` : ""}${fresh.some(isI) ? `<button class="btn" type="button" id="copyIos">Copy new iPhone emails</button>` : ""}</div>
+      <p class="muted" style="margin:10px 0 0">${data.length} asked · ${fresh.length} new · added so far: ${added.filter(isA).length} Android, ${added.filter(isI).length} iPhone</p>
+      ${list.length ? list.map((j, i) => `<div class="jrow"><span class="em">${esc(j.email)}</span> <span class="tag">${esc(PHONE[j.phone] || j.phone)}</span>${j.status === "added" ? ` <span class="tag good">Added</span>` : j.status === "no" ? ` <span class="tag">Not now</span>` : ""}
+        <div class="muted">${esc((j.sports || []).map((s) => JSPORT[s] || s).join(", ") || "no sport picked")}${j.area ? ` · ${esc(j.area)}` : ""} · ${j.lang === "fr" ? "French · " : ""}${esc(new Date(j.created_at).toLocaleDateString())}</div>
+        <div class="acts">${j.status !== "added" ? `<button class="btn go" type="button" data-join="${i}" data-st="added">Added</button>` : `<button class="btn" type="button" data-join="${i}" data-st="new">Not added yet</button>`}${j.status === "new" ? `<button class="btn" type="button" data-join="${i}" data-st="no">Not now</button>` : ""}<button class="btn" type="button" data-join="${i}" data-st="delete">Delete</button></div></div>`).join("")
+      : `<p class="muted">Nobody here yet.</p>`}`;
+    box.querySelectorAll("[data-jshow]").forEach((b) => b.addEventListener("click", () => { joinShow = b.dataset.jshow; try { localStorage.setItem("tf:usageJoinShow", joinShow); } catch {} loadJoins(); }));
+    // Play Console takes emails separated by commas; TestFlight's "Add testers" takes one per line.
+    if ($("copyAnd")) $("copyAnd").addEventListener("click", (e) => copyText(fresh.filter(isA).map((j) => j.email).join(", "), e.currentTarget));
+    if ($("copyIos")) $("copyIos").addEventListener("click", (e) => copyText(fresh.filter(isI).map((j) => j.email).join("\n"), e.currentTarget));
+    box.querySelectorAll("[data-join]").forEach((b) => b.addEventListener("click", async () => {
+      const j = list[+b.dataset.join], st = b.dataset.st;
+      if (st === "delete" && !confirm(`Delete ${j.email} from the list for good?`)) return;
+      b.disabled = true;
+      const { error: e } = await acct.client.rpc("tf_join_set", { id: j.id, status: st });
+      if (e) { b.disabled = false; b.textContent = "Couldn't"; return; }
+      loadJoins();
+    }));
+  }
+  // Feedback from the app (feedback.js → supabase/testers.sql).
+  let fbShow = "open";
+  async function loadFeedback() {
+    const acct = window.tfAccount, box = $("fbs");
+    if (!acct || !acct.client || !acct.user) return;
+    const { data, error } = await acct.client.rpc("tf_feedback_list");
+    $("fbBox").hidden = false;
+    need.fbs = error ? 0 : data.filter((f) => !f.done).length; paintTodo();
+    if (error) { notSetUp(box, error); return; }
+    const SP = { mtb: "MTB", ski: "Skiing", hike: "Hiking", fish: "Fishing", hunt: "Hunting", moto: "Moto" };
+    const list = data.filter((f) => fbShow === "all" || !f.done);
+    box.innerHTML = `<div class="jtop"><div class="days" role="group" aria-label="Show">${[["open", "To read"], ["all", "All"]].map(([k, n]) => `<button type="button" data-fbshow="${k}" aria-pressed="${fbShow === k}">${n}</button>`).join("")}</div></div>
+      ${list.length ? list.map((f, i) => `<div class="fbrow${f.done ? " done" : ""}">
+        <div class="muted">${esc(new Date(f.created_at).toLocaleString())} · ${esc(f.platform || "")}${f.app_v ? ` · v${esc(f.app_v)}` : ""} · ${esc(SP[f.sport] || f.sport || "")}${f.lang === "fr" ? " · French" : ""}${f.signed_in ? " · signed in" : ""}</div>
+        <div class="body">${esc(f.body)}</div>
+        ${f.shot && /^data:image\/jpeg;base64,/.test(f.shot) ? `<img alt="Screenshot sent with this note" src="${esc(f.shot)}">` : ""}
+        <div class="acts"><button class="btn${f.done ? "" : " go"}" type="button" data-fb="${i}" data-done="${!f.done}">${f.done ? "Not read" : "Done"}</button><button class="btn" type="button" data-fb="${i}" data-rm="1">Delete</button></div></div>`).join("")
+      : `<p class="muted">Nothing to read.</p>`}`;
+    box.querySelectorAll("[data-fbshow]").forEach((b) => b.addEventListener("click", () => { fbShow = b.dataset.fbshow; loadFeedback(); }));
+    box.querySelectorAll(".fbrow img").forEach((im) => im.addEventListener("click", () => im.classList.toggle("big")));
+    box.querySelectorAll("[data-fb]").forEach((b) => b.addEventListener("click", async () => {
+      const f = list[+b.dataset.fb], rm = b.dataset.rm === "1";
+      if (rm && !confirm("Delete this note for good?")) return;
+      b.disabled = true;
+      const { error: e } = await acct.client.rpc("tf_feedback_set", { id: f.id, done: rm ? f.done : b.dataset.done === "true", remove: rm });
+      if (e) { b.disabled = false; b.textContent = "Couldn't"; return; }
+      loadFeedback();
+    }));
   }
   window.addEventListener("tf:account", () => load());
 

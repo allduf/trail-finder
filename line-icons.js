@@ -75,6 +75,7 @@
     car: '<path d="M3 17v-5l2.2-5h13.6L21 12v5z"/><path d="M3 12h18M5 17v2.5M19 17v2.5"/><circle cx="7.5" cy="14.5" r=".6"/><circle cx="16.5" cy="14.5" r=".6"/>',
     bed: '<path d="M3 5v15M3 16h18v4M21 16v-3.5a3 3 0 0 0-3-3h-7.5V16"/><circle cx="6.8" cy="12.3" r="1.8"/>',
     fire: '<path d="M12 21c-3.9 0-7-2.6-7-6.4 0-3.4 2.8-5.4 4-9.6 2 1.5 3 3.4 3 5.4.9-.8 1.5-2 1.6-3.2C16 9.2 19 12 19 14.6c0 3.8-3.1 6.4-7 6.4z"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
     timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l3 2M9 2.5h6"/>',
   };
   // Emoji (and the few text symbols used as icons) -> drawing. The tab bar and map buttons draw the sports the same way.
@@ -87,7 +88,7 @@
     "🗺": "map", "📅": "calendar", "❄": "snow", "🎫": "ticket", "➕": "plus", "▶": "play", "📹": "cam", "🐾": "paw",
     "🎒": "pack", "🍲": "pot", "💵": "cash", "💲": "cash", "🛟": "buoy", "📓": "book", "📤": "share", "🔗": "link", "🗑": "trash",
     "⏰": "alarm", "✅": "check", "✏": "pencil", "⬇": "download", "👥": "people", "🚗": "car", "🛏": "bed", "🔥": "fire", "⏱": "timer",
-    "🎉": "sparkle",
+    "🎉": "sparkle", "💬": "chat",
   };
   const draw = (k, size) => `<svg class="tf-line" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
   const keyOf = (s) => {

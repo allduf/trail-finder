@@ -22,6 +22,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Shared trailfinderapp.ca links open here instead of the browser (Android App Links, checked against
+                 https://trailfinderapp.ca/.well-known/assetlinks.json, made by pages.yml). Android can't match the
+                 part after #, so any link to the home page opens the app; native.js then shows the shared spot. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="trailfinderapp.ca" />
+                <data android:path="/" />
+                <data android:path="/index.html" />
+            </intent-filter>
+
         </activity>
 
         <provider
