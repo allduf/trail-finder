@@ -161,6 +161,11 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       <p class="muted">Testers each week, and how many were already there in an earlier week.</p>
       <div class="card"><table id="weeks"></table></div>
 
+      <h2>Came back later</h2>
+      <p class="muted">Of the people who first opened Trail Finder in each week, how many used it again at least 1, 7 or 30 days after their first day. Only phones and computers that share usage count (Don't share sends nothing). A dash means it's too soon to tell.</p>
+      <div class="card" style="overflow-x:auto"><table id="returns"></table></div>
+      <p class="muted hint" id="returnsHint"></p>
+
       <h2>Costs and limits</h2>
       <p class="muted">Free allowances that could run out. Photo find and Ask stop for the day at their limit, so they can't run up a bill.</p>
       <div class="card"><table id="limits"></table></div>
@@ -980,6 +985,38 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       const fresh = [...set].filter((d) => firstWeek.get(d) === k).length;
       return `<tr><td>${esc(weekName(k))}</td><td class="n">${set.size}</td><td class="n">${fresh}</td><td class="n">${set.size - fresh}</td></tr>`;
     }).join("");
+
+    // ---- came back later: people first seen in each week (in this period), and how many used it again at least
+    // 1, 7 and 30 days after their first day. Days are this computer's calendar days. Counts only, no names.
+    const dayNo = (at) => { const d = new Date(at); return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); };
+    const today = dayNo(Date.now()), from = today - days;
+    const firstSeen = new Map();
+    if (all) { for (const d of all) if (d.first_seen && keep(d.device)) firstSeen.set(d.device, d.first_seen); }
+    else for (const r of shown) if (!firstSeen.has(r.device) || r.at < firstSeen.get(r.device)) firstSeen.set(r.device, r.at);
+    const lastDay = new Map();
+    for (const r of shown) { const n = dayNo(r.at); if (n > (lastDay.get(r.device) ?? -1)) lastDay.set(r.device, n); }
+    const AFTER = [1, 7, 30];
+    const cohorts = new Map();
+    for (const [dev, at] of firstSeen) {
+      const f = dayNo(at);
+      if (f <= from || !lastDay.has(dev)) continue;   // first seen before this period: their later visits may be cut off
+      const k = weekOf(at);
+      if (!cohorts.has(k)) cohorts.set(k, []);
+      cohorts.get(k).push({ f, last: lastDay.get(dev) });
+    }
+    const cell = (list, n) => {
+      const ready = list.filter((p) => p.f + n <= today);
+      if (!ready.length) return `<td class="n muted">–</td>`;
+      const back = ready.filter((p) => p.last >= p.f + n).length;
+      return `<td class="n">${back} of ${ready.length}<br><span class="muted">${pct(back, ready.length)}</span></td>`;
+    };
+    const cl = [...cohorts.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    const everyone = cl.flatMap(([, list]) => list);
+    $("returns").innerHTML = !everyone.length ? none(5, "No one new in this period.")
+      : `<tr><th>First seen</th><th class="n">New</th>${AFTER.map((n) => `<th class="n">After ${n} day${n === 1 ? "" : "s"}</th>`).join("")}</tr>` +
+        (cl.length > 1 ? `<tr><td><b>All weeks</b></td><td class="n"><b>${everyone.length}</b></td>${AFTER.map((n) => cell(everyone, n)).join("")}</tr>` : "") +
+        cl.map(([k, list]) => `<tr><td>Week of ${esc(weekName(k))}</td><td class="n">${list.length}</td>${AFTER.map((n) => cell(list, n)).join("")}</tr>`).join("");
+    $("returnsHint").textContent = days < 90 ? "Only people first seen in the period picked above count. Pick 90 days to fill in the 30-day column." : "";
 
     const feat = new Map();
     for (const r of taps) { const f = feat.get(r.what) || { n: 0, who: new Set() }; f.n++; f.who.add(r.device); feat.set(r.what, f); }

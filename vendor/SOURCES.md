@@ -28,3 +28,13 @@ The iPhone app's TrailMap plugin (ios-app/plugins/TrailMap) gets MapLibre Native
 | File | From | sha256 |
 |---|---|---|
 | MapLibre.dynamic.xcframework.zip | github.com/kaiuhl/maplibre-native release `glassing-terrain-20261109-337f1b4ba8a3` (feature/terrain-3d branch, 2026-11-09) | `49fcee33e83d69d87b525f28ab7025727f70affbf17a6afa67cf6d2ff0395bf9` |
+
+## Android app (android-app/), not served by the site
+
+The Android app's TrailReview plugin (android-app/plugins/TrailReview) shows Google Play's own rating card with Google's
+Play In-App Review library, which Gradle downloads from Google's Maven at a fixed version. The iPhone's TrailReview uses
+Apple's StoreKit (part of iOS, nothing to download).
+
+| File | From | sha256 |
+|---|---|---|
+| review-2.0.2.aar | com.google.android.play:review:2.0.2 (dl.google.com/dl/android/maven2) | `1602026678231dba0f7482d1244e45ff83d9ff22fc8b6d6be8961228ac7a32dd` |

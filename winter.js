@@ -3198,7 +3198,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     setTour(t.id);
     renderPlan(); renderTours();
     if (quiet && old) return;   // an edit of a kept tour: no toast each time
-    window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
+    window.tfHappy && window.tfHappy("ski tour"); window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
   }
   // A tour is kept as soon as it's made (✓ Done, Ask's Make this tour: force), then follows its edits (a point moved,
   // deleted or swapped on the card, Less exposed way on or off, Undo) without a Save tap. Its length and climb are

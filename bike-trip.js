@@ -530,7 +530,7 @@ body.sport-alt #bkTripBtn { display: none; }`;
       el.querySelector("button").addEventListener("click", () => {
         const x = window.tfPlan.item(); if (!x) return;
         E.addLine(t, x); drawingFor = null; el.innerHTML = "";
-        toast(`Added to your trip to ${title(t)}.`);
+        toast(`Added to your trip to ${title(t)}.`); window.tfHappy && window.tfHappy("bike trip");
         window.tfPlan.close();
         E.start(t);
       });

@@ -347,7 +347,7 @@
     const t = drawingLine; drawingLine = null;
     setTimeout(() => {
       const x = planItem();
-      if (x) { E.addLine(t, x); toast(`Added to your trip to ${hutName(t)}.`); }
+      if (x) { E.addLine(t, x); toast(`Added to your trip to ${hutName(t)}.`); window.tfHappy && window.tfHappy("cabin trip"); }
       const c = cur();
       if (c && c.id === t.id) { E.card.hidden = false; E.render(); E.drawMap(); }
       const p = $("skPlan"); if (p && !p.hidden && window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo(p), 120);

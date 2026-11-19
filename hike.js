@@ -1280,7 +1280,7 @@ out center tags qt;`;
     if (!h) return;
     const list = saved();
     if (list.some((s) => s.id === h.id)) { if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("hikeSaved", h.id); store.set("hikeSaved", list.filter((s) => s.id !== h.id)); }
-    else store.set("hikeSaved", [{ id: h.id, n: h.name, c: h.c, bb: h.bb, km: +h.km.toFixed(2), g: h.g, at: Date.now() }, ...list].slice(0, 200));
+    else { store.set("hikeSaved", [{ id: h.id, n: h.name, c: h.c, bb: h.bb, km: +h.km.toFixed(2), g: h.g, at: Date.now() }, ...list].slice(0, 200)); window.tfHappy && window.tfHappy("hike saved"); }
     if (!$("hkSaved").hidden) renderSaved();
   }
   function renderSaved() {
@@ -1648,6 +1648,7 @@ out center tags qt;`;
     store.set("hikePlans", [item, ...plans().filter((x) => x.id !== id)].slice(0, 100));
     plan.id = id; plan.name = n;
     renderPlan();
+    window.tfHappy && window.tfHappy("hike plan");
     if (!$("hkSaved").hidden) renderSaved();
   }
   function loadPlan(r) {
