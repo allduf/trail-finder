@@ -1,0 +1,3 @@
+# Wedge NW Couloir freeride line (data/ski-hand/bc.json), 2026-11-19
+Skiing: new freeride line, the Wedge NW Couloir above Wedgemount Lake, drawn from a climber's GPS track with skiers' trip reports on its card. Turn on Freeride lines in Layers, Resorts to see it. ||| Ski : nouvelle ligne freeride, le couloir nord-ouest de Wedge au-dessus du lac Wedgemount, tracée d'après la trace GPS d'un grimpeur, avec des récits de skieurs sur sa fiche. Activez Lignes freeride dans Couches, Stations pour la voir.
+Line added by hand from a recorded GPS track: its sources are under More details. ||| Ligne ajoutée à la main d'après une trace GPS enregistrée : ses sources sont dans Plus de détails.

@@ -1200,6 +1200,8 @@
     "Resort traverse or boot-pack":"Traverse ou montée à pied en station",
     "A traverse or hike inside the ski resort's boundary that skiers use to reach terrain, as mapped on OpenStreetMap. Whether it is open, and its conditions, are set by the resort: check with the resort.":"Une traverse ou une montée à pied dans le domaine de la station, que les skieurs prennent pour rejoindre le terrain, telle que cartographiée sur OpenStreetMap. Son ouverture et ses conditions relèvent de la station : renseignez-vous auprès d'elle.",
     "Skiing: in-resort traverses and boot-packs (like Spanky's Ladder and Ruby Bowl Traverse at Whistler Blackcomb) now show under Resorts, not as snowshoe trails under Nordic.":"Ski : les traverses et montées à pied en station (comme Spanky's Ladder et Ruby Bowl Traverse à Whistler Blackcomb) s'affichent maintenant sous Stations, et non plus comme sentiers de raquette sous Fond.",
+    "Skiing: new freeride line, the Wedge NW Couloir above Wedgemount Lake, drawn from a climber's GPS track with skiers' trip reports on its card. Turn on Freeride lines in Layers, Resorts to see it.":"Ski : nouvelle ligne freeride, le couloir nord-ouest de Wedge au-dessus du lac Wedgemount, tracée d'après la trace GPS d'un grimpeur, avec des récits de skieurs sur sa fiche. Activez Lignes freeride dans Couches, Stations pour la voir.",
+    "Line added by hand from a recorded GPS track: its sources are under More details.":"Ligne ajoutée à la main d'après une trace GPS enregistrée : ses sources sont dans Plus de détails.",
     "Frozen":"Gelé",
     "Ground likely frozen":"Sol probablement gelé",
     "Ground likely frozen:":"Sol probablement gelé :",
