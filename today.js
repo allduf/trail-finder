@@ -348,9 +348,9 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
     const sp = sportNow(), seen = store.get("todaySeen", {});
     if (seen[sp] === localDay()) return;
     seen[sp] = localDay(); store.set("todaySeen", seen);
-    if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0(); }
+    if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0({ auto: true }); }   // status.js: only the nearest trails
     else open(sp);
   }
-  const start = () => setTimeout(() => auto(), 3500);
+  const start = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(() => auto(), { timeout: 3000 }) : auto()), 5000);
   if (document.readyState === "complete") start(); else window.addEventListener("load", start, { once: true });
 })();
