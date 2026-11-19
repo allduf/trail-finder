@@ -84,6 +84,7 @@
     try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
     window.dispatchEvent(new CustomEvent("tf:rides-imported", { detail: [ride.id] }));   // My rides on the map (rides.js) draws it
     savedNote(ride);
+    if (window.tfHappy) window.tfHappy("recorded " + (ride.sport || "ride"));   // rate.js: a happy moment for the store rating ask
     return ride;
   }
   function savedNote(ride) {
