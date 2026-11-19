@@ -58,7 +58,15 @@ echo "Made-up people, trips, rides and photos added."
 
 node "$HERE/fake-storage.mjs" 54331 "$T/files-a" "$A" "$KEY" & PIDS+=($!)
 node "$HERE/fake-storage.mjs" 54332 "$T/files-b" "$B" "$KEY" & PIDS+=($!)
-sleep 1
+# Wait until both stand-ins answer (on a fresh GitHub runner the first node start can take several seconds;
+# a fixed one-second sleep let the backup run before the server was up, and every photo download failed).
+for port in 54331 54332; do
+  for i in $(seq 1 60); do
+    curl -s -o /dev/null "http://localhost:$port/" && break
+    [ "$i" = 60 ] && { echo "FAIL: fake storage on port $port did not start"; exit 1; }
+    sleep 0.5
+  done
+done
 
 # A fingerprint of every row of the tables we keep (storage.objects without its random id and dates).
 print() {
@@ -76,7 +84,8 @@ bad() { echo "FAIL: $1"; exit 1; }
 print "$A" > "$T/before.txt"; files_sum "$T/files-a" > "$T/files-before.txt"
 
 # 2. Back up.
-FILE="$(SUPABASE_DB_URL="$A" SUPABASE_URL=http://localhost:54331 SUPABASE_SECRET_KEY="$KEY" OUT="$T/out" bash "$ROOT/scripts/backup/backup.sh" | tail -1)"
+FILE="$(SUPABASE_DB_URL="$A" SUPABASE_URL=http://localhost:54331 SUPABASE_SECRET_KEY="$KEY" OUT="$T/out" bash "$ROOT/scripts/backup/backup.sh" | tee "$T/backup.log" | tail -1)"
+grep -q "photos could not be fetched" "$T/backup.log" && { cat "$T/backup.log"; bad "backup could not fetch every photo"; }
 [ -s "$FILE" ] || bad "no backup file"
 ! grep -a -q "person-one" "$FILE" || bad "backup file is not encrypted"
 BACKUP_PASSWORD="wrong" bash "$ROOT/scripts/backup/restore.sh" check "$FILE" >/dev/null 2>&1 && bad "opened with a wrong password"
