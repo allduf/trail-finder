@@ -323,5 +323,6 @@
     [/^(\d+) cm new snow$/, "$1 cm de neige fraîche"],
     [/^(\d+) km · (\d+)% dirt · season (.+)$/, function (m, k, d, se) { return k + " km · " + d + " % de terre · saison " + dt(se.replace("-", " - ")); }],
     [/^Bite estimate$/, "Activité estimée"],
+    [/^Snow on the ground, about (\d+) cm$/, "Neige au sol, environ $1 cm"],
     [/^([1-5]) (Low|Moderate|Considerable|High|Extreme)$/, function (m, n, w) { return n + " " + { Low: "Faible", Moderate: "Modéré", Considerable: "Marqué", High: "Fort", Extreme: "Extrême" }[w]; }],
   ];
