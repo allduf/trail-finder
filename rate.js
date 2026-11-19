@@ -57,9 +57,9 @@
     if (ver && s.ver === ver) return false;
     return true;
   }
-  // Something else on screen right now (the Sign in card after a save, a ride being recorded, the welcome, a dialog):
+  // Something else on screen right now (the Sign in card or the notifications card after a save, a ride being recorded, the welcome, a dialog):
   // wait for the next happy moment instead.
-  const busy = () => document.hidden || !!document.querySelector(".acct-nudge, .welc, dialog[open]")
+  const busy = () => document.hidden || !!document.querySelector(".acct-nudge, .nt-ask, .welc, dialog[open]")
     || (window.tfWelcome && window.tfWelcome.pending);
 
   window.tfHappy = (kind) => {
