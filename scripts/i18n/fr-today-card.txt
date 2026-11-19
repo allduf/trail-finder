@@ -1,0 +1,55 @@
+A Today card in every sport when the app opens, once a day: places near you, then your saved places, each in that sport's own words. Weather is the middle of 3 models, and avalanche ratings are shown exactly as Avalanche Canada gives them. ||| Une carte Aujourd'hui dans chaque sport à l'ouverture de l'app, une fois par jour : des endroits près de vous, puis vos endroits enregistrés, chacun avec les mots de ce sport. La météo est la valeur du milieu de 3 modèles, et les cotes d'avalanche sont affichées exactement comme Avalanche Canada les donne.
+Skiing today ||| Ski aujourd'hui
+Fishing today ||| Pêche aujourd'hui
+Hunting today ||| Chasse aujourd'hui
+Hiking today ||| Randonnée aujourd'hui
+Riding today ||| Moto aujourd'hui
+Backcountry areas near you ||| Secteurs de hors-piste près de vous
+Your saved tours ||| Vos sorties enregistrées
+Waters near you ||| Plans d'eau près de vous
+Your saved fishing spots ||| Vos coins de pêche enregistrés
+Your zone today ||| Votre zone aujourd'hui
+Your saved hunting spots ||| Vos endroits de chasse enregistrés
+Hikes near you ||| Randonnées près de vous
+Your saved hikes ||| Vos randonnées enregistrées
+Adventure routes near you ||| Routes d'aventure près de vous
+Your saved routes ||| Vos itinéraires enregistrés
+Save a tour (Plan a tour, then Save) and it shows here with its new snow. ||| Enregistrez une sortie (Planifier une sortie, puis Enregistrer) et elle s'affiche ici avec sa neige fraîche.
+Save a fishing spot and it shows here with its bite estimate. ||| Enregistrez un coin de pêche et il s'affiche ici avec son activité estimée.
+Save a stand, blind or camera and it shows here with its wind. ||| Enregistrez un mirador, une cache ou une caméra et il s'affiche ici avec son vent.
+Save a hike and it shows here with its weather. ||| Enregistrez une randonnée et elle s'affiche ici avec sa météo.
+Save a route and it shows here with its rain. ||| Enregistrez un itinéraire et il s'affiche ici avec sa pluie.
+Checking today's weather… ||| Vérification de la météo d'aujourd'hui…
+See more in this sport ||| Voir plus dans ce sport
+Don't show when the app opens ||| Ne pas afficher à l'ouverture de l'app
+Where you are, and your saved places ||| Où vous êtes, et vos endroits enregistrés
+The middle of the map, and your saved places ||| Le milieu de la carte, et vos endroits enregistrés
+The weather service is busy: try again in a minute. ||| Le service météo est occupé : réessayez dans une minute.
+No signal: the weather needs a connection. ||| Pas de signal : la météo a besoin d'une connexion.
+Today couldn't load. Try again in a minute. ||| Aujourd'hui n'a pas pu se charger. Réessayez dans une minute.
+Nothing found near here. ||| Rien trouvé près d'ici.
+New snow, last 24 h ||| Neige fraîche, dernières 24 h
+Snow forecast, next 24 h ||| Neige prévue, prochaines 24 h
+New snow, next 24 h ||| Neige fraîche, prochaines 24 h
+High and low ||| Max. et min.
+Sunrise and sunset ||| Lever et coucher du soleil
+Rain or snow today ||| Pluie ou neige aujourd'hui
+Chance of rain or snow ||| Risque de pluie ou de neige
+Rain or snow, last 2 days ||| Pluie ou neige, 2 derniers jours
+Rain or snow, next 24 h ||| Pluie ou neige, prochaines 24 h
+Wind light ||| Vent faible
+Full forecast ||| Bulletin complet
+No avalanche forecast area here, so no danger rating is shown. ||| Pas de secteur de prévision d'avalanche ici, donc aucune cote de danger n'est affichée.
+Avalanche Canada has no rating for today here, so none is shown. ||| Avalanche Canada n'a pas de cote pour aujourd'hui ici, donc aucune n'est affichée.
+The last avalanche forecast here has run out, so no rating is shown. Check avalanche.ca. ||| Le dernier bulletin d'avalanche ici est expiré, donc aucune cote n'est affichée. Consultez avalanche.ca.
+Avalanche Canada's early season bulletin here gives no danger rating. ||| Le bulletin de début de saison d'Avalanche Canada ici ne donne pas de cote de danger.
+The avalanche forecast didn't load, so no rating is shown. Check avalanche.ca. ||| Le bulletin d'avalanche ne s'est pas chargé, donc aucune cote n'est affichée. Consultez avalanche.ca.
+The example avalanche forecast is on, so no rating is shown here. ||| Le bulletin d'avalanche d'exemple est activé, donc aucune cote n'est affichée ici.
+Saved copy: a newer forecast may be out. Check avalanche.ca. ||| Copie enregistrée : un bulletin plus récent peut être paru. Consultez avalanche.ca.
+New snow: a weather model's estimate at the area or the tour's start, not a snow report. Avalanche ratings: Avalanche Canada, exactly as given for today, by elevation band. ||| Neige fraîche : une estimation d'un modèle météo au secteur ou au départ de la sortie, pas un rapport de neige. Cotes d'avalanche : Avalanche Canada, exactement comme données pour aujourd'hui, par bande d'altitude.
+Waters: ranked by how fresh the stocking is and the river flow, from the province's stocking reports and the river gauges. Bite estimate: a 1 to 5 guide from the weather (pressure, wind, cloud, rain) and the moon, not a promise of fish. ||| Plans d'eau : classés selon la fraîcheur de l'ensemencement et le débit des rivières, d'après les rapports d'ensemencement de la province et les stations hydrométriques. Activité estimée : un guide de 1 à 5 d'après la météo (pression, vent, nuages, pluie) et la lune, pas une promesse de poissons.
+Seasons: read from the regulations files; the regulations decide, so check them before you go. Legal light: the usual hours, 30 min before sunrise to 30 min after sunset; some provinces and hunts differ. Wind: a weather model's estimate, it turns with the hills and the hour. ||| Saisons : lues dans les fichiers des règlements ; les règlements décident, alors vérifiez-les avant de partir. Lumière légale : les heures habituelles, 30 min avant le lever du soleil à 30 min après le coucher ; certaines provinces et chasses diffèrent. Vent : une estimation d'un modèle météo, il tourne avec les collines et l'heure.
+No season dates read for the zone here yet. Tap the map in Hunting for the zone's rules. ||| Aucune date de saison lue pour la zone ici pour l'instant. Touchez la carte en Chasse pour les règles de la zone.
+Hikes near you: no snow or closure found first. Snow and weather: a weather model's estimate (at the top of each nearby hike, at the middle of saved ones); closures, warnings and fires from the feeds the app reads. Not a trail report. ||| Randonnées près de vous : celles sans neige ni fermeture trouvée d'abord. Neige et météo : une estimation d'un modèle météo (au sommet de chaque randonnée proche, au milieu des randonnées enregistrées) ; fermetures, avertissements et feux d'après les sources que l'app lit. Pas un rapport de sentier.
+Zoom the map in to a valley or a town to see hikes near you. ||| Zoomez la carte sur une vallée ou une ville pour voir les randonnées près de vous.
+Rain and snow: a weather model's estimate at the route's start; dirt roads can stay muddy for days after rain, and passes can hold snow. Routes: the app's list of known adventure routes; check road closures before you go. ||| Pluie et neige : une estimation d'un modèle météo au départ de l'itinéraire ; les chemins de terre peuvent rester boueux des jours après la pluie, et les cols peuvent garder de la neige. Itinéraires : la liste de routes d'aventure connues de l'app ; vérifiez les fermetures de routes avant de partir.

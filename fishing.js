@@ -2188,10 +2188,11 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   const flowing = (w) => /\b(river|creek|brook|rivière|ruisseau)\b/i.test(w.n);   // stocked rivers stay open in winter
 
   // ---------- where to fish today ----------
-  function renderToday() {
-    const el = $("fsToday");
-    if (!spot || (!stocked && !gauges)) { el.innerHTML = ""; return; }
-    const R = 60, cand = [], sea = season();
+  // The ranked waters near the spot: Where to fish today, and the Today card when the app opens (today.js).
+  const TODAY_R = 60;
+  function todayCands() {
+    if (!spot || (!stocked && !gauges)) return null;
+    const R = TODAY_R, cand = [], sea = season();
     for (const [w, d] of near(stocked ? stocked.waters : [], spot.lat, spot.lon, R, (x) => x.c)) {
       const fd = freshDays(w), planned = w.r.find((r) => /planned/.test(r[0]) && r[0].startsWith(String(new Date().getFullYear())));
       let s = fd == null ? 0.5 : fd <= 14 ? 3 : fd <= 45 ? 2 : fd <= 365 ? 1 : 0.3;
@@ -2207,7 +2208,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       cand.push({ name: g[1], lat: g[2], lon: g[3], d, s: s - d / 40, why: `River ${LIGHTS[l][0].toLowerCase()}`, c: LIGHTS[l][1], open: () => openGauge(g) });
     }
     cand.sort((a, b) => b.s - a.s);
-    const top = cand.filter((x) => x.s > 0).slice(0, 6), day = castDays()[0];
+    return { top: cand.filter((x) => x.s > 0).slice(0, 6), sea };
+  }
+  function renderToday() {
+    const el = $("fsToday"), got = todayCands();
+    if (!got) { el.innerHTML = ""; return; }
+    const { top, sea } = got, R = TODAY_R, day = castDays()[0];
     const row = (x, i) => `<li style="--c:${x.c}"><button type="button" class="fs-go" data-i="${i}"><b>${esc(x.name)}</b>${x.sea ? `<small class="fs-sea">${esc(x.sea)}</small>` : ""}<small>${esc(x.why)}</small><em>${fmtKm(x.d)}</em></button></li>`;
     el.innerHTML = `<header>${svg(IC.star)}<h3>Where to fish today</h3>${day ? stars(day.s) : ""}</header>
       ${top.length ? `<ul class="fs-list fs-top">${top.slice(0, 3).map(row).join("")}</ul>
@@ -2395,6 +2401,12 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     },
     // 1 to 5 for a day, from an hourly forecast with temperature, pressure, wind, gusts, cloud and rain.
     dayScore: (h, date, flow) => dayScore(h, date, flow),
+    // The Today card (today.js): the best few waters near the spot (null until the spot and the data are in).
+    todayTop(n = 3) {
+      const got = todayCands();
+      if (!got) return null;
+      return { from: spot.how, sea: got.sea.note, list: got.top.slice(0, n).map((x) => ({ name: x.name, lat: x.lat, lon: x.lon, d: x.d, why: [x.why, x.sea].filter(Boolean).join(". "), open: () => { map.setView([x.lat, x.lon], Math.max(map.getZoom(), 12)); x.open(); } })) };
+    },
     // What usually hatches in a month at a place, with flies that match.
     hatch(lat, lon, month) {
       const inM = (h) => (h[1] <= h[2] ? month >= h[1] && month <= h[2] : month >= h[1] || month <= h[2]);

@@ -76,6 +76,8 @@ async function phone() {
     blocked.add(u.hostname);
     return route.abort();
   });
+  // The Today card opens by itself once a day (today.js): off here, so it can't cover a tap; the test opens it itself.
+  await ctx.addInitScript(() => { try { localStorage.setItem("tf:todayAuto", "false"); } catch {} });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => { const m = String(e.message || e); if (!NETWORK.test(m)) errors.push(m.split("\n")[0].slice(0, 200) + where(e)); });
@@ -148,6 +150,16 @@ for (const sport of SPORTS) {
     const want = { ski: "tfWebcams", hunt: "tfHunt", fish: "tfFish", moto: "tfMoto", hike: "tfHike" }[sport];
     if (want) { const ok = await page.evaluate((k) => !!window[k], want); results.push({ sport, step: "Its own scripts loaded", ok, note: ok ? "" : `${want} missing after picking it`, shot: "" }); }
   }
+
+  // Today, in this sport's own words (today.js; MTB: status.js's Where to ride today). The weather is cut off here,
+  // so the card says so; it must open, fill its lists and close.
+  await step(p, sport, "Today card", async () => {
+    await page.evaluate(() => window.tfTodayOpen && window.tfTodayOpen());
+    await page.waitForSelector(sport === "mtb" ? "dialog.today[open]" : "dialog.tdy[open]", { timeout: 5000 });
+    if (sport !== "mtb") await page.waitForFunction(() => !document.querySelector("#tdySaved .tdy-wait") || !/Loading/.test(document.getElementById("tdySaved").textContent), null, { timeout: 30_000 });
+  }, 1500);
+  await page.keyboard.press("Escape").catch(() => {});
+  await wait(300);
 
   // The bottom bar's tabs this sport shows (Map, the sport's own Find/Routes/Hunt/Fish/Roads, Ride, Saved, More).
   const tabs = await page.$$eval("#tabbar button[data-nav]", (bs) => bs.filter((b) => b.offsetParent && getComputedStyle(b).display !== "none")
