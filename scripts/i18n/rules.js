@@ -292,5 +292,13 @@
     }],
     // Frozen ground on MTB trails (index.html frostAt, status.js), 2026-11-19
     [/^Above 0°C at 1 pm from about (.+)\.$/, function (m, d) { return "Au-dessus de 0 °C à 13 h à partir d'environ " + (d === "tomorrow" ? "demain" : d === "today" ? "aujourd'hui" : tt(d).toLowerCase()) + "."; }],
+    // Freeze line by height (index.html loadFreeze), 2026-11-19
+    [/^Ground likely frozen above about ([\d,]+) m( now)?$/, function (m, n, w) { return "Sol probablement gelé au-dessus d'environ " + n.replace(/,/g, " ") + " m" + (w ? " maintenant" : ""); }],
+    [/^Models: (.+) to ([\d,]+) m$/, function (m, a, b) { return "Modèles : " + a.replace(/,/g, " ").replace("over", "plus de") + " à " + b.replace(/,/g, " ") + " m"; }],
+    [/^Models: (.+) to over 3,000 m$/, function (m, a) { return "Modèles : " + a.replace(/,/g, " ") + " à plus de 3 000 m"; }],
+    [/^This trail: ([\d,]+) to ([\d,]+) m$/, function (m, a, b) { return "Ce sentier : " + a.replace(/,/g, " ") + " à " + b.replace(/,/g, " ") + " m"; }],
+    [/^Ground height of the weather model here: ([\d,]+) m$/, function (m, a) { return "Hauteur du sol du modèle météo ici : " + a.replace(/,/g, " ") + " m"; }],
+    [/^(7 am|1 pm) (?:about ([\d,]+) m|(down to the valley)|(none below 3,000 m))$/, function (m, h, n, v, x) { return (h === "7 am" ? "7 h" : "13 h") + " " + (n ? "environ " + n.replace(/,/g, " ") + " m" : v ? "jusqu'au fond de la vallée" : "aucun sous 3 000 m"); }],
+    [/^Freeze line: the height where the soil reaches 0°C, the middle of 3 weather models \((.+)\)\. An estimate: shade, sun and snow change it on the ground\.$/, function (m, l) { return "Limite de gel : la hauteur où le sol atteint 0 °C, la valeur du milieu de 3 modèles météo (" + l.replace(/(\d),(\d)/g, "$1 $2").replace(/over /g, "plus de ") + "). Une estimation : l'ombre, le soleil et la neige la changent sur le terrain."; }],
     [/^(All|\d+ of \d+) trails?: ground likely frozen now \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : sol probablement gelé maintenant (estimation de la température du sol)"; }],
   ];

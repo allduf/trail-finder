@@ -23,10 +23,10 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=5440"></script>
-<script src="wxcheck.js?v=5440"></script>
-<script src="point-info.js?v=5440"></script>
-<script src="line-icons.js?v=5440"></script>
+<script src="i18n.js?v=5460"></script>
+<script src="wxcheck.js?v=5460"></script>
+<script src="point-info.js?v=5460"></script>
+<script src="line-icons.js?v=5460"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -1180,6 +1180,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .ebike-note.ebike-class1 b, .ebike-note.ebike-yes b { color: #2f7d32; }
 .wx-days td.lmi-snow { white-space: nowrap; color: #3f6ea8; font-weight: 600; }
 .wx-days td.lmi-frozen { white-space: nowrap; color: #6a58a8; font-weight: 600; }
+.lmi-fz { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, #ddd); }
+.lmi-fz p { margin: 0 0 4px; } .lmi-fz ul { margin: 4px 0; padding-left: 18px; } .lmi-fz .muted { margin: 4px 0 0; font-size: .85em; }
 .lmi-frost { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #efecf8; color: #352a5c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lmi-frost { background: #282338; color: #ddd6f3; } }
 :root[data-theme="dark"] .lmi-frost { background: #282338; color: #ddd6f3; }
@@ -1646,17 +1648,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
 <!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
      any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="hidden-places.js?v=5440"></script>
-<script src="noback.js?v=5440"></script>
-<script src="risk.js?v=5440"></script>
-<script src="welcome.js?v=5440"></script>
-<script src="native.js?v=5440"></script>
-<script src="keyboard.js?v=5440"></script>
-<script src="rotate.js?v=5440"></script>
-<script src="official.js?v=5440"></script>
-<script src="directions.js?v=5440"></script>
-<script src="ratings.js?v=5440"></script>
-<script src="ebike.js?v=5440"></script>
+<script src="hidden-places.js?v=5460"></script>
+<script src="noback.js?v=5460"></script>
+<script src="risk.js?v=5460"></script>
+<script src="welcome.js?v=5460"></script>
+<script src="native.js?v=5460"></script>
+<script src="keyboard.js?v=5460"></script>
+<script src="rotate.js?v=5460"></script>
+<script src="official.js?v=5460"></script>
+<script src="directions.js?v=5460"></script>
+<script src="ratings.js?v=5460"></script>
+<script src="ebike.js?v=5460"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -2101,7 +2103,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   function loadAdv() {
     if (!advLoading) advLoading = loadVectorLib()
       .then(() => window.mlcontour || loadScript("vendor/maplibre-contour-0.1.1.js").catch(() => null))
-      .then(() => window.tfAdvMap || loadScript("adv-map.js?v=5440"))
+      .then(() => window.tfAdvMap || loadScript("adv-map.js?v=5460"))
       .catch((e) => { advLoading = null; throw e; });
     return advLoading;
   }
@@ -3973,6 +3975,7 @@ out body;`;
       }
       const el = box(); if (el) renderElevation(el, t);
       paintFacts(t);
+      if (t.wx && state.selected === t.id && $("wx")) renderWeather($("wx"), t.wx.json, cellOf(t), t);   // the freeze line against the trail's heights
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
       if (dirOpen === t && $("fDown")) { $("fDown").textContent = "–"; $("fUp").textContent = "–"; }
@@ -4080,8 +4083,8 @@ out body;`;
   // Loam forecast: the reading at 1 pm on each coming day (the hour most people ride), from the same hourly
   // soil moisture forecast as "now". [{ d: "YYYY-MM-DD", v }], tomorrow first.
   const LOAM_HOUR = "T13:00";
-  const lmiDays = (h, today, key) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
-    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key), s: snowAt(h, i), f: frostAt(h, i) })).filter((x) => x.v != null);
+  const lmiDays = (h, today, key, fz, elev) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
+    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key), s: snowAt(h, i), f: frostAt(h, i, fz, elev) })).filter((x) => x.v != null);
   const isPrimeLoam = (v) => v != null && v >= 40 && v < 60;
   // Snow on the ground (alex, spring and fall: which trails are still under snow): the weather model's snow depth at the
   // same spot as the Loam index, in cm. Under the soil model, snowed-in dirt can read "prime", so snow wins: from SNOW_CM
@@ -4097,7 +4100,17 @@ out body;`;
   // Open-Meteo's soil temperature at the surface, at the same spot and hour: 2 = at or below 0°C now ("Frozen", never
   // prime, like snow), 1 = above 0°C now but at or below it in the 12 hours before (froze overnight, thawing), 0 = no
   // frost, null = not known. Same in push-loam.mjs.
-  function frostAt(h, i) {
+  // With a freeze line (fz, below) and the spot's ground height (elev, m), the spot is frozen when it's at or above the
+  // middle model's freeze line that hour; without one, from this spot's own surface reading.
+  function frostAt(h, i, fz, elev) {
+    if (fz && fz.t.size && Number.isFinite(elev)) {
+      const up = (j) => { const x = fz.t.get(h.time[j]); return x ? elev >= x.m : null; }, now = up(i);
+      if (now != null) {
+        if (now) return 2;
+        for (let j = Math.max(0, i - 12); j < i; j++) if (up(j)) return 1;
+        return 0;
+      }
+    }
     const t = h.soil_temperature_0cm;
     if (!t || t[i] == null) return null;
     if (t[i] <= 0) return 2;
@@ -4105,6 +4118,54 @@ out body;`;
     return 0;
   }
   const isFrozen = (f) => f === 2;
+  // Freeze line by height (alex 2026-11-19: "at Fromme or Squamish you can ride up to a certain height, above it the
+  // ground is frozen: show where the ground freezes on the mountain so we can ride what's rideable down low"). Open-Meteo
+  // gives each model's soil temperature at any height (moved by height from the model's own ground), so asking at 0,
+  // 750, 1,500, 2,250 and 3,000 m gives the height where it crosses 0°C. Weather is always checked against other models
+  // (alex 2026-11-14), and he picked "middle of 3 models + range" (2026-11-19): ICON (soil surface), GFS and GEM (the
+  // Canadian model; top 10 cm of soil, all they give). The middle one is the freeze line; the lowest and highest are
+  // the range. Per 0.1° square (about 10 km), the same past day + 4 days as the loam readings, matched by hour.
+  const FZ_MODELS = [["icon_seamless", "soil_temperature_0cm", "ICON"], ["gfs_seamless", "soil_temperature_0_to_10cm", "GFS"], ["gem_seamless", "soil_temperature_0_to_10cm", "GEM"]];
+  const FZ_H = [0, 750, 1500, 2250, 3000];
+  const fzCells = new Map();   // "lat,lon" (0.1°) -> { at, t: Map(hour -> { m, lo, hi, per: [{ name, h }] }) }; m: 0 frozen down to sea level, Infinity none below 3,000 m
+  const fzKeyOf = (key) => { const [a, b] = key.split(",").map(Number); return `${(Math.round(a * 10) / 10).toFixed(1)},${(Math.round(b * 10) / 10).toFixed(1)}`; };
+  function fzLine(temps) {
+    if (temps.some((v) => v == null)) return null;
+    if (temps[0] <= 0) return 0;
+    for (let k = 1; k < FZ_H.length; k++) if (temps[k] <= 0) return Math.round(FZ_H[k - 1] + (FZ_H[k] - FZ_H[k - 1]) * temps[k - 1] / (temps[k - 1] - temps[k]));
+    return Infinity;
+  }
+  async function loadFreeze(keys) {
+    const need = [...new Set(keys.map(fzKeyOf))].filter((k) => { const c = fzCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
+    for (let i = 0; i < need.length; i += 10) {
+      const chunk = need.slice(i, i + 10), lat = [], lon = [], ele = [];
+      chunk.forEach((k) => { const [a, b] = k.split(","); FZ_H.forEach((e) => { lat.push(a); lon.push(b); ele.push(e); }); });
+      if (!(await loamTurn(lat.length * FZ_MODELS.length))) return;
+      try {
+        const res = await fetch(`${WX_API}?latitude=${lat.join(",")}&longitude=${lon.join(",")}&elevation=${ele.join(",")}&models=${FZ_MODELS.map((m) => m[0]).join(",")}` +
+          "&hourly=soil_temperature_0cm,soil_temperature_0_to_10cm&timezone=auto&past_days=1&forecast_days=4");
+        if (!res.ok) throw await meteoErr(res);
+        const arr = [].concat(await res.json());
+        chunk.forEach((k, c) => {
+          const rows = arr.slice(c * FZ_H.length, (c + 1) * FZ_H.length), t = new Map();
+          if (rows.length === FZ_H.length && rows[0].hourly) rows[0].hourly.time.forEach((x, j) => {
+            const per = FZ_MODELS.map(([m, v, name]) => ({ name, h: fzLine(rows.map((r) => (r.hourly[`${v}_${m}`] || [])[j])) })).filter((p) => p.h != null);
+            if (per.length < 2) return;   // one model alone isn't checked against anything
+            const hs = per.map((p) => p.h).sort((a, b) => a - b), n = hs.length;
+            t.set(x, { m: n % 2 ? hs[n >> 1] : (hs[n / 2 - 1] + hs[n / 2]) / 2, lo: hs[0], hi: hs[n - 1], per });
+          });
+          fzCells.set(k, { at: Date.now(), t });
+        });
+      } catch (e) {
+        log(`Freeze line: ${e.message}.`);
+        chunk.forEach((k) => fzCells.set(k, { at: Date.now() - WX_FRESH_MS + 5 * 60000, t: new Map() }));   // try again in 5 minutes
+      }
+    }
+  }
+  const fzOf = (key) => { const c = fzCells.get(fzKeyOf(key)); return c && c.t.size ? c : null; };
+  // "about 900 m", rounded to 50 m; 0 and Infinity in words.
+  const fzNum = (m) => (m === Infinity ? "over 3,000" : (Math.round(m / 50) * 50).toLocaleString("en-CA"));
+  const fzWord = (m) => (m === 0 ? "down to the valley" : m === Infinity ? "none below 3,000 m" : `about ${(Math.round(m / 50) * 50).toLocaleString("en-CA")} m`);
   const FROZEN_COLOR = "#8e7cc3";
   const FROST_THAW = "The ground likely froze overnight here (soil temperature estimate). It can be hard early and slippery on top as it thaws.";
   const primeDay = (x) => isPrimeLoam(x.v) && !isSnowy(x.s) && !isFrozen(x.f);
@@ -4209,6 +4270,7 @@ out body;`;
   }
   async function fetchLoamCells(need) {
     await loamTuneReady;
+    await loadFreeze(need).catch(() => {});
     for (let i = 0; i < need.length; i += 50) {
       const chunk = need.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
       if (!(await loamTurn(chunk.length))) {   // paused after a 429: try these again once the pause is over
@@ -4224,7 +4286,8 @@ out body;`;
           let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
           if (j < 0) j = w.hourly.time.length - 1;
           const today = w.current.time.slice(0, 10);
-          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k]), snow: snowAt(w.hourly, j), frost: frostAt(w.hourly, j) });
+          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k], fzOf(chunk[k]), w.elevation), snow: snowAt(w.hourly, j), frost: frostAt(w.hourly, j, fzOf(chunk[k]), w.elevation),
+            fzNow: (() => { const f = fzOf(chunk[k]), x = f && f.t.get(w.hourly.time[j]); return x ? x.m : null; })() });
         });
         saveLoamCells();
       } catch (e) {
@@ -4303,22 +4366,23 @@ out body;`;
           const json = await res.json();
           if (!json.current || !json.hourly || !json.daily) throw new Error("unexpected answer");
           await loamTuneReady;
+          await loadFreeze([cellOf(t)]).catch(() => {});
           t.wx = { at: Date.now(), json };
           const h = json.hourly;
           let i = h.time.findIndex((x) => x > json.current.time) - 1;
           if (i < 0) i = h.time.length - 1;
-          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10), snow = snowAt(h, i), frost = frostAt(h, i);
-          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key), snow, frost });   // a fresher reading: the list shows it too
+          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10), snow = snowAt(h, i), frost = frostAt(h, i, fzOf(key), json.elevation);
+          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key, fzOf(key), json.elevation), snow, frost });   // a fresher reading: the list shows it too
           if (!was || was.lmi !== lmi || was.snow !== snow || was.frost !== frost) render();
         }
       }
-      const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t));
+      const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t), t);
       paintFacts(t);
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
     }
   }
-  function renderWeather(el, w, key) {
+  function renderWeather(el, w, key, t) {
     const c = w.current, h = w.hourly, d = w.daily, u = w.current_units || {};
     // The hour now, in the trail's own time zone (Open-Meteo times are local, without an offset).
     let i = h.time.findIndex((x) => x > c.time) - 1;
@@ -4329,8 +4393,15 @@ out body;`;
     // At night in the trail's own time zone (alex: a sun at 11:30 pm in Quebec), a moon for a clear sky.
     const icon = c.is_day === 0 && c.weather_code <= 2 ? (c.weather_code === 2 ? "☁️" : "🌙") : dayIcon;
     const today = c.time.slice(0, 10);
-    const snow = snowAt(h, i), aheadDays = lmiDays(h, today, key);
-    const frost = frostAt(h, i), frozen = isFrozen(frost) && !isSnowy(snow);
+    const fz = fzOf(key), snow = snowAt(h, i), aheadDays = lmiDays(h, today, key, fz, w.elevation);
+    const frost = frostAt(h, i, fz, w.elevation), frozen = isFrozen(frost) && !isSnowy(snow);
+    // The freeze line now and each day at 7 am and 1 pm, with the trail's own heights to hold it against.
+    const fzNow = fz && fz.t.get(h.time[i]), es = t && t.elev && t.elev.stats ? `${Math.round(t.elev.stats.min).toLocaleString("en-CA")} to ${Math.round(t.elev.stats.max).toLocaleString("en-CA")} m` : "";
+    const fzAt = (day, hh) => { const x = fz && fz.t.get(`${day}T${hh}:00`); return x ? `<span>${hh === "07" ? "7 am" : "1 pm"} ${esc(fzWord(x.m))}</span>` : ""; };
+    const fzHtml = !fzNow ? "" : `<div class="lmi-fz"><p><b>${fzNow.m === Infinity ? "No frozen ground below 3,000 m now" : fzNow.m === 0 ? "Ground likely frozen down to the valley now" : `Ground likely frozen above ${esc(fzWord(fzNow.m))} now`}</b>${fzNow.hi - fzNow.lo >= 100 ? ` <span>Models: ${fzNum(fzNow.lo)} to ${fzNum(fzNow.hi)} m</span>` : ""}</p>
+      ${es ? `<p><span>This trail: ${es}</span>${(() => { const st = t.elev.stats, m = fzNow.m; return m === Infinity || st.min >= m ? (m === Infinity ? "" : `</p><p><span>All of it is above the freeze line.</span>`) : st.max < m ? `</p><p><span>All of it is below the freeze line.</span>` : `</p><p><span>Its upper part is above the freeze line.</span>`; })()}</p>` : Number.isFinite(w.elevation) ? `<p><span>Ground height of the weather model here: ${Math.round(w.elevation).toLocaleString("en-CA")} m</span></p>` : ""}
+      <ul>${d.time.filter((day) => day >= today).map((day) => { const a = fzAt(day, "07"), b = fzAt(day, "13"); return a || b ? `<li><b>${day === today ? "Today" : esc(new Date(day + "T12:00").toLocaleDateString(undefined, { weekday: "short" }))}</b> ${[a, b].filter(Boolean).join(" · ")}</li>` : ""; }).join("")}</ul>
+      <p class="muted"><span>Freeze line: the height where the soil reaches 0°C, the middle of 3 weather models (${fzNow.per.map((p) => `${p.name} ${fzNum(p.h)} m`).join(", ")}). An estimate: shade, sun and snow change it on the ground.</span></p></div>`;
     const ahead = new Map(aheadDays.map((x) => [x.d, x.v])), aheadSnow = new Map(aheadDays.map((x) => [x.d, x.s])), aheadFrost = new Map(aheadDays.map((x) => [x.d, x.f]));
     const loamCell = (v, sn, f) => isSnowy(sn) ? `<td class="lmi-snow">❄ ${sn} cm</td>` : isFrozen(f) ? `<td class="lmi-frozen" title="Soil surface at or below 0°C (estimate)">Frozen</td>` : v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
     const soon = aheadDays.find(primeDay), soonD = soon && [soon.d, soon.v];
@@ -4357,7 +4428,7 @@ out body;`;
       ${lmiKey(frozen ? null : lvl)}
       ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
         : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
-      ${snowNote}${frostNote}
+      ${snowNote}${frostNote}${fzHtml}
       ${lmi != null && (!isPrimeLoam(lmi) || isSnowy(snow) || frozen) && soonD ? `<p class="lmi-soon">${lmiDot(soonD[1])}Prime loam ${esc(dayName(soonD[0], today))} (${soonD[1]})</p>` : ""}
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th title="Rain, and the chance of rain">Rain</th><th title="Loam moisture index at 1 pm">Loam</th></tr></thead><tbody>${days}</tbody></table>`;
   }
@@ -4541,7 +4612,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=5440").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=5460").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -6041,6 +6112,8 @@ out body;`;
       mtbNowHtml = isSnowy(cell.snow) ? `<span>❄ <b>Snow on the trails</b> here, ${Math.round(cell.snow)} cm</span>`
         : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
         : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v})</span><span>☀ Where to ride today ›</span>`;
+      // The freeze line (middle of 3 models) when the ground freezes somewhere below 3,000 m around here.
+      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace("<span>☀ Where", `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span><span>☀ Where`);
     }
     syncPeekToday();
   }
@@ -9082,52 +9155,52 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=5440"></script>
-<script src="native-map.js?v=5440"></script>
-<script src="contours.js?v=5440"></script>
-<script src="shade.js?v=5440"></script>
-<script src="clouds.js?v=5440"></script>
-<script src="smoke.js?v=5440"></script>
-<script src="radar.js?v=5440"></script>
-<script src="photo-slider.js?v=5440"></script>
-<script src="ski-terrain.js?v=5440"></script>
-<script src="place-search.js?v=5440"></script>
-<script src="winter.js?v=5440"></script>
-<script src="hunts.js?v=5440"></script>
-<script src="ski-points.js?v=5440"></script>
-<script src="offline.js?v=5440"></script>
-<script src="ride-stats.js?v=5440"></script>
-<script src="native-gps.js?v=5440"></script>
-<script src="navigate.js?v=5440"></script>
-<script src="go-there.js?v=5440"></script>
-<script src="planner.js?v=5440"></script>
-<script src="loops.js?v=5440"></script>
-<script src="ride-finds.js?v=5440"></script>
-<script src="rides.js?v=5440"></script>
-<script src="community.js?v=5440"></script>
-<script src="ride-files.js?v=5440"></script>
-<script src="rider-trails.js?v=5440"></script>
-<script src="account.js?v=5440"></script>
-<script src="friends.js?v=5440"></script>
-<script src="live.js?v=5440"></script>
-<script src="strava.js?v=5440"></script>
-<script src="moderation.js?v=5440"></script>
-<script src="reports.js?v=5440"></script>
-<script src="grades.js?v=5440"></script>
-<script src="trail-photos.js?v=5440"></script>
-<script src="visitors.js?v=5440"></script>
-<script src="usage.js?v=5440"></script>
-<script src="notify.js?v=5440"></script>
-<script src="closures.js?v=5440"></script>
-<script src="status.js?v=5440"></script>
-<script src="ask.js?v=5440"></script>
-<script src="areas.js?v=5440"></script>
-<script src="alpine.js?v=5440"></script>
-<script src="bikeparks.js?v=5440"></script>
-<script src="photo-find.js?v=5440"></script>
-<script src="whats-new.js?v=5440"></script>
-<script src="tutorials.js?v=5440"></script>
-<script src="app-update.js?v=5440"></script>
+<script src="map3d.js?v=5460"></script>
+<script src="native-map.js?v=5460"></script>
+<script src="contours.js?v=5460"></script>
+<script src="shade.js?v=5460"></script>
+<script src="clouds.js?v=5460"></script>
+<script src="smoke.js?v=5460"></script>
+<script src="radar.js?v=5460"></script>
+<script src="photo-slider.js?v=5460"></script>
+<script src="ski-terrain.js?v=5460"></script>
+<script src="place-search.js?v=5460"></script>
+<script src="winter.js?v=5460"></script>
+<script src="hunts.js?v=5460"></script>
+<script src="ski-points.js?v=5460"></script>
+<script src="offline.js?v=5460"></script>
+<script src="ride-stats.js?v=5460"></script>
+<script src="native-gps.js?v=5460"></script>
+<script src="navigate.js?v=5460"></script>
+<script src="go-there.js?v=5460"></script>
+<script src="planner.js?v=5460"></script>
+<script src="loops.js?v=5460"></script>
+<script src="ride-finds.js?v=5460"></script>
+<script src="rides.js?v=5460"></script>
+<script src="community.js?v=5460"></script>
+<script src="ride-files.js?v=5460"></script>
+<script src="rider-trails.js?v=5460"></script>
+<script src="account.js?v=5460"></script>
+<script src="friends.js?v=5460"></script>
+<script src="live.js?v=5460"></script>
+<script src="strava.js?v=5460"></script>
+<script src="moderation.js?v=5460"></script>
+<script src="reports.js?v=5460"></script>
+<script src="grades.js?v=5460"></script>
+<script src="trail-photos.js?v=5460"></script>
+<script src="visitors.js?v=5460"></script>
+<script src="usage.js?v=5460"></script>
+<script src="notify.js?v=5460"></script>
+<script src="closures.js?v=5460"></script>
+<script src="status.js?v=5460"></script>
+<script src="ask.js?v=5460"></script>
+<script src="areas.js?v=5460"></script>
+<script src="alpine.js?v=5460"></script>
+<script src="bikeparks.js?v=5460"></script>
+<script src="photo-find.js?v=5460"></script>
+<script src="whats-new.js?v=5460"></script>
+<script src="tutorials.js?v=5460"></script>
+<script src="app-update.js?v=5460"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>
