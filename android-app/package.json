@@ -12,6 +12,7 @@
     "@capacitor/haptics": "8.0.2",
     "@capacitor/share": "8.0.3",
     "@capacitor/splash-screen": "8.0.2",
-    "trail-gps": "file:plugins/TrailGps"
+    "trail-gps": "file:plugins/TrailGps",
+    "trail-review": "file:plugins/TrailReview"
   }
 }

@@ -5891,9 +5891,11 @@ out body;`;
       ${window.tfLive ? card("live", "📡", "Share my live location", window.tfLive.sharing() ? "On now: tap to send the link or stop" : "Friends and family see where you are") : ""}`;   // My rides and Add a trail live in Saved
     // Saved in each sport is that sport's own (alex, 2026-10-26: "every mode should have its own feature"): no bike
     // folders or routes in Skiing, Hunting or Fishing, but their log and the points saved in them (ski-points.js #spBox).
+    // Season goals and recap (season.js) at the top of every sport's Saved, in that sport's own words.
+    const seasonCard = () => (window.tfSeason ? card("season", "📈", "Season goals", window.tfSeason.line() || "Goals for this season, and a recap") : "");
     if (page === "saved" && !mtb) {
       const sp = sportOf();
-      return (sp === "hunt" ? card("log-hunts", "🦌", "My hunts", "Each hunt you tracked: where you walked, the weather, what you saw")
+      return seasonCard() + (sp === "hunt" ? card("log-hunts", "🦌", "My hunts", "Each hunt you tracked: where you walked, the weather, what you saw")
           + card("log-works", "📈", "What works", "The wind, pressure and moon when you find animals")
           + card("log-harvest", "🎯", "Harvests", "By season, with a CSV")
           + card("log-cam", "📷", "Trail cameras", "Every check, in order")
@@ -5906,7 +5908,7 @@ out body;`;
     }
     // MTB's saved spots (ski-points.js #spBox) live here too on phones, not above the trail results (interface review
     // 2026-11-02: "Your spots" and "Add a trail" sat above the list a rider had just asked for).
-    if (page === "saved") return offlineCard() + `<div class="hub-slot" data-slot="saved"></div><div class="hub-slot" data-slot="points"></div>`;
+    if (page === "saved") return seasonCard() + offlineCard() + `<div class="hub-slot" data-slot="saved"></div><div class="hub-slot" data-slot="points"></div>`;
     if (page === "more") {
       const sp = $("sport").value, acct = document.querySelector(".brand [data-account-slot] button");
       const signedIn = acct && /(Account|Compte)$/.test(acct.textContent.trim());   // "Compte" in French (i18n-fr.js)
@@ -6180,6 +6182,7 @@ out body;`;
     else if (act === "routes") { if (window.tfPlan) window.tfPlan.saved(); }
     else if (act === "biketrip") { (window.tfLoadSport ? window.tfLoadSport("mtb") : Promise.resolve()).catch(() => {}).then(() => { const T = window.tfTrips && window.tfTrips.bike; if (T) T.list(); }); }
     else if (act === "offline") { lowerSheet(); $("offlineBtn").click(); }
+    else if (act === "season") { if (window.tfSeason && window.tfSeason.open) window.tfSeason.open(); }
     else if (act === "live") { if (window.tfLive) window.tfLive.open(); }
     else if (act === "alerts") document.querySelector(".brand .notify-btn")?.click();
     else if (act === "full") $("fullBtn").click();
@@ -9194,14 +9197,17 @@ out tags center qt;`;
 <script src="notify.js?v=__V__"></script>
 <script src="closures.js?v=__V__"></script>
 <script src="status.js?v=__V__"></script>
+<script src="today.js?v=__V__"></script>
 <script src="ask.js?v=__V__"></script>
 <script src="areas.js?v=__V__"></script>
 <script src="alpine.js?v=__V__"></script>
 <script src="bikeparks.js?v=__V__"></script>
 <script src="photo-find.js?v=__V__"></script>
 <script src="whats-new.js?v=__V__"></script>
+<script src="season.js?v=__V__"></script>
 <script src="tutorials.js?v=__V__"></script>
 <script src="app-update.js?v=__V__"></script>
+<script src="rate.js?v=__V__"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

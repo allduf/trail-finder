@@ -608,7 +608,7 @@
         if (b) b.addEventListener("click", () => {
           const x = H.routeItem(); if (!x) return;
           E.addLine(t, routeLine(t, x)); drawingFor = null;
-          toast(`Added to ${title(t)} as day ${E.linesOf(t).length}.`);
+          toast(`Added to ${title(t)} as day ${E.linesOf(t).length}.`); window.tfHappy && window.tfHappy("moto trip");
           if (!cur() || cur().id !== t.id) E.start(t); else E.scrollTo();
         });
         after.after(box);
