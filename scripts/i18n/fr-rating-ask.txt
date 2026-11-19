@@ -1,0 +1,2 @@
+# Rating ask at a happy moment (rate.js), 2026-11-19
+iPhone and Android apps: now and then, after a save, the phone may ask for a rating. ||| Apps iPhone et Android : de temps en temps, après un enregistrement, le téléphone peut demander une note.

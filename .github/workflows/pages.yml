@@ -39,14 +39,15 @@ jobs:
           path: site
           fetch-depth: 0        # main's history (no file contents) for the version number: scripts/stamp.mjs
           filter: blob:none
-      - name: Add the data jobs' files
-        working-directory: site
-        run: bash scripts/site-data.sh get
       - name: Set the version number, What's new and French (scripts/stamp.mjs)
         # Pull requests never set ?v= / tf- numbers, data/changelog.json lines or i18n-fr.js by hand (2026-11-19): they
         # are made here, the same for every publish of the same main, one number higher after each merge.
+        # Before the data files: site-data.sh fetches its branch with --depth 1, which marks the checkout shallow.
         working-directory: site
         run: node scripts/stamp.mjs
+      - name: Add the data jobs' files
+        working-directory: site
+        run: bash scripts/site-data.sh get
       - name: Add the Canada-wide data
         run: |
           git clone -q --depth 1 --branch canada-data "https://github.com/${GITHUB_REPOSITORY}.git" canada || { echo "No canada-data branch yet."; exit 0; }

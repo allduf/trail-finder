@@ -80,12 +80,14 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   added to `vendor/SOURCES.md`.
 
 ## Every user-facing change
-1. Bump the version together: every `?v=N` in `index.html` and `ride.html` (one shared N, same value), and
-   `VERSION = "tf-N"` plus the `?v=` entries in `sw.js`. Pick numbers above what main and open pull requests use.
-   Leave separate tags (such as `winter-hd.js?v=` inside `map3d.js`) alone.
-2. Add one short, plain line at the top of `data/changelog.json` with today's date.
-3. Add the French for every new text, including the changelog line, in a new `scripts/i18n/fr-N.txt`
-   (`English ||| French`, one per line), then run `node scripts/i18n/build.mjs` and commit `i18n-fr.js`.
+1. Never set a version number by hand. Script tags in `index.html`, `ride.html`, `usage.html` and `sw.js` say
+   `?v=__V__` and `VERSION = "tf-__V__"`; the website publish (`scripts/stamp.mjs`) fills in one number. The phone
+   test fails on a hand-set number. Leave separate tags (such as `winter-hd.js?v=` inside `map3d.js`) alone.
+2. What's new: add a new file `data/changelog.d/<short-name>.json` with `{"date": "YYYY-MM-DD", "text": "..."}`
+   (one short, plain line). Do not edit `data/changelog.json`: the publish builds it.
+3. French for every new text, including the What's new line: add a new `scripts/i18n/fr-<short-name>.txt`
+   (`English ||| French`, one per line). `i18n-fr.js` is generated and not in git; run
+   `node scripts/i18n/build.mjs` locally to try it.
 4. Guard calls into other scripts' new functions (`window.x && window.x.fn ? ... : null`) so a stale cached
    script cannot break the page.
 5. Run `node scripts/wording-check.mjs` before pushing.
@@ -94,11 +96,11 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - The required check on main is "phone" (`.github/workflows/phone-test.yml`: wording check, then every sport
   at iPhone size).
 - Merge only with alex's yes. Turn on auto-merge for one pull request at a time.
-- Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check: alex merges
-  those by hand.
+- Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check. With alex's
+  yes, start it by hand (run "Phone test" on the branch) so the merge can go through, or alex merges by hand.
 - Changes under `ios-app/` or `android-app/` need a new app build: tell alex before merging.
-- The "Fix PR conflicts" workflow (`.github/workflows/pr-fix.yml`) merges main into open pull requests and fixes
-  changelog, French and `?v=` conflicts. Pull before pushing to a pull request branch.
+- The "Fix PR conflicts" workflow (`.github/workflows/pr-fix.yml`) merges main into open pull requests, and moves
+  older ones over to `__V__`, `changelog.d` and French files. Pull before pushing to a pull request branch.
 - If a phone check was cancelled after a merge update, run it again.
 
 ## Where things are
