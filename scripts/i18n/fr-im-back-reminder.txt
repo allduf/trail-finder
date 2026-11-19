@@ -15,3 +15,5 @@ Tap I'm back and tell your contact. ||| Touchez Je suis de retour et prévenez v
 Not yet ||| Pas encore
 Notifications are off for Trail Finder: the reminder shows only when the app is open. ||| Les notifications sont désactivées pour Trail Finder : le rappel s'affiche seulement quand l'app est ouverte.
 your return time has passed. Tap I'm back in Trail Finder and tell your contact. ||| votre heure de retour est passée. Touchez Je suis de retour dans Trail Finder et prévenez votre contact.
+Reminder at your return time? ||| Un rappel à votre heure de retour ?
+Trail Finder can show a notification on this phone at your return time if you haven't tapped I'm back, so you remember to tell your contact. It never contacts anyone for you. ||| Trail Finder peut afficher une notification sur ce téléphone à votre heure de retour si vous n'avez pas touché Je suis de retour, pour que vous pensiez à prévenir votre contact. Il ne contacte jamais personne à votre place.

@@ -516,6 +516,10 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   const tr = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   const nid = (id) => { let h = 7; for (const c of `${K.id}:${id}`) h = (h * 31 + c.charCodeAt(0)) | 0; return (h & 0x3fffffff) || 1; };
   const waiting = (t) => !!(t.plan && t.plan.sent && !t.plan.safe);
+  let askFor = "";   // the trip whose plan shows the "Reminder at your return time?" ask
+  const askHtml = (t) => (askFor === t.id ? `<div class="tp-iam"><h4>Reminder at your return time?</h4>
+      <p class="sk-note">Trail Finder can show a notification on this phone at your return time if you haven't tapped I'm back, so you remember to tell your contact. It never contacts anyone for you.</p>
+      <div class="tp-btns"><button type="button" class="go" data-tp="backon">Turn on</button><button type="button" data-tp="backno">Not now</button></div></div>` : "");
   async function remindOff(id) { if (LN) try { await LN.cancel({ notifications: [{ id: nid(id) }] }); } catch {} }
   async function remindSet(t, ask) {
     if (!LN) return;
@@ -524,8 +528,11 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       const pl = planOf(t), at = new Date(pl.out);
       if (!waiting(t) || !(at.getTime() > Date.now())) return;
       let p = await LN.checkPermissions();
-      if (p.display !== "granted" && ask) p = await LN.requestPermissions();
-      if (p.display !== "granted") { if (ask) toast("Notifications are off for Trail Finder: the reminder shows only when the app is open."); return; }
+      // Not allowed yet: first a short why on the plan (askHtml), and the phone's own Allow box only after Turn on.
+      // Not now (or the phone's Don't Allow) means it never asks again (tf:backAsk, this phone only), like #822's ask.
+      if (/^prompt/.test(p.display) && ask === true && !store.get("backAsk", 0)) { askFor = t.id; if (cur && cur.id === t.id) renderPlan(); return; }
+      if (/^prompt/.test(p.display) && ask === "go") p = await LN.requestPermissions();
+      if (p.display !== "granted") { if (ask === "go") { store.set("backAsk", 1); toast("Notifications are off for Trail Finder: the reminder shows only when the app is open."); } return; }
       await LN.schedule({ notifications: [{ id: nid(t.id), title: tr("Back from your trip?"), body: `${title(t)}: ${tr("your return time has passed. Tap I'm back in Trail Finder and tell your contact.")}`,
         schedule: { at, allowWhileIdle: true }, extra: { tfTrip: t.id, sport: K.id } }] });
     } catch {}
@@ -587,7 +594,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
         <label class="wide">Return time<input type="datetime-local" data-pl="out" value="${esc(pl.out)}"></label>
         <label class="wide">Call for help at (if no word from you)<input type="datetime-local" data-pl="help" value="${esc(pl.help)}"></label>
       </div>
-      ${status}
+      ${status}${askHtml(t)}
       <div class="tp-btns"><button type="button" class="go" data-tp="plansend">📤 Send the trip plan</button><button type="button" data-tp="planics">⏰ Late alert for their calendar</button>
         ${window.tfLive ? `<button type="button" data-tp="live">📍 Live location</button>` : ""}${pl.sent && !pl.safe ? `<button type="button" data-tp="safe">✅ I'm back</button>` : ""}</div>
       <p class="sk-note">${LN ? "If you haven't tapped I'm back by your return time, this phone reminds you to tell your contact." : "If you haven't tapped I'm back by your return time, Trail Finder reminds you to tell your contact when it's open."} It's only a reminder: Trail Finder never contacts anyone for you.</p>
@@ -1197,6 +1204,9 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       const pl = planOf(t);
       t.plan = { ...(t.plan || {}), safe: Date.now() }; putTrip(t); renderPlan(); remindOff(t.id); backSync();
       shareText("Back", `${pl.who || "We"}: back from ${title(t)}, ${when(Date.now())}. You can delete the late alert.`);
+    } else if (k === "backon" || k === "backno") {
+      askFor = ""; renderPlan();
+      if (k === "backon") remindSet(t, "go"); else store.set("backAsk", 1);
     } else if (k === "live" && window.tfLive) window.tfLive.open();
     else if (k === "del") {
       if (!confirm(t.share ? `Take the ${title(t)} trip off your phone? The rest of the group keeps it.` : `Delete your trip to ${title(t)}?`)) return;
