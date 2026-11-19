@@ -292,7 +292,7 @@ body.sport-alt #bkTripBtn { display: none; }`;
       const q = new URLSearchParams({ latitude: lat, longitude: lon, daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,sunset", forecast_days: "16", timezone: "auto" });
       const url = `https://api.open-meteo.com/v1/forecast?${q}`;
       try { got[k] = await (window.tfWx ? window.tfWx.getChecked(url) : getJ(url)); } catch (e) { err = e.message || "no signal"; }
-      const qs = new URLSearchParams({ latitude: lat, longitude: lon, hourly: "soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth", forecast_days: "16", timezone: "auto" });
+      const qs = new URLSearchParams({ latitude: lat, longitude: lon, hourly: "soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm", forecast_days: "16", timezone: "auto" });
       try { soil[k] = await getJ(`https://api.open-meteo.com/v1/forecast?${qs}`); } catch {}
     }
     if (!Object.keys(got).length) return { err: err || "no signal" };
@@ -302,7 +302,7 @@ body.sport-alt #bkTripBtn { display: none; }`;
       const dd = w && w.daily;
       if (s && s.hourly && Lm) {
         const i = s.hourly.time.indexOf(`${date}T13:00`), key = Lm.cell(l.ll[0], l.ll[1]);
-        if (i >= 0) { row.lmi = Lm.at(s.hourly, i, key); const sn = Lm.snow(s.hourly, i); if (Lm.isSnowy(sn)) row.snowCm = sn; }
+        if (i >= 0) { row.lmi = Lm.at(s.hourly, i, key); const sn = Lm.snow(s.hourly, i); if (Lm.isSnowy(sn)) row.snowCm = sn; if (Lm.frost) row.frost = Lm.frost(s.hourly, i); }
       }
       if (!dd) return row;
       if (!end || dd.time.at(-1) < end) end = dd.time.at(-1);
@@ -318,9 +318,11 @@ body.sport-alt #bkTripBtn { display: none; }`;
   function loamHtml(r) {
     const Lm = window.tfLoam;
     if (r.snowCm != null) return `<span class="bk-loam"><i style="background:#9ec5fe"></i>Snow on the ground, about ${r.snowCm} cm</span>`;
+    // Frozen ground at 1 pm (soil surface at or below 0°C, an estimate): frozen water reads as moisture, so no loam word.
+    if (r.frost === 2) return `<span class="bk-loam"><i style="background:#8e7cc3"></i>Ground likely frozen (estimate)</span>`;
     if (r.lmi == null || !Lm) return "";
     const lv = Lm.level(r.lmi);
-    return lv ? `<span class="bk-loam"><i style="background:${lv.ride[0]}"></i>Loam ${r.lmi}: ${esc(lv.word.toLowerCase())}</span>` : "";
+    return lv ? `<span class="bk-loam"><i style="background:${lv.ride[0]}"></i>Loam ${r.lmi}: ${esc(lv.word.toLowerCase())}${r.frost === 1 ? " · froze overnight (estimate)" : ""}</span>` : "";
   }
   const ridesOn = (t, j) => E.linesOf(t).filter((x) => (t.dayOf || {})[x.id] === j);
   function daysHtml(t, v) {

@@ -290,4 +290,7 @@
         .replace(/rain on snow up to about (.+?): 1\.5x below that/, "pluie sur neige jusqu'à environ $1 : 1,5x en dessous")
         .replace(/warming to (-?\d+)°C at (.+?): sunny slopes count up to 1\.4x/, "réchauffement jusqu'à $1 °C à $2 : pentes ensoleillées jusqu'à 1,4x") + ".";
     }],
+    // Frozen ground on MTB trails (index.html frostAt, status.js), 2026-11-19
+    [/^Above 0°C at 1 pm from about (.+)\.$/, function (m, d) { return "Au-dessus de 0 °C à 13 h à partir d'environ " + (d === "tomorrow" ? "demain" : d === "today" ? "aujourd'hui" : tt(d).toLowerCase()) + "."; }],
+    [/^(All|\d+ of \d+) trails?: ground likely frozen now \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : sol probablement gelé maintenant (estimation de la température du sol)"; }],
   ];

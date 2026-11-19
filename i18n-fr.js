@@ -1200,6 +1200,20 @@
     "Resort traverse or boot-pack":"Traverse ou montée à pied en station",
     "A traverse or hike inside the ski resort's boundary that skiers use to reach terrain, as mapped on OpenStreetMap. Whether it is open, and its conditions, are set by the resort: check with the resort.":"Une traverse ou une montée à pied dans le domaine de la station, que les skieurs prennent pour rejoindre le terrain, telle que cartographiée sur OpenStreetMap. Son ouverture et ses conditions relèvent de la station : renseignez-vous auprès d'elle.",
     "Skiing: in-resort traverses and boot-packs (like Spanky's Ladder and Ruby Bowl Traverse at Whistler Blackcomb) now show under Resorts, not as snowshoe trails under Nordic.":"Ski : les traverses et montées à pied en station (comme Spanky's Ladder et Ruby Bowl Traverse à Whistler Blackcomb) s'affichent maintenant sous Stations, et non plus comme sentiers de raquette sous Fond.",
+    "Frozen":"Gelé",
+    "Ground likely frozen":"Sol probablement gelé",
+    "Ground likely frozen:":"Sol probablement gelé :",
+    "Ground likely frozen here":"Sol probablement gelé ici",
+    "Ground likely frozen (estimate)":"Sol probablement gelé (estimation)",
+    "(estimate)":"(estimation)",
+    "froze overnight (estimate)":"gelé cette nuit (estimation)",
+    "Frozen ground (soil at or below 0°C)":"Sol gelé (sol à 0 °C ou moins)",
+    "Soil surface at or below 0°C (estimate)":"Surface du sol à 0 °C ou moins (estimation)",
+    "The soil surface is at or below 0°C here now (soil temperature estimate)":"La surface du sol est à 0 °C ou moins ici maintenant (estimation de la température du sol)",
+    "the soil surface is at or below 0°C here now (Open-Meteo soil temperature, an estimate). The Loam index counts frozen water as moisture, so it isn't prime loam while the ground is frozen.":"la surface du sol est à 0 °C ou moins ici maintenant (température du sol d'Open-Meteo, une estimation). L'Indice de loam compte l'eau gelée comme de l'humidité, donc ce n'est pas du loam parfait tant que le sol est gelé.",
+    "The ground likely froze overnight here (soil temperature estimate). It can be hard early and slippery on top as it thaws.":"Le sol a probablement gelé cette nuit ici (estimation de la température du sol). Il peut être dur tôt le matin et glissant en surface pendant le dégel.",
+    "(Open-Meteo soil temperature at or below 0°C, an estimate: trails differ)":"(température du sol d'Open-Meteo à 0 °C ou moins, une estimation : les sentiers varient)",
+    "MTB loam: trails where the soil surface is at or below 0°C now show \"Frozen\" (a soil temperature estimate) instead of prime loam, and no loam alert is sent for them. A trail that froze overnight says so.":"Loam vélo : les sentiers où la surface du sol est à 0 °C ou moins affichent maintenant « Gelé » (une estimation de la température du sol) au lieu de loam parfait, et aucune alerte loam n'est envoyée pour eux. Un sentier qui a gelé pendant la nuit l'indique.",
     "Name this tour":"Nommer cette sortie",
     "★ Save":"★ Enregistrer",
     "★ Save this tour":"★ Enregistrer cette sortie",
@@ -3412,6 +3426,9 @@
         .replace(/rain on snow up to about (.+?): 1\.5x below that/, "pluie sur neige jusqu'à environ $1 : 1,5x en dessous")
         .replace(/warming to (-?\d+)°C at (.+?): sunny slopes count up to 1\.4x/, "réchauffement jusqu'à $1 °C à $2 : pentes ensoleillées jusqu'à 1,4x") + ".";
     }],
+    // Frozen ground on MTB trails (index.html frostAt, status.js), 2026-11-19
+    [/^Above 0°C at 1 pm from about (.+)\.$/, function (m, d) { return "Au-dessus de 0 °C à 13 h à partir d'environ " + (d === "tomorrow" ? "demain" : d === "today" ? "aujourd'hui" : tt(d).toLowerCase()) + "."; }],
+    [/^(All|\d+ of \d+) trails?: ground likely frozen now \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : sol probablement gelé maintenant (estimation de la température du sol)"; }],
   ];
 
   // ---- the translator (from scripts/i18n/engine.js) ----
