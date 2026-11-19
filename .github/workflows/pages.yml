@@ -47,6 +47,43 @@ jobs:
         # are made here, the same for every publish of the same main, one number higher after each merge.
         working-directory: site
         run: node scripts/stamp.mjs
+      - name: App link files (shared links open in the iPhone and Android apps)
+        # .well-known/apple-app-site-association and .well-known/assetlinks.json tell the phone which trailfinderapp.ca
+        # links (#pin=, #trail=, #route=, #trip=, #live=) open in the installed app. The app's IDs are filled in here from
+        # the secrets, so they stay out of the repository. A file whose ID is missing is left out (links then open the website).
+        # PLAY_SIGNING_SHA256: Play Console > Test and release > App integrity > App signing key certificate > SHA-256.
+        working-directory: site
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PLAY_SIGNING_SHA256: ${{ secrets.PLAY_SIGNING_SHA256 }}
+          ANDROID_UPLOAD_KEY: ${{ secrets.ANDROID_UPLOAD_KEY }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          team=$(printf '%s' "$APPLE_TEAM_ID" | tr -d ' \r\n\t')
+          if printf '%s' "$team" | grep -Eq '^[A-Z0-9]{10}$'; then
+            sed -i "s/__APPLE_TEAM_ID__/$team/g" .well-known/apple-app-site-association
+          else
+            echo "::warning::No APPLE_TEAM_ID secret: shared links won't open the iPhone app."; rm -f .well-known/apple-app-site-association
+          fi
+          certs=()
+          play=$(printf '%s' "$PLAY_SIGNING_SHA256" | tr -d ' \r\n\t' | tr 'a-f' 'A-F')
+          if printf '%s' "$play" | grep -Eq '^([0-9A-F]{2}:){31}[0-9A-F]{2}$'; then certs+=("$play")
+          else echo "::warning::No PLAY_SIGNING_SHA256 secret (or not a SHA-256 like AB:CD:...): apps installed from Google Play won't open shared links."; fi
+          if [ -n "$ANDROID_UPLOAD_KEY" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            # The upload key signs the test .apk from android-app.yml.
+            printf '%s' "$ANDROID_UPLOAD_KEY" | tr -d ' \r\n\t' | base64 -d > "$RUNNER_TEMP/upload.jks" 2>/dev/null || true
+            pw=$(printf '%s' "$ANDROID_KEY_PASSWORD" | tr -d '\r\n'); echo "::add-mask::$pw"
+            up=$(keytool -list -v -keystore "$RUNNER_TEMP/upload.jks" -storepass "$pw" -alias upload 2>/dev/null | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -1 || true)
+            rm -f "$RUNNER_TEMP/upload.jks"
+            if [ -n "$up" ] && [ "$up" != "$play" ]; then certs+=("$up"); fi
+          fi
+          if [ ${#certs[@]} -gt 0 ]; then
+            list=$(printf '"%s", ' "${certs[@]}"); list=${list%, }; list=${list#\"}; list=${list%\"}
+            sed -i "s/__ANDROID_CERTS__/$list/" .well-known/assetlinks.json
+          else
+            rm -f .well-known/assetlinks.json
+          fi
+          ls -la .well-known/ || true
       - name: Add the Canada-wide data
         run: |
           git clone -q --depth 1 --branch canada-data "https://github.com/${GITHUB_REPOSITORY}.git" canada || { echo "No canada-data branch yet."; exit 0; }

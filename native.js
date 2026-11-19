@@ -6,6 +6,7 @@
 // - navigator.wakeLock -> KeepAwake plugin (WKWebView has no screen wake lock), used by ride.html and navigate.js
 // - small vibrations on record start/stop and on Save buttons (Haptics plugin); window.tfHaptic(style) for others
 // - the launch screen stays until the page has drawn (SplashScreen plugin)
+// - shared trailfinderapp.ca links (#pin=, #trail=, #route=, #trip=, #live=) tapped outside the app open in it (App plugin)
 // Android only:
 // - the phone's Back button (or back swipe) closes what's open (a popup, card, menu), then goes back a page, and on the
 //   map itself puts the app away like the Home button (a ride keeps recording), instead of closing it
@@ -93,6 +94,34 @@
     if (document.body) later(); else addEventListener("DOMContentLoaded", later);
     new MutationObserver(later).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", later);
+  }
+
+  // Shared links (#pin=, #trail=, #route=, #trip=, #live=) tapped in Messages, mail or a browser open the app instead
+  // of the website (iPhone: Associated Domains + .well-known/apple-app-site-association; Android: App Links +
+  // .well-known/assetlinks.json; both filled in by pages.yml). The app always starts on the home page, so go to the
+  // link's own address and load it fresh, so each page's own "opened from a link" code shows the spot, trail or trip.
+  const LinkApp = plugin("App"), DONE = "tf:appLink";
+  const open = (raw, launch) => {
+    let u;
+    try { u = new URL(raw); } catch { return; }
+    if (u.protocol !== "https:" || !/^(www\.)?trailfinderapp\.ca$/.test(u.hostname)) return;
+    const to = (/^https?:$/.test(location.protocol) ? location.origin : "https://trailfinderapp.ca") + u.pathname + u.search + u.hash;
+    // The app's start address stays the same for as long as it runs: act on it once. And the same link can arrive
+    // twice when the app starts from it (start address + its open event): act once on that too.
+    const get = (k) => { try { return JSON.parse(sessionStorage.getItem(k) || "null"); } catch { return null; } };
+    const put = (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} };
+    const last = get(DONE), started = get(DONE + "Start");
+    if (launch) put(DONE + "Start", to);
+    if ((launch && started === to) || (last && last.url === to && Date.now() - last.t < 15000)) return;
+    put(DONE, { url: to, t: Date.now() });
+    if (to === location.href) return;
+    if (u.pathname.replace(/index\.html$/, "") !== location.pathname.replace(/index\.html$/, "")) { location.href = to; return; }
+    history.replaceState(history.state, "", location.pathname + u.search + u.hash);
+    location.reload();
+  };
+  if (LinkApp && LinkApp.addListener) {
+    try { LinkApp.addListener("appUrlOpen", (e) => open(e && e.url, false)); } catch {}
+    try { if (LinkApp.getLaunchUrl) LinkApp.getLaunchUrl().then((r) => r && r.url && open(r.url, true)).catch(() => {}); } catch {}
   }
 
   const hide = () => { try { Splash.hide({ fadeOutDuration: 200 }); } catch {} };

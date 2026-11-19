@@ -1,0 +1,53 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "__APPLE_TEAM_ID__.com.allduf.trailfinder"
+        ],
+        "components": [
+          {
+            "/": "/",
+            "#": "pin=*"
+          },
+          {
+            "/": "/",
+            "#": "trail=*"
+          },
+          {
+            "/": "/",
+            "#": "route=*"
+          },
+          {
+            "/": "/",
+            "#": "trip=*"
+          },
+          {
+            "/": "/",
+            "#": "live=*"
+          },
+          {
+            "/": "/index.html",
+            "#": "pin=*"
+          },
+          {
+            "/": "/index.html",
+            "#": "trail=*"
+          },
+          {
+            "/": "/index.html",
+            "#": "route=*"
+          },
+          {
+            "/": "/index.html",
+            "#": "trip=*"
+          },
+          {
+            "/": "/index.html",
+            "#": "live=*"
+          }
+        ]
+      }
+    ]
+  }
+}

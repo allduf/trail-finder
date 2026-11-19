@@ -59,22 +59,24 @@ else {
   }
 }
 
-// Phone notifications need the Push Notifications capability on the app's bundle ID, or the export can't sign the
-// app with its aps-environment entitlement (App.entitlements). Turn it on here if it's off.
+// Phone notifications need the Push Notifications capability on the app's bundle ID, and shared trailfinderapp.ca links
+// opening in the app need Associated Domains, or the export can't sign the app with its entitlements (App.entitlements).
+// Turn each on here if it's off.
 const APP = "com.allduf.trailfinder";
 const appId = await fetch(`https://api.appstoreconnect.apple.com/v1/bundleIds?filter[identifier]=${APP}&include=bundleIdCapabilities`, { headers: auth }).then((r) => r.json()).catch(() => ({}));
 const appRow = (appId.data || []).find((d) => d.attributes?.identifier === APP);
-if (!appRow) console.log(`::warning::Couldn't find bundle ID ${APP} to check Push Notifications.`);
-else if ((appId.included || []).some((c) => c.type === "bundleIdCapabilities" && c.attributes?.capabilityType === "PUSH_NOTIFICATIONS")) console.log("Push Notifications is on for the app.");
-else {
+const CAPS = [["PUSH_NOTIFICATIONS", "Push Notifications"], ["ASSOCIATED_DOMAINS", "Associated Domains"]];
+if (!appRow) console.log(`::warning::Couldn't find bundle ID ${APP} to check its capabilities.`);
+else for (const [cap, label] of CAPS) {
+  if ((appId.included || []).some((c) => c.type === "bundleIdCapabilities" && c.attributes?.capabilityType === cap)) { console.log(`${label} is on for the app.`); continue; }
   const on = await fetch("https://api.appstoreconnect.apple.com/v1/bundleIdCapabilities", {
     method: "POST",
     headers: { ...auth, "Content-Type": "application/json" },
-    body: JSON.stringify({ data: { type: "bundleIdCapabilities", attributes: { capabilityType: "PUSH_NOTIFICATIONS" }, relationships: { bundleId: { data: { type: "bundleIds", id: appRow.id } } } } }),
+    body: JSON.stringify({ data: { type: "bundleIdCapabilities", attributes: { capabilityType: cap }, relationships: { bundleId: { data: { type: "bundleIds", id: appRow.id } } } } }),
   });
-  if (on.ok) console.log("Turned on Push Notifications for the app.");
+  if (on.ok) console.log(`Turned on ${label} for the app.`);
   else {
     const e = ((await on.json().catch(() => ({}))).errors || [])[0] || {};
-    console.log(`::warning::Couldn't turn on Push Notifications (${on.status}: ${e.title || ""} ${e.detail || ""}). Tick it under Identifiers > ${APP} on developer.apple.com.`);
+    console.log(`::warning::Couldn't turn on ${label} (${on.status}: ${e.title || ""} ${e.detail || ""}). Tick it under Identifiers > ${APP} on developer.apple.com.`);
   }
 }
