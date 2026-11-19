@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#1f6f4a">
 <title>App Usage · Trail Finder</title>
 <style>
-/* Private page for alex: what testers do in the iPhone app (usage.js, supabase/usage.sql). Not linked from the app. */
+/* Private page for alex: what people do in the iPhone app, the Android app and the website (usage.js, supabase/usage.sql). Not linked from the app. */
 :root {
   --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --chip: #e8ece8;
   --accent: #1f6f4a; --accent-fg: #ffffff; --bar: #8cc7a6; --err: #c0392b;
@@ -107,7 +107,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
 <main>
   <header class="head">
     <h1>App usage</h1>
-    <p class="lead">What testers do in the iPhone app. Only you can see this page.</p>
+    <p class="lead">What people do in the iPhone app, the Android app and the website (from November 17, 2026; the iPhone app only before). Only you can see this page.</p>
   </header>
   <div id="msg" class="muted">Loading…</div>
   <div id="setup" class="note" hidden>One step left to see searches, speed, crashes and every tester: paste <b>supabase/usage-more.sql</b> into the Supabase SQL Editor and run it. Until then the app can't send them.</div>
@@ -173,6 +173,8 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     <section data-panel="searches">
       <h2>What people search for</h2>
       <p class="muted">Everything typed in a search box or Ask. Red tags are where the app let them down.</p>
+      <p class="muted" id="thisBrowser"></p>
+      <p><button class="btn" type="button" id="checkBrowser">Check this browser</button> <span class="muted" id="checkOut"></span></p>
       <div class="card"><table id="searches"></table></div>
 
       <h2>Find results</h2>
@@ -235,7 +237,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     </div>
   </section>
 </main>
-<script src="account.js?v=4230"></script>
+<script src="account.js?v=__V__"></script>
 <script>
 (() => {
   // Plain names for the app's main buttons (ids in index.html and ride.html). Anything else shows as tapped.
@@ -257,7 +259,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     "#ridden": "Ridden", "#accessBtn": "Access", "#allBtn": "All trails", "#firstTipOk": "Got it (first-open tip)", "#aboutClose": "Got it (How it works)",
     "#lmClose": "Close the Layers menu", "#sportMapBtn": "Sport button (on the map)", "list:ul": "An item in a list",
     "view=river": "Fishing view: River", "view=ocean": "Fishing view: Ocean", "view=lake": "Fishing view: Lake",
-    "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing", "sport=moto": "Sport: Adventure moto",
+    "sport=mtb": "Sport: MTB", "sport=ski": "Sport: Skiing", "sport=hunt": "Sport: Hunting", "sport=fish": "Sport: Fishing", "sport=moto": "Sport: Adventure moto (ADV)",
     "Got it": "Got it (closes What's new or a tip)", "Close": "Close (a card or sheet)",
   };
   // The home screen's cards and tiles (data-hub in index.html).
@@ -269,7 +271,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     near: "Near me", photo: "Which trail? (photo)", search: "New trails", start: "Start", layer: "A layer chip", layers: "All layers",
   };
   const MAIN = Object.keys(NAMES).filter((k) => k.startsWith("#"));
-  const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing", moto: "🏍 Adventure moto" };
+  const SPORTS = { mtb: "🚵 MTB", ski: "⛷ Skiing", hunt: "🦌 Hunting", fish: "🎣 Fishing", moto: "🏍 Adventure moto (ADV)" };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // Where a tap happened, in plain words ("Close (in #mtSpot)" → "Adventure moto spot › Close").
@@ -318,6 +320,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   const phoneOf = (d) => {
     const m = /^iOS ([\d.]+) · (.+)$/.exec(d.os || "");
     if (m) return `${MODELS[m[2]] || m[2]} · iOS ${m[1]}`;
+    if (/^(Android|Web)\b/.test(d.os || "")) return d.os.replace(/^Web · /, "Website · ") + (d.screen ? ` · screen ${d.screen}` : "");
     return `iOS not known yet (old app build) · screen ${d.screen || "?"}`;
   };
   const mins = (ms) => { const m = Math.round(ms / 60e3); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
@@ -388,6 +391,49 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     document.querySelectorAll("[data-days]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     load();
   }));
+
+  // This browser's own sending (usage.js keeps how its last send went): the website on this computer sends too.
+  function thisBrowser() {
+    let last = null, waiting = 0;
+    try { last = JSON.parse(localStorage.getItem("tf:useLast") || "null"); waiting = JSON.parse(localStorage.getItem("tf:useQueue") || "[]").length; } catch {}
+    const off = localStorage.getItem("tf:useOff") === "1";
+    // www.trailfinderapp.ca and trailfinderapp.ca both serve the app, and a browser keeps each one's saved things apart
+    // (alex 2026-11-18: his map tab was on www, this page on the plain address, so it said nothing was ever sent).
+    const h = location.hostname, other = /trailfinderapp\.ca$/.test(h) ? (h.startsWith("www.") ? h.slice(4) : "www." + h) : "";
+    $("thisBrowser").innerHTML = off ? "This browser: Don't share is on (More › How the app is used), so it sends nothing."
+      : !last ? `This browser hasn't sent anything from ${esc(location.host)} yet${waiting ? ` (${waiting} waiting)` : ""}.${other ? ` If you use Trail Finder at ${esc(other)}, the browser keeps that apart: <a href="https://${esc(other)}/usage">check this page there</a>.` : " Open Trail Finder here, use it, then come back."}`
+      : last.ok ? `This browser last sent ${last.n} events ${agoShort(last.t)}${waiting ? `; ${waiting} waiting` : ""}.`
+      : `<span class="tag bad">Not sending</span> This browser's last send failed ${agoShort(last.t)}: ${esc(last.why || "no answer")}${waiting ? ` (${waiting} waiting)` : ""}.`;
+  }
+  thisBrowser();
+  // Check this browser (alex 2026-11-18, website searches never arrived): how full its storage is, its device code,
+  // and one test event sent the way the app sends them, with the server's own answer.
+  $("checkBrowser").addEventListener("click", () => {
+    $("checkOut").textContent = "Checking…";
+    // Any error is shown too: a page that can't even read its own storage is the answer.
+    checkBrowser().catch((e) => { $("checkOut").textContent = `The check stopped: ${(e && (e.name + ": " + e.message)) || e}`; });
+  });
+  async function checkBrowser() {
+    const out = $("checkOut"), acct = window.tfAccount, lines = [];
+    let size = 0, full = false;
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); size += k.length + (localStorage.getItem(k) || "").length; } } catch {}
+    try { localStorage.setItem("tf:useCheck", "x".repeat(2000)); localStorage.removeItem("tf:useCheck"); } catch { full = true; }
+    let device = "", offOn = false;
+    try { device = localStorage.getItem("tf:device") || ""; offOn = localStorage.getItem("tf:useOff") === "1"; } catch (e) { lines.push(`STORAGE BLOCKED (${e && e.name}): the browser doesn't let Trail Finder keep anything`); }
+    lines.push(`app on this computer: ${navigator.serviceWorker && navigator.serviceWorker.controller ? "saved copy in use" : "no saved copy"}`);
+    lines.push(`Storage ${Math.round(size * 2 / 1024)} KB${full ? " (FULL: the app can't save anything new here)" : ""}`);
+    lines.push(`device code ${device ? device.slice(0, 8) + "… (" + device.length + " characters)" : "none"}`);
+    lines.push(`Don't share ${offOn ? "ON" : "off"}`);
+    out.textContent = lines.join(" · ") + " · sending a test…";
+    if (!device || !acct || !acct.enabled) { out.textContent = lines.join(" · ") + " · no test sent (no device code or no account set up)."; return; }
+    try {
+      const res = await fetch(`${acct.url}/rest/v1/rpc/tf_use`, { method: "POST", headers: { "Content-Type": "application/json", apikey: acct.key, Authorization: `Bearer ${acct.key}` },
+        body: JSON.stringify({ device, os: "Web · usage page check", screen: `${Math.min(screen.width, screen.height)}x${Math.max(screen.width, screen.height)}`, events: [{ s: "usagecheck", t: new Date().toISOString(), p: "usage", k: "tap", w: "Usage page: Check this browser" }] }) });
+      const body = await res.text().catch(() => "");
+      lines.push(res.ok ? "test sent and saved by the server" : `server refused the test: ${res.status} ${body.slice(0, 200)}`);
+    } catch (e) { lines.push(`test couldn't reach the server: ${(e && e.message) || e}`); }
+    out.textContent = lines.join(" · ");
+  }
 
   async function load() {
     $("msg").hidden = false; $("msg").textContent = "Loading…";
@@ -600,7 +646,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     // Still unnamed and no model: who could it be, by screen size? (Not for blank opens: nobody used those.)
     const blank = blankDevices();
     for (const d of phones.values()) {
-      if (!isFree(d) || modelOf(d) || blank.has(d.device)) continue;
+      if (!isFree(d) || modelOf(d) || blank.has(d.device) || /^(Android|Web)\b/.test(d.os || "")) continue;   // only iPhones are on TestFlight
       const fits = SCREENS[d.screen] || [];
       const who = testers.filter((t) => isOpen(t) && fits.includes(t.model)).map((t) => t.name);
       if (who.length) guesses.push({ d, who });
@@ -637,7 +683,9 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   const RIDE_TEXT = /^(▶ )?(record|follow|go|start|navigate|ride|track|plan a (route|tour|moto route))\b/i;
   // A spot, route or hut card being opened (other sports don't send "view" like the MTB trail card does).
   const CARD = /^(#(fsSpot|mtSpot|mtRoute)|list:#(results|list|trailHits|wantList))|\(in #(fsSpot|mtSpot|mtRoute|detail)\)$/;
-  const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask", Area: "🗺️ Where to look", "Ski find": "⛷ Skiing search" };
+  const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask", Area: "🗺️ Where to look", "Ski find": "⛷ Skiing search", "Heli cat": "🚁 Heli and cat skiing", "Ski areas": "⛰ Ski areas" };
+  // Where a search was made, from the phone's os line (usage.js).
+  const fromOf = (os) => (/^Web\b/.test(os || "") ? "Website" : /^Android\b/.test(os || "") ? "Android app" : "iPhone app");
   const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["list", "New trails list"], ["3dshape", "3D mountains shown"], ["3d", "3D sharp photos all in"]];
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
@@ -648,7 +696,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const blank = blankDevices();
     const keep = (device) => (showBlank || !blank.has(device)) && (view === "all" || (view === "me") === meSet.has(device));
     document.querySelectorAll("[data-who]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.who === view)));
-    $("whoHint").textContent = meSet.size ? "" : "Tip: in Testers, tap “This is me” on your own phone to leave it out.";
+    $("whoHint").textContent = meSet.size ? (view === "others" ? "Your own phone and computer (named Me) are left out. Pick Everyone or Only me to see what you did." : "") : "Tip: in Testers, tap “This is me” on your own phone to leave it out.";
     const shown = rows.filter((r) => realError(r) && keep(r.device));
     const devices = new Map(), sessions = new Map();
     for (const r of shown) {
@@ -683,7 +731,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       const box = String(r.what).split(":")[0], q = String(r.what).slice(box.length + 1).trim();
       const t = new Date(r.at);
       const picked = s.ev.slice(i + 1).some((o) => o.kind === "pick" && o.what === box && new Date(o.at) - t < 180e3);
-      searches.push({ box, q, n: r.ms, picked, device: r.device, at: r.at });
+      searches.push({ box, q, n: r.ms, picked, device: r.device, at: r.at, from: fromOf(r.os) });
     });
     const empty = searches.filter((x) => x.n === 0).length, noPick = searches.filter((x) => x.n > 0 && !x.picked).length;
 
@@ -744,15 +792,15 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
 
     const sg = new Map();
     for (const x of searches) {
-      const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, last: x.n, at: x.at };
-      g.n++; g.who.add(x.device); if (x.n === 0) g.empty++; if (x.picked) g.picked++; g.last = x.n; if (x.at > g.at) g.at = x.at; sg.set(k, g);
+      const k = `${x.box}|${x.q.toLowerCase()}`, g = sg.get(k) || { box: x.box, q: x.q, n: 0, who: new Set(), empty: 0, picked: 0, gone: 0, last: x.n, at: x.at, from: new Set() };
+      g.n++; g.who.add(x.device); g.from.add(x.from); if (x.n === 0) g.empty++; if (x.n == null && x.box === "Ask") g.gone++; if (x.picked) g.picked++; g.last = x.n; if (x.at > g.at) g.at = x.at; sg.set(k, g);
     }
     // Newest first by default, so a search just made is at the top (alex 2026-11-05: "i dont see it"); Most searched groups.
     const sl = [...sg.values()].sort(searchSort === "most" ? (a, b) => b.n - a.n || b.empty - a.empty || (b.at > a.at ? 1 : -1) : (a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0)).slice(0, 60);
     $("searches").innerHTML = (searches.length ? `<caption class="muted" style="text-align:left;padding-bottom:6px">${searches.length} searches: ${empty} found nothing, ${noPick} got answers but no pick. <span class="days" style="display:inline-flex;margin-left:6px"><button type="button" data-ssort="new" aria-pressed="${searchSort !== "most"}">Newest first</button><button type="button" data-ssort="most" aria-pressed="${searchSort === "most"}">Most searched</button></span></caption>` : "") +
       `<tr><th>Searched for</th><th>What happened</th></tr>` +
-      (sl.map((g) => `<tr><td><span class="q">${esc(g.q)}</span><br><span class="muted">${esc(BOX[g.box] || g.box)} · ${g.n === 1 ? "once" : `${g.n} times`}${g.who.size > 1 ? ` by ${g.who.size} testers` : ""}${g.last == null ? "" : ` · ${g.last} result${g.last === 1 ? "" : "s"}`} · ${g.n === 1 ? "" : "last "}${agoShort(g.at)}</span></td>
-        <td style="width:1%">${g.empty === g.n ? `<span class="tag bad">Nothing found</span>` : g.picked ? `<span class="tag good">Picked one${g.picked < g.n ? ` (${g.picked} of ${g.n})` : ""}</span>` : `<span class="tag bad">Didn't pick one</span>`}</td></tr>`).join("") || none(2, all ? "No searches yet" : "Searches show here once usage-more.sql is run"));
+      (sl.map((g) => `<tr><td><span class="q">${esc(g.q)}</span><br><span class="muted">${esc(BOX[g.box] || g.box)} · ${esc([...g.from].join(", "))} · ${g.n === 1 ? "once" : `${g.n} times`}${g.who.size > 1 ? ` by ${g.who.size} testers` : ""}${g.last == null ? "" : ` · ${g.last} result${g.last === 1 ? "" : "s"}`} · ${g.n === 1 ? "" : "last "}${agoShort(g.at)}</span></td>
+        <td style="width:1%">${g.gone === g.n ? `<span class="tag">Left before the answer</span>` : g.empty === g.n ? `<span class="tag bad">Nothing found</span>` : g.picked ? `<span class="tag good">Picked one${g.picked < g.n ? ` (${g.picked} of ${g.n})` : ""}</span>` : `<span class="tag bad">Didn't pick one</span>`}</td></tr>`).join("") || none(2, all ? "No searches yet" : "Searches show here once usage-more.sql is run"));
 
     const rg = new Map();
     for (const r of shown) if (r.kind === "result") { const g = rg.get(r.what) || { n: 0, empty: 0, counts: [] }; g.n++; if (!r.ms) g.empty++; g.counts.push(r.ms || 0); rg.set(r.what, g); }
@@ -820,7 +868,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       g.n++; g.who.add(c.label || c.device.slice(0, 6)); if (c.at > g.last) g.last = c.at; if (c.ms > (g.v || 0)) g.v = c.ms; cg.set(k, g);
     }
     $("crashes").innerHTML = cg.size ? `<tr><th>Where</th><th class="n">Times</th><th>Who</th><th class="n">Last</th><th class="n">Version</th></tr>` + [...cg.entries()].sort((a, b) => (a[1].last < b[1].last ? 1 : -1)).map(([k, g]) => `<tr><td>${k}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td><td class="n">${g.v || "–"}</td></tr>`).join("")
-      : none(5, "No crashes 🎉");
+      : none(5, "No crashes");
 
     // ---- weeks: testers each week, and how many had used it in an earlier week
     const firstWeek = new Map();
@@ -919,7 +967,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const el = [...eg.entries()].sort((a, b) => (a[1].last < b[1].last ? 1 : -1)).slice(0, 30);
     $("errors").innerHTML = el.length
       ? `<tr><th>Error</th><th class="n">Times</th><th>Who</th><th class="n">Last</th><th class="n">Version</th></tr>` + el.map(([k, g]) => `<tr><td class="raw">${esc(k)}</td><td class="n">${g.n}</td><td>${esc([...g.who].join(", "))}</td><td class="n">${ago(g.last)}</td><td class="n">${g.v || "–"}</td></tr>`).join("")
-      : none(1, "No errors 🎉");
+      : none(1, "No errors");
     paintTodo();
   }
 

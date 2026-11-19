@@ -18,7 +18,9 @@
     } catch { return true; }   // no storage: it couldn't remember being closed, so don't show it at all
     return false;
   })();
-  const pending = !has(KEY) && !usedBefore && !/[?&]nowelcome\b/.test(location.search);
+  // A friend's cabin trip link (#trip=, alex 2026-11-16 "when you receive the invite from a friend, what do you see"):
+  // the trip opens straight away, without the welcome on top (picking another sport there closed the trip).
+  const pending = !has(KEY) && !usedBefore && !/[?&]nowelcome\b/.test(location.search) && !/^#trip=/.test(location.hash);
   const set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   const SPORTS = [
@@ -26,7 +28,7 @@
     ["ski", "⛷", "Skiing", "Ski tours, avalanche forecast, huts and resorts"],
     ["hunt", "🦌", "Hunting", "Zones, open seasons, no-shooting areas and wind"],
     ["fish", "🎣", "Fishing", "Stocked lakes, fishing rules and river flow"],
-    ["moto", "🏍", "Adventure moto", "Gravel and back roads graded for your bike"],
+    ["moto", "🏍", "Adventure moto (ADV)", "Gravel and back roads graded for your bike"],
     ["hike", "🥾", "Hiking", "Hikes by grade, snow on the trail, park passes"],
   ];
   // Step 2 (why location helps) and step 3 (what you'll see), in each sport's own words.

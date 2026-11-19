@@ -1,0 +1,7 @@
+Prime loam: a trail a road splits in two says which part each row is (north part, south part), the same trail isn't listed twice, and the Loam range shown leaves out trails under snow. ||| Loam idéal : un sentier coupé en deux par une route indique quelle partie est chaque ligne (partie nord, partie sud), le même sentier n'est plus listé deux fois, et la plage de Loam affichée laisse de côté les sentiers sous la neige.
+Search no longer offers far-away places whose names only look a little like what you typed. ||| La recherche ne propose plus de lieux lointains dont le nom ressemble seulement un peu à ce que vous avez tapé.
+North part, a road splits it ||| Partie nord, une route le coupe
+South part, a road splits it ||| Partie sud, une route le coupe
+West part, a road splits it ||| Partie ouest, une route le coupe
+East part, a road splits it ||| Partie est, une route le coupe
+Middle part, a road splits it ||| Partie du milieu, une route le coupe

@@ -288,7 +288,8 @@ label.toggle.off { background: transparent; border: 1px dashed var(--line); box-
 .map-tools .layers-menu button { display: flex; align-items: center; gap: 6px; text-align: left; background: var(--chip, #fff); border: 1px solid var(--line); }
 .map-tools .layers-menu .lm-overlays button::after { content: "Off"; margin-left: auto; font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 10%, transparent); color: var(--muted); }
 .map-tools .layers-menu .lm-overlays button.on::after { content: "On"; background: rgba(255, 255, 255, .25); color: inherit; }
-.mapwrap.is3d .layers-menu .lm-style { display: none; }
+/* Map style works in 3D too (alex 2026-11-17, map3d.js); only Tilt for 3D is for the flat map. */
+.mapwrap.is3d .layers-menu .lm-tilt { display: none; }
 .layers-menu .lm-looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .map-tools .layers-menu .lm-looks button { justify-content: center; padding-left: 4px; padding-right: 4px; font-size: .85rem; }
 .map-tools .layers-menu .lm-looks button[aria-pressed="true"] { background: var(--forest); border-color: var(--forest); color: #fff; }
@@ -586,7 +587,7 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > [hidden], html body #skiPane .sk-listwrap > [hidden] { display: none; }
   html body #skiPane .sk-listwrap { display: contents; }
   html body :is(#huntPane, #fishPane, #motoPane, #hikePane) > .ps-box, html body #skiPane #skFindForm, html body #skiPane #skPlaceMsg, html body #skiPane #skPlaces { order: 1; }
-  html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hkNow, #hikePane #hkHike, #hnSpot, #fsSpot, #skSpot, #skPlan, #skTrip, #skDetail, #skStation) { order: 2; }
+  html body :is(#skNow, #hnNow, #fsNow, #mtNow, #hkNow, #hikePane #hkHike, #hnSpot, #fsSpot, #skSpot, #skPlan, #skTrip, #hkTrip, #fsTrip, #skDetail, #skStation) { order: 2; }
   html body :is(#huntPane .hn-actions, #huntPane #hnPins, #fishPane .fs-actions, #motoPane .mt-actions, #hikePane .hk-actions, #skiPane .sk-views, #hnTruck, #fsTruck, #hnHint, #fsHint, #mtHint) { order: 3; }
   html body :is(#skiPane .sk-acts, #skiPane .sk-explore, #skiPane .sa-open, #skiPane .hc-open, #skiPane .sc-open, #motoPane #mtBike, #motoPane #mtSafeRow, #fishPane #fsToday) { order: 4; }
   html body :is(#hnLayers, #fsMap, #mtMap) { order: 5; }
@@ -605,6 +606,9 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
 /* Skiing's Winter map style (alex 2026-11-03): a 5th tile, only in Skiing */
 .map-tools .layers-menu .lm-tiles .t-winter { background: radial-gradient(circle at 30% 30%, #f4f8fb, #b9c9d6 60%, #5d6f7c); color: #15211a; }
 body:not(.sport-ski) .layers-menu .lm-tiles .t-winter { display: none; }
+/* Adventure moto's own map (adv-map.js), Adventure moto only */
+.map-tools .layers-menu .lm-tiles .t-advtopo { background: repeating-linear-gradient(115deg, transparent 0 9px, #8a4a1c 9px 11px, transparent 11px 14px), repeating-radial-gradient(circle at 30% 70%, #e4ebd0 0 5px, #b08a5a 5px 6px); color: #15211a; }
+body:not(.sport-moto) .layers-menu .lm-tiles .t-advtopo { display: none; }
 body.sport-ski .layers-menu .lm-tiles { grid-template-columns: repeat(5, 1fr); }
 
 /* The status after Forest roads and Wildfires in Layers (alex 2026-11-05): a small live line under the name */

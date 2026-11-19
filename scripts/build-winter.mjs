@@ -242,10 +242,14 @@ function inResort(resorts, lat, lon) {
   }
   return false;
 }
+// A walk-on-snow path a resort's skiers use to reach terrain (see resortTerrain): rated advanced or harder, or named so.
+const WALK_DIFF = /^(advanced|expert|freeride|extreme)$/;
+const WALK_NAME = /travers|taverse|ladder|boot ?-?pack|\baccess\b|\bbowl\b|chute|cirque|summit|\bhike\b|exit/i;
+const resortWalk = (r) => WALK_DIFF.test(r.diff || "") || WALK_NAME.test(r.name || "");
 // Off-piste downhill mostly (70 %+ of its points) inside a resort boundary is in-bounds resort terrain; closed downhill
 // or touring rings are areas (bowls, glades, zones).
 function resortTerrain(routes, resorts) {
-  let off = 0, areas = 0;
+  let off = 0, areas = 0, walks = 0;
   for (const r of routes) {
     const pt = String(r.tags?.["piste:type"] || "").split(";")[0];
     if (r.type === "tour" && pt === "downhill") {
@@ -253,13 +257,23 @@ function resortTerrain(routes, resorts) {
       for (const part of r.g) for (let i = 0; i < part.length; i += 2) { n++; if (inResort(resorts, part[i], part[i + 1])) inside++; }
       if (n && inside / n >= 0.7) { r.type = "offpiste"; off++; }
     }
+    // A walk-on-snow path (piste:type=hike, read as a snowshoe trail) inside a resort's boundary that is rated advanced or
+    // harder, or is named as a traverse, ladder, boot-pack or access, is the resort's own way to its terrain (Whistler
+    // Blackcomb's Spanky's Ladder, Ruby Bowl Traverse, Calvin Traverse; alex 2026-11-19: "why is the purple line in
+    // nordic"): it goes with Resorts, not Nordic. Snowshoe trails at resorts (Cypress's Yew Lake, Grouse's Light Walk,
+    // the Mount Seymour Trail) aren't rated that way and stay.
+    if (r.type === "snowshoe" && r.src === "osm" && resortWalk(r)) {
+      let n = 0, inside = 0;
+      for (const part of r.g) for (let i = 0; i < part.length; i += 2) { n++; if (inResort(resorts, part[i], part[i + 1])) inside++; }
+      if (n && inside / n >= 0.7) { r.type = "resort"; r.walk = 1; walks++; }
+    }
     // Only downhill and touring terrain: a nordic, snowshoe or sled loop that closes on itself is still a trail.
     if (/^(tour|offpiste|resort)$/.test(r.type) && r.g.length === 1 && r.g[0].length >= 8) {
       const p = r.g[0], gap = Math.hypot((p[0] - p.at(-2)) * 110540, (p[1] - p.at(-1)) * 71000);
       if (gap < 15) { r.area = 1; areas++; }
     }
   }
-  log(`  ${resorts.length} ski resort boundaries; ${off} off-piste runs inside them are resort terrain, not ski tours; ${areas} routes drawn as areas`);
+  log(`  ${resorts.length} ski resort boundaries; ${off} off-piste runs inside them are resort terrain, not ski tours; ${areas} routes drawn as areas; ${walks} in-resort traverses and boot-packs moved from snowshoe to Resorts`);
 }
 
 async function buildOsm() {
@@ -607,7 +621,7 @@ async function buildCanadaOsm(old) {
     const t = Date.now();
     try {
       const got = osmRoutes((await overpass(tourQuery(pv), { wait: 330000, tries: 2 })).elements || []);
-      for (const r of got.routes) if (BACKCOUNTRY.has(r.type) && wildNordic(r)) routes.push({ ...r, pv });
+      for (const r of got.routes) if ((BACKCOUNTRY.has(r.type) || r.walk) && wildNordic(r)) routes.push({ ...r, pv });
       for (const h of got.huts) huts.push({ ...h, pv });
       osmPv[pv] = builtAt;
       log(`  CA-${pv} done in ${Math.round((Date.now() - t) / 1000)} s`);

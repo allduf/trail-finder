@@ -1,0 +1,6 @@
+# Tutorials (was fr-93): snow and rain + avalanche and terrain videos (tutorials.js), 2026-11-14
+Snow and rain layers ||| Couches neige et pluie
+See where snow and rain fell in the last 24 hours, and where they're forecast in the next 24 hours, 2 days or 3 days ||| Voyez où la neige et la pluie sont tombées dans les dernières 24 heures, et où elles sont prévues dans les prochaines 24 heures, 2 jours ou 3 jours
+Avalanche and terrain layers ||| Couches avalanche et terrain
+Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast) ||| La cote d'Avalanche Canada sur les pentes, puis l'inclinaison, l'orientation des pentes, les replats et les étages d'altitude (un exemple de bulletin)
+Tutorials: two new Skiing videos, the Snow and rain layers and the Avalanche and terrain layers (More, Tutorials). ||| Tutoriels : deux nouvelles vidéos en Ski, les couches neige et pluie et les couches avalanche et terrain (Plus, Tutoriels).

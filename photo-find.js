@@ -78,6 +78,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf .pf-prev[hidden] { display: none; }
 .pf .pf-tw { position: relative; flex: none; }
 .pf .pf-rm { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font: inherit; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: var(--shadow-sm); }
+.pf .pf-res.first li { opacity: .72; }
 .pf .pf-res .pv { font-size: .78rem; margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
 .pf .pf-res .pv a { color: var(--accent); text-decoration: none; font-weight: 600; }
 .pf .pf-ai { font-size: .85rem; margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--chip); }
@@ -529,12 +530,16 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     s.width = s.height = 0;
     return url.slice(url.indexOf(",") + 1);
   }
-  async function readWords(my) {
+  // The picture, or a few frames of the video, ready to read; the small copies for the AI made from them (media).
+  async function frames(my) {
     const canvases = isVideo(file) ? await videoFrames(thumbUrl, my) : [await imageCanvas(thumbUrl)];
     if (!canvases.length) throw new Error("no frames could be taken from the video");
     // Up to 3 frames spread through the video (the middle ones), or the picture.
     const pick = canvases.length <= 3 ? canvases : [canvases[1], canvases[Math.floor(canvases.length / 2)], canvases[canvases.length - 2]];
     media = { jpegs: pick.map(jpeg), hash: dhash(pick[0]) };
+    return canvases;
+  }
+  async function readWords(my, canvases) {
     say("Getting the word reader ready (about 7 MB the first time)…", 0);
     await loadScript(TESS);
     let part = 0;
@@ -571,7 +576,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   // The AI looks at the picture (supabase/functions/which-trail). null when it isn't set up, fails, is too slow or has
   // nothing; aiWhy then says why, shown under the picture so a screenshot tells what went wrong.
   let aiWhy = "", aiDetail = "";   // why the AI was skipped; the function's note on each model (for the accuracy test)
-  async function askAI(my, read) {
+  let aiBusy = false;      // the AI is still looking (started while the words were read)
+  async function askAI(my, read, quiet = false) {
     aiWhy = ""; aiDetail = "";
     const acct = window.tfAccount;
     if (aiOff || !media || !media.jpegs.length || !acct || !acct.enabled) return null;
@@ -581,7 +587,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // Google's AI only after a yes (welcome.js tfAiConsent: Apple 5.1.2(i), Gemini is 18 or older).
     if (window.tfAiConsent && !(await window.tfAiConsent.ask("photo"))) { aiWhy = "Google's AI is off (your choice): turn it on in More, Google's AI."; return null; }
     if (my !== job) return null;
-    say(`The AI is looking at the picture (mountains, rock, lakes, words)… up to ${AI_WAIT / 1000} s`, 0.9);
+    if (!quiet) say(`The AI is looking at the picture (mountains, rock, lakes, words)… up to ${AI_WAIT / 1000} s`, 0.9);
+    aiBusy = true;
     const look = async () => {
       await acct.load();
       if (!acct.client) return null;
@@ -603,6 +610,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // A hard stop too, in case loading the account library or the network hangs.
     const late = new Promise((res) => setTimeout(() => res("late"), AI_WAIT + 2000));
     const got = await Promise.race([look().catch((e) => { aiWhy = e && e.message || "failed"; return null; }), late]);
+    aiBusy = false;
     if (my !== job) return null;
     if (got === "late") { aiWhy = "too slow"; aiSlow++; if (aiSlow >= 2) aiOff = true; return null; }
     if (got) { ai = got; aiKey = key; }
@@ -612,9 +620,17 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (pin && !gpsSpot) { pin.remove(); pin = null; }
     // A new search: last search's list, note, question and AI line go, so nothing stale shows while this one runs.
     shown = []; $("pfRes").innerHTML = ""; $("pfNote").textContent = ""; $("pfAreas").hidden = true; $("pfAi").hidden = true; $("pfCmp").hidden = true;
+    // Faster (alex, 2026-11-18): the AI starts looking at the picture right away, while the words in it are read on the
+    // phone (before, it waited for them: up to a minute before any list). The words read go to the AI only as a hint,
+    // and it reads the picture itself. As soon as the words are read, a first list from them (and the description and
+    // the area picked) shows, marked as a first look, and the full list replaces it when the AI has answered.
+    let aiP = null;
     if (read && file) {
       try {
-        const text = await readWords(my);
+        const canvases = await frames(my);
+        if (my !== job) return;
+        if (!(ai && aiKey === [$("pfCaption").value.trim(), $("pfArea").value].join("|"))) aiP = askAI(my, "", true);
+        const text = await readWords(my, canvases);
         if (my !== job) return;
         $("pfRead").value = text;
         $("pfReadBox").hidden = false;
@@ -622,8 +638,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         if (my !== job) return;
         say(`Couldn't read the words in it (${e.message}).`);
       }
+      if (aiP && my === job) await firstLook(my, aiP);
     }
-    const seen = file ? await askAI(my, $("pfRead").value) : null;
+    const seen = file ? await (aiP || askAI(my, $("pfRead").value)) : null;
     if (my !== job) return;
     if (TEST) TEST.diag = { words: core(words($("pfRead").value)).length, why: aiWhy, detail: aiDetail,
       ai: seen ? { model: seen.model || "", places: seen.places, landmarks: seen.landmarks, views: seen.views || [], terrain: seen.terrain || [], guesses: seen.guesses.map((g) => g.trail), vp: seen.viewpoint || null,
@@ -683,6 +700,26 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       : where + "No trail name in the picture or caption matched a trail the app knows. Paste the caption, type a trail name you saw, or pick the area and try again.");
     if (n && seen) await compareOnline(my, res.rows, seen, res.more, wd, res.spot);
     testEnd(my);
+  }
+  // The first look: the words read in the picture, the description and the area picked, while the AI is still looking.
+  // Only when there's something to go on and the AI hasn't answered yet; nothing is saved from it, and the full list
+  // replaces it (the same rows when the AI adds nothing).
+  async function firstLook(my, aiP) {
+    let done = false;
+    aiP.then(() => { done = true; }, () => { done = true; });
+    await new Promise((r) => setTimeout(r, 0));
+    if (done || my !== job) return;
+    const waiting = () => say(`First look from the words. The AI is still looking at the picture (mountains, rock, lakes)… up to ${AI_WAIT / 1000} s`, 0.9);
+    const own = [$("pfCaption").value, $("pfRead").value].join("\n");
+    if (!core(words(own)).length && !$("pfArea").value) { waiting(); return; }
+    let res = null;
+    try { const n = core(words(own)).length; res = await match(own, my, null, n, n, Infinity, words($("pfCaption").value).filter((w) => !STOP.has(w)).length); } catch { res = null; }
+    if (done || my !== job) return;
+    waiting();
+    if (!res || !res.rows.length) return;
+    lastText = own;
+    show(res.rows, "First look, from the words and the area only. The list updates when the AI has looked at the picture.");
+    $("pfRes").classList.add("first");
   }
   // Nothing places the picture, or only the AI's guess (guess: its words for the spot), and no area is picked: where was
   // it? One tap looks at that area's trails (the AI's look stays: the free AI allows only so many looks a day).
@@ -1589,6 +1626,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
   function show(rows, note) {
     shown = rows;
+    $("pfRes").classList.remove("first");
     testDone(rows);
     $("pfFix").hidden = !(file || rows.length);
     $("pfRes").innerHTML = rows.map((r, n) => `<li tabindex="0" data-n="${n}" class="${r.best ? "best" : ""}"><span class="bar"></span>

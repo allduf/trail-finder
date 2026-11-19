@@ -1,0 +1,1 @@
+Picking a trail from search now moves the map to it in 3D too, and search finds a trail typed as singular or plural (Half Nelsons finds Half Nelson). ||| Choisir un sentier dans la recherche déplace maintenant la carte jusqu'à lui en 3D aussi, et la recherche trouve un sentier écrit au singulier ou au pluriel (Half Nelsons trouve Half Nelson).

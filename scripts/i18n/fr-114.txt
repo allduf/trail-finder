@@ -1,0 +1,18 @@
+# Sun and shade layer, every sport (shade.js), 2026-11-17
+Sun and shade, in Layers for every sport: pick a date and a time, and the map darkens the ground the terrain keeps in shade at that moment, on the flat map and in 3D. It uses the sun's real position for the place and the day of the year. An estimate from terrain heights. ||| Soleil et ombre, dans Couches pour chaque sport : choisissez une date et une heure, et la carte assombrit le terrain à l'ombre à ce moment-là, sur la carte à plat et en 3D. Elle utilise la vraie position du soleil pour l'endroit et le jour de l'année. Une estimation tirée des altitudes du terrain.
+Sun and shade ||| Soleil et ombre
+Show where the terrain is in shade at a date and time you pick, on the flat and 3D maps ||| Voir où le terrain est à l'ombre à la date et à l'heure choisies, sur la carte à plat et en 3D
+Sun and shade: pick a date and time ||| Soleil et ombre : choisissez une date et une heure
+Time of day ||| Heure de la journée
+Turn off Sun and shade ||| Désactiver Soleil et ombre
+In shade ||| À l'ombre
+Shade from the terrain, an estimate from terrain heights and the sun's position. Trees, buildings and clouds aren't counted. ||| Ombre du terrain, une estimation tirée des altitudes du terrain et de la position du soleil. Les arbres, les bâtiments et les nuages ne sont pas comptés.
+Sun down here ||| Soleil couché ici
+Sun ||| Soleil
+high ||| de haut
+rise ||| lever
+set ||| coucher
+Sun up all day ||| Soleil levé toute la journée
+Sun down all day ||| Soleil couché toute la journée
+Now ||| Maintenant
+Date ||| Date

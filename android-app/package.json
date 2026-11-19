@@ -1,0 +1,17 @@
+{
+  "name": "trail-finder-android",
+  "private": true,
+  "description": "The Trail Finder Android app: the website in a Capacitor shell, like the iPhone app in ios-app/. Built by .github/workflows/android-app.yml.",
+  "dependencies": {
+    "@capacitor-community/keep-awake": "8.0.1",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/device": "8.0.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/share": "8.0.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "trail-gps": "file:plugins/TrailGps"
+  }
+}

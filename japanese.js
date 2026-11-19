@@ -90,7 +90,10 @@ dialog.jp-big button { align-self: center; font: inherit; font-weight: 700; padd
 #jpBtn { position: absolute; z-index: 800; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 96px); font: inherit; font-weight: 700; font-size: .9rem; padding: 10px 14px; border-radius: 999px; border: 0; background: var(--panel); color: var(--fg); box-shadow: 0 2px 10px rgba(0,0,0,.25); cursor: pointer; display: none; }
 #jpBtn.on { display: block; }
 /* Wide screens: in the map's button column, under Layers (it sat on top of Layers, alex 2026-10-30). */
-@media (min-width: 761px) { .map-tools #jpBtn { position: static; font-size: .85rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(0,0,0,.15); } }
+@media (min-width: 761px) { .map-tools #jpBtn { position: static; font-size: .85rem; font-weight: 600; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(0,0,0,.15); z-index: auto; }
+  /* Its phone z-index (800) put it on top of the open Layers menu, over Ski touring (alex 2026-11-14 "over laping"):
+     out of the way while Layers is open. */
+  .map-tools.menu-open #jpBtn { display: none; } }
 #skiPane .jp-open { font: inherit; font-size: .88rem; font-weight: 700; padding: 10px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; width: 100%; margin-top: 6px; display: none; }
 #skiPane .jp-open.on { display: block; }
 `;

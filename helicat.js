@@ -10,6 +10,7 @@
 // Resorts group of the Skiing layers turns it all on and off (on by default), and a panel button lists them all.
 (() => {
   "use strict";
+  const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
   const map = window.tfLeaflet;
   if (!map || !window.L) return;
   const $ = (id) => document.getElementById(id);
@@ -322,8 +323,10 @@ dialog.hc-dlg .hc-near button { font: inherit; font-size: .84rem; font-weight: 7
       }
       list.innerHTML = html || `<p class="hc-small">No operation matches.</p>`;
       list.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => open(byId.get(b.dataset.id))));
+      if (q.length >= 2) list.querySelectorAll("[data-id]").forEach((b) => b.addEventListener("click", () => logUse("pick", "Heli cat")));
     };
-    box.addEventListener("input", () => { query = box.value; fill(); });
+    // What's typed goes on the usage page's "What people search for" (sent once the typing stops, usage.js).
+    box.addEventListener("input", () => { query = box.value; fill(); const q = query.trim(); if (q.length >= 2) logUse("search", "Heli cat:" + q, list.querySelectorAll("[data-id]").length); });
     dlg.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { filter = b.dataset.f; dlg.querySelectorAll("[data-f]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); fill(); }));
     fill();
     if (!dlg.open) dlg.showModal();

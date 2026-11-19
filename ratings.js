@@ -414,6 +414,7 @@
     { ids: [1105675082], c: [50.309, -122.942], r: 2000, who: "alex", named: "Hidden Peak Trail",
       note: "the unnamed AlpX black descent, Pemberton (its old_name is Hidden Peak Trail), which joins the Hidden Peak Trail climb" },
     { nh: "11sddb2", c: [50.322, -122.83], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail" },
+    { nh: "1upaj0r", c: [50.176, -122.915], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail" },
     // One OpenStreetMap mapper (tresspasserlover69, 2026-10-07 to 14) maps new unsanctioned lines as bike paths (highway=cycleway,
     // bicycle=designated), which reads as official, and removed informal=yes from older ones. Their edits: "added sick new line",
     // "added death line", "fun freeride line built for trolldom".
@@ -488,6 +489,9 @@
     { name: "Kid Dyn-O-Myt", c: [49.873, -119.656], r: 2000, d: "blue", src: "Tourism Kelowna, the Smith Creek network (as 'Kid DinoMyt Descent')", url: "https://www.tourismkelowna.com/blog/stories/post/mountain-biking-in-kelowna-a-close-look-at-the-smith-creek-network/" },
     { name: "FOMO", c: [49.859, -119.66], r: 2000, d: "blue", src: "Visit Westside, Smith Creek intermediate rider's guide", url: "https://www.visitwestside.com/west-kelowna-smith-creek-trails-riders-guide/" },
     { name: "Rock Candy", c: [49.887, -119.579], r: 2000, d: "dbl", src: "Tourism Kelowna, Kelowna's gnarliest trails (Sonya Looney)", url: "https://www.tourismkelowna.com/blog/stories/post/kelownas-gnarliest-mountain-biking-trails/" },
+    // fix list item 40 (2026-11-18): Crawford, from Kelowna.com's trail guide (only trails it gives a colour for)
+    { name: "Lost Lake Loop", c: [49.806, -119.407], r: 1500, d: "blue", src: "Kelowna.com, Kelowna trails for every rider: '900 meters of blue singletrack'", url: "https://kelowna.com/articles/mountain-biking-adventures-in-kelowna-trails-for-every-rider" },
+    { name: "Big Drop", c: [49.803, -119.431], r: 1500, d: "black", src: "Kelowna.com, Kelowna trails for every rider: 'short black diamond'", url: "https://kelowna.com/articles/mountain-biking-adventures-in-kelowna-trails-for-every-rider" },
     { name: "Vapour", c: [49.799, -119.418], r: 2000, d: "black", src: "KelownaNow, Biking the Okanagan guide by MTBCO", url: "https://www.kelownanow.com/watercooler/news/news/Biking_the_Okanagan/Biking_the_Okanagan_Guide_of_Where_to_Ride_1/" },
     { name: "Silver Shack", c: [50.375, -119.03], r: 2000, d: "blue", src: "SilverStar 2025 Cross Country & Hiking trail map (PDF)", url: "https://cms.skisilverstar.com/sites/default/files/2025-05/2025_CrossCountryTrailMap.pdf" },
     { name: "SW Passage", c: [49.65, -116.008], r: 2000, d: "black", src: "City of Kimberley Adventure Trail Network Map (PDF): 'SW Passage Loop - Advanced'", url: "https://www.kimberley.ca/sites/default/files/Adventure%20Trail%20Network%20Map.pdf" },
@@ -506,6 +510,8 @@
     { name: "Booty Call", c: [50.505, -115.951], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     { name: "Steeps", c: [50.5, -115.951], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     // fix list item 40 (2026-11-02): Princeton, from the China Ridge Trails Society's own trail sheet
+    // fix list item 40 (2026-11-18): Smithers, from the Smithers Mountain Bike Association's own Bluff trail descriptions
+    { name: "Penetralia", c: [54.768, -127.182], r: 1500, d: "blue", src: "Smithers Mountain Bike Association, Bluff trail descriptions: 'rated as a blue square'", url: "https://smithersmountainbike.ca/trails/the-bluff-recreation-site/" },
     { name: "Fireman Trail", c: [49.477, -120.568], r: 2000, d: "blue", src: "China Ridge Trails Society, Fireman's Trail sheet: 'intermediate'", url: "https://www.chinaridgetrails.com/_files/ugd/388108_3e0d995012a64b639dcafc19a315c19d.pdf" },
     { name: "Gravy Train", c: [50.489, -115.952], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
     { name: "Autobahn", c: [50.497, -115.953], r: 2000, d: "black", src: "Columbia Valley Tourism, Mount Swansea", url: "https://columbiavalley.com/mount-swansea/" },
