@@ -1179,6 +1179,10 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .ebike-note.ebike-no b { color: #b42318; }
 .ebike-note.ebike-class1 b, .ebike-note.ebike-yes b { color: #2f7d32; }
 .wx-days td.lmi-snow { white-space: nowrap; color: #3f6ea8; font-weight: 600; }
+.wx-days td.lmi-frozen { white-space: nowrap; color: #6a58a8; font-weight: 600; }
+.lmi-frost { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #efecf8; color: #352a5c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lmi-frost { background: #282338; color: #ddd6f3; } }
+:root[data-theme="dark"] .lmi-frost { background: #282338; color: #ddd6f3; }
 .lmi-snowing { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #e8f0fa; color: #1f3d63; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lmi-snowing { background: #1d2a3a; color: #cfe0f5; } }
 :root[data-theme="dark"] .lmi-snowing { background: #1d2a3a; color: #cfe0f5; }
@@ -3724,13 +3728,15 @@ out body;`;
     const pool = state.waiting ? [] : names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
     const typed = pool.filter((e) => wanted(e.cat, e.unoff.length, e.official));
     if (typed.length) loadLoam(typed);
-    const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !isSnowy(snowOf(e)); };
+    const offGround = (e) => isSnowy(snowOf(e)) || isFrozen(frostOf(e));   // snow or frozen ground: never prime
+    const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !offGround(e); };
     const prime = pool.filter(isPrime);
     // The range said under "No trails in prime loam": trails under snow left out of it, and counted apart (deep test
     // 2026-11-16: "Right now it's 26 to 69 here" read as if some trails were 40 to 59 and still not listed).
-    const vals = typed.filter((e) => !isSnowy(snowOf(e))).map(loamOf).filter((v) => v != null);
+    const vals = typed.filter((e) => !offGround(e)).map(loamOf).filter((v) => v != null);
     state.primeRange = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
     state.primeSnowy = typed.filter((e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && isSnowy(snowOf(e)); }).length;
+    state.primeFrozen = typed.filter((e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !isSnowy(snowOf(e)) && isFrozen(frostOf(e)); }).length;
     // Nothing prime now: the first coming day the forecast has prime loam on these trails, so the answer isn't a dead end.
     state.primeSoon = null;
     if (!prime.length) typed.forEach((e) => {
@@ -3755,7 +3761,7 @@ out body;`;
     const offBy = (v) => (v < 40 ? 40 - v : v >= 60 ? v - 59 : 0);
     state.primeClose = 0;
     if (!shown.length && !state.loamPending) {
-      shown = typed.filter((e) => { const v = loamOf(e); return v != null && offBy(v) <= 20 && !isSnowy(snowOf(e)) && picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e)); })
+      shown = typed.filter((e) => { const v = loamOf(e); return v != null && offBy(v) <= 20 && !offGround(e) && picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e)); })
         .sort((a, b) => offBy(loamOf(a)) - offBy(loamOf(b)) || dist(a) - dist(b)).slice(0, 25);
       state.primeClose = shown.length;
     }
@@ -3812,10 +3818,11 @@ out body;`;
       const where = near ? `${near.km} km around ${near.label || "you"}` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : areaById(state.zone).short);
       const slow = primeZones().filter((z) => names.inflight.has(z.id));
       const loamNow = () => {
-        if (!state.primeRange) return state.primeSnowy ? ` ${state.primeSnowy} trail${state.primeSnowy === 1 ? " is" : "s are"} in the 40 to 59 range but under snow (snow estimate).` : "";
+        const frozen = (more) => state.primeFrozen ? ` ${state.primeFrozen}${more} trail${state.primeFrozen === 1 ? " is" : "s are"} in the 40 to 59 range but the ground is likely frozen (soil temperature estimate).` : "";
+        if (!state.primeRange) return (state.primeSnowy ? ` ${state.primeSnowy} trail${state.primeSnowy === 1 ? " is" : "s are"} in the 40 to 59 range but under snow (snow estimate).` : "") + frozen("");
         const [lo, hi] = state.primeRange, words = [...new Set([lmiLevel(lo)[1], lmiLevel(hi)[1]])].join(" to ").toLowerCase();
         const snowy = state.primeSnowy ? ` ${state.primeSnowy} more trail${state.primeSnowy === 1 ? " is" : "s are"} in the 40 to 59 range but under snow (snow estimate).` : "";
-        return ` Right now it's ${lo === hi ? lo : `${lo} to ${hi}`} on trails with no snow here (${words}).${snowy}`;
+        return ` Right now it's ${lo === hi ? lo : `${lo} to ${hi}`} on trails with no snow or frozen ground here (${words}).${snowy}${frozen(" more")}`;
       };
       const wait = busyFor();
       const busy = state.primeLoading ? "Loading the trails here…" : state.loamPending ? `Checking the Loam index of ${state.primeTotal} trails…`
@@ -4074,7 +4081,7 @@ out body;`;
   // soil moisture forecast as "now". [{ d: "YYYY-MM-DD", v }], tomorrow first.
   const LOAM_HOUR = "T13:00";
   const lmiDays = (h, today, key) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
-    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key), s: snowAt(h, i) })).filter((x) => x.v != null);
+    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key), s: snowAt(h, i), f: frostAt(h, i) })).filter((x) => x.v != null);
   const isPrimeLoam = (v) => v != null && v >= 40 && v < 60;
   // Snow on the ground (alex, spring and fall: which trails are still under snow): the weather model's snow depth at the
   // same spot as the Loam index, in cm. Under the soil model, snowed-in dirt can read "prime", so snow wins: from SNOW_CM
@@ -4085,7 +4092,22 @@ out body;`;
     return v == null ? null : Math.round(v * 100);
   }
   const isSnowy = (cm) => cm != null && cm >= SNOW_CM;
-  const primeDay = (x) => isPrimeLoam(x.v) && !isSnowy(x.s);
+  // Frozen ground (alex 2026-11-19: "what happens when the ground is frozen?"): the soil model counts frozen water as
+  // moisture, so frozen dirt can read "prime" (Whistler, November: about 53 while the surface was -1.6°C each night).
+  // Open-Meteo's soil temperature at the surface, at the same spot and hour: 2 = at or below 0°C now ("Frozen", never
+  // prime, like snow), 1 = above 0°C now but at or below it in the 12 hours before (froze overnight, thawing), 0 = no
+  // frost, null = not known. Same in push-loam.mjs.
+  function frostAt(h, i) {
+    const t = h.soil_temperature_0cm;
+    if (!t || t[i] == null) return null;
+    if (t[i] <= 0) return 2;
+    for (let j = Math.max(0, i - 12); j < i; j++) if (t[j] != null && t[j] <= 0) return 1;
+    return 0;
+  }
+  const isFrozen = (f) => f === 2;
+  const FROZEN_COLOR = "#8e7cc3";
+  const FROST_THAW = "The ground likely froze overnight here (soil temperature estimate). It can be hard early and slippery on top as it thaws.";
+  const primeDay = (x) => isPrimeLoam(x.v) && !isSnowy(x.s) && !isFrozen(x.f);
   const dayName = (d, today) => {
     const n = Math.round((Date.parse(d + "T12:00") - Date.parse(today + "T12:00")) / 86400000);
     return n === 0 ? "today" : n === 1 ? "tomorrow" : new Date(d + "T12:00").toLocaleDateString(undefined, { weekday: "long" });
@@ -4104,14 +4126,14 @@ out body;`;
   const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi, today, days, snow } (days: lmiDays; snow: cm, snowAt)
   try {
     Object.entries(JSON.parse(localStorage.getItem(LOAM_STORE) || "{}") || {})
-      .forEach(([k, [at, lmi, today, days, snow]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi, today, days, snow: snow == null ? null : snow }); });
+      .forEach(([k, [at, lmi, today, days, snow, frost]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi, today, days, snow: snow == null ? null : snow, frost: frost == null ? null : frost }); });
   } catch {}
   let loamSaveT = 0;
   const saveLoamCells = () => {
     clearTimeout(loamSaveT);
     loamSaveT = setTimeout(() => {
       const o = {};
-      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi, c.today, c.days, c.snow]; });
+      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi, c.today, c.days, c.snow, c.frost]; });
       try { localStorage.setItem(LOAM_STORE, JSON.stringify(o)); } catch {}
     }, 2000);
   };
@@ -4119,6 +4141,7 @@ out body;`;
   // The Loam moisture index for other parts of the app (bike-trip.js: the loam estimate each day of a bike trip), read
   // the same way as a trail's: the same cell, soil type and rider tuning.
   window.tfLoam = { cell: (lat, lng) => cellOf({ loamAt: { lat, lng } }), at: (h, i, key) => lmiAt(h, i, key), snow: (h, i) => snowAt(h, i), isSnowy: (cm) => isSnowy(cm),
+    frost: (h, i) => frostAt(h, i), isFrozen: (f) => isFrozen(f),
     level: (v) => { const l = lmiLevel(v); return l ? { word: l[1], ride: LMI_RIDE[LMI_LEVELS.indexOf(l)] } : null; }, isPrime: (v) => isPrimeLoam(v), ready: () => loamTuneReady };
   function loamOf(t) {
     const c = loamCells.get(cellOf(t));
@@ -4130,12 +4153,18 @@ out body;`;
     return c ? c.snow : undefined;
   }
   const SNOW_COLOR = "#a9c4e6";
+  // Frost at the trail's loam spot now (frostAt; undefined: not read yet).
+  function frostOf(t) {
+    const c = loamCells.get(cellOf(t));
+    return c ? c.frost : undefined;
+  }
   // "Loam" trail colours (the map key's third mode, like Trailforks colouring its map by trail condition): each line
   // in the colour of today's Loam index at its spot, grey until read or where there's no soil data.
   function loamColor(t) {
     try {
       const p = t.geom || t.center || t.loamAt ? t : { geom: (t.segments || [[]])[0] }, v = loamOf(p);
       if (isSnowy(snowOf(p))) return SNOW_COLOR;
+      if (isFrozen(frostOf(p))) return FROZEN_COLOR;
       return v == null ? UNRATED : LMI_RIDE[LMI_LEVELS.indexOf(lmiLevel(v))][0];
     } catch { return UNRATED; }
   }
@@ -4188,14 +4217,14 @@ out body;`;
       }
       try {
         const res = await fetch(`${WX_API}?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}&timezone=auto&past_days=1&forecast_days=4` +
-          "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth");
+          "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm");
         if (!res.ok) throw await meteoErr(res);
         const json = await res.json();
         (Array.isArray(json) ? json : [json]).forEach((w, k) => {
           let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
           if (j < 0) j = w.hourly.time.length - 1;
           const today = w.current.time.slice(0, 10);
-          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k]), snow: snowAt(w.hourly, j) });
+          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k]), snow: snowAt(w.hourly, j), frost: frostAt(w.hourly, j) });
         });
         saveLoamCells();
       } catch (e) {
@@ -4219,6 +4248,13 @@ out body;`;
     return keys.map((k) => { const c = loamCells.get(k); return c && c.snow != null ? c.snow : null; });
   };
   window.tfSnowCm = SNOW_CM;
+  // Frozen ground (notify.js, status.js): true where the soil surface is at or below 0°C now (frostAt), from the same readings.
+  window.tfFrozenAt = async (pts) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => { const c = loamCells.get(k); return !!c && isFrozen(c.frost); });
+  };
   // Loam forecast (notify.js): the first coming day in prime loam at each [lat, lon], { d, day, v } or null.
   // Ask in plain words (ask.js): the reading on one day ("YYYY-MM-DD", today or the forecast days) at each [lat, lon]:
   // { v, snow, days } (v null: not known that day; days: how many forecast days there are).
@@ -4228,10 +4264,10 @@ out body;`;
     if (need.length) await fetchLoamCells(need);
     return keys.map((k) => {
       const c = loamCells.get(k);
-      if (!c) return { v: null, snow: null, days: 0 };
-      if (!d || d <= c.today) return { v: c.lmi, snow: c.snow, days: (c.days || []).length };
+      if (!c) return { v: null, snow: null, frozen: false, days: 0 };
+      if (!d || d <= c.today) return { v: c.lmi, snow: c.snow, frozen: isFrozen(c.frost), days: (c.days || []).length };
       const x = (c.days || []).find((y) => y.d === d);
-      return { v: x ? x.v : null, snow: x ? x.s : null, days: (c.days || []).length };
+      return { v: x ? x.v : null, snow: x ? x.s : null, frozen: !!x && isFrozen(x.f), days: (c.days || []).length };
     });
   };
   window.tfLoamSoon = async (pts) => {
@@ -4246,6 +4282,7 @@ out body;`;
   function loamBadge(t) {
     const v = loamOf(t), sn = snowOf(t);
     if (isSnowy(sn)) return `<br><span class="loam snow" title="The weather model has ${sn} cm of snow on the ground here"><i style="background:${SNOW_COLOR}"></i>❄ Snow ${sn} cm</span>`;
+    if (isFrozen(frostOf(t))) return `<br><span class="loam" title="The soil surface is at or below 0°C here now (soil temperature estimate)"><i style="background:${FROZEN_COLOR}"></i>Frozen</span>`;
     if (v == null) return "";
     const k = LMI_LEVELS.indexOf(lmiLevel(v));
     return `<br><span class="loam" title="Loam moisture index now: ${esc(LMI_LEVELS[k][1])} (${LMI_RIDE[k][1]})"><i style="background:${LMI_RIDE[k][0]}"></i>Loam ${v}</span>`;
@@ -4259,7 +4296,7 @@ out body;`;
         {
           const url = `${WX_API}?latitude=${mid[0]}&longitude=${mid[1]}&timezone=auto&past_days=2&forecast_days=4` +
             "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,is_day" +
-            "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth" +
+            "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max";
           const res = await fetch(url);
           if (!res.ok) throw await meteoErr(res);
@@ -4270,9 +4307,9 @@ out body;`;
           const h = json.hourly;
           let i = h.time.findIndex((x) => x > json.current.time) - 1;
           if (i < 0) i = h.time.length - 1;
-          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10), snow = snowAt(h, i);
-          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key), snow });   // a fresher reading: the list shows it too
-          if (!was || was.lmi !== lmi || was.snow !== snow) render();
+          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10), snow = snowAt(h, i), frost = frostAt(h, i);
+          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key), snow, frost });   // a fresher reading: the list shows it too
+          if (!was || was.lmi !== lmi || was.snow !== snow || was.frost !== frost) render();
         }
       }
       const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t));
@@ -4293,31 +4330,35 @@ out body;`;
     const icon = c.is_day === 0 && c.weather_code <= 2 ? (c.weather_code === 2 ? "☁️" : "🌙") : dayIcon;
     const today = c.time.slice(0, 10);
     const snow = snowAt(h, i), aheadDays = lmiDays(h, today, key);
-    const ahead = new Map(aheadDays.map((x) => [x.d, x.v])), aheadSnow = new Map(aheadDays.map((x) => [x.d, x.s]));
-    const loamCell = (v, sn) => isSnowy(sn) ? `<td class="lmi-snow">❄ ${sn} cm</td>` : v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
+    const frost = frostAt(h, i), frozen = isFrozen(frost) && !isSnowy(snow);
+    const ahead = new Map(aheadDays.map((x) => [x.d, x.v])), aheadSnow = new Map(aheadDays.map((x) => [x.d, x.s])), aheadFrost = new Map(aheadDays.map((x) => [x.d, x.f]));
+    const loamCell = (v, sn, f) => isSnowy(sn) ? `<td class="lmi-snow">❄ ${sn} cm</td>` : isFrozen(f) ? `<td class="lmi-frozen" title="Soil surface at or below 0°C (estimate)">Frozen</td>` : v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
     const soon = aheadDays.find(primeDay), soonD = soon && [soon.d, soon.v];
     // Snow on the ground: the weather model's depth at this spot (its own ground height, which can differ from the trail's).
     const snowNote = isSnowy(snow) ? `<p class="lmi-snowing">❄ <b>Likely under snow:</b> about ${snow} cm on the ground here (weather model${Number.isFinite(w.elevation) ? `, at ${Math.round(w.elevation)} m` : ""}). The Loam index reads the soil under it, so it isn't prime loam until the snow melts.${(() => { const off = aheadDays.find((x) => !isSnowy(x.s)); return off ? ` Snow-free from about ${esc(dayName(off.d, today))}.` : ""; })()}</p>`
       : snow != null && snow >= SNOW_PATCH_CM ? `<p class="lmi-snowing">❄ Patches of snow likely (about ${snow} cm here in the weather model, at ${Math.round(w.elevation)} m).</p>` : "";
+    // Frozen ground: the soil model's surface temperature at this spot (frostAt). Snow says more, so it wins.
+    const frostNote = isSnowy(snow) ? "" : frozen ? `<p class="lmi-frost"><b>Ground likely frozen:</b> the soil surface is at or below 0°C here now (Open-Meteo soil temperature, an estimate). The Loam index counts frozen water as moisture, so it isn't prime loam while the ground is frozen.${(() => { const off = aheadDays.find((x) => !isFrozen(x.f) && x.f != null); return off ? ` <span>Above 0°C at 1 pm from about ${esc(dayName(off.d, today))}.</span>` : ""; })()}</p>`
+      : frost === 1 ? `<p class="lmi-frost">${esc(FROST_THAW)}</p>` : "";
     const days = d.time.map((day, k) => ({ day, k })).filter((x) => x.day >= today).map(({ day, k }) => {
       const [txt, ic] = wmo(d.weather_code[k]);
       const name = day === today ? "Today" : new Date(day + "T12:00").toLocaleDateString(undefined, { weekday: "short" });
       const pop = d.precipitation_probability_max && d.precipitation_probability_max[k] != null ? `<small>${d.precipitation_probability_max[k]}%</small>` : "";
-      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td>${day === today ? loamCell(lmi, snow) : loamCell(ahead.get(day), aheadSnow.get(day))}</tr>`;
+      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td>${day === today ? loamCell(lmi, snow, frost) : loamCell(ahead.get(day), aheadSnow.get(day), aheadFrost.get(day))}</tr>`;
     }).join("");
     el.classList.remove("muted");
     el.innerHTML = `
       <div class="wx-now">
-        <div><span>Loam moisture index</span>${lmi == null ? `<strong>–</strong><em>Not available here</em>` : `<strong>${lmi}</strong><em>${esc(lvl[1])}</em>`}</div>
+        <div><span>Loam moisture index</span>${lmi == null ? `<strong>–</strong><em>Not available here</em>` : `<strong>${lmi}</strong><em>${frozen ? "Frozen" : esc(lvl[1])}</em>`}</div>
         <div><span>Now</span><strong>${icon} ${Math.round(c.temperature_2m)}°C</strong><em>${esc(sky)}${Math.round(c.apparent_temperature) !== Math.round(c.temperature_2m) ? ` · feels ${Math.round(c.apparent_temperature)}°` : ""}</em></div>
       </div>
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
       <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
-      ${lmiKey(lvl)}
+      ${lmiKey(frozen ? null : lvl)}
       ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
         : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
-      ${snowNote}
-      ${lmi != null && (!isPrimeLoam(lmi) || isSnowy(snow)) && soonD ? `<p class="lmi-soon">${lmiDot(soonD[1])}Prime loam ${esc(dayName(soonD[0], today))} (${soonD[1]})</p>` : ""}
+      ${snowNote}${frostNote}
+      ${lmi != null && (!isPrimeLoam(lmi) || isSnowy(snow) || frozen) && soonD ? `<p class="lmi-soon">${lmiDot(soonD[1])}Prime loam ${esc(dayName(soonD[0], today))} (${soonD[1]})</p>` : ""}
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th title="Rain, and the chance of rain">Rain</th><th title="Loam moisture index at 1 pm">Loam</th></tr></thead><tbody>${days}</tbody></table>`;
   }
 
@@ -4687,9 +4728,9 @@ out body;`;
     if (dirOpen !== t || !$("fLoam")) return;
     const c = loamCells.get(cellOf(t));
     if (c && c.lmi != null) {
-      const snowy = isSnowy(c.snow), k = LMI_LEVELS.indexOf(lmiLevel(c.lmi));
-      $("fLoam").innerHTML = snowy ? "❄" : `${lmiDot(c.lmi)}${c.lmi}`;
-      $("fLoamL").textContent = snowy ? "Snow" : (isPrimeLoam(c.lmi) ? "Prime loam" : LMI_RIDE[k][1]);
+      const snowy = isSnowy(c.snow), frozen = !snowy && isFrozen(c.frost), k = LMI_LEVELS.indexOf(lmiLevel(c.lmi));
+      $("fLoam").innerHTML = snowy ? "❄" : frozen ? `<i class="lmi-dot" style="background:${FROZEN_COLOR}"></i>${c.lmi}` : `${lmiDot(c.lmi)}${c.lmi}`;
+      $("fLoamL").textContent = snowy ? "Snow" : frozen ? "Frozen" : (isPrimeLoam(c.lmi) ? "Prime loam" : LMI_RIDE[k][1]);
     }
     const s = t.elev && t.elev.stats;
     if (s) { $("fDown").textContent = `↓${Math.round(s.loss)} m`; $("fUp").textContent = `↑${Math.round(s.gain)} m`; }
@@ -5998,6 +6039,7 @@ out body;`;
     else {
       const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
       mtbNowHtml = isSnowy(cell.snow) ? `<span>❄ <b>Snow on the trails</b> here, ${Math.round(cell.snow)} cm</span>`
+        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
         : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v})</span><span>☀ Where to ride today ›</span>`;
     }
     syncPeekToday();
@@ -7326,9 +7368,10 @@ out body;`;
       const c = loamCells.get(key), box = live() && el.querySelector("[data-loam]");
       if (!box || !c) return;
       if (isSnowy(c.snow)) { box.innerHTML = `<p><b>Snow on the ground here</b> <span class="mp-muted">(Open-Meteo snow depth, an estimate)</span></p>`; return; }
+      if (isFrozen(c.frost)) { box.innerHTML = `<p><b style="color:${FROZEN_COLOR}">Ground likely frozen here</b> <span class="mp-muted">(Open-Meteo soil temperature at or below 0°C, an estimate: trails differ)</span></p>`; return; }
       if (c.lmi == null) return;
       const lv = lmiLevel(c.lmi), ride = LMI_RIDE[LMI_LEVELS.indexOf(lv)];
-      box.innerHTML = `<p><b style="color:${ride[0]}">Loam index ${c.lmi}: ${esc(lv[1])}</b>. ${esc(lv[2])} <span class="mp-muted">Soil moisture around here today from Open-Meteo, tuned by rider reports. An estimate: trails differ.</span></p>`;
+      box.innerHTML = `<p><b style="color:${ride[0]}">Loam index ${c.lmi}: ${esc(lv[1])}</b>. ${esc(lv[2])}${c.frost === 1 ? ` <span>${esc(FROST_THAW)}</span>` : ""} <span class="mp-muted">Soil moisture around here today from Open-Meteo, tuned by rider reports. An estimate: trails differ.</span></p>`;
     })();
     // A rec site's full record replaces the short lines from the nightly file; if the province's record can't be read
     // (no signal, or a rec trail), the short lines come back.
@@ -7391,7 +7434,7 @@ out body;`;
     const unoffSw = FRIEND ? sw(dots, "Unofficial") : "";   // the public map never shows unofficial trails (pubHidden)
     const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
     let html = state.colorBy === "loam"
-      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${SNOW_COLOR}`, `❄ Snow (${SNOW_CM} cm or more)`) + sw(`background: ${UNRATED}`, "Not read yet") + unoffSw
+      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${SNOW_COLOR}`, `❄ Snow (${SNOW_CM} cm or more)`) + sw(`background: ${FROZEN_COLOR}`, "Frozen ground (soil at or below 0°C)") + sw(`background: ${UNRATED}`, "Not read yet") + unoffSw
       : byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
         + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + unoffSw

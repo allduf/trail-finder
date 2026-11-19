@@ -201,12 +201,13 @@ for (let i = 0; i < cellList.length; i += 50) {
   const chunk = cellList.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
   try {
     const json = await fetchJsonRetry(`https://api.open-meteo.com/v1/forecast?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}` +
-      "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth");
+      "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm");
     (Array.isArray(json) ? json : [json]).forEach((w, k) => {
       let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
       if (j < 0) j = w.hourly.time.length - 1;
       // Snow on the ground (5 cm or more, as on the site): the soil under it can read prime, but it isn't, so no reading.
-      const snowy = (n) => (w.hourly.snow_depth && w.hourly.snow_depth[n]) >= 0.05;
+      // Frozen ground (soil surface at or below 0°C, as frostAt on the site): frozen water reads as moisture, so no reading either.
+      const snowy = (n) => (w.hourly.snow_depth && w.hourly.snow_depth[n]) >= 0.05 || (w.hourly.soil_temperature_0cm && w.hourly.soil_temperature_0cm[n] != null && w.hourly.soil_temperature_0cm[n] <= 0);
       lmi.set(chunk[k], snowy(j) ? null : lmiAt(w.hourly, j, chunk[k]));
       const today = w.current.time.slice(0, 10), h = w.hourly;
       const i = h.time.findIndex((x, n) => x.slice(0, 10) > today && x.endsWith("T13:00") && !snowy(n) && isPrime(lmiAt(h, n, chunk[k])));

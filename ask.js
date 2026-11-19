@@ -899,11 +899,11 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       const day = p.date, read = window.tfLoamDay ? await window.tfLoamDay(trails.map((t) => t.c), day).catch(() => null) : null;
       if (stale()) return;
       const fdays = read ? Math.max(0, ...read.map((x) => x.days)) : 0, far = day > addDays(localDay(), fdays);
-      trails.forEach((t, i) => { const x = read && read[i]; t.v = x ? x.v : null; t.snow = x && x.snow >= (window.tfSnowCm || 5); t.prime = isPrime(t.v) && !t.snow; });
+      trails.forEach((t, i) => { const x = read && read[i]; t.v = x ? x.v : null; t.snow = x && x.snow >= (window.tfSnowCm || 5); t.frozen = !!(x && x.frozen); t.prime = isPrime(t.v) && !t.snow && !t.frozen; });
       const newSince = Date.now() - 183 * 864e5;
       trails.forEach((t) => { const ts = born ? t.ids.map((id) => born.get(id)).filter(Boolean) : []; t.isNew = ts.length === t.ids.length && ts.length > 0 && Math.min(...ts) >= newSince; });
       const ridden = T.ridden();
-      const dn = dayName(day), loamWord = (t) => (t.snow ? "❄ Snow" : t.v == null ? "Loam not known" : `${loamLv(t.v)[1]} · Loam ${t.v}`);
+      const dn = dayName(day), loamWord = (t) => (t.snow ? "❄ Snow" : t.frozen ? "Ground likely frozen" : t.v == null ? "Loam not known" : `${loamLv(t.v)[1]} · Loam ${t.v}`);
       const farNote = far && p.loam ? `<p class="ask-note ask-warn">The loam forecast only goes ${fdays} day${fdays === 1 ? "" : "s"} ahead: ${esc(dn)} isn't known yet.</p>` : "";
       const lvOk = (t) => !p.levels.length || p.levels.includes(t.lvl) || (p.levels.includes("dbl") && t.lvl === "pro");
 
