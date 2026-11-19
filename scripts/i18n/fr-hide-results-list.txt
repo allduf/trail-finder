@@ -1,0 +1,4 @@
+# English ||| French (Quebec). One line each.
+Hide the list ||| Masquer la liste
+Show the list ||| Afficher la liste
+On a big computer screen, the results list beside the map can now be hidden with the tab on the map's left edge, and brought back the same way. ||| Sur un grand écran d'ordinateur, la liste des résultats à côté de la carte peut maintenant être masquée avec l'onglet sur le bord gauche de la carte, puis réaffichée de la même façon.
