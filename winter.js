@@ -3198,7 +3198,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     setTour(t.id);
     renderPlan(); renderTours();
     if (quiet && old) return;   // an edit of a kept tour: no toast each time
-    window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
+    window.tfHappy && window.tfHappy("ski tour"); window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
   }
   // A tour is kept as soon as it's made (✓ Done, Ask's Make this tour: force), then follows its edits (a point moved,
   // deleted or swapped on the card, Less exposed way on or off, Undo) without a Save tap. Its length and climb are
@@ -5555,6 +5555,22 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       await loadSki();
       const h = (ski?.huts || []).find((x) => Math.abs(x.lat - lat) < 1e-5 && Math.abs(x.lon - lon) < 1e-5);
       if (h) select(h, true); else map.setView([lat, lon], 14);
+    },
+    // The Today card (today.js): Avalanche Canada's ratings for today at a point, each band exactly as given, or
+    // { none } with the reason. Never the simulated example, never an old bulletin, never a day other than today.
+    avyToday: async (lat, lon) => {
+      if (example) return { none: "example" };
+      if (!avy) { try { await loadAvy(); } catch {} }
+      if (!avy || example) return { none: "load" };
+      const a = areaAt(lat, lon), f = a && a.forecast;
+      if (!a) return { none: "area" };
+      if (!f || !f.days || !f.days.length || f.early) return { none: f && f.early ? "early" : "forecast", area: a.name };
+      if (f.validUntil && new Date(f.validUntil) < new Date()) return { none: "old", area: a.name };
+      const d = f.days[0];
+      if (!d.date || d.date !== localDay()) return { none: "forecast", area: a.name };
+      const band = (b) => ({ r: d[b] || 0, label: DANGER[d[b] || 0].label, color: DANGER[d[b] || 0].color });
+      return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(),
+        bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
     },
     // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
     dangerAt: (lat, lon, lo, hi) => { if (!avy && !example) loadAvy(); return dangerAt(lat, lon, lo, hi); },

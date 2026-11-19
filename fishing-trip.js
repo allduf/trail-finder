@@ -356,7 +356,7 @@ html body #fishPane .fs-actions.trips { grid-template-columns: repeat(5, 1fr); }
     if (share) t.catches = [...groupOf(t), x]; else t.mine = [...mineOf(t), x];
     catchDraft = { by: x.by, fly: x.fly, date: v("date"), share };   // the next fish is often the same person on the same fly
     E.putTrip(t); renderCatch();
-    toast(share ? `${sp} added to the group's log.` : `${sp} added to the trip's log.`);
+    toast(share ? `${sp} added to the group's log.` : `${sp} added to the trip's log.`); window.tfHappy && window.tfHappy("fish catch");
   });
   function addFromLog(t, list) {
     const me = E.meOf(t);

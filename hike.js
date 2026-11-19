@@ -1280,7 +1280,7 @@ out center tags qt;`;
     if (!h) return;
     const list = saved();
     if (list.some((s) => s.id === h.id)) { if (window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("hikeSaved", h.id); store.set("hikeSaved", list.filter((s) => s.id !== h.id)); }
-    else store.set("hikeSaved", [{ id: h.id, n: h.name, c: h.c, bb: h.bb, km: +h.km.toFixed(2), g: h.g, at: Date.now() }, ...list].slice(0, 200));
+    else { store.set("hikeSaved", [{ id: h.id, n: h.name, c: h.c, bb: h.bb, km: +h.km.toFixed(2), g: h.g, at: Date.now() }, ...list].slice(0, 200)); window.tfHappy && window.tfHappy("hike saved"); }
     if (!$("hkSaved").hidden) renderSaved();
   }
   function renderSaved() {
@@ -1648,6 +1648,7 @@ out center tags qt;`;
     store.set("hikePlans", [item, ...plans().filter((x) => x.id !== id)].slice(0, 100));
     plan.id = id; plan.name = n;
     renderPlan();
+    window.tfHappy && window.tfHappy("hike plan");
     if (!$("hkSaved").hidden) renderSaved();
   }
   function loadPlan(r) {
@@ -1681,60 +1682,79 @@ out center tags qt;`;
   // then the ones to check first. Kept 30 minutes.
   let todaySeq = 0;
   const todayCache = new Map();   // hike id -> { at, hi, snow, t, pop, warn }
+  // The nearest hikes to c (1 to 40 km long, within 25 km): Where to hike today, and the Today card (today.js).
+  const todayList = (c) => [...hikes.values()].filter((h) => h.km >= 1 && h.km <= 40).map((h) => ({ h, d: kmTo(h.c, c) })).filter((x) => x.d <= 25)
+    .sort((a, b) => a.d - b.d).slice(0, 24).map((x) => x.h);
+  // The snow and weather at the top of each hike, kept 30 minutes. Throws when the weather can't be read.
+  async function fillToday(list) {
+    const todo = list.filter((h) => { const t = todayCache.get(h.id); return !t || Date.now() - t.at > 30 * 60000; });
+    if (!todo.length) return;
+    const pts = [];
+    todo.forEach((h, i) => { const all = h.ways.flatMap((w) => w.g); sample(all, Math.min(8, Math.max(2, all.length))).forEach((p) => pts.push({ i, p })); });
+    const el2 = [];
+    for (let k = 0; k < pts.length; k += 100) {
+      const part = pts.slice(k, k + 100);
+      const j = await getJ(`https://api.open-meteo.com/v1/elevation?latitude=${part.map((x) => x.p[0].toFixed(4)).join(",")}&longitude=${part.map((x) => x.p[1].toFixed(4)).join(",")}`);
+      el2.push(...(j.elevation || []));
+    }
+    const tops = todo.map(() => ({ hi: -Infinity, at: null }));
+    pts.forEach((x, k) => { const m = el2[k]; if (m != null && m > tops[x.i].hi) { tops[x.i].hi = m; tops[x.i].at = x.p; } });
+    const ok = tops.map((t, i) => ({ t, h: todo[i] })).filter((x) => x.t.at);
+    const q = new URLSearchParams({ latitude: ok.map((x) => x.t.at[0].toFixed(3)).join(","), longitude: ok.map((x) => x.t.at[1].toFixed(3)).join(","), elevation: ok.map((x) => Math.round(x.t.hi)).join(","),
+      hourly: "snow_depth,temperature_2m", daily: "precipitation_probability_max", forecast_days: "1", timezone: "auto" });
+    let wxs = await getJ(`https://api.open-meteo.com/v1/forecast?${q}`);
+    if (!Array.isArray(wxs)) wxs = [wxs];
+    const warns = await Promise.all(ok.map((x) => warningsNear(x.h).catch(() => [])));
+    ok.forEach((x, i) => {
+      const w = wxs[i] || {}, hr = w.hourly || { time: [] };
+      let at = hr.time.findIndex((t) => new Date(t).getTime() > Date.now()) - 1; if (at < 0) at = 0;
+      todayCache.set(x.h.id, { at: Date.now(), hi: x.t.hi, snow: hr.snow_depth ? hr.snow_depth[at] || 0 : null, t: hr.temperature_2m ? hr.temperature_2m[at] : null,
+        pop: w.daily && w.daily.precipitation_probability_max ? w.daily.precipitation_probability_max[0] : null, warn: warns[i] || [] });
+    });
+  }
   async function openToday() {
     const el = $("hkToday"), seq = ++todaySeq;
     const head = `<header>${svg(IC.today)}<h3>Where to hike today</h3>${closeX("hkToday")}</header>`;
     showCard(el);
     if (map.getZoom() < MIN_ZOOM) { el.innerHTML = head + `<p class="hk-note">Zoom in to a valley or a town: Today ranks the hikes around the middle of the map.</p>`; return; }
     const c = [map.getCenter().lat, map.getCenter().lng];
-    const list = [...hikes.values()].filter((h) => h.km >= 1 && h.km <= 40).map((h) => ({ h, d: kmTo(h.c, c) })).filter((x) => x.d <= 25)
-      .sort((a, b) => a.d - b.d).slice(0, 24).map((x) => x.h);
+    const list = todayList(c);
     if (!list.length) { el.innerHTML = head + `<p class="hk-note">${pending() > 0 ? "Still finding the hikes here: try again in a moment." : "No hikes of 1 km or more near the middle of the map."}</p>`; return; }
     el.innerHTML = head + `<p class="hk-note">Checking the snow and weather at the top of ${list.length} hikes near here…</p>`;
-    const todo = list.filter((h) => { const t = todayCache.get(h.id); return !t || Date.now() - t.at > 30 * 60000; });
-    try {
-      if (todo.length) {
-        const pts = [];
-        todo.forEach((h, i) => { const all = h.ways.flatMap((w) => w.g); sample(all, Math.min(8, Math.max(2, all.length))).forEach((p) => pts.push({ i, p })); });
-        const el2 = [];
-        for (let k = 0; k < pts.length; k += 100) {
-          const part = pts.slice(k, k + 100);
-          const j = await getJ(`https://api.open-meteo.com/v1/elevation?latitude=${part.map((x) => x.p[0].toFixed(4)).join(",")}&longitude=${part.map((x) => x.p[1].toFixed(4)).join(",")}`);
-          el2.push(...(j.elevation || []));
-        }
-        const tops = todo.map(() => ({ hi: -Infinity, at: null }));
-        pts.forEach((x, k) => { const m = el2[k]; if (m != null && m > tops[x.i].hi) { tops[x.i].hi = m; tops[x.i].at = x.p; } });
-        const ok = tops.map((t, i) => ({ t, h: todo[i] })).filter((x) => x.t.at);
-        const q = new URLSearchParams({ latitude: ok.map((x) => x.t.at[0].toFixed(3)).join(","), longitude: ok.map((x) => x.t.at[1].toFixed(3)).join(","), elevation: ok.map((x) => Math.round(x.t.hi)).join(","),
-          hourly: "snow_depth,temperature_2m", daily: "precipitation_probability_max", forecast_days: "1", timezone: "auto" });
-        let wxs = await getJ(`https://api.open-meteo.com/v1/forecast?${q}`);
-        if (!Array.isArray(wxs)) wxs = [wxs];
-        const warns = await Promise.all(ok.map((x) => warningsNear(x.h).catch(() => [])));
-        ok.forEach((x, i) => {
-          const w = wxs[i] || {}, hr = w.hourly || { time: [] };
-          let at = hr.time.findIndex((t) => new Date(t).getTime() > Date.now()) - 1; if (at < 0) at = 0;
-          todayCache.set(x.h.id, { at: Date.now(), hi: x.t.hi, snow: hr.snow_depth ? hr.snow_depth[at] || 0 : null, t: hr.temperature_2m ? hr.temperature_2m[at] : null,
-            pop: w.daily && w.daily.precipitation_probability_max ? w.daily.precipitation_probability_max[0] : null, warn: warns[i] || [] });
-        });
-      }
-    } catch {
+    try { await fillToday(list); } catch {
       if (seq !== todaySeq) return;
       if (!list.some((h) => todayCache.has(h.id))) { el.innerHTML = head + `<p class="hk-note">${navigator.onLine ? "The weather service is busy: tap Today again in a minute." : "No signal: Today needs a connection."}</p>`; return; }
     }
     if (seq !== todaySeq) return;
     renderToday(list, head);
   }
+  // Each hike's group: a closure, warning or fire near it first ("check"), then snow up top, else neither found.
+  const todayState = (t) => (t.warn.some((w) => w.bad) ? "check" : t.snow != null && t.snow >= 0.1 ? "snow" : "good");
+  const todayBits = (h, t) => {
+    const cm = t.snow != null ? Math.round(t.snow * 100) : null, bad = t.warn.find((w) => w.bad);
+    return [GRADES[h.g].label, fmtKm(h.km), `top ${fmtM(t.hi)}`, cm >= 1 ? `${cm} cm snow up top` : cm === 0 ? "no snow" : "", t.t != null ? `${Math.round(t.t)}°C up top` : "", t.pop >= 50 ? `rain ${t.pop}%` : "",
+      bad ? bad.text : ""].filter(Boolean);
+  };
+  // The Today card (today.js): a few hikes near the middle of the map, ones with no snow or closure found first.
+  async function todayPicks(n = 3) {
+    if (map.getZoom() < MIN_ZOOM) return null;
+    const c = [map.getCenter().lat, map.getCenter().lng], list = todayList(c);
+    if (!list.length) return [];
+    try { await fillToday(list); } catch {}
+    const order = { good: 0, snow: 1, check: 2 };
+    return list.map((h) => ({ h, t: todayCache.get(h.id) })).filter((x) => x.t)
+      .sort((a, b) => order[todayState(a.t)] - order[todayState(b.t)] || kmTo(a.h.c, c) - kmTo(b.h.c, c)).slice(0, n)
+      .map(({ h, t }) => ({ name: h.name, lat: h.c[0], lon: h.c[1], d: kmTo(h.c, c), why: todayBits(h, t).join(" · "), open: () => { toPanel(); openHike(h.id, true); } }));
+  }
   function renderToday(list, head) {
     const rows = list.map((h) => ({ h, t: todayCache.get(h.id) })).filter((x) => x.t);
-    const state = ({ t }) => (t.warn.some((w) => w.bad) ? "check" : t.snow != null && t.snow >= 0.1 ? "snow" : "good");
+    const state = ({ t }) => todayState(t);
     const groups = { good: [], snow: [], check: [] };
     rows.forEach((r) => groups[state(r)].push(r));
     const c = [map.getCenter().lat, map.getCenter().lng];
     Object.values(groups).forEach((g) => g.sort((a, b) => kmTo(a.h.c, c) - kmTo(b.h.c, c)));
     const row = ({ h, t }) => {
-      const cm = t.snow != null ? Math.round(t.snow * 100) : null, bad = t.warn.find((w) => w.bad);
-      const bits = [GRADES[h.g].label, fmtKm(h.km), `top ${fmtM(t.hi)}`, cm >= 1 ? `${cm} cm snow up top` : cm === 0 ? "no snow" : "", t.t != null ? `${Math.round(t.t)}°C up top` : "", t.pop >= 50 ? `rain ${t.pop}%` : "",
-        bad ? bad.text : ""].filter(Boolean);
+      const bits = todayBits(h, t);
       return `<li><button type="button" data-hike="${esc(h.id)}"><span class="hk-dot" style="--c:${GRADES[h.g].c}"></span><b>${esc(h.name)}</b><small>${esc(bits.join(" · "))}</small><em>${fmtKm(kmTo(h.c, c))}</em></button></li>`;
     };
     const sec = (k, title, color, sub) => groups[k].length ? `<p class="hk-today-h" style="color:${color}">${esc(title)} (${groups[k].length})</p>${sub ? `<p class="hk-note">${esc(sub)}</p>` : ""}<ul class="hk-list">${groups[k].slice(0, 12).map(row).join("")}</ul>` : "";
@@ -1778,6 +1798,9 @@ out center tags qt;`;
       if (phone() && t && t.getAttribute("aria-current") !== "true") t.click();
       if (what === "log") openLog(); else if (what === "saved") renderSaved(); else if (what === "today") openToday(); else if (what === "plan") setPlanning(true);
     },
+    todayPicks,
+    // The Today card (today.js): a saved hike on the map with its card open (or just the map there, if its trails aren't loaded).
+    openSaved: (id, c) => { toPanel(); if (!hikes.has(id)) { map.setView(c, 14); return; } openHike(id, true); },
   };
 
   // The hike trip (hike-trip.js, on trip-core.js): the places, hikes, planned hikes, weather and park rules it builds from.

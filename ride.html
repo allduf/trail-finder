@@ -263,6 +263,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 <script src="keyboard.js?v=__V__"></script>
 <script src="account.js?v=__V__"></script>
 <script src="usage.js?v=__V__"></script>
+<script src="rate.js?v=__V__"></script>
 <script src="vendor/leaflet-1.9.4.js"></script>
 <script src="ride-files.js?v=__V__"></script>
 <script src="ride-stats.js?v=__V__"></script>
@@ -615,7 +616,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       await dbPut("rides", ride);
       uploadSoon(ride.id);
       if (window.tfShare) window.tfShare.kick();
-      if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride saved. Press Start for the next one."); }
+      if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride saved. Press Start for the next one."); window.tfHappy && window.tfHappy("ride saved"); }
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
       await countRides();
       if (!editing && ride.sport === "hunt") { location.href = "index.html#myhunts"; return; }   // straight to My hunts on the map

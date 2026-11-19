@@ -1,0 +1,11 @@
+{
+  "name": "trail-review",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shows Google Play's own rating card (Play In-App Review) when the website asks after a happy moment. The same call as ios-app/plugins/TrailReview, used by rate.js on the website.",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}

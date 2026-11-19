@@ -378,7 +378,7 @@
     E.putTrip(t2);
     draft = { k: d.k, day: x.day, where: d.where, open: true };
     renderLog(t2); E.drawMap();
-    toast(`${kindOf(x.k).label}${x.sp ? `: ${x.sp}` : ""} added to the log.`);
+    toast(`${kindOf(x.k).label}${x.sp ? `: ${x.sp}` : ""} added to the log.`); window.tfHappy && window.tfHappy("hunting log");
   }
   E.card.addEventListener("click", (e) => {
     const t = cur(), b = e.target.closest("[data-logk], [data-logrm], [data-logmap], [data-logpin], [data-tagrm], [data-walkadd]");
