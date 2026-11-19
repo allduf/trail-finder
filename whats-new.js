@@ -1,8 +1,8 @@
 // What's new (alex, 2026-10-24: "every time a user opens the app show a list of what changed since they last
 // connected... simple and quick to read"). When the app opens or comes back to the front, a small card lists the
 // changes since this rider last saw it: one short line each, one tap anywhere closes it, nothing shows when nothing changed.
-//  - The lines are data/changelog.json (hand-edited, newest first: { date: "YYYY-MM-DD", text }). Add a line at the top
-//    for each change people will notice.
+//  - The lines are data/changelog.json (newest first: { date: "YYYY-MM-DD", text }). For each change people will notice,
+//    add a new file data/changelog.d/<short-name>.json instead; scripts/stamp.mjs puts it in at publish (2026-11-19).
 //  - tf:newsSeen = { date, n }: the newest date seen and how many lines with that date were there. Synced with the
 //    account (account.js SETTINGS), so a line read on the phone isn't shown again on the computer.
 //  - A brand-new device sees nothing the first time (everything counts as seen); a device that already used the app
