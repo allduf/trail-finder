@@ -118,11 +118,12 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
   }
 
   // ---------- weather for every place on the card: one call, the middle of three models ----------
-  async function weather(pts, fish) {
+  async function weather(pts, fish, hike) {
     if (!pts.length) return [];
     const q = new URLSearchParams({ latitude: pts.map((p) => p[0].toFixed(3)).join(","), longitude: pts.map((p) => p[1].toFixed(3)).join(","),
       daily: "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset",
-      hourly: "snowfall,precipitation" + (fish ? ",temperature_2m,pressure_msl,wind_speed_10m,wind_gusts_10m,cloud_cover" : ""),
+      hourly: "snowfall,precipitation" + (fish ? ",temperature_2m,pressure_msl,wind_speed_10m,wind_gusts_10m,cloud_cover" : "")
+        + (hike ? ",temperature_2m,snow_depth,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm" : ""),
       past_days: "2", forecast_days: "2", timezone: "auto", wind_speed_unit: "kmh" });
     const url = `https://api.open-meteo.com/v1/forecast?${q}`;
     let j = await (window.tfWx ? window.tfWx.getChecked(url, 15000) : fetch(url).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }));
@@ -137,7 +138,13 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
     const add = (key, from, to) => h.time.reduce((s, t, i) => { const x = at(t); return x > from && x <= to ? s + (h[key][i] || 0) : s; }, 0);
     const today = new Date(now + off).toISOString().slice(0, 10), i = d.time.indexOf(today);
     const day = (k) => (i >= 0 && d[k] ? d[k][i] : null);
-    return { w, today, snowPast: add("snowfall", now - 864e5, now), snowNext: add("snowfall", now, now + 864e5), wetPast2: add("precipitation", now - 2 * 864e5, now), wetNext: add("precipitation", now, now + 864e5),
+    // For a hike's trail condition (hike.js trailCond): snow on the ground, the lowest temperature within a day, the
+    // soil moisture in the top 9 cm now.
+    const nowI = h.time.findIndex((t) => at(t) > now) - 1, hv = (k) => (h[k] && nowI >= 0 ? h[k][nowI] : null);
+    const sm = ["soil_moisture_0_to_1cm", "soil_moisture_1_to_3cm", "soil_moisture_3_to_9cm"].map(hv);
+    const lows = h.temperature_2m ? h.time.map((t, k) => (Math.abs(at(t) - now) <= 864e5 ? h.temperature_2m[k] : null)).filter((v) => v != null) : [];
+    const ground = { snow: hv("snow_depth"), rain2: add("precipitation", now - 2 * 864e5, now), lo24: lows.length ? Math.min(...lows) : null, soil: sm.every((v) => v != null) ? 0.5 * sm[0] + 0.3 * sm[1] + 0.2 * sm[2] : null };
+    return { w, today, ground, snowPast: add("snowfall", now - 864e5, now), snowNext: add("snowfall", now, now + 864e5), wetPast2: add("precipitation", now - 2 * 864e5, now), wetNext: add("precipitation", now, now + 864e5),
       hi: day("temperature_2m_max"), lo: day("temperature_2m_min"), pop: day("precipitation_probability_max"), wet: day("precipitation_sum"), wind: day("wind_speed_10m_max"), gust: day("wind_gusts_10m_max"),
       dir: day("wind_direction_10m_dominant"), rise: day("sunrise") ? at(day("sunrise")) : null, set: day("sunset") ? at(day("sunset")) : null };
   }
@@ -259,9 +266,9 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
     return {
       near, saved, fish: false,
       here: (s) => (s ? kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) + kv("Chance of rain or snow", s.pop == null ? "–" : `${Math.round(s.pop)}%`) + kv("New snow, next 24 h", cm(s.snowNext)) + kv("Sunset", hm(s.set)) : ""),
-      why: (x, s) => x.why0 || (s ? [`${deg(s.hi)} / ${deg(s.lo)}`, s.pop != null ? `rain or snow ${Math.round(s.pop)}%` : "", s.snowNext >= 1 ? `${cm(s.snowNext)} new snow` : "", `sunset ${hm(s.set)}`].filter(Boolean).join(" · ") : ""),
+      why: (x, s) => x.why0 || (s ? [window.tfHike && window.tfHike.trailCond ? window.tfHike.trailCond(s.ground) : "", [`${deg(s.hi)} / ${deg(s.lo)}`, s.pop != null ? `rain or snow ${Math.round(s.pop)}%` : "", s.snowNext >= 1 ? `${cm(s.snowNext)} new snow` : "", `sunset ${hm(s.set)}`].filter(Boolean).join(" · ")] : ""),
       extra: () => "",
-      note: "Hikes near you: no snow or closure found first. Snow and weather: a weather model's estimate (at the top of each nearby hike, at the middle of saved ones); closures, warnings and fires from the feeds the app reads. Not a trail report.",
+      note: "Hikes near you: nearest first, ones with a closure, warning or fire near them last. Trail condition (snow, ice, mud, damp or firm, at the top of nearby hikes and the middle of saved ones): an estimate from snow depth, temperature, the last 2 days of rain and soil moisture, the middle of 3 weather models. Closures, warnings and fires from the feeds the app reads. Not a trail report.",
       nearEmpty: "Zoom the map in to a valley or a town to see hikes near you.",
     };
   }
@@ -309,7 +316,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
     if (!S) { $("tdyHere").innerHTML = `<span class="tdy-wait">Today couldn't load. Try again in a minute.</span>`; $("tdyNear").innerHTML = $("tdySaved").innerHTML = ""; return; }
     const places = [from.ll, ...S.near.filter((x) => x.ll).map((x) => x.ll), ...S.saved.map((x) => x.ll)];
     let wx = [], err = "";
-    try { wx = await weather(places, S.fish); } catch (e) { err = navigator.onLine ? "The weather service is busy: try again in a minute." : "No signal: the weather needs a connection."; }
+    try { wx = await weather(places, S.fish, sp === "hike"); } catch (e) { err = navigator.onLine ? "The weather service is busy: try again in a minute." : "No signal: the weather needs a connection."; }
     if (my !== seq) return;
     let k = 1;
     const nearS = S.near.map((x) => (x.ll ? wx[k++] : null)), savedS = S.saved.map(() => wx[k++]);
@@ -334,16 +341,16 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
   function auto(tries = 20) {
     if (store.get("todayAuto", true) === false) return;
     if (/^#\w+=/.test(location.hash)) return;   // opened from a shared link (#pin=, #trail=, #route=, #trip=, #live=...): that comes first
-    if ((window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked) || document.querySelector(".welc, .nt-ask, .acct-nudge, #tpBackBar, dialog[open]")) {
+    if ((window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked) || document.querySelector(".welc, .nt-ask, .acct-nudge, #tpBackBar:not([hidden]), dialog[open]")) {
       if (tries > 0) setTimeout(() => auto(tries - 1), 1000);
       return;
     }
     const sp = sportNow(), seen = store.get("todaySeen", {});
     if (seen[sp] === localDay()) return;
     seen[sp] = localDay(); store.set("todaySeen", seen);
-    if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0(); }
+    if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0({ auto: true }); }   // status.js: only the nearest trails
     else open(sp);
   }
-  const start = () => setTimeout(() => auto(), 3500);
+  const start = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(() => auto(), { timeout: 3000 }) : auto()), 5000);
   if (document.readyState === "complete") start(); else window.addEventListener("load", start, { once: true });
 })();
