@@ -1197,6 +1197,8 @@
     "Search or ask":"Chercher ou demander",
     "Skiing opens with Lift status and Slackcountry on; Your ski tours are a switch in Layers.":"Le ski s'ouvre avec l'état des remontées et le slackcountry ; Vos sorties de ski sont un bouton dans Couches.",
     "Skiing 3D: the winter photo is sharper and cleaner from the middle distance at Whistler, Revelstoke, Rogers Pass and Kicking Horse, without the grey squares.":"Ski 3D : la photo d'hiver est plus nette et plus propre dès la moyenne distance à Whistler, Revelstoke, Rogers Pass et Kicking Horse, sans les carrés gris.",
+    "Skiing: new freeride line, the Wedge NW Couloir above Wedgemount Lake, drawn from a climber's GPS track with skiers' trip reports on its card. Turn on Freeride lines in Layers, Resorts to see it.":"Ski : nouvelle ligne freeride, le couloir nord-ouest de Wedge au-dessus du lac Wedgemount, tracée d'après la trace GPS d'un grimpeur, avec des récits de skieurs sur sa fiche. Activez Lignes freeride dans Couches, Stations pour la voir.",
+    "Line added by hand from a recorded GPS track: its sources are under More details.":"Ligne ajoutée à la main d'après une trace GPS enregistrée : ses sources sont dans Plus de détails.",
     "Name this tour":"Nommer cette sortie",
     "★ Save":"★ Enregistrer",
     "★ Save this tour":"★ Enregistrer cette sortie",

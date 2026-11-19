@@ -5,7 +5,8 @@
 // names).
 // Only lines skiers have mapped where they really are: the OpenStreetMap ski routes winter.js already loads (the home
 // region, data/ski-canada/ and the nightly Canada squares ca/w/), so they're everywhere in Canada and updated nightly,
-// and nothing is drawn from a guess. A route is a freeride line when it's a named downhill line (not an area, a skin
+// and nothing is drawn from a guess. Hand-kept lines (data/ski-hand/, alex 2026-11-19: the Wedge NW Couloir, from a
+// climber's GPS track of the same couloir) count the same way and say where they come from. A route is a freeride line when it's a named downhill line (not an area, a skin
 // track, a road or a park) that OpenStreetMap rates freeride or extreme, or expert with no grooming or with a chute,
 // couloir, face, bowl... in its name. data/freeride-lines.json (hand-kept) lists resorts whose run descriptions count
 // too and the real lines with no such word (Whistler Blackcomb), fixes names, and leaves out the slackcountry lines (their own layer, slackcountry.js).
@@ -189,7 +190,7 @@ dialog.fr-dlg .fr-small { font-size: .78rem; color: var(--muted); }
       <p><span class="fr-pill${ex ? " ex" : ""}">${esc(RATE[r.diff] || "Freeride")}</span>${rs ? esc(rs.name) : ""}</p>
       ${where}
       <div class="fr-facts" aria-live="polite"><div><small>Steepest</small><b>…</b></div></div>
-      <p class="fr-small">Line mapped on OpenStreetMap by skiers who know it. Steepness and aspect come from terrain tiles about 30 m apart, so short steeper rolls, cliffs and cornices don't show.${rs && rs.guide ? ` More lines and photos: <a href="${esc(rs.guide.u)}" target="_blank" rel="noopener">${esc(rs.guide.t)} ↗</a>` : ""}</p>`;
+      <p class="fr-small">${r.src === "hand" ? "Line added by hand from a recorded GPS track: its sources are under More details." : "Line mapped on OpenStreetMap by skiers who know it."} Steepness and aspect come from terrain tiles about 30 m apart, so short steeper rolls, cliffs and cornices don't show.${rs && rs.guide ? ` More lines and photos: <a href="${esc(rs.guide.u)}" target="_blank" rel="noopener">${esc(rs.guide.t)} ↗</a>` : ""}</p>`;
     // Near the top of the card, above Conditions, so it shows without scrolling on a phone.
     const cond = document.getElementById("skCond");
     (cond && cond.closest("#skDetail") ? cond : el).before(sec);
