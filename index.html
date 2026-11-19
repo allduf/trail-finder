@@ -1214,6 +1214,16 @@ body.sport-alt #rideMapBtn { display: none !important; }
   .panel.wide > .panel-head { grid-column: 1; grid-row: 1; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; min-height: 0; border-bottom: 0; border-right: 1px solid var(--line); }
   .panel.wide > .results { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; min-height: 0; }
 }
+/* Hide or show the results column on a wide desktop (alex): a tab on the map's left edge, next to the column. Hidden
+   in full map, on phones and narrow screens (where the results are part of the one scrolling panel). */
+.res-tab { display: none; }
+@media (min-width: 1200px) {
+  .panel.res-hide:not(.detail-open) > .results { display: none; }
+  .res-tab:not([hidden]) { position: absolute; z-index: 650; left: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; width: 34px; padding: 12px 0 10px; border: 1px solid var(--line); border-left: 0; border-radius: 0 10px 10px 0; background: var(--panel); color: var(--fg); font: inherit; font-size: .72rem; font-weight: 600; cursor: pointer; box-shadow: 2px 1px 6px rgba(0,0,0,.2); }
+  .res-tab:hover { background: var(--chip); }
+  .res-tab svg { width: 20px; height: 20px; }
+  .app.fullmap .res-tab { display: none; }
+}
 #map { position: absolute; inset: 0; background: var(--map-ground); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 48px 48px; }
 .map-actions { position: absolute; z-index: 500; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
 .map-tools { position: absolute; z-index: 500; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
@@ -1356,6 +1366,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <div class="app">
   <div class="mapwrap">
     <div id="map" role="application" aria-label="Map of trails"></div>
+    <button type="button" class="res-tab" id="resTab" hidden aria-expanded="true" title="Hide the list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Hide</span></button>
     <div class="map-actions">
       <div class="map-status" id="mapStatus" aria-live="polite"></div>
       <button class="btn primary" id="searchArea" hidden>Search this area</button>
@@ -2318,7 +2329,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
   function syncResultsCol(widthFlipped) {
     const p = $("panel"), head = p.querySelector(".panel-head");
     // Never in Skiing or Hunting (winter.js): their panel has no results, and the MTB list behind it would open an empty column.
-    const has = !document.body.classList.contains("sport-alt") && (p.classList.contains("detail-open") || !$("boxRes").hidden || !!$("list").querySelector("li"));
+    const any = !document.body.classList.contains("sport-alt") && (p.classList.contains("detail-open") || !$("boxRes").hidden || !!$("list").querySelector("li"));
+    // Hidden with the tab on the map's edge (alex); a trail's details still open the column.
+    const has = any && !(p.classList.contains("res-hide") && !p.classList.contains("detail-open"));
+    const tab = $("resTab");
+    if (tab) {
+      tab.hidden = !any;
+      tab.setAttribute("aria-expanded", String(has));
+      tab.title = has ? "Hide the list" : "Show the list";
+      tab.querySelector("path").setAttribute("d", has ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7");
+      tab.querySelector("span").textContent = has ? "Hide" : "List";
+    }
     const before = p.classList.contains("wide") && (widthFlipped === true ? !twoColMQ.matches : twoColMQ.matches);
     const after = has && twoColMQ.matches, top = before ? head.scrollTop : p.scrollTop;   // read before the layout changes
     p.classList.toggle("wide", has);
@@ -2327,6 +2348,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
     map.invalidateSize({ pan: false });
   }
   twoColMQ.addEventListener("change", () => syncResultsCol(true));
+  $("resTab").addEventListener("click", () => {
+    const p = $("panel");
+    // Open column: hide it (closing a trail's details first). Hidden: bring it back.
+    const open = p.classList.contains("detail-open") || !p.classList.contains("res-hide");
+    if (p.classList.contains("detail-open")) closeDetail();
+    p.classList.toggle("res-hide", open);
+    syncResultsCol();
+  });
   window.tfSyncResultsCol = syncResultsCol;   // winter.js, on a change of sport
   function panelScrollTo(el, how = "start", smooth = false) {
     const p = panelScroller(el); if (!el || !p) return;
