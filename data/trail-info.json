@@ -26,7 +26,8 @@
     "sorca-2606": { "name": "SORCA trail report, June 2026", "url": "https://www.sorca.ca/s/June-2026-Trail-Report.pdf", "c": [49.75, -123.1], "r": 16000 },
     "sorca-2607": { "name": "SORCA trail report, July 2026", "url": "https://www.sorca.ca/s/July-2026-Trail-Report-mxlf.pdf", "c": [49.75, -123.1], "r": 16000 },
     "sorca-2608": { "name": "SORCA trail report, August and September 2026", "url": "https://www.sorca.ca/s/August-2026-Trail-Report.pdf", "c": [49.75, -123.1], "r": 16000 },
-    "pvrtmp": { "name": "Pemberton Valley Recreation Trails Master Plan (SLRD, Village of Pemberton, Lil'wat Nation, 2020)", "url": "https://www.dropbox.com/s/tknvwz5z7xkuxas/PVRTMP%20Oct%201%202020%20final.pdf?dl=0", "c": [50.33, -122.79], "r": 20000 }
+    "pvrtmp": { "name": "Pemberton Valley Recreation Trails Master Plan (SLRD, Village of Pemberton, Lil'wat Nation, 2020)", "url": "https://www.dropbox.com/s/tknvwz5z7xkuxas/PVRTMP%20Oct%201%202020%20final.pdf?dl=0", "c": [50.33, -122.79], "r": 20000 },
+    "smb": { "name": "Smithers Mountain Bike Association, Bluff trail descriptions", "url": "https://smithersmountainbike.ca/trails/the-bluff-recreation-site/", "c": [54.771, -127.185], "r": 2000 }
   },
   "trails": [
     { "s": "fer", "n": ["Silk", "Manchuria"], "no": "1/2", "kind": "Multi-use", "text": "Double-track road; part of the multi-use network." },
@@ -164,7 +165,18 @@
     { "s": "sorca-2510", "n": ["Zombie Crawl"], "text": "Maintenance by Mulgrave School students in spring 2025." },
     { "s": "pvrtmp", "n": ["Teepee Trail", "Silálts", "Smoke-a-Butt"], "c": [50.329, -122.794], "r": 2500, "text": "Also called Smoke-a-Butt. It passes a culturally important Lil'wat site: stay on the trail, and don't build or change anything on it." },
     { "s": "pvrtmp", "n": ["Cream Puff", "Creampuff"], "c": [50.32, -122.74], "r": 3000, "text": "Passes a petroglyph site, a protected Lil'wat cultural site: stay on the trail. Parts of the trail cross private land." },
-    { "s": "pvrtmp", "n": ["Waco Connector", "Upper MacKenzie Cruise", "Upper Mackenzie Cruise"], "c": [50.335, -122.8], "r": 4000, "text": "Mackenzie Basin is deer winter range: the plan asks riders to stay off the trails above the Waco Connector from December to February (a voluntary closure; walkers only). Hunters use the upper part in season." }
+    { "s": "pvrtmp", "n": ["Waco Connector", "Upper MacKenzie Cruise", "Upper Mackenzie Cruise"], "c": [50.335, -122.8], "r": 4000, "text": "Mackenzie Basin is deer winter range: the plan asks riders to stay off the trails above the Waco Connector from December to February (a voluntary closure; walkers only). Hunters use the upper part in season." },
+    { "s": "smb", "n": ["Penetralia", "Penetrailia"], "level": "Blue square", "text": "The club calls it the Bluff's easiest trail, rated blue: flowy singletrack on a moderate grade with small A-frames and log rides, and one large ride-over. Starts at the Q junction." },
+    { "s": "smb", "n": ["Uptrack"], "km": 3, "text": "About 3 km climb to the top of the Bluff, also ridden down as an easier descent. Uphill riders have the right of way, and many hikers use it." },
+    { "s": "smb", "n": ["Long Way", "Upper Long way", "Longway"], "text": "Another way up the Bluff with many switchbacks; downhill it is moderate with a few technical sections. Two-way traffic. Links to All Screwed Up and Soul Stripper." },
+    { "s": "smb", "n": ["Anti Flow", "Upper Anti Flo", "Auntie Flo"], "text": "Fast and flowy. The upper part has technical corners and moderate steeps; the lower part has low boardwalks, a teeter-totter, small A-frames and small jumps, and shares a section with Smoothy. Starts from the P junction." },
+    { "s": "smb", "n": ["Lower Anti Flow", "Lower Auntie Flo"], "text": "Fast, flowy finish to a Bluff ride, built in 2016 with funding from the Rotary Club of Smithers. Reached from Auntie Flo, Penetralia or near the start of Uptrack." },
+    { "s": "smb", "n": ["Shining", "The Shining"], "text": "A Bluff classic with steeps, berms, drops, stunts and skinnies; some features are large. A double black cutoff branches left partway down. Starts from the P junction." },
+    { "s": "smb", "n": ["Smoothy", "Smoothie"], "text": "Rebuilt in 2009: smooth straights, tight berms and small airs. Starts at the Q junction and joins lower Apocalypse; the Bedpost drop is near the bottom." },
+    { "s": "smb", "n": ["Remembrance Day", "Upper Remembrance Day"], "text": "One of the longest Bluff trails: old-school steeps with rocks and roots, log rides and tricky corners. The top half is much steeper than the bottom, which follows the Old Bluff trail to the pumphouse." },
+    { "s": "smb", "n": ["Four Horseman"], "text": "One of the oldest Bluff trails: very steep and rough, which the club says is for riders with solid technical skills. Off-camber turns, a rock drop, a small gap jump and a step-down; a ride-around skips the drop and gaps." },
+    { "s": "smb", "n": ["Appocalypse", "Apocalypse"], "text": "Wooden and dirt gap jumps, a long log ride, a step-up and a technical hip jump. The Bedpost drop near the bottom has a smaller and a larger line." },
+    { "s": "smb", "n": ["Skitzo"], "text": "Steep, old-school trail; most of its old stunts have been removed. Ends at the pumphouse, near where Remembrance Day ends." }
   ],
   "hikes": [
     { "s": "s2sg", "n": ["Spirit Trail", "Spirit Loop"], "level": "Beginner", "km": "0.4", "text": "20 min. A short, easy loop by the Summit Lodge with views of Howe Sound, Sky Pilot and Goat Ridge. Starts at the top of the Sea to Sky Gondola (ticket)." },

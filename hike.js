@@ -743,7 +743,13 @@ out center tags qt;`;
           <a class="hk-pill go" href="${dirUrl(p.ll)}" target="_blank" rel="noopener">${svg(IC.car, 16)}Directions</a>
           ${book ? `<a class="hk-pill" href="${esc(book)}" target="_blank" rel="noopener">${t["reservation:website"] ? "Book" : "Website"}</a>` : ""}
         </div>
+        <div data-here></div>
         ${p.id[0] !== "j" ? `<p class="hk-note">On <a href="https://www.openstreetmap.org/${{ n: "node", w: "way", r: "relation" }[p.id[0]]}/${p.id.slice(1)}" target="_blank" rel="noopener">OpenStreetMap</a>.</p>` : ""}`;
+      cardDrawn("place", el, p);
+      // At this spot (point-info.js): weather there for 3 days (3 models checked), sunrise and sunset, BC fire bans and
+      // wildfires, and a BC rec site's record when OpenStreetMap links the place to one.
+      const rec = /\bREC\d{3,6}\b/i.exec([p.x.website, p.x.url, p.x.ref, p.x["ref:bc_rec"], t.website].filter(Boolean).join(" "));
+      if (window.tfPointInfo) window.tfPointInfo.fill(el.querySelector("[data-here]"), p.ll[0], p.ll[1], { ele: p.x.ele ? +p.x.ele : null, rec: rec ? rec[0] : "", isCurrent: () => curPlace === p });
     };
     render(p.club || null);
     showCard(el);
@@ -1223,7 +1229,10 @@ out center tags qt;`;
       </div>
       <p class="hk-note">${h.rel ? "Hiking route" : "Trail"} on <a href="https://www.openstreetmap.org/${h.rel ? "relation/" + h.rel.id : "way/" + h.ways[0].id}" target="_blank" rel="noopener">OpenStreetMap</a>. Wrong or missing? You can fix it there.</p>`;
     if (Array.isArray(h.photos)) bindHikePh(el, h.photos);
+    cardDrawn("hike", el, h);
   }
+  // A card drawn again (hike, place, plan): the hike trip (hike-trip.js) adds its "Add to hike trip" buttons to it.
+  const cardDrawn = (kind, el, item) => window.dispatchEvent(new CustomEvent("tf:hike-card", { detail: { kind, el, item } }));
   // A small height profile (SVG): distance along, height up.
   function profileSvg(el, km) {
     const W = 320, H = 76, lo = Math.min(...el), hi = Math.max(...el), span = Math.max(50, hi - lo);
@@ -1608,6 +1617,7 @@ out center tags qt;`;
       ${r ? `<button type="button" class="hk-pill go" data-pl="save">${svg(IC.star, 16)}${plan.id ? "Saved" : "Save"}</button><button type="button" class="hk-pill go" data-pl="follow">${svg(IC.play, 16)}Follow it</button><button type="button" class="hk-pill" data-pl="gpx">GPX file</button>` : ""}
       ${plan.on ? "" : `<button type="button" class="hk-pill" data-pl="edit">Add points</button>`}${plan.id ? `<button type="button" class="hk-pill" data-pl="del">Delete</button>` : ""}</div>`;
     el.innerHTML = head + chips + body + btns + `<p class="hk-note">${r && r.local ? "<span>Found on your phone along the trails on the map (the route server didn't answer).</span> <span>Check the route on the map: a path on the map isn't always a trail on the ground.</span>" : "Routing: Valhalla on OpenStreetMap. Check the route on the map: a path on the map isn't always a trail on the ground."}</p>`;
+    cardDrawn("plan", el, plan);
   }
   $("hkPlan").addEventListener("input", (e) => { if (e.target.id === "hkPlanName") plan.name = e.target.value; });
   $("hkPlan").addEventListener("click", (e) => {
@@ -1768,6 +1778,29 @@ out center tags qt;`;
       if (phone() && t && t.getAttribute("aria-current") !== "true") t.click();
       if (what === "log") openLog(); else if (what === "saved") renderSaved(); else if (what === "today") openToday(); else if (what === "plan") setPlanning(true);
     },
+  };
+
+  // The hike trip (hike-trip.js, on trip-core.js): the places, hikes, planned hikes, weather and park rules it builds from.
+  window.tfHike.trip = {
+    ACC, PLACES, svg, IC, GRADES, kmTo, placeFacts,
+    place: (id) => places.get(id) || null,
+    // Huts, shelters and campsites (or any kinds) within km of ll that the map has loaded, nearest first.
+    placesNear: (ll, km, kinds) => [...places.values()].filter((p) => kinds.includes(p.k) && p.n).map((p) => ({ p, d: kmTo(ll, p.ll) })).filter((x) => x.d <= km).sort((a, b) => a.d - b.d),
+    allPlaces: () => [...places.values()],
+    openPlace: (id) => { toPanel(); openPlace(id); },
+    club: (p) => loadHuts().then((list) => hutFor(p, list)),
+    hike: (id) => hikes.get(id) || null,
+    openHike: (id) => { if (!hikes.has(id)) return false; toPanel(); openHike(id, true); return true; },
+    hikeItem: (h) => ({ rid: h.id, name: h.name, label: GRADES[h.g].label, ls: h.ways.map((w) => w.g), c: h.c }),
+    // The hike being planned as a line for the trip (saved to Saved first, so the trip keeps its id).
+    planItem: () => { const r = plan.route; if (!r || !r.line || r.line.length < 2) return null; if (!plan.id) savePlan(); return { tour: plan.id, name: plan.name || "My hike", ls: [r.line] }; },
+    planOn: () => plan.on,
+    plan: (from) => { plan.pts = from ? [[+from[0].toFixed(5), +from[1].toFixed(5)]] : []; plan.route = null; plan.id = null; plan.name = ""; plan.err = ""; setPlanning(true); },
+    openPlan: (id) => { const r = plans().find((x) => x.id === id); if (!r) return false; toPanel(); loadPlan(r); return true; },
+    parks: (ll) => parksAt(ll).then((ps) => passFor(ps, ll)),
+    warnings: (c, names) => warningsNear({ c, name: "", ways: (names || []).map((n) => ({ t: { name: n } })) }),
+    wx: (url) => wxGet(url),
+    showCard, toPanel,
   };
 
   // ---------- switching sport ----------

@@ -1,0 +1,3 @@
+MTB: trails mapped as unofficial, closed or no bikes no longer open a trail card on the public map. The base map still shows the path. ||| Vélo de montagne : les sentiers cartographiés comme non officiels, fermés ou interdits aux vélos n'ouvrent plus de fiche de sentier sur la carte publique. La carte de base montre toujours le chemin.
+No trail info here ||| Aucune info de sentier ici
+No trail info for this one. ||| Aucune info pour ce sentier.

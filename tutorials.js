@@ -20,7 +20,7 @@
     { id: "avalanche-terrain", sport: "ski", title: "Avalanche and terrain layers", sub: "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)", src: "videos/avalanche-terrain.mp4", poster: "videos/avalanche-terrain.jpg", secs: 51 },
     { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your crew, ski lines, packing, meals and costs, then share the trip", src: "videos/cabin-trip.mp4", poster: "videos/cabin-trip.jpg", secs: 94 },
   ];
-  const SPORTS = { all: ["The whole app", "✨"], mtb: ["MTB", "🚵"], ski: ["Skiing", "⛷"], hunt: ["Hunting", "🦌"], fish: ["Fishing", "🎣"], moto: ["Adventure moto", "🏍"], hike: ["Hiking", "🥾"] };
+  const SPORTS = { all: ["The whole app", "✨"], mtb: ["MTB", "🚵"], ski: ["Skiing", "⛷"], hunt: ["Hunting", "🦌"], fish: ["Fishing", "🎣"], moto: ["Adventure moto (ADV)", "🏍"], hike: ["Hiking", "🥾"] };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const line = (e, size = 18) => (window.tfLine ? window.tfLine(e, size) : e);
   const len = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;

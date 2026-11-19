@@ -1122,6 +1122,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // "River · Very low"); a tap opens the details (alex: "make the fishing mode user friendly", like Hunting's #298).
   const unhead = (h) => String(h || "").replace(/^\s*<h4>[\s\S]*?<\/h4>/, "");
   const textOf = (h) => String(h || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  const FIRE_IC = '<path d="M12 21c-3.9 0-7-2.6-7-6.4 0-3.4 2.8-5.4 4-9.6 2 1.5 3 3.4 3 5.4.9-.8 1.5-2 1.6-3.2C16 9.2 19 12 19 14.6c0 3.8-3.1 6.4-7 6.4z"/>';
   function fold(key, icon, title, sum, body, open = false) {
     if (!body) return "";
     return `<details class="fs-sec" data-sec="${key}"${open ? " open" : ""}><summary>${svg(icon, 16)}<b>${esc(title)}</b><span>${sum || ""}</span></summary><div class="fs-secb">${body}</div></details>`;
@@ -1145,8 +1146,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "fish", name: title }) : ""}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsDepth"></div><div id="fsBait"></div>
-      <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsLand"></div><div id="fsAcc"></div>`;
+      <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsLand"></div><div id="fsAcc"></div><div id="fsFire"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
+    // The fishing trip (fishing-trip.js) adds its "Plan a fishing trip here" button under the header.
+    window.dispatchEvent(new CustomEvent("tf:fish-spot", { detail: { el, lat, lon, name: title || "" } }));
     cardInView(el);
     await ready;
     const zs = await loadZones();
@@ -1168,6 +1171,13 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     flowHtml(lat, lon).then((h) => fill("fsFlow", secFlow(h)));
     tideHtml(lat, lon).then((h) => fill("fsTide", secTide(h)));
     fill("fsAcc", secAcc(accessHtml(lat, lon)));
+    // BC Wildfire Service's bans and wildfires near the spot (point-info.js), for a fire on the shore or a camp.
+    if (window.tfPointInfo && window.tfPointInfo.inBC(lat, lon)) {
+      const box = document.createElement("div");
+      window.tfPointInfo.fireInto(box, lat, lon, { isCurrent: () => seq === spotSeq }).then((sum) => {
+        if (sum) fill("fsFire", fold("fire", FIRE_IC, "Fire", esc(sum), box.innerHTML.replace(/^/, '<div class="pi">') + "</div>", /ban|wildfire/i.test(sum) && !/^No/.test(sum)));
+      });
+    }
     landHtml(lat, lon, prov).then((h) => fill("fsLand", h));
     // What to use: the fish the province lists here, plus what's stocked close by and what the eating guide lists.
     const baitSp = new Set();
@@ -2099,25 +2109,31 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     for (let k = 0; k < 3; k++) {
       const day = h.time.find((t) => t.slice(0, 10) > (k ? out[k - 1].date : "") && t >= (wx.current?.time || "").slice(0, 10)) || "";
       const date = k === 0 ? (wx.current?.time || h.time[24]).slice(0, 10) : (() => { const d = new Date(out[0].date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + k); return d.toISOString().slice(0, 10); })();
-      const idx = h.time.map((t, i) => (t.slice(0, 10) === date && +t.slice(11, 13) >= 6 && +t.slice(11, 13) <= 20 ? i : -1)).filter((i) => i >= 0);
-      if (!idx.length) break;
-      const avg = (a) => a.reduce((s, x) => s + (x || 0), 0) / a.length;
-      const wind = avg(idx.map((i) => h.wind_speed_10m[i])), gust = Math.max(...idx.map((i) => h.wind_gusts_10m[i] || 0)), cloud = avg(idx.map((i) => h.cloud_cover[i])), rain = idx.reduce((s, i) => s + (h.precipitation[i] || 0), 0);
-      const p0 = h.pressure_msl[idx[0] - 6] ?? h.pressure_msl[idx[0]], p1 = h.pressure_msl[idx[idx.length - 1]], dp = p1 - p0, tmax = Math.max(...idx.map((i) => h.temperature_2m[i]));
-      const ph = moonPhase(new Date(date + "T12:00:00Z")).phase, moonNear = Math.min(Math.abs(ph - 0), Math.abs(ph - 0.5), Math.abs(ph - 1)) < 0.06;
-      let s = 2.5; const why = [];   // an ordinary day is a 3; it takes several good signs to make a 5
-      if (dp <= -1.5) { s += 1; why.push("pressure falling"); } else if (dp >= 3) { s -= 1; why.push("pressure rising fast"); } else if (Math.abs(dp) < 1) why.push("steady pressure");
-      if (wind >= 6 && wind <= 18) { s += 0.5; why.push("light chop"); } else if (wind > 28 || gust > 50) { s -= 1.5; why.push("windy"); } else if (wind < 4) why.push("calm (spooky fish)");
-      if (cloud > 60) { s += 0.5; why.push("cloudy"); } else if (cloud < 20) { s -= 0.25; why.push("bright sun"); }
-      if (rain > 12) { s -= 0.75; why.push("heavy rain"); } else if (rain > 0.5) why.push("some rain");
-      if (moonNear) { s += 0.5; why.push(ph > 0.25 && ph < 0.75 ? "full moon" : "new moon"); }
-      if (tmax > 27) { s -= 0.5; why.push("hot: fish early"); }
-      if (k === 0 && flow) {
-        if (flow === "ok") { s += 0.5; why.push("river normal"); } else if (flow === "blown") { s -= 1.5; why.push("river blown out"); } else if (flow === "high") { s -= 0.5; why.push("river high"); } else if (flow === "vlow") { s -= 0.5; why.push("river very low"); }
-      }
-      out.push({ date, s: Math.max(1, Math.min(5, Math.round(s))), why });
+      const d = dayScore(h, date, k === 0 ? flow : null);
+      if (!d) break;
+      out.push(d);
     }
     return out;
+  }
+  // One day's 1 to 5 from the hourly forecast (6 AM to 8 PM): also the fishing trip's days (fishing-trip.js).
+  function dayScore(h, date, flow) {
+    const idx = h.time.map((t, i) => (t.slice(0, 10) === date && +t.slice(11, 13) >= 6 && +t.slice(11, 13) <= 20 ? i : -1)).filter((i) => i >= 0);
+    if (!idx.length) return null;
+    const avg = (a) => a.reduce((s, x) => s + (x || 0), 0) / a.length;
+    const wind = avg(idx.map((i) => h.wind_speed_10m[i])), gust = Math.max(...idx.map((i) => h.wind_gusts_10m[i] || 0)), cloud = avg(idx.map((i) => h.cloud_cover[i])), rain = idx.reduce((s, i) => s + (h.precipitation[i] || 0), 0);
+    const p0 = h.pressure_msl[idx[0] - 6] ?? h.pressure_msl[idx[0]], p1 = h.pressure_msl[idx[idx.length - 1]], dp = p1 - p0, tmax = Math.max(...idx.map((i) => h.temperature_2m[i]));
+    const ph = moonPhase(new Date(date + "T12:00:00Z")).phase, moonNear = Math.min(Math.abs(ph - 0), Math.abs(ph - 0.5), Math.abs(ph - 1)) < 0.06;
+    let s = 2.5; const why = [];   // an ordinary day is a 3; it takes several good signs to make a 5
+    if (dp <= -1.5) { s += 1; why.push("pressure falling"); } else if (dp >= 3) { s -= 1; why.push("pressure rising fast"); } else if (Math.abs(dp) < 1) why.push("steady pressure");
+    if (wind >= 6 && wind <= 18) { s += 0.5; why.push("light chop"); } else if (wind > 28 || gust > 50) { s -= 1.5; why.push("windy"); } else if (wind < 4) why.push("calm (spooky fish)");
+    if (cloud > 60) { s += 0.5; why.push("cloudy"); } else if (cloud < 20) { s -= 0.25; why.push("bright sun"); }
+    if (rain > 12) { s -= 0.75; why.push("heavy rain"); } else if (rain > 0.5) why.push("some rain");
+    if (moonNear) { s += 0.5; why.push(ph > 0.25 && ph < 0.75 ? "full moon" : "new moon"); }
+    if (tmax > 27) { s -= 0.5; why.push("hot: fish early"); }
+    if (flow) {
+      if (flow === "ok") { s += 0.5; why.push("river normal"); } else if (flow === "blown") { s -= 1.5; why.push("river blown out"); } else if (flow === "high") { s -= 0.5; why.push("river high"); } else if (flow === "vlow") { s -= 0.5; why.push("river very low"); }
+    }
+    return { date, s: Math.max(1, Math.min(5, Math.round(s))), why };
   }
   function nearFlowLight() {
     if (!spot || !gauges) return null;
@@ -2329,6 +2345,63 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       if (stocked) for (const [w] of near(stocked.waters, lat, lon, 3, (x) => x.c)) for (const r of w.r) list.push(stocked.sp[r[1]]);
       return [...new Set(list.filter(Boolean))];
     },
+  };
+  // The fishing trip (fishing-trip.js, on trip-core.js): what it builds each part from. Everything here is what the
+  // spot card already shows, for one place and the trip's dates.
+  window.tfFish.trip = {
+    ACC, svg, IC, C, ready, fmtKm, km,
+    show: (lat, lon, name) => window.tfFish.show(lat, lon, name),
+    spotName: () => { const h = $("fsSpotName"); return h ? h.textContent.trim() : ""; },
+    // The rules for the place: the same official links as the spot card's Rules, and the licences it needs.
+    async rules(lat, lon) {
+      await ready;
+      const zs = await loadZones(), here = zonesAt(zs, lat, lon), prov = provinceAt(lat, lon, here);
+      const np = here.find((z) => z.k === "np"), qt = here.find((z) => z.k === "qct");
+      const tidal = here.some((z) => z.k === "pfma") || (prov === "bc" && !!nearestTide(lat, lon, 3));
+      const lic = [];
+      if (np) lic.push({ k: "pc", n: "Parks Canada fishing permit", why: `in ${np.n}, instead of the provincial licence`, url: PC_PERMIT });
+      if (LIC[prov]) lic.push({ k: prov, n: LIC[prov][0], why: np ? "for waters outside the park" : "", url: LIC[prov][1] });
+      if (tidal) lic.push({ k: "tidal", n: "BC tidal water licence", why: "saltwater, plus a salmon stamp to keep salmon", url: BC_TIDAL });
+      if (qt && QCT[qt.t]) lic.push({ k: "qct", n: qt.n, why: `${QCT[qt.t][0]} ${QCT[qt.t][1]}`.replace(/<[^>]+>/g, "").trim(), url: "" });
+      return { prov, provName: (PROV[prov] || [""])[0], regs: (PROV[prov] || ["", ""])[1], html: rulesHtml(lat, lon, here, prov), lic, nofish: here.some((z) => z.k === "noer") };
+    },
+    // Stocked waters within maxKm (the stocking files), nearest first.
+    stockedNear: (lat, lon, maxKm) => window.tfFish.stockedNear(lat, lon, maxKm),
+    species: (lat, lon) => window.tfFish.species(lat, lon),
+    // Boat launches the map has loaded near a place (OpenStreetMap, Ontario's access points, data/fishing-launches.json).
+    launchesNear(lat, lon, maxKm) {
+      return near([...access.entries()].filter(([, a]) => a.kind === "launch").map(([k, a]) => ({ ...a, id: k })), lat, lon, maxKm, (a) => [a.lat, a.lon])
+        .filter(([a], i, all) => !all.slice(0, i).some(([b]) => Math.abs(b.lat - a.lat) < 0.0006 && Math.abs(b.lon - a.lon) < 0.0009))
+        .map(([a, d]) => ({ id: String(a.id), name: accessName(a), lat: a.lat, lon: a.lon, d, facts: [a.facts, a.src].filter(Boolean).join(", ") }));
+    },
+    // The nearest river gauge within 15 km: its flow against the usual for the month, right now.
+    async flowAt(lat, lon) {
+      await ready;
+      const [g, d] = near(gauges || [], lat, lon, 15, (x) => [x[2], x[3]])[0] || [];
+      if (!g) return null;
+      const pts = await gaugeSeries(g[0]).catch(() => []), last = pts.filter((x) => x[1] != null || x[2] != null).pop();
+      const r = last ? { t: new Date(last[0]).toISOString(), q: last[1], h: last[2] } : readings.get(g[0]);
+      const l = lightOf(g, r), [word, color, tip] = LIGHTS[l];
+      return { name: g[1], id: g[0], d, light: l, word, color, tip, ratio: ratioText(g, r), at: r && r.t ? Date.parse(r.t) : 0 };
+    },
+    // High and low tides at the nearest station within 30 km, between two dates (Canadian Hydrographic Service).
+    async tides(lat, lon, from, to) {
+      await ready;
+      const n = nearestTide(lat, lon, 30);
+      if (!n) return null;
+      const iso = (d) => new Date(d).toISOString().replace(/\.\d+Z$/, "Z");
+      const a = await getJ(`${IWLS}/stations/${n.t[0]}/data?time-series-code=wlp-hilo&from=${iso(from)}&to=${iso(to)}`).then((x) => x.map((y) => [Date.parse(y.eventDate), y.value]));
+      return { name: n.t[1], d: n.d, list: tideKinds(a) };
+    },
+    // 1 to 5 for a day, from an hourly forecast with temperature, pressure, wind, gusts, cloud and rain.
+    dayScore: (h, date, flow) => dayScore(h, date, flow),
+    // What usually hatches in a month at a place, with flies that match.
+    hatch(lat, lon, month) {
+      const inM = (h) => (h[1] <= h[2] ? month >= h[1] && month <= h[2] : month >= h[1] || month <= h[2]);
+      return HATCH[hatchRegion(lat, lon)].filter(inM).map((h) => ({ n: h[0], flies: h[3] }));
+    },
+    moon: (date) => { const ph = moonPhase(new Date(date + "T12:00:00Z")); return (PHASES.find((x) => ph.phase < x[0]) || PHASES[0])[1]; },
+    nearTide: (lat, lon) => !!nearestTide(lat, lon, 30),
   };
 
   // ---------- 3D map (map3d.js) ----------

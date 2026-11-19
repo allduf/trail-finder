@@ -30,6 +30,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Add the data jobs' files
         run: bash scripts/site-data.sh get
+      - name: Version number, What's new and French as the website gets them (scripts/stamp.mjs)
+        run: node scripts/stamp.mjs --test
       - uses: actions/setup-node@v4
         with:
           node-version: 20

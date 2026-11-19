@@ -70,7 +70,7 @@ window.tfDragSort = (root, o) => {
   "use strict";
   const map = window.tfLeaflet, sel = document.getElementById("sport"), avyBtn = document.getElementById("avyBtn"), T = window.tfTerrain;
   if (!map || !sel || !window.L || !T) return;
-  // What's typed in the Skiing search box goes to the usage page (usage.js, iPhone app only).
+  // What's typed in the Skiing search box goes to the usage page (usage.js).
   const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
   const store = {
     get(k, d) { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -113,6 +113,11 @@ window.tfDragSort = (root, o) => {
   const UP_LABEL = "Uphill ski route (skin track)";
   const UP_ABOUT = "A way up for skinning, not a run down. At a ski resort, skinning up usually needs an uphill pass and is only allowed at set hours and on set runs: check the resort's uphill rules before you go.";
   window.tfSkiIsUphill = isUphill;
+  // In-resort traverses and boot-packs (scripts/build-winter.mjs resortTerrain, r.walk; alex 2026-11-19): OpenStreetMap
+  // maps them as walk-on-snow paths, so they used to show as snowshoe trails under Nordic. They're the resort's.
+  const WALK_LABEL = "Resort traverse or boot-pack";
+  const WALK_ABOUT = "A traverse or hike inside the ski resort's boundary that skiers use to reach terrain, as mapped on OpenStreetMap. Whether it is open, and its conditions, are set by the resort: check with the resort.";
+  const kindLabel = (r, t) => isUphill(r) ? UP_LABEL : r && r.walk ? WALK_LABEL : t.label;
   // Sledding and tubing hills (type "sled") aren't drawn: alex asked to take out what isn't needed.
   const HUT = { label: "Huts and cabins", color: "#7a2e10" };
   // Where to leave the car for a tour: blue P pins (alex 2026-10-25: "all ski access that i see look like parking lot").
@@ -803,6 +808,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     store.set("avy", false); avyOn = false;
     ["skiShort", "skiMineOff", "skiSnowAdded", "skiParkAdded", "skiGuest"].forEach((k) => store.set(k, true));   // the older one-time changes don't touch it after
     store.set("skiLayers2", [...shown]);
+  }
+  // alex 2026-11-18 ("we lost the live webcam?", signed in at Whistler): signed-in devices start with Webcams on too.
+  // Every device gets it once ("skiCamsOn"); after that a Webcams switched off stays off.
+  if (!store.get("skiCamsOn", false)) {
+    try { localStorage.setItem("tf:skiCams", "true"); } catch {}
+    store.set("skiCamsOn", true);
   }
   if (!store.get("skiShort", false)) {
     ["other", "snow", "hut"].forEach((k) => shown.delete(k));
@@ -1497,7 +1508,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         const r = x.g[0], t = TYPES[r.type] || TYPES.other, len = x.g.reduce((s2, y) => s2 + km(y), 0);
         ic = `<span class="sk-ic"><span class="sk-sw" style="background:${t.color}"></span></span>`;
         nm = esc(nameOf(r) || "Unnamed " + t.label.toLowerCase());
-        sub = [riskPill(x.k), isUphill(r) ? "Uphill (skin track)" : r.type !== usual && esc(SHORT[r.type] || t.label), r.area ? "bowl or area" : len >= 0.05 ? `${len < 10 ? len.toFixed(1) : Math.round(len)} km long` : "", diffPill(r.diff)].filter(Boolean).join(" · ");
+        sub = [riskPill(x.k), isUphill(r) ? "Uphill (skin track)" : r.walk ? WALK_LABEL : r.type !== usual && esc(SHORT[r.type] || t.label), r.area ? "bowl or area" : len >= 0.05 ? `${len < 10 ? len.toFixed(1) : Math.round(len)} km long` : "", diffPill(r.diff)].filter(Boolean).join(" · ");
       } else if (x.h.src === "c2c") {
         const [top, way] = c2cName(x.h.name), tg = x.h.tags || {};
         ic = `<span class="sk-ic"><span class="sk-pin" style="background:${START.color}">⛷</span></span>`;
@@ -1589,7 +1600,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       }
       for (const { g, s } of groups.values()) {
         const r = g[0], d = awayM(c.lat, c.lng, g), free = window.tfFreeride && window.tfFreeride.isFree && window.tfFreeride.isFree(r);
-        out.push({ name: (free && r.frName) || nameOf(r), sub: `${free ? "Freeride line" : isUphill(r) ? UP_LABEL : (TYPES[r.type] || TYPES.other).label} · ${kmAway(d)}`, ic: free ? "◆" : ROUTE_IC[r.type] || "❄", s, d, route: g });
+        out.push({ name: (free && r.frName) || nameOf(r), sub: `${free ? "Freeride line" : kindLabel(r, TYPES[r.type] || TYPES.other)} · ${kmAway(d)}`, ic: free ? "◆" : ROUTE_IC[r.type] || "❄", s, d, route: g });
       }
       for (const h of [...(ski.huts || []), ...(ski.starts || [])]) {
         const s = score(h.name, q);
@@ -1642,16 +1653,29 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // No place by that name and several words: it's a question, so Ask answers it (alex 2026-11-06: "Simple ski tour
       // in the duffeys" said "No place named …": "Not clear where to ask").
       if (!found.length && window.tfAsk && q.split(/\s+/).length >= 3) { msg.textContent = ""; $("skFind").blur(); window.tfAsk.open(q); return; }
+      // A place by the very name typed: straight there, no list to tap.
+      const same = P.sameName ? P.sameName(found, q) : null;
+      if (same || found.length === 1) { $("skFind").blur(); pickPlace(same || found[0]); return; }
       msg.textContent = found.length ? "Tap a place to go there." : `No place named “${q}”.`;
       $("skFind").blur();   // the phone keyboard out of the way of the list
       renderPlaces();
     } catch { msg.textContent = "Couldn't reach the place search. Check your signal, or move the map yourself."; }
   }
-  $("skFindForm").addEventListener("submit", (e) => { e.preventDefault(); if (findTimer) findNow(); askPlaces(); });
+  // Enter or Go with a resort, route or place by the very name typed already in the list: go there now, as a tap on
+  // it would (alex 2026-11-18: typed "squamish", pressed Enter and still had to tap). Otherwise every place is searched.
+  $("skFindForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (findTimer) findNow();
+    const P = window.tfPlaceSearch, same = P && P.sameName ? P.sameName(placeRows, findText) : null;
+    if (same) { pickPlace(same); return; }
+    askPlaces();
+  });
   $("skPlaces").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.hasAttribute("data-more")) { askPlaces(); return; }
-    const p = placeRows[+b.dataset.i]; if (!p) return;
+    const p = placeRows[+b.dataset.i]; if (p) pickPlace(p);
+  });
+  function pickPlace(p) {
     logUse("pick", "Ski find");
     findText = ""; $("skFind").value = ""; $("skFind").blur();
     renderPlaces();
@@ -1676,7 +1700,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (p.helicat && window.tfHeliCat) window.tfHeliCat.open(p.helicat);
     if (p.access && window.tfLifts) window.tfLifts.open(p.access);
     renderList();
-  });
+  }
   // ---------- route details: heights, slopes, avalanche forecast and reports, weather ----------
   // A short name for each kind of route, for unnamed routes: "Ski touring near Ipsoot Mountain" (data/ski.json "near"
   // is the named peak closest to the route, found by the nightly job).
@@ -2634,9 +2658,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const card = isRoute ? `<div class="sk-rc">
         <img class="sk-rc-ph" id="skRcPh" alt="" hidden referrerpolicy="no-referrer">
         <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
-        <div class="sk-rc-tag" id="skRcTag">${[esc(isUphill(r) ? UP_LABEL : t.label), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
+        <div class="sk-rc-tag" id="skRcTag">${[esc(kindLabel(r, t)), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
         ${r.wb ? `<p class="sk-wbst" id="skWbSt"><span>Whistler Blackcomb today</span> <b>…</b></p>` : ""}
-        ${isUphill(r) ? `<p class="sk-hint sk-up">⬆ ${esc(UP_ABOUT)}</p>` : ""}
+        ${isUphill(r) ? `<p class="sk-hint sk-up">⬆ ${esc(UP_ABOUT)}</p>` : r.walk ? `<p class="sk-hint">${esc(WALK_ABOUT)}</p>` : ""}
         <div class="sk-rc-elev" id="skRcStats">${rcGrid([[len.toFixed(1) + " km", "Length"], ["…", "Climb"], ["…", "Descent"], ["…", "Takes"], ["…", "Top"], ["…", "Bottom"]])}<p class="sk-note">Loading heights…</p></div>
         <div class="sk-cond" id="skCond">${condHtml()}</div>
         <div class="sk-rc-btns">
@@ -2650,7 +2674,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart && !/^(parking|trailhead)$/.test(r.kind) ? `<div id="skHutPh" class="sk-hutphs"><p class="sk-note sk-hutph-none">Looking for photos of the hut…</p></div>` : ""}${isHut && !isStart ? bookHtml(r) : ""}`;
     d.innerHTML = `${card}<div id="skMore"${isRoute && !moreOpen ? " hidden" : ""} class="sk-morebox">
       ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
-      <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : isUphill(r) ? UP_LABEL : t.label)}</dd>
+      <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : kindLabel(r, t))}</dd>
       ${isHut ? "" : r.area ? `<dt>Size</dt><dd>${hectares(r).toFixed(0)} ha: mapped as an area (a bowl or zone), not a line to follow</dd>`
         : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
       ${r.diff ? `<dt>Difficulty</dt><dd>${esc(DIFF[r.diff] || r.diff)}</dd>` : ""}
@@ -2837,7 +2861,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (tg) {
       const L1 = days.length ? T.LIGHTS[T.light((days.find((x) => x.j === Math.min(day, f.days.length - 1)) || days[0]).r, cls.c)] : null;
       tg.innerHTML = [L1 ? `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : "", classPill(cls.c, official ? "Official ATES rating" : ""),
-        esc(isUphill(r) ? UP_LABEL : (TYPES[r.type] || TYPES.other).label), diffPill(r.diff)].filter(Boolean).join(" · ");
+        esc(kindLabel(r, TYPES[r.type] || TYPES.other)), diffPill(r.diff)].filter(Boolean).join(" · ");
     }
     renderCond();
     const cw = $("skRcWatch");
@@ -5646,13 +5670,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // in this order (the order they used to have in index.html), after the page's own scripts, and each one draws
   // itself for the sport that's on when it arrives. Same ?v= as this script, for the same cache rule.
   const jsVer = (document.currentScript && new URL(document.currentScript.src).search) || "";
-  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow", "moto", "hike"];
+  const SPORT_JS = ["crownland", "hunting", "fish-bait", "fish-route", "fishing", "compass", "webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts", "moto", "moto-trip", "hike", "hike-trip", "fishing-trip", "hunting-trip", "bike-trip"];
   const NEEDS = {
-    hunt: ["crownland", "hunting", "compass"],
-    fish: ["crownland", "fish-bait", "fish-route", "fishing"],
-    ski: ["webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "cabin-trip", "camper", "japanese", "japan-snow"],
-    hike: ["hike"],
-    moto: ["crownland", "hunting", "moto"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
+    hunt: ["crownland", "hunting", "compass", "trip-core", "hunting-trip"],
+    fish: ["crownland", "fish-bait", "fish-route", "fishing", "trip-core", "fishing-trip"],
+    ski: ["webcams", "lifts", "rogers", "slackcountry", "freeride", "ski-areas", "helicat", "trip-core", "cabin-trip", "camper", "japanese", "japan-snow", "jp-resorts"],
+    hike: ["trip-core", "hike", "hike-trip"],
+    moto: ["crownland", "hunting", "trip-core", "moto", "moto-trip"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
+    mtb: ["trip-core", "bike-trip"],   // MTB's own scripts are in index.html; its Bike trips (bike-trip.js) come with it
   };
   const jsLoads = {};
   const pageReady = new Promise((ok) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok, { once: true }) : ok()));
@@ -5669,13 +5694,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   const loadSport = (s) => Promise.all(SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n)).map(loadJs));
   window.tfLoadSport = loadSport;
-  // A cabin trip starting tomorrow or under way: Skiing's files load a few seconds after the app opens, whatever the
-  // sport, so the trip's forecast and offline copy update by themselves (cabin-trip.js refreshAhead, alex 2026-11-11).
+  // A cabin trip (or a hike trip) starting tomorrow or under way: that sport's files load a few seconds after the app
+  // opens, whatever the sport, so the trip's forecast and offline copy update by themselves (trip-core.js refreshAhead, alex 2026-11-11).
   setTimeout(() => {
     try {
       const today = new Date().toLocaleDateString("en-CA"), day = (d, n) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() + n); return x.toLocaleDateString("en-CA"); };
-      const soon = (JSON.parse(localStorage.getItem("tf:skiTrips")) || []).some((t) => t && t.hut && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
-      if (soon) loadSport("ski").catch(() => {});
+      const soon = (k) => (JSON.parse(localStorage.getItem("tf:" + k)) || []).some((t) => t && (t.hut || t.camps || (t.lines || []).length) && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
+      if (soon("skiTrips")) loadSport("ski").catch(() => {});
+      if (soon("hikeTrips")) loadSport("hike").catch(() => {});   // a hike trip (hike-trip.js) the same way
+      if (soon("fishingTrips")) loadSport("fish").catch(() => {});   // and a fishing trip (fishing-trip.js)
+      if (soon("huntTrips")) loadSport("hunt").catch(() => {});   // and a hunting trip (hunting-trip.js)
+      if (soon("motoTrips")) loadSport("moto").catch(() => {});   // and a moto trip (moto-trip.js)
+      if (soon("bikeTrips")) loadSport("mtb").catch(() => {});   // and a bike trip (bike-trip.js)
     } catch (_) {}
   }, 6000);
   window.tfLoadMoto = () => loadSport("moto");
@@ -5715,7 +5745,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Shows the current sport's icon; one tap opens the three sports, a second tap switches. On phones it is the first
   // chip of the map's chip row, on wide screens it sits at the top of the map tools; the same on the 3D map.
   // [icon, name, short name for the map button when the name is too long for it]
-  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto", "Moto"], hike: ["🥾", "Hiking"] };
+  const SPORT_UI = { mtb: ["🚵", "MTB"], ski: ["⛷", "Skiing"], hunt: ["🦌", "Hunting"], fish: ["🎣", "Fishing"], moto: ["🏍", "Adventure moto (ADV)", "ADV"], hike: ["🥾", "Hiking"] };
   // Line drawings like Layers, 3D and Me beside it (line-icons.js; interface review 2026-11-02 item 8).
   const line = (e, size) => (window.tfLine ? window.tfLine(e, size) : e);
   const tools = document.querySelector(".map-tools");

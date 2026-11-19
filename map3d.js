@@ -124,6 +124,9 @@
     const link = document.createElement("link");
     link.rel = "stylesheet"; link.href = LIB + ".css";
     document.head.append(link);
+    // The flat map's loader (index.html) when it's there, so the library is never loaded twice at once: a second copy
+    // replaced the first, and what was set up on it (ADV topo's dirt roads, elevation lines) was lost in 3D.
+    if (window.tfLoadMaplibre) return (libLoading = window.tfLoadMaplibre().catch(() => { libLoading = null; throw new Error("3D map library didn't load"); }));
     libLoading = new Promise((ok, fail) => {
       const s = document.createElement("script");
       s.src = LIB + ".js"; s.onload = ok; s.onerror = () => { libLoading = null; fail(new Error("3D map library didn't load")); };
@@ -818,8 +821,13 @@
       go();
     } catch {}
   }
+  // A move of the flat map while the 3D map is still flying to the last one isn't dropped: it's flown to as soon as
+  // that flight's guard ends (alex 2026-11-16: picked Lord of the Loams from search in 3D and the 3D map stayed on all
+  // of BC; the trail's own move came a moment after the search's first one and was lost).
+  let flying2d = false, missed2d = false;
   function from2d() {
-    if (!gl || syncing) return;
+    if (!gl) return;
+    if (syncing) { if (flying2d) missed2d = true; return; }
     syncing++;
     const c = map.getCenter();
     // The flat map moving because the 3D map just moved it (its zoom rounded to a whole step) is not a new
@@ -834,7 +842,11 @@
     searchView = 0; searchTo = null;
     // (a search result: the place itself in the middle of what the sheet leaves showing)
     gl.flyTo({ center: to ? [to.lon, to.lat] : [c.lng, c.lat], ...(to && to.dy ? { offset: [0, -to.dy] } : {}), zoom: map.getZoom() - 1, bearing: bearing2d(), duration: 1200, ...look });
-    setTimeout(() => syncing--, 1300);
+    flying2d = true; missed2d = false;
+    setTimeout(() => {
+      syncing--; flying2d = false;
+      if (missed2d) { missed2d = false; if (on) from2d(); }
+    }, 1300);
     // A search result: aimed at the ground as soon as it lands, not at the next check (up to 10 s later when the map
     // was still moving then), from the place's height on the 3D map when it's in, else its own height (heightAt).
     // MapLibre's flight keeps the height it started from when the place's heights aren't in yet. Then the place is put
@@ -2756,15 +2768,27 @@
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
           shade: { type: "raster-dem", encoding: "terrarium", tileSize: 512, maxzoom: 14, tiles: ["tfdem://{z}/{x}/{y}"] },
-          // Under the Summer photos, like winterlo under Winter: the same photos at zoom 9 at most, so a spot whose sharp
-          // photo is still coming is a blurry photo, not a hole to the sky (MTB, Hunting, Fishing, Moto; alex's
-          // recordings, 2026-10-29).
-          satlo: { type: "raster", tileSize: 256, maxzoom: 9, tiles: ["tfsat://{z}/{x}/{y}"] },
+          // Under the Summer photos, like winterlo under Winter: the same photos at zoom 11 at most, so a spot whose sharp
+          // photo is still coming is a softer photo, not a hole to the sky (MTB, Hunting, Fishing, Moto; alex's
+          // recordings, 2026-10-29). Zoom 9 until 2026-11-17: zooming out and tilting showed big blurry squares for a
+          // few seconds around the sharp middle (alex's recording at Cumberland); zoom 11 is still only a few tiles.
+          satlo: { type: "raster", tileSize: 256, maxzoom: 11, tiles: ["tfsat://{z}/{x}/{y}"] },
           sat: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfsat://{z}/{x}/{y}"],
             attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
           // Over the Summer photo: the late-summer mountains (SUMMER above), see-through below the trees.
           sumhi: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 11, maxzoom: 15, bounds: SUMMER_BOUNDS, tiles: ["tfsummer://{z}/{x}/{y}"],
             attribution: "Mountains: Copernicus Sentinel-2 data 2025 (ESA)" },
+          // Topo (alex 2026-11-17: "can we have the topo map in 3d too?"): the flat map's Topo style (OpenTopoMap) laid
+          // over the real mountains. Only fetched while Topo is picked (a hidden layer loads nothing). 256 px tiles: the
+          // map's words are drawn into the pictures, so smaller tiles would make them too small to read.
+          // From zoom 13 only: OpenTopoMap's zoom 10-12 pictures are orange shading and thick yellow roads, blurry and
+          // blocky in the distance (alex 2026-11-17, circled). Farther away the ground is drawn from the same OpenFreeMap
+          // data as the offline map (woods, open ground, rock, ice, water) with the hills shaded: sharp at any distance.
+          // Map (alex 2026-11-17: "can we have all those mode in 3d?"): the flat map's Map style, OpenStreetMap's own map.
+          osm: { type: "raster", tileSize: 256, maxzoom: 19, tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            attribution: "Map: &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors" },
+          topo: { type: "raster", tileSize: 256, minzoom: 13, maxzoom: 17, tiles: ["a", "b", "c"].map((s) => `https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`),
+            attribution: "Topo: &copy; <a href=\"https://opentopomap.org\">OpenTopoMap</a> (CC-BY-SA), SRTM, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors" },
           // Sharp place, peak and lake names from OpenFreeMap (free, no key), instead of blurry label pictures.
           names: { type: "vector", url: "https://tiles.openfreemap.org/planet", attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a>" },
           // Heights down to zoom 16 (2 m lidar where Mapterhorn has it): real gullies and rock bands up close, not
@@ -2786,9 +2810,15 @@
           { id: "off-land", type: "fill", source: "names", "source-layer": "landcover", layout: { visibility: "none" },
             paint: { "fill-color": ["match", ["get", "class"], "wood", "#a7c496", "grass", "#d4e3b5", "rock", "#d3cfc6", "ice", "#f3f7fa", "sand", "#ece2c3", "wetland", "#c2dacb", "farmland", "#e3e6c3", "#d6e0c4"] } },
           { id: "off-water", type: "fill", source: "names", "source-layer": "water", layout: { visibility: "none" }, paint: { "fill-color": "#98c0e4" } },
+          // Topo's far ground: the hills shaded under the land above (under Topo's own pictures nearer, which shade themselves).
+          { id: "topo-shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
+            paint: { "hillshade-exaggeration": 0.45, "hillshade-shadow-color": "#5b5a45", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#6d6a52" } },
           { id: "satlo", type: "raster", source: "satlo", paint: { "raster-fade-duration": 0, "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           { id: "sat", type: "raster", source: "sat", paint: { "raster-contrast": 0.08, "raster-saturation": 0.12, "raster-brightness-min": 0.02 } },
           { id: "sumhi", type: "raster", source: "sumhi", paint: { "raster-fade-duration": 0 } },
+          // Toned down like the flat map's Map style (index.html .base-calm).
+          { id: "osm", type: "raster", source: "osm", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0, "raster-saturation": -0.38, "raster-brightness-min": 0.05, "raster-contrast": -0.1 } },
+          { id: "topo", type: "raster", source: "topo", layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
           // Every road, track and path from the basemap (OpenStreetMap via OpenFreeMap), under the trail lines.
           { id: "fill", type: "raster", source: "fill", layout: { visibility: "none" } },
           { id: "winwide", type: "raster", source: "winwide", maxzoom: WIDE_TOP + 1, layout: { visibility: "none" }, paint: { "raster-fade-duration": 0 } },
@@ -2868,7 +2898,7 @@
     // (as before) reloaded every photo after each move, up to 900 tiles each time, and showed blurry ones while
     // moving. Now about 150 to 380 tiles in a tilted view, against 500 to 900.
     // Phones the same since 2026-10-23 (they had 4 levels and fewer far tiles, which made the distance blurry).
-    const lod = () => ["sat", "sumhi", "fill", "winter", "winsharp", "winterhd", "live"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
+    const lod = () => ["sat", "sumhi", "fill", "winter", "winsharp", "winterhd", "live", "topo", "osm"].forEach((id) => { try { if (gl.getSource(id)) gl.setSourceTileLodParams(6, 3, id); } catch {} });
     // Set as soon as the style is in, so the very first tiles already come at that setting.
     gl.once("style.load", lod); gl.once("load", lod);
     // The blurry photos under the sharp ones (winterlo, satlo) keep more tiles after they leave the view than the
@@ -2886,7 +2916,7 @@
     // Skiing 3D the webcams, heli pins, two parking P's and the Gate tag were a pile over the peak names (review
     // 2026-10-30). Bigger kinds win (your own spots, then huts, gates, slackcountry lines...), then the nearer pin
     // (lower on the screen). A tapped pin (.on) is always shown; pins of other kinds are not touched.
-    const PIN_RANK = [[".on", 99], [".sp-gl", 90], [".sk-hutgl", 60], [".sc-gate", 50], [".sc-pin", 45], [".sc-resort", 44], [".rp-pin", 40],
+    const PIN_RANK = [[".on", 99], [".sp-gl", 90], [".sk-hutgl", 60], [".sc-gate", 50], [".sc-pin", 45], [".sc-resort", 44], [".jr-pin", 43], [".rp-pin", 40],
       [".sk-pin.park", 30], [".wc-gl", 20], [".hc-pin", 20]];
     const pinRank = (el) => { for (const [q, n] of PIN_RANK) if (el.matches(q) || el.querySelector(q)) return n; return 0; };
     let unclutterAt = 0, unclutterT = 0;
@@ -2940,9 +2970,23 @@
     box.append(wait);
     // Time to the first draw of the ground; 30 s or more is counted as 30 s (usage page).
     const t3d = performance.now();
+    // Only a wait someone watched is timed: if the app went to the background or back to the flat map before the
+    // mountains were in, the clock kept running there (the 3D map is put to sleep then) and the usage page showed
+    // 18 s "slow" loads that were mostly time away (alex 2026-11-16). Those loads aren't counted.
+    let away = false;
+    const goneAway = () => { away = true; };
+    const awayHidden = () => { if (document.visibilityState === "hidden") goneAway(); };
+    const awayFlat = (e) => { if (!e.detail) goneAway(); };
+    document.addEventListener("visibilitychange", awayHidden);
+    window.addEventListener("tf:3d", awayFlat);
     let timed = false;
-    const timeIt = () => { if (!timed) { timed = true; logUse("speed", "3d", Math.min(performance.now() - t3d, 30000)); } };
-    const photoSource = () => ["winter", "live", "sat"].find((id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none") || "sat";
+    const timeIt = () => {
+      if (timed) return;
+      timed = true;
+      if (!away) logUse("speed", "3d", Math.min(performance.now() - t3d, 30000));
+      document.removeEventListener("visibilitychange", awayHidden); window.removeEventListener("tf:3d", awayFlat);
+    };
+    const photoSource = () => gl.getLayer("adv-bg") ? "names" : ["winter", "live", "topo", "osm", "sat"].find((id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none") || "sat";
     // The few big, blurry photos under the sharp ones (Winter: winterlo, Summer: satlo), there long before.
     const quickPhotos = () => { const lo = ({ winter: "winterlo", sat: "satlo" })[photoSource()]; return lo && gl.getSource(lo) ? lo : photoSource(); };
     // The note goes as soon as the mountains have their shape and a first (blurry) photo on them: the sharp photos
@@ -2956,7 +3000,7 @@
     let shaped = false;
     const shapeTime = () => {
       if (shaped) return;
-      shaped = true; logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
+      shaped = true; if (!away) logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
       gl.off("sourcedata", shapeIn); gl.off("idle", shapeIn); gl.off("moveend", shapeIn);
     };
     const shapeIn = () => { if (tilted && gl.isSourceLoaded(quickPhotos())) shapeTime(); };
@@ -3007,11 +3051,56 @@
     // Live (alex, 2026-10-23), and MTB only Summer and Live.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
       el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
-    const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Live");
+    const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Live"), topoBtn = mk("Topo");
+    const moto = () => document.body.classList.contains("sport-moto");
     const ski = () => document.body.classList.contains("sport-ski");
     let photos = "sharp";
+    // The 3D ground goes with the flat map's style (alex 2026-11-17: "can it stay in the same layer and tilt it", "can we
+    // have all those mode in 3d?"): Map, ADV topo (Adventure moto) and Topo are those maps over the mountains; Satellite
+    // and Sat + names are the photos (Summer, or Live if picked), Winter is Winter. The maps aren't kept as the sport's
+    // 3D photos ("3dPhotosBy"): going back to Satellite gives the photos picked before.
+    const flatStyle = () => (document.getElementById("basemap") || {}).value;
+    const MAPS = { osm: "map", advtopo: "adv", topo: "topo" };
+    const isMap = (m) => m === "map" || m === "adv" || m === "topo";
+    // ADV topo (adv-map.js, loaded by the flat map): its land, shading, elevation lines and roads, drawn over the
+    // mountains with the 3D map's own heights; its names are left out (the 3D map has its own, standing up). Day or night
+    // colours from the sun where the map is, like the flat map.
+    let advNight = null;
+    const advIds = () => gl.getLayersOrder().filter((id) => id.startsWith("adv-"));
+    const dropAdv = () => {
+      if (advNight === null) return;
+      for (const id of advIds()) gl.removeLayer(id);
+      if (gl.getSource("adv-contours")) gl.removeSource("adv-contours");
+      advNight = null;
+    };
+    const addAdv = () => {
+      const A = window.tfAdvMap;
+      if (!A || photos !== "adv") return;
+      const c = gl.getCenter(), n = A.night(c.lat, c.lng);
+      if (n === advNight) return;
+      dropAdv();
+      const st = A.style(n), src = (k) => (k === "omt" ? "names" : k === "dem" ? "shade" : "adv-" + k);
+      for (const [k, v] of Object.entries(st.sources)) if (src(k).startsWith("adv-") && !gl.getSource(src(k))) gl.addSource(src(k), v);
+      const before = gl.getLayer("shade") ? "shade" : "osm-roads";
+      for (const l of st.layers) {
+        if (l.type === "symbol") continue;
+        const o = { ...l, id: "adv-" + l.id };
+        if (l.source) o.source = src(l.source);
+        try { gl.addLayer(o, before); } catch {}
+      }
+      advNight = n;
+    };
+    const whenAdv = () => new Promise((ok) => {
+      if (window.tfAdvMap) return ok();
+      const t = setInterval(() => { if (window.tfAdvMap) { clearInterval(t); ok(); } }, 250);
+      setTimeout(() => { clearInterval(t); ok(); }, 15000);
+    });
+    gl.on("moveend", () => { if (photos === "adv") addAdv(); });
+    setInterval(() => { if (photos === "adv" && on) addAdv(); }, 60000);
+    const savedPhotos = () => { const s = sportNow(); return bySport("3dPhotosBy", s) || (s === "ski" ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp")); };
     const setPhotos = (mode) => {
-      photos = ["sharp", "winter", "live"].includes(mode) ? mode : "sharp";   // (an old saved "2023" choice becomes Summer)
+      photos = ["sharp", "winter", "live", "topo", "map", "adv"].includes(mode) ? mode : "sharp";
+      if (photos === "adv" && !moto()) photos = "sharp";   // ADV topo is Adventure moto's   // (an old saved "2023" choice becomes Summer)
       if (photos === "winter" && !ski()) photos = "sharp";   // last winter's snow photos are for Skiing only
       if (photos === "sharp" && ski()) photos = "winter";
       winBtn.style.display = ski() ? "" : "none";
@@ -3022,11 +3111,18 @@
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
       for (const id of ["winwide", "winterlo", "winter", "winsharp", "winterhd"]) if (gl.getLayer(id)) gl.setLayoutProperty(id, "visibility", photos === "winter" ? "visible" : "none");
       gl.setLayoutProperty("live", "visibility", photos === "live" ? "visible" : "none");
+      const topo = photos === "topo", drawn = isMap(photos);
+      gl.setLayoutProperty("topo", "visibility", topo ? "visible" : "none");
+      gl.setLayoutProperty("osm", "visibility", photos === "map" ? "visible" : "none");
+      if (photos === "adv") { if (window.tfAdvMap) addAdv(); else whenAdv().then(addAdv); } else dropAdv();
+      // The maps draw their own roads and paths: the photos' road lines on top would draw each one twice.
+      for (const id of ["osm-roads", "osm-paths"]) gl.setLayoutProperty(id, "visibility", drawn ? "none" : "visible");
+      topoBtn.title = "Topographic map (OpenTopoMap): elevation lines, roads, paths and names over the mountains";
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
       liveBtn.title = "The newest clear satellite photo (NASA Landsat and Sentinel-2, a few days to weeks old)";
-      for (const [el, on] of [[sumBtn, !w], [winBtn, photos === "winter"], [liveBtn, photos === "live"]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
-      bySport("3dPhotosBy", sportNow(), photos);
+      for (const [el, on] of [[sumBtn, photos === "sharp"], [winBtn, photos === "winter"], [liveBtn, photos === "live"], [topoBtn, topo]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
+      if (!drawn) bySport("3dPhotosBy", sportNow(), photos);
       offGround();
       winterHere();
     };
@@ -3035,7 +3131,11 @@
     const offGround = () => {
       const off = !navigator.onLine;
       for (const id of ["off-bg", "off-land", "off-water", "shade"]) gl.setLayoutProperty(id, "visibility", off ? "visible" : "none");
-      if (off) for (const id of ["satlo", "sat", "sumhi", "fill", "live"]) gl.setLayoutProperty(id, "visibility", "none");
+      if (off) for (const id of ["satlo", "sat", "sumhi", "fill", "live", "topo", "osm"]) gl.setLayoutProperty(id, "visibility", "none");
+      // Topo: past its sharp pictures (and while one is still coming), the land drawn from OpenFreeMap with the hills
+      // shaded, like the offline map (see the topo source).
+      else if (photos === "topo") for (const id of ["off-bg", "off-land", "off-water"]) gl.setLayoutProperty(id, "visibility", "visible");
+      gl.setLayoutProperty("topo-shade", "visibility", !off && photos === "topo" ? "visible" : "none");
     };
     netChange = () => { if (gl && gl.getLayer("off-bg")) setPhotos(photos); };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
@@ -3074,7 +3174,7 @@
     const tileTries = new Map();
     gl.on("idle", () => {
       if (!navigator.onLine) return;
-      for (const id of ["satlo", "sat", "fill", "winwide", "winterlo", "winter", "live"]) {
+      for (const id of ["satlo", "sat", "fill", "winwide", "winterlo", "winter", "live", "topo", "osm"]) {
         const m = gl.style?.tileManagers?.[id], tiles = m?._inViewTiles;
         if (!tiles || typeof m._reloadTile !== "function") continue;
         for (const t of tiles.getAllIds()) {
@@ -3087,17 +3187,33 @@
         }
       }
     });
-    sumBtn.addEventListener("click", () => setPhotos("sharp"));
-    winBtn.addEventListener("click", () => setPhotos("winter"));
-    liveBtn.addEventListener("click", () => setPhotos("live"));
+    // A photo button while the flat map is on Topo moves the flat map to the photos too (Satellite, or Winter in
+    // Skiing), so both maps stay on one style and leaving 3D doesn't jump back to Topo.
+    const offTopo = (k) => { if (MAPS[flatStyle()] && window.tfSetBasemap) window.tfSetBasemap(k, true); };
+    sumBtn.addEventListener("click", () => { offTopo("sat"); setPhotos("sharp"); });
+    winBtn.addEventListener("click", () => { offTopo("winter"); setPhotos("winter"); });
+    liveBtn.addEventListener("click", () => { offTopo(ski() ? "winter" : "sat"); setPhotos("live"); });
+    topoBtn.addEventListener("click", () => { if (window.tfSetBasemap) window.tfSetBasemap("topo", true); setPhotos("topo"); });
+    // Map style in Layers, picked while in 3D: Topo is Topo here too; Satellite, Sat + names and Winter are the photos.
+    document.getElementById("lmTiles")?.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-base]");
+      if (!b || !on) return;
+      const k = b.dataset.base;
+      if (MAPS[k]) setPhotos(MAPS[k]);
+      else if (k === "winter") setPhotos("winter");
+      else if (k === "sat" || k === "sathybrid") setPhotos(photos === "live" ? "live" : ski() ? "winter" : "sharp");
+      else if (isMap(photos)) setPhotos(savedPhotos());
+    });
     // MTB opens on Summer and Skiing on Winter, unless the person picked something else in that sport (before
     // 2026-10-25 Hunting and Fishing shared MTB's choice: that's where they start).
-    const pick = () => { const s = sportNow(), v = bySport("3dPhotosBy", s); setPhotos(v || (s === "ski" ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp"))); };
+    const pick = () => setPhotos(MAPS[flatStyle()] || savedPhotos());
     new MutationObserver(pick).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group";
-      d.style.cssText += ";display:flex;position:relative;overflow:visible"; d.append(sumBtn, winBtn, liveBtn, noWinter); return d; }, onRemove() {} }, "bottom-right");
+      d.style.cssText += ";display:flex;position:relative;overflow:visible"; d.append(sumBtn, winBtn, liveBtn, topoBtn, noWinter); return d; }, onRemove() {} }, "bottom-right");
     gl.once("styledata", pick);
     restoreHooks.push(pick);
+    window.addEventListener("tf:basemap", pick);   // a new flat map style (Layers, or another sport's own): the same here
+    window.addEventListener("tf:3d", (e) => { if (e.detail) pick(); });   // back in 3D: the flat map's style may have changed
     // "load" waits for every first tile, and imagery that fails to load can hold it back, so the
     // trails go on as soon as the style itself is ready.
     gl.on("styledata", () => { if (!drawn && gl.getSource("lines")) scheduleSync(); });
@@ -3242,6 +3358,12 @@
   // until they're switched once.
   const saved3d = (s) => { const v = bySport("map3dBy", s); return typeof v === "boolean" ? v : s === "ski" ? true : s === "mtb" ? false : store.get("map3d", false); };
   const FLAT_SLEEP_MS = 10000;
+  const heavyFlat = () => {
+    if (document.body.classList.contains("sport-moto")) return true;
+    let h = false;
+    try { map.eachLayer((l) => { if (l._glMap !== undefined) h = true; }); } catch {}
+    return h;
+  };
   let flatSleepT = 0;
   let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
   function set3d(want, auto) {
@@ -3261,8 +3383,7 @@
     map.getContainer().parentElement.classList.toggle("is3d", on);   // hides the 2D map style menu
     // Back to 2D, the flat map's lines are drawn again just after the 3D map is hidden, not in the same moment: in
     // Adventure moto (thousands of roads) the tap froze the screen ~1.3 s on a slowed phone (deep test, 2026-11-09).
-    if (on) rest2d(true);
-    else requestAnimationFrame(() => setTimeout(() => { if (!on) rest2d(false); }, 0));
+    if (on) { rest2d(true); window.dispatchEvent(new CustomEvent("tf:3d", { detail: true })); }
     if (on) {
       if (!gl) build();
       else { wake3d(); box.hidden = false; gl.resize(); const c = map.getCenter(); syncing++; gl.jumpTo({ center: [c.lng, c.lat], zoom: map.getZoom() - 1, bearing: bearing2d(), pitch: 0 }); syncing--; tiltUp(); }
@@ -3277,6 +3398,22 @@
       clearTimeout(flatSleepT);
       if (PHONE) flatSleepT = setTimeout(() => { if (on) return; sleep3d(); setTimeout(() => { if (!on) stopPhotoWorkers(); }, 1000); }, FLAT_SLEEP_MS);
     }
+    if (!on) {
+      window.tf3dLeftAt = Date.now();   // usage.js: a crash in the next seconds is "flat map just after 3D"
+      const flatBack = () => { if (on) return; rest2d(false); window.dispatchEvent(new CustomEvent("tf:3d", { detail: false })); };
+      // A phone going back to a heavy flat map (Adventure moto's thousands of roads, or a flat map drawn by its own
+      // graphics context: vector style, lake depths) lets the 3D map's memory go FIRST, then draws the flat map: the
+      // flat map's lines and road tiles all came back while the hidden 3D map still held its ~400 MB, and the iPhone
+      // app died there twice (usage page, Adventure moto Roads tab, alex 2026-11-16). Tapping ⛰ 3D again then
+      // rebuilds it (a second or two) instead of showing it at once.
+      if (PHONE && gl && !slept && heavyFlat()) {
+        clearTimeout(flatSleepT);
+        let done = false;
+        const go = () => { if (done) return; done = true; requestAnimationFrame(() => setTimeout(flatBack, 0)); setTimeout(() => { if (!on) stopPhotoWorkers(); }, 1000); };
+        gl.once("webglcontextlost", go); setTimeout(go, 300);
+        sleep3d();
+      } else requestAnimationFrame(() => setTimeout(flatBack, 0));
+    }
     syncBtn();
   }
   function syncBtn() {
@@ -3287,6 +3424,15 @@
   }
   btn.addEventListener("click", () => set3d(!on));
   syncBtn();
+  // Tilt for 3D (alex 2026-11-17: "could we add the option if you tilt in the 2d map it turn 3d?"): two fingers slid up
+  // on the flat map (rotate.js), or a right-drag / Ctrl+drag up with a mouse, opens 3D like the ⛰ 3D button, and the
+  // 3D map then tilts up as usual. On unless turned off in Layers; kept on this device.
+  const tiltBtn = document.getElementById("tilt3dBtn");
+  const tiltOn = () => store.get("tilt3d", true) !== false;
+  const syncTilt = () => { if (!tiltBtn) return; const v = tiltOn(); tiltBtn.setAttribute("aria-pressed", String(v)); tiltBtn.classList.toggle("on", v); };
+  if (tiltBtn) tiltBtn.addEventListener("click", () => { store.set("tilt3d", !tiltOn()); syncTilt(); });
+  syncTilt();
+  window.tfTilt3d = { ok: () => !on && tiltOn(), go: () => { if (!on) set3d(true); } };
   // The crash guard wins: if the page died in 3D, this visit opens every sport flat until ⛰ 3D is tapped.
   let sport = null;
   // A first open's welcome (welcome.js) is up over the map, which still shows all of BC: Skiing's 3D waits for it to

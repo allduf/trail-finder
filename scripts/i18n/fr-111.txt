@@ -1,0 +1,6 @@
+# Topo map in 3D and Tilt for 3D (map3d.js, rotate.js), 2026-11-17
+Topographic map (OpenTopoMap): elevation lines, roads, paths and names over the mountains ||| Carte topographique (OpenTopoMap) : courbes de niveau, routes, sentiers et noms sur les montagnes
+Tilt for 3D ||| Incliner pour la 3D
+Slide two fingers up on the flat map to see it in 3D ||| Glissez deux doigts vers le haut sur la carte à plat pour la voir en 3D
+Tilt the flat map to switch to 3D: slide two fingers up on a phone, or right-drag (or Ctrl+drag) up with a mouse ||| Inclinez la carte à plat pour passer en 3D : glissez deux doigts vers le haut sur un téléphone, ou faites glisser vers le haut avec le clic droit (ou Ctrl) à la souris
+Topo map in 3D: pick Topo on the 3D map, or in Map style, to see the topographic map over the mountains. And slide two fingers up on the flat map to open 3D (Tilt for 3D, in Layers). ||| Carte topo en 3D : choisissez Topo sur la carte 3D, ou dans Style de carte, pour voir la carte topographique sur les montagnes. Et glissez deux doigts vers le haut sur la carte à plat pour ouvrir la 3D (Incliner pour la 3D, dans Couches).

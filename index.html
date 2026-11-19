@@ -23,9 +23,10 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
-<script src="i18n.js?v=4890"></script>
-<script src="wxcheck.js?v=4890"></script>
-<script src="line-icons.js?v=4890"></script>
+<script src="i18n.js?v=__V__"></script>
+<script src="wxcheck.js?v=__V__"></script>
+<script src="point-info.js?v=__V__"></script>
+<script src="line-icons.js?v=__V__"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
@@ -979,6 +980,17 @@ body.box-on .leaflet-bottom.leaflet-left { visibility: hidden; }   /* the Key bu
 /* tall enough that the details can always scroll up to the top of the panel, even while they are still loading */
 .panel.detail-open .detail { min-height: 100%; box-sizing: border-box; }
 .detail { flex: 1; overflow-y: auto; min-height: 0; padding: 12px 16px 24px; }
+/* A tapped trailhead, parking, water, toilet, repair stand, shelter or BC rec site: its card, Skiing style (alex 2026-11-17). */
+.mtb-pt { margin: 10px 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
+.mtb-pt header { display: flex; align-items: center; gap: 8px; }
+.mtb-pt header h3 { flex: 1; margin: 0; font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere; }
+.mtb-pt .mp-ic { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; }
+.mtb-pt .mp-ic svg { width: 16px; height: 16px; }
+.mtb-pt .mp-x { border: 0; background: color-mix(in srgb, var(--fg) 8%, transparent); color: var(--fg); width: 30px; height: 30px; border-radius: 50%; font-size: 1rem; cursor: pointer; flex: none; }
+.mtb-pt .mp-kind { margin: 0; font-weight: 700; font-size: .85rem; }
+.mtb-pt p { margin: 0; font-size: .85rem; line-height: 1.4; }
+.mtb-pt .mp-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.mtb-pt .mp-row a { border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: .85rem; color: var(--fg); text-decoration: none; }
 .panel { overflow-y: auto; overscroll-behavior: contain; }
 .panel .list, .panel .detail { flex: none; overflow: visible; min-height: auto; }
 .detail .back { padding: 4px 0; margin-bottom: 8px; }
@@ -1167,6 +1179,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .ebike-note.ebike-no b { color: #b42318; }
 .ebike-note.ebike-class1 b, .ebike-note.ebike-yes b { color: #2f7d32; }
 .wx-days td.lmi-snow { white-space: nowrap; color: #3f6ea8; font-weight: 600; }
+.wx-days td.lmi-frozen { white-space: nowrap; color: #6a58a8; font-weight: 600; }
+.lmi-fz { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, #ddd); }
+.lmi-fz p { margin: 0 0 4px; } .lmi-fz ul { margin: 4px 0; padding-left: 18px; } .lmi-fz .muted { margin: 4px 0 0; font-size: .85em; }
+.lmi-frost { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #efecf8; color: #352a5c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lmi-frost { background: #282338; color: #ddd6f3; } }
+:root[data-theme="dark"] .lmi-frost { background: #282338; color: #ddd6f3; }
 .lmi-snowing { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; background: #e8f0fa; color: #1f3d63; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lmi-snowing { background: #1d2a3a; color: #cfe0f5; } }
 :root[data-theme="dark"] .lmi-snowing { background: #1d2a3a; color: #cfe0f5; }
@@ -1296,6 +1314,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
 /* alex 2026-10-31: "how do I save a region offline without planning a route?" The Track tab's card was too hidden, so
    on phones Offline maps is also the first row of Layers, in every sport, 2D and 3D. Computers keep it in Tools. */
 .lm-offline { display: none; }
+/* Computers: theme.css's Layers button style showed it anyway, squashed ("offlineUse", alex 2026-11-14). */
+@media (min-width: 761px) { body .map-tools .layers-menu .lm-offline { display: none; } }
 @media (max-width: 760px) {
   body #layersMenu .lm-offline { display: flex; align-items: center; gap: 10px; width: 100%; margin: 2px 0 8px; padding: 10px 12px; border-radius: 12px;
     border: 1px solid var(--accent, #2f7d4f); background: color-mix(in srgb, var(--accent, #2f7d4f) 12%, transparent); color: inherit; text-align: left; font: inherit; }
@@ -1304,7 +1324,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body #layersMenu .lm-offline small { display: block; font-size: .78rem; opacity: .75; }
 }
 </style>
-<link rel="stylesheet" href="theme.css?v=22">
+<link rel="stylesheet" href="theme.css?v=__V__">
 <style>
 /* Phone map buttons (alex, 2026-10-24): the same four labelled buttons in every sport, Sport, Layers and 3D on the
    left, Me on the right. Satellite is a map style in Layers; Save a point, Compass and Measure live in each sport's
@@ -1351,12 +1371,16 @@ body.sport-alt #rideMapBtn { display: none !important; }
              still the fallbacks when one doesn't load, and the vector map is what Offline maps shows with no signal. -->
         <div class="lm-tiles" id="lmTiles" role="radiogroup" aria-label="Map style">
         <button type="button" role="radio" data-base="osm" class="t-osm"><span>Map</span></button>
+        <!-- Adventure moto only (alex 2026-11-17: "a more professional map by default for moto mode"): adv-map.js -->
+        <button type="button" role="radio" data-base="advtopo" class="t-advtopo"><span>ADV topo</span></button>
         <button type="button" role="radio" data-base="topo" class="t-topo"><span>Topo</span></button>
         <button type="button" role="radio" data-base="sat" class="t-sat"><span>Satellite</span></button>
         <button type="button" role="radio" data-base="sathybrid" class="t-sathybrid"><span>Sat + names</span></button>
         <!-- Skiing only (alex 2026-11-03: "is there anyway to have a better winter map?"): last winter's photos, the same as the 3D map's Winter. -->
         <button type="button" role="radio" data-base="winter" class="t-winter"><span>Winter</span></button>
         </div>
+        <!-- alex 2026-11-17: "could we add the option if you tilt in the 2d map it turn 3d?" (map3d.js tiltTo3d) -->
+        <div class="lm-list lm-overlays lm-tilt"><button id="tilt3dBtn" type="button" aria-pressed="true" class="on" title="Tilt the flat map to switch to 3D: slide two fingers up on a phone, or right-drag (or Ctrl+drag) up with a mouse"><span class="lm-nm">Tilt for 3D<small class="lm-stat">Slide two fingers up on the flat map to see it in 3D</small></span></button></div>
         <select id="basemap" aria-label="Map style" hidden>
         <option value="osm">Standard</option>
         <option value="cyclosm">CyclOSM</option>
@@ -1369,6 +1393,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <option value="sathybrid">Satellite + names</option>
         <option value="winter">Winter photos</option>
         <option value="vector">Sharp outdoor (vector)</option>
+        <option value="advtopo">ADV topo</option>
         </select></div>
         <div class="lm-head lm-looks-head">Quick looks</div>
         <div class="lm-looks" id="lmLooks" role="group" aria-label="Quick looks: turn on the layers for">
@@ -1388,6 +1413,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <details class="lm-more" id="lmMore"><summary>More layers</summary><div class="lm-list">
         <button id="areasBtn" type="button" aria-pressed="false" title="Show logging areas (cut blocks) and areas closed to motor vehicles">▦ Logging areas</button>
         <button id="contourBtn" type="button" aria-pressed="false">〰 Elevation lines</button>
+        <button id="shadeBtn" type="button" aria-pressed="false">◐ Sun and shade</button>
         </div></details>
         </div>
         <div class="lm-head">Tools</div>
@@ -1413,7 +1439,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <h1>Trail <span>Finder</span></h1>
         <button type="button" class="peek-search" id="peekSearch"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Search trails</span></button>
         <button type="button" class="peek-photo" id="peekPhoto" aria-label="Which trail is this? Find a trail from a photo" title="Which trail is this? Find a trail from a photo">📷</button>
-        <span class="brand-links"><button class="linkish desk-menu-btn" id="deskMenuBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskMenu" title="Everything in the phone's More menu: settings, saved, record and more">☰ Menu</button><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto" data-short="🏍 Moto">🏍 Adventure moto</option><option value="hike">🥾 Hiking</option></select></span>
+        <span class="brand-links"><button class="linkish desk-menu-btn" id="deskMenuBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="deskMenu" title="Everything in the phone's More menu: settings, saved, record and more">☰ Menu</button><button class="linkish" id="aboutBtn" type="button">How it works</button><a class="linkish" id="myRidesLink" href="ride.html#rides" title="Your recorded and imported rides (GPX, Strava archive) and stats">🚴 My rides</a><span data-notify-slot></span><span data-account-slot></span><select class="sport-pick" id="sport" aria-label="Sport"><option value="mtb">🚵 MTB</option><option value="ski">⛷ Skiing</option><option value="hunt">🦌 Hunting</option><option value="fish">🎣 Fishing</option><option value="moto" data-short="🏍 ADV">🏍 Adventure moto (ADV)</option><option value="hike">🥾 Hiking</option></select></span>
       </div>
       <div class="peek-quick" id="peekQuick" role="group" aria-label="Quick searches">
         <button type="button" data-q="new">✨ New trails</button><button type="button" data-q="near">◎ Near me</button><button type="button" data-q="prime"><span class="dot" aria-hidden="true"></span>Prime loam</button><button type="button" data-q="today">☀ Today</button>
@@ -1503,6 +1529,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <button class="btn box-btn box-draw" id="boxBtn" type="button" aria-pressed="false" title="Drag a square on the map to list every MTB trail inside it, old or new">or draw a square</button></div>
     </div>
     <div class="results" id="results">
+    <section class="mtb-pt" id="mtbPoint" hidden></section>
     <div class="boxres" id="boxRes" hidden></div>
     <div class="status" id="status" role="status">Pick an area and tap Find new trails.</div>
     <details class="debug" id="debug" hidden><summary>Search details</summary><pre id="debugLog">No search yet.</pre></details>
@@ -1579,7 +1606,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <li><b>Lake depth</b> lines and depth charts are in Layers.</li>
       <li><b>Save a catch</b> with a photo. The Fishing log shows what works for you. Your catches stay private.</li>
     </ul>
-    <h3 id="aboutMoto">🏍 Adventure moto</h3>
+    <h3 id="aboutMoto">🏍 Adventure moto (ADV)</h3>
     <ul class="about-quick">
       <li><b>Pick your bike</b> first: roads turn green (fine for it), orange (hard) or red (not for it).</li>
       <li><b>Tap a road</b> for its surface, mud today, the rules and the nearest gas.</li>
@@ -1619,19 +1646,20 @@ body.sport-alt #rideMapBtn { display: none !important; }
 
 <script src="vendor/leaflet-1.9.4.js"></script>
 <script src="vendor/leaflet-rotate-0.2.8.js"></script>
-<!-- Our scripts carry one version tag (?v=), the same on all of them and in sw.js SHELL. Bump it on every change to
-     any of them, so a browser never runs a new index.html with an older copy of a script it kept from before. -->
-<script src="hidden-places.js?v=4890"></script>
-<script src="noback.js?v=4890"></script>
-<script src="risk.js?v=4890"></script>
-<script src="welcome.js?v=4890"></script>
-<script src="native.js?v=4890"></script>
-<script src="keyboard.js?v=4890"></script>
-<script src="rotate.js?v=4890"></script>
-<script src="official.js?v=4890"></script>
-<script src="directions.js?v=4890"></script>
-<script src="ratings.js?v=4890"></script>
-<script src="ebike.js?v=4890"></script>
+<!-- Our scripts carry one version tag, written ?v=__V__ here and in sw.js SHELL. Never put a number: the website
+     publish (scripts/stamp.mjs) sets one new number on every change to main, so a browser never runs a new index.html
+     with an older copy of a script it kept from before, and pull requests never clash on it. -->
+<script src="hidden-places.js?v=__V__"></script>
+<script src="noback.js?v=__V__"></script>
+<script src="risk.js?v=__V__"></script>
+<script src="welcome.js?v=__V__"></script>
+<script src="native.js?v=__V__"></script>
+<script src="keyboard.js?v=__V__"></script>
+<script src="rotate.js?v=__V__"></script>
+<script src="official.js?v=__V__"></script>
+<script src="directions.js?v=__V__"></script>
+<script src="ratings.js?v=__V__"></script>
+<script src="ebike.js?v=__V__"></script>
 <script>
 (() => {
   const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -1743,7 +1771,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // A 3D zoom made by hand round the pointer or fingers (wheel, pinch, double tap), not the +/- buttons on the middle.
   window.tfByHand3d = (ev) => !!ev.originalEvent && /^(wheel|touch|dblclick|mouse)/.test(ev.originalEvent.type);
   window.tfZones = ZONES;   // for Offline maps (offline.js)
-  // What people look for and how long things take, for alex's usage page (usage.js; only the iPhone app sends it).
+  // What people look for and how long things take, for alex's usage page (usage.js: the iPhone app, the Android app and the website send it).
   // Calls made before usage.js has loaded wait in tfUseQ.
   const logUse = (...a) => (window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a));
   // The named area the map shows (a zone, else the province), never a point.
@@ -2009,6 +2037,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
     // Skiing only: last winter's photos (map3d.js tfWinterTile) over the summer photo, which shows where there are none.
     winter: [ESRI_SAT, { maxZoom: 22, attribution: SAT_ATTR + ' | Winter: <a href="https://www.esa.int/Applications/Observing_the_Earth/Copernicus/Sentinel-2">Copernicus Sentinel-2</a>' }],
     // OpenMapTiles vector map hosted free by OpenFreeMap: drawn by the browser, so it's sharp at any zoom and on retina screens.
+    // Adventure moto's own map (adv-map.js): topo with dirt roads standing out, dark after sunset. Moto only.
+    advtopo: [null, { maxZoom: 22, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' + OSM_ATTR + ' | Heights: <a href="https://mapterhorn.com/attribution">&copy; Mapterhorn</a>' }],
     vector: ["https://tiles.openfreemap.org/styles/liberty", { maxZoom: 22, attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> <a href="https://www.openmaptiles.org/">&copy; OpenMapTiles</a> ' + OSM_ATTR }],
   };
   const SAT_NAMES = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
@@ -2016,10 +2046,33 @@ body.sport-alt #rideMapBtn { display: none !important; }
   const GL = "vendor/maplibre-gl-5.24.0";
   let glLoading = null;
   function loadScript(src) { return new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); }); }
+  // One copy of the MapLibre library for the flat map's vector styles and the 3D map (map3d.js asks here too). Opening
+  // the app straight into 3D in Adventure moto loaded it twice at once: the second copy replaced the first, so the
+  // dirt roads and elevation lines of ADV topo, set up on the first copy, never drew in 3D (alex's recording 2026-11-17).
+  let mlLoading = null;
+  window.tfLoadMaplibre = () => window.maplibregl ? Promise.resolve()
+    : (mlLoading = mlLoading || loadScript(GL + ".js").catch((e) => { mlLoading = null; throw e; }));
+  // Far dirt roads (zoom 7 to 12, scripts/build-dirt-roads.mjs) on four Cloudflare Pages sites picked by the zoom-7 tile,
+  // like the Winter far view; a tile that isn't there (no dirt roads) draws as empty. Used by ADV topo (adv-map.js) and
+  // the "Roads for my bike" layer (moto.js), flat and 3D. Set up once on the library copy that draws them.
+  window.tfDirtProtocol = () => {
+    const M = window.maplibregl;
+    if (!M || !M.addProtocol) return false;
+    if (M.tfDirt) return true;
+    const site = (z, x, y) => (z < 7 ? 0 : ((x >> (z - 7)) * 31 + (y >> (z - 7))) % 4);
+    M.addProtocol("tfdirt", async (params, abort) => {
+      const [z, x, y] = params.url.replace("tfdirt://", "").split("/").map(Number);
+      try {
+        const r = await fetch(`https://trailfinder-dirt-${site(z, x, y)}.pages.dev/dirt/${z}/${x}/${y}.pbf`, { signal: abort.signal });
+        return { data: r.ok ? await r.arrayBuffer() : new ArrayBuffer(0) };
+      } catch (e) { if (abort.signal.aborted) throw e; return { data: new ArrayBuffer(0) }; }
+    });
+    return (M.tfDirt = true);
+  };
   function loadVectorLib() {
     if (!glLoading) {
       if (!window.maplibregl) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = GL + ".css"; document.head.append(l); }
-      glLoading = (window.maplibregl ? Promise.resolve() : loadScript(GL + ".js"))
+      glLoading = window.tfLoadMaplibre()
         .then(() => L.maplibreGL || loadScript("vendor/maplibre-gl-leaflet-0.1.3.js"))
         .catch((e) => { glLoading = null; throw e; });
     }
@@ -2034,6 +2087,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const [url, base] = BASEMAPS[key];
     const opt = { ...base, ...FAST_TILES };
     if (key === "vector") { await loadVectorLib(); return L.maplibreGL({ style: url, attributionControl: { customAttribution: opt.attribution } }); }
+    if (key === "advtopo") return advBase(opt);
     // The plain street map is toned down a little (alex 2026-11-02, interface review: the bright pink towns and greens of
     // the OpenStreetMap style read as "a web map" next to AllTrails or onX); trails, zones and pins drawn on top keep
     // their full colour. Photos and the topo style are left as they are.
@@ -2044,6 +2098,34 @@ body.sport-alt #rideMapBtn { display: none !important; }
     if (key !== "sathybrid") return layer;
     return L.layerGroup([layer, summerPhotos(), L.tileLayer(SAT_NAMES, { maxNativeZoom: 19, maxZoom: 22, ...FAST_TILES })]);
   }
+  // ADV topo (adv-map.js, with maplibre-contour for its elevation lines), loaded on first use. Day or night colours from
+  // the sun where the map is, checked every minute while it shows.
+  let advLoading = null, advLayer = null, advNight = null, advTimer = 0;
+  function loadAdv() {
+    if (!advLoading) advLoading = loadVectorLib()
+      .then(() => window.mlcontour || loadScript("vendor/maplibre-contour-0.1.1.js").catch(() => null))
+      .then(() => window.tfAdvMap || loadScript("adv-map.js?v=__V__"))
+      .catch((e) => { advLoading = null; throw e; });
+    return advLoading;
+  }
+  const advIsNight = () => { const c = map.getCenter(); return window.tfAdvMap.night(c.lat, c.lng); };
+  function advSync() {
+    const on = !!(advLayer && map.hasLayer(advLayer));
+    document.body.classList.toggle("base-adv", on);   // navigate.js doesn't darken it again after sunset: it's dark already
+    document.body.classList.toggle("base-night", on && advNight === true);
+    if (!on) { clearInterval(advTimer); advTimer = 0; return; }
+    const n = advIsNight();
+    if (n !== advNight) { advNight = n; const m = advLayer.getMaplibreMap && advLayer.getMaplibreMap(); if (m) m.setStyle(window.tfAdvMap.style(n)); document.body.classList.toggle("base-night", n); }
+  }
+  async function advBase(opt) {
+    await loadAdv();
+    advNight = advIsNight();
+    advLayer = L.maplibreGL({ style: window.tfAdvMap.style(advNight), attributionControl: { customAttribution: opt.attribution } });
+    advLayer.on("add", () => { advSync(); if (!advTimer) advTimer = setInterval(advSync, 60000); });
+    advLayer.on("remove", () => setTimeout(advSync, 0));
+    return advLayer;
+  }
+  window.tfAdvNight = () => !!(advLayer && map.hasLayer(advLayer) && advNight);
   // Skiing's Winter map style: last winter's photos drawn by the 3D map's workers (map3d.js tfWinterTile), zooms 6 to
   // 16 (sharper close-ups from 15), enlarged past that. See-through where there are none, so the summer photo shows.
   function winterPhotos() { return photoGrid((z, x, y, s) => window.tfWinterTile ? window.tfWinterTile(z, x, y, s) : Promise.resolve(null), { maxNativeZoom: 16 }); }
@@ -2123,6 +2205,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   async function tileWorks(key) {
     if (key === "osm" && FROM_FILE) return false;
     if (key === "vector") { try { await loadVectorLib(); return true; } catch { return false; } }
+    if (key === "advtopo") { try { await loadAdv(); return true; } catch { return false; } }
     if (key in tileOk) return tileOk[key];
     const url = BASEMAPS[key][0].replace("{s}", "a").replace("{z}", "10").replace("{x}", "161").replace("{y}", "348").replace("{r}", "");
     if (!FROM_FILE) return (tileOk[key] = true); // on a website every style loads normally
@@ -2147,9 +2230,10 @@ body.sport-alt #rideMapBtn { display: none !important; }
     baseLayer = next.addTo(map);
     if (!mapTimed) { mapTimed = true; const tl = next.getLayers ? next.getLayers()[0] : next; if (tl.once) tl.once("load", () => logUse("speed", "map", performance.now())); }
     $("basemap").value = use;
+    window.dispatchEvent(new CustomEvent("tf:basemap", { detail: use }));   // map3d.js: the 3D map takes the same style
     satSync(use);
     syncTiles(use);
-    if (remember) store.set(skiing() ? "basemapSki" : "basemap4", key);
+    if (remember) store.set(skiing() ? "basemapSki" : moto() ? "basemapMoto" : "basemap4", key);
     const note = $("mapNote");
     note.hidden = use === key;
     if (use !== key) note.textContent = key === "osm" && FROM_FILE
@@ -2157,20 +2241,24 @@ body.sport-alt #rideMapBtn { display: none !important; }
       : "That map style didn't load here, so a similar one is shown.";
   }
   // The 4 styles riders pick from; a style saved from before (CyclOSM, Light streets…) opens as Map.
-  const PICKS = ["osm", "topo", "sat", "sathybrid", "winter"];
+  const PICKS = ["osm", "advtopo", "topo", "sat", "sathybrid", "winter"];
   function syncTiles(k) {
     const cur = PICKS.includes(k) ? k : "osm";
     document.querySelectorAll("#lmTiles [data-base]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.base === cur)));
   }
   $("lmTiles").addEventListener("click", (e) => { const b = e.target.closest("[data-base]"); if (b) setBasemap(b.dataset.base, true); });
   // Skiing keeps its own map style, Winter at first; the other sports share theirs and never get Winter.
+  // Adventure moto keeps its own too, ADV topo at first (alex 2026-11-17); only Adventure moto gets ADV topo.
   const skiing = () => document.body.classList.contains("sport-ski");
+  const moto = () => document.body.classList.contains("sport-moto");
+  const ownOnly = (k) => (k === "winter" && !skiing()) || (k === "advtopo" && !moto());
   const savedBase = () => {
-    if (skiing()) { const k = store.get("basemapSki", "winter"); return PICKS.includes(k) ? k : "winter"; }
+    if (skiing()) { const k = store.get("basemapSki", "winter"); return PICKS.includes(k) && !ownOnly(k) ? k : "winter"; }
+    if (moto()) { const k = store.get("basemapMoto", "advtopo"); return PICKS.includes(k) && !ownOnly(k) ? k : "advtopo"; }
     const k = store.get("basemap4", "osm");
-    return PICKS.includes(k) && k !== "winter" ? k : "osm";
+    return PICKS.includes(k) && !ownOnly(k) ? k : "osm";
   };
-  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) && saved !== "winter" ? saved : "osm", !PICKS.includes(saved)); }
+  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) && saved !== "winter" && saved !== "advtopo" ? saved : "osm", !PICKS.includes(saved)); }
   window.addEventListener("tf:sport", () => {
     if (!navigator.onLine && $("basemap").value === "vector") return;   // no signal: the saved offline map stays (offline.js)
     const want = savedBase();
@@ -2184,7 +2272,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const cur = $("basemap").value;
     if (!isSat(cur)) store.set("basemapPrev", cur);
     const prev = store.get("basemapPrev", "osm");
-    setBasemap(isSat(cur) ? (PICKS.includes(prev) && (prev !== "winter" || skiing()) ? prev : "osm") : "sathybrid", true);
+    setBasemap(isSat(cur) ? (PICKS.includes(prev) && !ownOnly(prev) ? prev : savedBase()) : "sathybrid", true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
 
@@ -2277,7 +2365,14 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const nw = map.latLngToContainerPoint(b.getNorthWest()), se = map.latLngToContainerPoint(b.getSouthEast());
     const tiny = Math.max(se.x - nw.x, se.y - nw.y) < 120 && map.getZoom() < 17;
     const clear = nw.x >= left && nw.y >= 40 && se.x <= box.width - 40 && se.y <= box.height - 40;
-    if (force || tiny || !clear) map.fitBounds(b, { paddingTopLeft: [left, 40], paddingBottomRight: [40, 40], maxZoom: tiny ? 17 : 16 });
+    if (!(force || tiny || !clear)) return;
+    // In 3D the camera flies to the trail like a searched place: looked at 55° down, from the side with no ridge in
+    // the way, the trail above the phone sheet (alex 2026-11-16: picked a trail in 3D and the map stayed on all of BC).
+    if (map.getContainer().classList.contains("is3d") && window.tf3dSearchView) {
+      const pad = window.tfMapPad ? window.tfMapPad() : { tl: [0, 0], br: [0, 0] }, c = b.getCenter();
+      window.tf3dSearchView({ lat: c.lat, lon: c.lng, dy: (pad.br[1] - pad.tl[1]) / 2, km: Math.max(1, b.getNorthWest().distanceTo(b.getSouthEast()) / 1000) });
+    }
+    map.fitBounds(b, { paddingTopLeft: [left, 40], paddingBottomRight: [40, 40], maxZoom: tiny ? 17 : 16 });
   }
   // Map button (under the zoom buttons) that clears whatever trail is selected. Shown only when one is.
   const clearCtl = new (L.Control.extend({ options: { position: "topleft" }, onAdd() {
@@ -3590,6 +3685,27 @@ out body;`;
     }
     return primeKeep.get(g);
   }
+  // A trail a forest road splits is one row per piece (data/road-splits.json), all with the same name: each says
+  // which piece it is from where they lie (deep test 2026-11-16: "Insomnia" twice in Prime loam, nothing to tell them apart).
+  const pieceKeep = new WeakMap();
+  function pieceTag(g) {
+    if (!g || !g.part || !g.center) return "";
+    if (pieceKeep.has(g)) return pieceKeep.get(g);
+    const sib = names.groups.filter((o) => o.part && o.name === g.name && o.type === g.type && o.center && o.center.distanceTo(g.center) < 5000);
+    let tag = "";
+    if (sib.length > 1) {
+      const lat = sib.map((o) => o.center.lat), lon = sib.map((o) => o.center.lng), k = Math.cos(g.center.lat * Math.PI / 180);
+      const ns = Math.max(...lat) - Math.min(...lat) >= (Math.max(...lon) - Math.min(...lon)) * k;
+      sib.sort((a, b) => (ns ? b.center.lat - a.center.lat : a.center.lng - b.center.lng));
+      const i = sib.indexOf(g), n = sib.length;
+      if (i < 0) { pieceKeep.set(g, ""); return ""; }   // a search row that joined the pieces back together
+      const ends = ns ? ["North", "South"] : ["West", "East"];
+      tag = n === 2 ? `${ends[i]} part` : n === 3 ? `${[ends[0], "Middle", ends[1]][i]} part` : `Part ${i + 1} of ${n} (${ends[0].toLowerCase()} to ${ends[1].toLowerCase()})`;
+      tag += ", a road splits it";
+    }
+    pieceKeep.set(g, tag);
+    return tag;
+  }
   // Where a trail's dot goes: the point of its line closest to the middle of the trail, so the dot sits on it.
   const dotKeep = new WeakMap();
   function dotOn(g) {
@@ -3615,10 +3731,15 @@ out body;`;
     const pool = state.waiting ? [] : names.groups.filter((g) => inside(g.center)).map(primeEntry).filter(Boolean);
     const typed = pool.filter((e) => wanted(e.cat, e.unoff.length, e.official));
     if (typed.length) loadLoam(typed);
-    const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !isSnowy(snowOf(e)); };
+    const offGround = (e) => isSnowy(snowOf(e)) || isFrozen(frostOf(e));   // snow or frozen ground: never prime
+    const isPrime = (e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !offGround(e); };
     const prime = pool.filter(isPrime);
-    const vals = typed.map(loamOf).filter((v) => v != null);
+    // The range said under "No trails in prime loam": trails under snow left out of it, and counted apart (deep test
+    // 2026-11-16: "Right now it's 26 to 69 here" read as if some trails were 40 to 59 and still not listed).
+    const vals = typed.filter((e) => !offGround(e)).map(loamOf).filter((v) => v != null);
     state.primeRange = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
+    state.primeSnowy = typed.filter((e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && isSnowy(snowOf(e)); }).length;
+    state.primeFrozen = typed.filter((e) => { const v = loamOf(e); return v != null && v >= 40 && v < 60 && !isSnowy(snowOf(e)) && isFrozen(frostOf(e)); }).length;
     // Nothing prime now: the first coming day the forecast has prime loam on these trails, so the answer isn't a dead end.
     state.primeSoon = null;
     if (!prime.length) typed.forEach((e) => {
@@ -3643,10 +3764,13 @@ out body;`;
     const offBy = (v) => (v < 40 ? 40 - v : v >= 60 ? v - 59 : 0);
     state.primeClose = 0;
     if (!shown.length && !state.loamPending) {
-      shown = typed.filter((e) => { const v = loamOf(e); return v != null && offBy(v) <= 20 && !isSnowy(snowOf(e)) && picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e)); })
+      shown = typed.filter((e) => { const v = loamOf(e); return v != null && offBy(v) <= 20 && !offGround(e) && picked(e.cat, e.unoff.length, e.official, e.g.tags, llOf(e)); })
         .sort((a, b) => offBy(loamOf(a)) - offBy(loamOf(b)) || dist(a) - dist(b)).slice(0, 25);
       state.primeClose = shown.length;
     }
+    // A route (relation) with the same name as a trail listed at the same spot is the same trail twice ("Seventh Secret").
+    shown = shown.filter((e) => e.g.type !== "r" || !shown.some((o) => o.g.type === "w" && o.g.name === e.g.name && o.g.center.distanceTo(e.g.center) < 500));
+    if (state.primeClose) state.primeClose = shown.length; else state.shownCount = shown.length;
     state.primeShown = shown;
 
     trailLayer.clearLayers(); drawn.key = "";
@@ -3661,7 +3785,7 @@ out body;`;
       return `<li class="trail prime ${e.cat}" data-pk="${i}" tabindex="0">
         <span class="bar"${barStyle({ tags: e.g.tags })}></span>
         <div><div class="name">${esc(e.g.name)} ${diffRangeBadge(e.g.tags, e.g.items.filter((i) => hasMtb(i.tags)).map((i) => i.tags))} ${e.unoff.length ? unoffTag(UNOFF_FLAGGED) : ""}${officialTag(e.official)}</div>
-        <div class="meta">${showAway ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone].filter(Boolean).join(" · "))}</div></div>
+        <div class="meta">${showAway ? `<span class="zone-tag">${fmtAway(dist(e))}</span> · ` : ""}${esc([e.g.kind, e.g.zone, pieceTag(e.g)].filter(Boolean).join(" · "))}</div></div>
         <div class="right">${loamBadge(e).replace(/^<br>/, "")}</div></li>`;
     }).join("") + "</ol>" : "";
   }
@@ -3697,9 +3821,11 @@ out body;`;
       const where = near ? `${near.km} km around ${near.label || "you"}` : state.custom ? "this part of the map" : (zoneById(state.zone) ? shortZone(zoneById(state.zone)) : areaById(state.zone).short);
       const slow = primeZones().filter((z) => names.inflight.has(z.id));
       const loamNow = () => {
-        if (!state.primeRange) return "";
+        const frozen = (more) => state.primeFrozen ? ` ${state.primeFrozen}${more} trail${state.primeFrozen === 1 ? " is" : "s are"} in the 40 to 59 range but the ground is likely frozen (soil temperature estimate).` : "";
+        if (!state.primeRange) return (state.primeSnowy ? ` ${state.primeSnowy} trail${state.primeSnowy === 1 ? " is" : "s are"} in the 40 to 59 range but under snow (snow estimate).` : "") + frozen("");
         const [lo, hi] = state.primeRange, words = [...new Set([lmiLevel(lo)[1], lmiLevel(hi)[1]])].join(" to ").toLowerCase();
-        return ` Right now it's ${lo === hi ? lo : `${lo} to ${hi}`} here (${words}).`;
+        const snowy = state.primeSnowy ? ` ${state.primeSnowy} more trail${state.primeSnowy === 1 ? " is" : "s are"} in the 40 to 59 range but under snow (snow estimate).` : "";
+        return ` Right now it's ${lo === hi ? lo : `${lo} to ${hi}`} on trails with no snow or frozen ground here (${words}).${snowy}${frozen(" more")}`;
       };
       const wait = busyFor();
       const busy = state.primeLoading ? "Loading the trails here…" : state.loamPending ? `Checking the Loam index of ${state.primeTotal} trails…`
@@ -3850,6 +3976,7 @@ out body;`;
       }
       const el = box(); if (el) renderElevation(el, t);
       paintFacts(t);
+      if (t.wx && state.selected === t.id && $("wx")) renderWeather($("wx"), t.wx.json, cellOf(t), t);   // the freeze line against the trail's heights
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
       if (dirOpen === t && $("fDown")) { $("fDown").textContent = "–"; $("fUp").textContent = "–"; }
@@ -3957,8 +4084,8 @@ out body;`;
   // Loam forecast: the reading at 1 pm on each coming day (the hour most people ride), from the same hourly
   // soil moisture forecast as "now". [{ d: "YYYY-MM-DD", v }], tomorrow first.
   const LOAM_HOUR = "T13:00";
-  const lmiDays = (h, today, key) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
-    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key), s: snowAt(h, i) })).filter((x) => x.v != null);
+  const lmiDays = (h, today, key, fz, elev) => h.time.map((x, i) => [x, i]).filter(([x]) => x.slice(0, 10) > today && x.endsWith(LOAM_HOUR))
+    .map(([x, i]) => ({ d: x.slice(0, 10), v: lmiAt(h, i, key), s: snowAt(h, i), f: frostAt(h, i, fz, elev) })).filter((x) => x.v != null);
   const isPrimeLoam = (v) => v != null && v >= 40 && v < 60;
   // Snow on the ground (alex, spring and fall: which trails are still under snow): the weather model's snow depth at the
   // same spot as the Loam index, in cm. Under the soil model, snowed-in dirt can read "prime", so snow wins: from SNOW_CM
@@ -3969,7 +4096,80 @@ out body;`;
     return v == null ? null : Math.round(v * 100);
   }
   const isSnowy = (cm) => cm != null && cm >= SNOW_CM;
-  const primeDay = (x) => isPrimeLoam(x.v) && !isSnowy(x.s);
+  // Frozen ground (alex 2026-11-19: "what happens when the ground is frozen?"): the soil model counts frozen water as
+  // moisture, so frozen dirt can read "prime" (Whistler, November: about 53 while the surface was -1.6°C each night).
+  // Open-Meteo's soil temperature at the surface, at the same spot and hour: 2 = at or below 0°C now ("Frozen", never
+  // prime, like snow), 1 = above 0°C now but at or below it in the 12 hours before (froze overnight, thawing), 0 = no
+  // frost, null = not known. Same in push-loam.mjs.
+  // With a freeze line (fz, below) and the spot's ground height (elev, m), the spot is frozen when it's at or above the
+  // middle model's freeze line that hour; without one, from this spot's own surface reading.
+  function frostAt(h, i, fz, elev) {
+    if (fz && fz.t.size && Number.isFinite(elev)) {
+      const up = (j) => { const x = fz.t.get(h.time[j]); return x ? elev >= x.m : null; }, now = up(i);
+      if (now != null) {
+        if (now) return 2;
+        for (let j = Math.max(0, i - 12); j < i; j++) if (up(j)) return 1;
+        return 0;
+      }
+    }
+    const t = h.soil_temperature_0cm;
+    if (!t || t[i] == null) return null;
+    if (t[i] <= 0) return 2;
+    for (let j = Math.max(0, i - 12); j < i; j++) if (t[j] != null && t[j] <= 0) return 1;
+    return 0;
+  }
+  const isFrozen = (f) => f === 2;
+  // Freeze line by height (alex 2026-11-19: "at Fromme or Squamish you can ride up to a certain height, above it the
+  // ground is frozen: show where the ground freezes on the mountain so we can ride what's rideable down low"). Open-Meteo
+  // gives each model's soil temperature at any height (moved by height from the model's own ground), so asking at 0,
+  // 750, 1,500, 2,250 and 3,000 m gives the height where it crosses 0°C. Weather is always checked against other models
+  // (alex 2026-11-14), and he picked "middle of 3 models + range" (2026-11-19): ICON (soil surface), GFS and GEM (the
+  // Canadian model; top 10 cm of soil, all they give). The middle one is the freeze line; the lowest and highest are
+  // the range. Per 0.1° square (about 10 km), the same past day + 4 days as the loam readings, matched by hour.
+  const FZ_MODELS = [["icon_seamless", "soil_temperature_0cm", "ICON"], ["gfs_seamless", "soil_temperature_0_to_10cm", "GFS"], ["gem_seamless", "soil_temperature_0_to_10cm", "GEM"]];
+  const FZ_H = [0, 750, 1500, 2250, 3000];
+  const fzCells = new Map();   // "lat,lon" (0.1°) -> { at, t: Map(hour -> { m, lo, hi, per: [{ name, h }] }) }; m: 0 frozen down to sea level, Infinity none below 3,000 m
+  const fzKeyOf = (key) => { const [a, b] = key.split(",").map(Number); return `${(Math.round(a * 10) / 10).toFixed(1)},${(Math.round(b * 10) / 10).toFixed(1)}`; };
+  function fzLine(temps) {
+    if (temps.some((v) => v == null)) return null;
+    if (temps[0] <= 0) return 0;
+    for (let k = 1; k < FZ_H.length; k++) if (temps[k] <= 0) return Math.round(FZ_H[k - 1] + (FZ_H[k] - FZ_H[k - 1]) * temps[k - 1] / (temps[k - 1] - temps[k]));
+    return Infinity;
+  }
+  async function loadFreeze(keys) {
+    const need = [...new Set(keys.map(fzKeyOf))].filter((k) => { const c = fzCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
+    for (let i = 0; i < need.length; i += 10) {
+      const chunk = need.slice(i, i + 10), lat = [], lon = [], ele = [];
+      chunk.forEach((k) => { const [a, b] = k.split(","); FZ_H.forEach((e) => { lat.push(a); lon.push(b); ele.push(e); }); });
+      if (!(await loamTurn(lat.length * FZ_MODELS.length))) return;
+      try {
+        const res = await fetch(`${WX_API}?latitude=${lat.join(",")}&longitude=${lon.join(",")}&elevation=${ele.join(",")}&models=${FZ_MODELS.map((m) => m[0]).join(",")}` +
+          "&hourly=soil_temperature_0cm,soil_temperature_0_to_10cm&timezone=auto&past_days=1&forecast_days=4");
+        if (!res.ok) throw await meteoErr(res);
+        const arr = [].concat(await res.json());
+        chunk.forEach((k, c) => {
+          const rows = arr.slice(c * FZ_H.length, (c + 1) * FZ_H.length), t = new Map();
+          if (rows.length === FZ_H.length && rows[0].hourly) rows[0].hourly.time.forEach((x, j) => {
+            const per = FZ_MODELS.map(([m, v, name]) => ({ name, h: fzLine(rows.map((r) => (r.hourly[`${v}_${m}`] || [])[j])) })).filter((p) => p.h != null);
+            if (per.length < 2) return;   // one model alone isn't checked against anything
+            const hs = per.map((p) => p.h).sort((a, b) => a - b), n = hs.length;
+            t.set(x, { m: n % 2 ? hs[n >> 1] : (hs[n / 2 - 1] + hs[n / 2]) / 2, lo: hs[0], hi: hs[n - 1], per });
+          });
+          fzCells.set(k, { at: Date.now(), t });
+        });
+      } catch (e) {
+        log(`Freeze line: ${e.message}.`);
+        chunk.forEach((k) => fzCells.set(k, { at: Date.now() - WX_FRESH_MS + 5 * 60000, t: new Map() }));   // try again in 5 minutes
+      }
+    }
+  }
+  const fzOf = (key) => { const c = fzCells.get(fzKeyOf(key)); return c && c.t.size ? c : null; };
+  // "about 900 m", rounded to 50 m; 0 and Infinity in words.
+  const fzNum = (m) => (m === Infinity ? "over 3,000" : (Math.round(m / 50) * 50).toLocaleString("en-CA"));
+  const fzWord = (m) => (m === 0 ? "down to the valley" : m === Infinity ? "none below 3,000 m" : `about ${(Math.round(m / 50) * 50).toLocaleString("en-CA")} m`);
+  const FROZEN_COLOR = "#8e7cc3";
+  const FROST_THAW = "The ground likely froze overnight here (soil temperature estimate). It can be hard early and slippery on top as it thaws.";
+  const primeDay = (x) => isPrimeLoam(x.v) && !isSnowy(x.s) && !isFrozen(x.f);
   const dayName = (d, today) => {
     const n = Math.round((Date.parse(d + "T12:00") - Date.parse(today + "T12:00")) / 86400000);
     return n === 0 ? "today" : n === 1 ? "tomorrow" : new Date(d + "T12:00").toLocaleDateString(undefined, { weekday: "long" });
@@ -3988,18 +4188,23 @@ out body;`;
   const loamCells = new Map();                   // "lat,lon" (rounded to 0.02°) -> { at, lmi, today, days, snow } (days: lmiDays; snow: cm, snowAt)
   try {
     Object.entries(JSON.parse(localStorage.getItem(LOAM_STORE) || "{}") || {})
-      .forEach(([k, [at, lmi, today, days, snow]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi, today, days, snow: snow == null ? null : snow }); });
+      .forEach(([k, [at, lmi, today, days, snow, frost]]) => { if (Date.now() - at < WX_FRESH_MS) loamCells.set(k, { at, lmi, today, days, snow: snow == null ? null : snow, frost: frost == null ? null : frost }); });
   } catch {}
   let loamSaveT = 0;
   const saveLoamCells = () => {
     clearTimeout(loamSaveT);
     loamSaveT = setTimeout(() => {
       const o = {};
-      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi, c.today, c.days, c.snow]; });
+      loamCells.forEach((c, k) => { if (c.lmi !== null && Date.now() - c.at < WX_FRESH_MS) o[k] = [c.at, c.lmi, c.today, c.days, c.snow, c.frost]; });
       try { localStorage.setItem(LOAM_STORE, JSON.stringify(o)); } catch {}
     }, 2000);
   };
   const cellOf = (t) => { const m = t.loamAt || t.center || L.latLng(t.geom[Math.floor(t.geom.length / 2)]); return `${(Math.round(m.lat * 50) / 50).toFixed(2)},${(Math.round(m.lng * 50) / 50).toFixed(2)}`; };
+  // The Loam moisture index for other parts of the app (bike-trip.js: the loam estimate each day of a bike trip), read
+  // the same way as a trail's: the same cell, soil type and rider tuning.
+  window.tfLoam = { cell: (lat, lng) => cellOf({ loamAt: { lat, lng } }), at: (h, i, key) => lmiAt(h, i, key), snow: (h, i) => snowAt(h, i), isSnowy: (cm) => isSnowy(cm),
+    frost: (h, i) => frostAt(h, i), isFrozen: (f) => isFrozen(f),
+    level: (v) => { const l = lmiLevel(v); return l ? { word: l[1], ride: LMI_RIDE[LMI_LEVELS.indexOf(l)] } : null; }, isPrime: (v) => isPrimeLoam(v), ready: () => loamTuneReady };
   function loamOf(t) {
     const c = loamCells.get(cellOf(t));
     return c ? c.lmi : undefined;                 // undefined: not loaded yet; null: no soil data there
@@ -4010,12 +4215,18 @@ out body;`;
     return c ? c.snow : undefined;
   }
   const SNOW_COLOR = "#a9c4e6";
+  // Frost at the trail's loam spot now (frostAt; undefined: not read yet).
+  function frostOf(t) {
+    const c = loamCells.get(cellOf(t));
+    return c ? c.frost : undefined;
+  }
   // "Loam" trail colours (the map key's third mode, like Trailforks colouring its map by trail condition): each line
   // in the colour of today's Loam index at its spot, grey until read or where there's no soil data.
   function loamColor(t) {
     try {
       const p = t.geom || t.center || t.loamAt ? t : { geom: (t.segments || [[]])[0] }, v = loamOf(p);
       if (isSnowy(snowOf(p))) return SNOW_COLOR;
+      if (isFrozen(frostOf(p))) return FROZEN_COLOR;
       return v == null ? UNRATED : LMI_RIDE[LMI_LEVELS.indexOf(lmiLevel(v))][0];
     } catch { return UNRATED; }
   }
@@ -4060,6 +4271,7 @@ out body;`;
   }
   async function fetchLoamCells(need) {
     await loamTuneReady;
+    await loadFreeze(need).catch(() => {});
     for (let i = 0; i < need.length; i += 50) {
       const chunk = need.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
       if (!(await loamTurn(chunk.length))) {   // paused after a 429: try these again once the pause is over
@@ -4068,14 +4280,15 @@ out body;`;
       }
       try {
         const res = await fetch(`${WX_API}?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}&timezone=auto&past_days=1&forecast_days=4` +
-          "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth");
+          "&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm");
         if (!res.ok) throw await meteoErr(res);
         const json = await res.json();
         (Array.isArray(json) ? json : [json]).forEach((w, k) => {
           let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
           if (j < 0) j = w.hourly.time.length - 1;
           const today = w.current.time.slice(0, 10);
-          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k]), snow: snowAt(w.hourly, j) });
+          loamCells.set(chunk[k], { at: Date.now(), lmi: lmiAt(w.hourly, j, chunk[k]), today, days: lmiDays(w.hourly, today, chunk[k], fzOf(chunk[k]), w.elevation), snow: snowAt(w.hourly, j), frost: frostAt(w.hourly, j, fzOf(chunk[k]), w.elevation),
+            fzNow: (() => { const f = fzOf(chunk[k]), x = f && f.t.get(w.hourly.time[j]); return x ? x.m : null; })() });
         });
         saveLoamCells();
       } catch (e) {
@@ -4099,6 +4312,13 @@ out body;`;
     return keys.map((k) => { const c = loamCells.get(k); return c && c.snow != null ? c.snow : null; });
   };
   window.tfSnowCm = SNOW_CM;
+  // Frozen ground (notify.js, status.js): true where the soil surface is at or below 0°C now (frostAt), from the same readings.
+  window.tfFrozenAt = async (pts) => {
+    const keys = pts.map((p) => cellOf({ center: L.latLng(p[0], p[1]) }));
+    const need = staleCells(keys);
+    if (need.length) await fetchLoamCells(need);
+    return keys.map((k) => { const c = loamCells.get(k); return !!c && isFrozen(c.frost); });
+  };
   // Loam forecast (notify.js): the first coming day in prime loam at each [lat, lon], { d, day, v } or null.
   // Ask in plain words (ask.js): the reading on one day ("YYYY-MM-DD", today or the forecast days) at each [lat, lon]:
   // { v, snow, days } (v null: not known that day; days: how many forecast days there are).
@@ -4108,10 +4328,10 @@ out body;`;
     if (need.length) await fetchLoamCells(need);
     return keys.map((k) => {
       const c = loamCells.get(k);
-      if (!c) return { v: null, snow: null, days: 0 };
-      if (!d || d <= c.today) return { v: c.lmi, snow: c.snow, days: (c.days || []).length };
+      if (!c) return { v: null, snow: null, frozen: false, days: 0 };
+      if (!d || d <= c.today) return { v: c.lmi, snow: c.snow, frozen: isFrozen(c.frost), days: (c.days || []).length };
       const x = (c.days || []).find((y) => y.d === d);
-      return { v: x ? x.v : null, snow: x ? x.s : null, days: (c.days || []).length };
+      return { v: x ? x.v : null, snow: x ? x.s : null, frozen: !!x && isFrozen(x.f), days: (c.days || []).length };
     });
   };
   window.tfLoamSoon = async (pts) => {
@@ -4126,6 +4346,7 @@ out body;`;
   function loamBadge(t) {
     const v = loamOf(t), sn = snowOf(t);
     if (isSnowy(sn)) return `<br><span class="loam snow" title="The weather model has ${sn} cm of snow on the ground here"><i style="background:${SNOW_COLOR}"></i>❄ Snow ${sn} cm</span>`;
+    if (isFrozen(frostOf(t))) return `<br><span class="loam" title="The soil surface is at or below 0°C here now (soil temperature estimate)"><i style="background:${FROZEN_COLOR}"></i>Frozen</span>`;
     if (v == null) return "";
     const k = LMI_LEVELS.indexOf(lmiLevel(v));
     return `<br><span class="loam" title="Loam moisture index now: ${esc(LMI_LEVELS[k][1])} (${LMI_RIDE[k][1]})"><i style="background:${LMI_RIDE[k][0]}"></i>Loam ${v}</span>`;
@@ -4139,29 +4360,30 @@ out body;`;
         {
           const url = `${WX_API}?latitude=${mid[0]}&longitude=${mid[1]}&timezone=auto&past_days=2&forecast_days=4` +
             "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,is_day" +
-            "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth" +
+            "&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max";
           const res = await fetch(url);
           if (!res.ok) throw await meteoErr(res);
           const json = await res.json();
           if (!json.current || !json.hourly || !json.daily) throw new Error("unexpected answer");
           await loamTuneReady;
+          await loadFreeze([cellOf(t)]).catch(() => {});
           t.wx = { at: Date.now(), json };
           const h = json.hourly;
           let i = h.time.findIndex((x) => x > json.current.time) - 1;
           if (i < 0) i = h.time.length - 1;
-          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10), snow = snowAt(h, i);
-          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key), snow });   // a fresher reading: the list shows it too
-          if (!was || was.lmi !== lmi || was.snow !== snow) render();
+          const key = cellOf(t), was = loamCells.get(key), lmi = lmiAt(h, i, key), today = json.current.time.slice(0, 10), snow = snowAt(h, i), frost = frostAt(h, i, fzOf(key), json.elevation);
+          loamCells.set(key, { at: Date.now(), lmi, today, days: lmiDays(h, today, key, fzOf(key), json.elevation), snow, frost });   // a fresher reading: the list shows it too
+          if (!was || was.lmi !== lmi || was.snow !== snow || was.frost !== frost) render();
         }
       }
-      const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t));
+      const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t), t);
       paintFacts(t);
     } catch (e) {
       const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
     }
   }
-  function renderWeather(el, w, key) {
+  function renderWeather(el, w, key, t) {
     const c = w.current, h = w.hourly, d = w.daily, u = w.current_units || {};
     // The hour now, in the trail's own time zone (Open-Meteo times are local, without an offset).
     let i = h.time.findIndex((x) => x > c.time) - 1;
@@ -4172,32 +4394,43 @@ out body;`;
     // At night in the trail's own time zone (alex: a sun at 11:30 pm in Quebec), a moon for a clear sky.
     const icon = c.is_day === 0 && c.weather_code <= 2 ? (c.weather_code === 2 ? "☁️" : "🌙") : dayIcon;
     const today = c.time.slice(0, 10);
-    const snow = snowAt(h, i), aheadDays = lmiDays(h, today, key);
-    const ahead = new Map(aheadDays.map((x) => [x.d, x.v])), aheadSnow = new Map(aheadDays.map((x) => [x.d, x.s]));
-    const loamCell = (v, sn) => isSnowy(sn) ? `<td class="lmi-snow">❄ ${sn} cm</td>` : v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
+    const fz = fzOf(key), snow = snowAt(h, i), aheadDays = lmiDays(h, today, key, fz, w.elevation);
+    const frost = frostAt(h, i, fz, w.elevation), frozen = isFrozen(frost) && !isSnowy(snow);
+    // The freeze line now and each day at 7 am and 1 pm, with the trail's own heights to hold it against.
+    const fzNow = fz && fz.t.get(h.time[i]), es = t && t.elev && t.elev.stats ? `${Math.round(t.elev.stats.min).toLocaleString("en-CA")} to ${Math.round(t.elev.stats.max).toLocaleString("en-CA")} m` : "";
+    const fzAt = (day, hh) => { const x = fz && fz.t.get(`${day}T${hh}:00`); return x ? `<span>${hh === "07" ? "7 am" : "1 pm"} ${esc(fzWord(x.m))}</span>` : ""; };
+    const fzHtml = !fzNow ? "" : `<div class="lmi-fz"><p><b>${fzNow.m === Infinity ? "No frozen ground below 3,000 m now" : fzNow.m === 0 ? "Ground likely frozen down to the valley now" : `Ground likely frozen above ${esc(fzWord(fzNow.m))} now`}</b>${fzNow.hi - fzNow.lo >= 100 ? ` <span>Models: ${fzNum(fzNow.lo)} to ${fzNum(fzNow.hi)} m</span>` : ""}</p>
+      ${es ? `<p><span>This trail: ${es}</span>${(() => { const st = t.elev.stats, m = fzNow.m; return m === Infinity || st.min >= m ? (m === Infinity ? "" : `</p><p><span>All of it is above the freeze line.</span>`) : st.max < m ? `</p><p><span>All of it is below the freeze line.</span>` : `</p><p><span>Its upper part is above the freeze line.</span>`; })()}</p>` : Number.isFinite(w.elevation) ? `<p><span>Ground height of the weather model here: ${Math.round(w.elevation).toLocaleString("en-CA")} m</span></p>` : ""}
+      <ul>${d.time.filter((day) => day >= today).map((day) => { const a = fzAt(day, "07"), b = fzAt(day, "13"); return a || b ? `<li><b>${day === today ? "Today" : esc(new Date(day + "T12:00").toLocaleDateString(undefined, { weekday: "short" }))}</b> ${[a, b].filter(Boolean).join(" · ")}</li>` : ""; }).join("")}</ul>
+      <p class="muted"><span>Freeze line: the height where the soil reaches 0°C, the middle of 3 weather models (${fzNow.per.map((p) => `${p.name} ${fzNum(p.h)} m`).join(", ")}). An estimate: shade, sun and snow change it on the ground.</span></p></div>`;
+    const ahead = new Map(aheadDays.map((x) => [x.d, x.v])), aheadSnow = new Map(aheadDays.map((x) => [x.d, x.s])), aheadFrost = new Map(aheadDays.map((x) => [x.d, x.f]));
+    const loamCell = (v, sn, f) => isSnowy(sn) ? `<td class="lmi-snow">❄ ${sn} cm</td>` : isFrozen(f) ? `<td class="lmi-frozen" title="Soil surface at or below 0°C (estimate)">Frozen</td>` : v == null ? "<td>–</td>" : `<td class="${isPrimeLoam(v) ? "lmi-prime" : ""}">${lmiDot(v)}${v}${isPrimeLoam(v) ? " <b>prime</b>" : ""}</td>`;
     const soon = aheadDays.find(primeDay), soonD = soon && [soon.d, soon.v];
     // Snow on the ground: the weather model's depth at this spot (its own ground height, which can differ from the trail's).
     const snowNote = isSnowy(snow) ? `<p class="lmi-snowing">❄ <b>Likely under snow:</b> about ${snow} cm on the ground here (weather model${Number.isFinite(w.elevation) ? `, at ${Math.round(w.elevation)} m` : ""}). The Loam index reads the soil under it, so it isn't prime loam until the snow melts.${(() => { const off = aheadDays.find((x) => !isSnowy(x.s)); return off ? ` Snow-free from about ${esc(dayName(off.d, today))}.` : ""; })()}</p>`
       : snow != null && snow >= SNOW_PATCH_CM ? `<p class="lmi-snowing">❄ Patches of snow likely (about ${snow} cm here in the weather model, at ${Math.round(w.elevation)} m).</p>` : "";
+    // Frozen ground: the soil model's surface temperature at this spot (frostAt). Snow says more, so it wins.
+    const frostNote = isSnowy(snow) ? "" : frozen ? `<p class="lmi-frost"><b>Ground likely frozen:</b> the soil surface is at or below 0°C here now (Open-Meteo soil temperature, an estimate). The Loam index counts frozen water as moisture, so it isn't prime loam while the ground is frozen.${(() => { const off = aheadDays.find((x) => !isFrozen(x.f) && x.f != null); return off ? ` <span>Above 0°C at 1 pm from about ${esc(dayName(off.d, today))}.</span>` : ""; })()}</p>`
+      : frost === 1 ? `<p class="lmi-frost">${esc(FROST_THAW)}</p>` : "";
     const days = d.time.map((day, k) => ({ day, k })).filter((x) => x.day >= today).map(({ day, k }) => {
       const [txt, ic] = wmo(d.weather_code[k]);
       const name = day === today ? "Today" : new Date(day + "T12:00").toLocaleDateString(undefined, { weekday: "short" });
       const pop = d.precipitation_probability_max && d.precipitation_probability_max[k] != null ? `<small>${d.precipitation_probability_max[k]}%</small>` : "";
-      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td>${day === today ? loamCell(lmi, snow) : loamCell(ahead.get(day), aheadSnow.get(day))}</tr>`;
+      return `<tr><td>${name}</td><td>${ic} ${esc(txt)}</td><td>${Math.round(d.temperature_2m_max[k])}° / ${Math.round(d.temperature_2m_min[k])}°</td><td>${fmtMm(d.precipitation_sum[k])}${pop}</td>${day === today ? loamCell(lmi, snow, frost) : loamCell(ahead.get(day), aheadSnow.get(day), aheadFrost.get(day))}</tr>`;
     }).join("");
     el.classList.remove("muted");
     el.innerHTML = `
       <div class="wx-now">
-        <div><span>Loam moisture index</span>${lmi == null ? `<strong>–</strong><em>Not available here</em>` : `<strong>${lmi}</strong><em>${esc(lvl[1])}</em>`}</div>
+        <div><span>Loam moisture index</span>${lmi == null ? `<strong>–</strong><em>Not available here</em>` : `<strong>${lmi}</strong><em>${frozen ? "Frozen" : esc(lvl[1])}</em>`}</div>
         <div><span>Now</span><strong>${icon} ${Math.round(c.temperature_2m)}°C</strong><em>${esc(sky)}${Math.round(c.apparent_temperature) !== Math.round(c.temperature_2m) ? ` · feels ${Math.round(c.apparent_temperature)}°` : ""}</em></div>
       </div>
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
       <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
-      ${lmiKey(lvl)}
+      ${lmiKey(frozen ? null : lvl)}
       ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
         : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
-      ${snowNote}
-      ${lmi != null && (!isPrimeLoam(lmi) || isSnowy(snow)) && soonD ? `<p class="lmi-soon">${lmiDot(soonD[1])}Prime loam ${esc(dayName(soonD[0], today))} (${soonD[1]})</p>` : ""}
+      ${snowNote}${frostNote}${fzHtml}
+      ${lmi != null && (!isPrimeLoam(lmi) || isSnowy(snow) || frozen) && soonD ? `<p class="lmi-soon">${lmiDot(soonD[1])}Prime loam ${esc(dayName(soonD[0], today))} (${soonD[1]})</p>` : ""}
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th title="Rain, and the chance of rain">Rain</th><th title="Loam moisture index at 1 pm">Loam</th></tr></thead><tbody>${days}</tbody></table>`;
   }
 
@@ -4380,7 +4613,7 @@ out body;`;
       return e.n.some((n) => names.has(foldName(n))) && near(e.c || s.c, e.r || s.r);
     });
   }
-  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=4890").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
+  const loadTrailInfo = () => (trailInfo = trailInfo || fetch("data/trail-info.json?v=__V__").then((r) => r.json()).catch(() => { trailInfo = null; return null; }));
   // alex: bike parks' own photos of a trail. Only photos the park's page labels with the trail's name; they stay on
   // the park's site (we link to them, never copy them) and are credited to the park and photographer.
   async function officialPhotos(t) {
@@ -4567,9 +4800,9 @@ out body;`;
     if (dirOpen !== t || !$("fLoam")) return;
     const c = loamCells.get(cellOf(t));
     if (c && c.lmi != null) {
-      const snowy = isSnowy(c.snow), k = LMI_LEVELS.indexOf(lmiLevel(c.lmi));
-      $("fLoam").innerHTML = snowy ? "❄" : `${lmiDot(c.lmi)}${c.lmi}`;
-      $("fLoamL").textContent = snowy ? "Snow" : (isPrimeLoam(c.lmi) ? "Prime loam" : LMI_RIDE[k][1]);
+      const snowy = isSnowy(c.snow), frozen = !snowy && isFrozen(c.frost), k = LMI_LEVELS.indexOf(lmiLevel(c.lmi));
+      $("fLoam").innerHTML = snowy ? "❄" : frozen ? `<i class="lmi-dot" style="background:${FROZEN_COLOR}"></i>${c.lmi}` : `${lmiDot(c.lmi)}${c.lmi}`;
+      $("fLoamL").textContent = snowy ? "Snow" : frozen ? "Frozen" : (isPrimeLoam(c.lmi) ? "Prime loam" : LMI_RIDE[k][1]);
     }
     const s = t.elev && t.elev.stats;
     if (s) { $("fDown").textContent = `↓${Math.round(s.loss)} m`; $("fUp").textContent = `↑${Math.round(s.gain)} m`; }
@@ -4720,6 +4953,12 @@ out body;`;
     if (real && window.tfTrailPhotos) window.tfTrailPhotos.show(t);   // trail-photos.js
     if (real) loadAbout(t);
     leaveFullMap(t);
+    // The bike trip (bike-trip.js) adds its "Add to bike trip" under the card's buttons.
+    if (real) {
+      const ll = (p) => (p && p.lat != null ? [p.lat, p.lng] : p);
+      const ls = (t.segments && t.segments.length ? t.segments : [t.geom]).map((g) => (g || []).map(ll));
+      window.dispatchEvent(new CustomEvent("tf:mtb-card", { detail: { el: d, after: d.querySelector(".go"), item: { rid: String(t.id), name: trailName(t), label: (t.catLabel || CAT_LABEL[t.cat] || ""), ls } } }));
+    }
   }
 
   // No rating from any source yet: estimate one from the slope (ratings.js), then show it in the open details.
@@ -5591,7 +5830,7 @@ out body;`;
   const navStack = [];                 // pages over the map, oldest first: "find", "ride", "saved", "more", "search", "results"
   const navTop = () => navStack[navStack.length - 1] || "map";
   const ROOTS = { find: "find", new: "find", ski: "find", hunt: "find", fish: "find", moto: "find", hike: "find", ride: "ride", saved: "saved", more: "more" };
-  const TITLES = { get find() { return words().find; }, get ride() { return words().tab; }, saved: "Saved", more: "More", search: "New trails", results: "Results" };
+  const TITLES = { get find() { return words().find; }, get ride() { return words().tab; }, saved: "Saved", more: "More", search: "New trails", results: "Results", trip: "Bike trip" };
   // Words for each sport (alex, 2026-10-24): riding words in MTB only. Skiing and Hunting record a track, save
   // offline maps for skiing or hunting, and their bell is about avalanches or plain notifications, not loam.
   // function declarations: setSheetH runs syncTabbar before this part of the script has run
@@ -5646,6 +5885,7 @@ out body;`;
       <p class="hub-note">${w.note}</p>
       ${mtb ? card("plan", "✎", "Plan a route", "Tap points, or pick the trails you want") : ""}
       ${mtb ? card("routes", "📂", "Ride a saved route", "Routes you planned and saved") : ""}
+      ${mtb ? card("biketrip", "🏕", "Bike trips", "Bikepacking or a base camp: camps, rides, loam each day") : ""}
       ${sportOf() === "moto" ? card("moto-plan", "✎", "Plan a moto route", "Most dirt, a mix, or curvy paved roads, for your bike") + card("moto-routes", "📂", "Ride a saved moto route", "Routes you planned and saved") : ""}
       ${card("offline", "⤓", "Offline maps", w.offline)}
       ${window.tfLive ? card("live", "📡", "Share my live location", window.tfLive.sharing() ? "On now: tap to send the link or stop" : "Friends and family see where you are") : ""}`;   // My rides and Add a trail live in Saved
@@ -5739,7 +5979,7 @@ out body;`;
     if (top === "saved" && phone && !isAlt()) renderFolders();
     panelEl.classList.toggle("hub-on", phone && page);
     panelEl.classList.toggle("nav-search", phone && top === "search");
-    panelEl.classList.toggle("nav-results", phone && top === "results");
+    panelEl.classList.toggle("nav-results", phone && (top === "results" || top === "trip"));   // a bike trip's card (bike-trip.js) sits at the top of the results
     panelEl.classList.toggle("nav-alt", phone && top === "find" && isAlt());
     syncSportWait();
     const bar = phone && top !== "map";
@@ -5769,6 +6009,8 @@ out body;`;
     if (navTop() !== page) navStack.push(page);
     showNav(snap);
   }
+  // The bike trip's card (bike-trip.js): its own page on phones, from Ride › Bike trips; closing it goes back.
+  window.tfNavTrip = (on) => { if (!phoneMQ.matches) return; if (on) { if (navTop() !== "trip") navTo("trip", { snap: "half" }); } else if (navTop() === "trip") navBack(); };
   function navBack() {
     if (!$("about").hidden) { $("about").hidden = true; return; }
     if (!$("layersMenu").hidden && $("layersBtn").getAttribute("aria-expanded") === "true") { $("layersBtn").click(); return; }
@@ -5869,7 +6111,10 @@ out body;`;
     else {
       const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
       mtbNowHtml = isSnowy(cell.snow) ? `<span>❄ <b>Snow on the trails</b> here, ${Math.round(cell.snow)} cm</span>`
+        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
         : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v})</span><span>☀ Where to ride today ›</span>`;
+      // The freeze line (middle of 3 models) when the ground freezes somewhere below 3,000 m around here.
+      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace("<span>☀ Where", `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span><span>☀ Where`);
     }
     syncPeekToday();
   }
@@ -5921,7 +6166,7 @@ out body;`;
     if (lg) { if (window.tfLang) window.tfLang.set(lg.dataset.lang); return; }   // i18n.js: reloads in that language
     const ai = e.target.closest("[data-ai]");
     if (ai && window.tfAiConsent) { window.tfAiConsent.set(ai.dataset.ai === "true"); return; }   // welcome.js: On asks again (18 or older)
-    const use = e.target.closest("[data-usage]");   // usage.js: iPhone app only; Don't share stops at once
+    const use = e.target.closest("[data-usage]");   // usage.js: app and website; Don't share stops at once
     if (use && window.tfUsage) { window.tfUsage.set(use.dataset.usage === "true"); root.querySelectorAll("[data-usage]").forEach((b) => b.setAttribute("aria-pressed", String(window.tfUsage.on() === (b.dataset.usage === "true")))); return; }
     const sp = e.target.closest("[data-sport]");
     if (sp) { if ($("sport").value !== sp.dataset.sport) { $("sport").value = sp.dataset.sport; $("sport").dispatchEvent(new Event("change", { bubbles: true })); } return; }
@@ -5933,6 +6178,7 @@ out body;`;
     else if (act === "start") { if (window.tfRide) window.tfRide.start(); }
     else if (act === "plan") { if (window.tfPlan) window.tfPlan.open(); }
     else if (act === "routes") { if (window.tfPlan) window.tfPlan.saved(); }
+    else if (act === "biketrip") { (window.tfLoadSport ? window.tfLoadSport("mtb") : Promise.resolve()).catch(() => {}).then(() => { const T = window.tfTrips && window.tfTrips.bike; if (T) T.list(); }); }
     else if (act === "offline") { lowerSheet(); $("offlineBtn").click(); }
     else if (act === "live") { if (window.tfLive) window.tfLive.open(); }
     else if (act === "alerts") document.querySelector(".brand .notify-btn")?.click();
@@ -7151,23 +7397,65 @@ out body;`;
   function drawAccess() {
     if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) { accessLayer.clearLayers(); accessPins.clear(); return; }
     const view = map.getBounds().pad(0.2);
-    accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng()) && !m.isPopupOpen()) { accessLayer.removeLayer(m); accessPins.delete(id); } });
+    accessPins.forEach((m, id) => { if (!view.contains(m.getLatLng())) { accessLayer.removeLayer(m); if (m.dot) accessLayer.removeLayer(m.dot); accessPins.delete(id); } });
     accessZonesIn(view).then((zs) => zs.forEach((z) => accessZone(z).then((pts) => {
       if (!state.access || map.getZoom() < FEAT_MIN_ZOOM) return;
       const now = map.getBounds().pad(0.2);
       pts.forEach((x) => {
         const ll = L.latLng(x.lat, x.lon), k = ACCESS[x.k];
         if (!now.contains(ll) || accessPins.has(x.id)) return;
-        accessPins.set(x.id, L.marker(ll, { icon: pinIcon(k), keyboard: false, title: `${k.label}: ${accessName(x)}` }).bindPopup(() => {
-          const info = accessInfo(x), road = nearestRoad([x.lat, x.lon], [roadData.get(x.z)], ROAD_NEAR_M);
-          return `<div class="road-pop"><h4>${esc(accessName(x))}</h4><p><span class="st">${esc(k.label)}</span>${info.length ? `<br>${info.map(esc).join(" · ")}` : ""}</p>
-            ${roadData.get(x.z) ? `<p>${roadLine(road, "No forest road within 300 m.")}</p>` : ""}<p class="src">${accessLinks(x)}</p></div>`;
-        }, { maxWidth: 280 }));
-        accessLayer.addLayer(accessPins.get(x.id));
+        // A tap opens its card in the panel (openAccessPoint), as Skiing's huts do. A small dot of the same colour sits
+        // under the pin: the 3D map copies tappable dots (map3d.js), not pins, so the point is there and tappable in 3D too.
+        const open = (e) => { if (e) L.DomEvent.stopPropagation(e); openAccessPoint(x); };
+        const m = L.marker(ll, { icon: pinIcon(k), keyboard: false, title: `${k.label}: ${accessName(x)}` }).on("click", open);
+        m.dot = L.circleMarker(ll, { radius: 6, color: "#fff", weight: 2, fillColor: k.bg, fillOpacity: 1 }).on("click", open);
+        accessPins.set(x.id, m);
+        accessLayer.addLayer(m.dot); accessLayer.addLayer(m);
       });
     })));
   }
   map.on("moveend", drawAccess);
+  // The card of a tapped access point: what it is, its facts, the forest road it's on, then "At this spot"
+  // (point-info.js): the weather there for 3 days (3 models checked), sunrise and sunset, BC fire bans and wildfires,
+  // and for a BC rec site its full record. Phones: the sheet comes up to half with the card at the top.
+  function openAccessPoint(x) {
+    const el = $("mtbPoint"), k = ACCESS[x.k];
+    if (!el || !k) return;
+    const isRec = x.k === "rec";
+    const info = isRec ? [x.t && x.t.type].filter(Boolean) : accessInfo(x), road = roadData.get(x.z) ? nearestRoad([x.lat, x.lon], [roadData.get(x.z)], ROAD_NEAR_M) : null;
+    el.hidden = false;
+    el.dataset.id = x.id;
+    el.innerHTML = `<header><span class="mp-ic" style="background:${k.bg}">${k.svg}</span><h3>${esc(accessName(x))}</h3>${window.tfShareBtn ? window.tfShareBtn(x.lat, x.lon, { sport: "mtb", name: accessName(x) }) : ""}<button type="button" class="mp-x" aria-label="Close">✕</button></header>
+      <p class="mp-kind" style="color:${k.bg}">${esc(k.label)}</p>
+      ${info.length ? `<p>${info.map(esc).join(" · ")}</p>` : ""}
+      ${roadData.get(x.z) ? `<p>${roadLine(road, "No forest road within 300 m.")}</p>` : ""}
+      <div data-loam></div>
+      <div class="mp-row">${accessLinks(x).split(" · ").join("")}</div>
+      <div data-here></div>`;
+    el.querySelector(".mp-x").onclick = () => { el.hidden = true; el.innerHTML = ""; delete el.dataset.id; };
+    const live = () => !el.hidden && el.dataset.id === x.id;
+    // Where rides start (trailheads, parking, rec sites, repair stands): the Loam index there today, the same reading
+    // as the trails' (Open-Meteo soil moisture, tuned by rider reports).
+    if (["th", "p", "rec", "fix"].includes(x.k)) (async () => {
+      const key = cellOf({ center: L.latLng(x.lat, x.lon) });
+      if (staleCells([key]).length) await fetchLoamCells([key]).catch(() => {});
+      const c = loamCells.get(key), box = live() && el.querySelector("[data-loam]");
+      if (!box || !c) return;
+      if (isSnowy(c.snow)) { box.innerHTML = `<p><b>Snow on the ground here</b> <span class="mp-muted">(Open-Meteo snow depth, an estimate)</span></p>`; return; }
+      if (isFrozen(c.frost)) { box.innerHTML = `<p><b style="color:${FROZEN_COLOR}">Ground likely frozen here</b> <span class="mp-muted">(Open-Meteo soil temperature at or below 0°C, an estimate: trails differ)</span></p>`; return; }
+      if (c.lmi == null) return;
+      const lv = lmiLevel(c.lmi), ride = LMI_RIDE[LMI_LEVELS.indexOf(lv)];
+      box.innerHTML = `<p><b style="color:${ride[0]}">Loam index ${c.lmi}: ${esc(lv[1])}</b>. ${esc(lv[2])}${c.frost === 1 ? ` <span>${esc(FROST_THAW)}</span>` : ""} <span class="mp-muted">Soil moisture around here today from Open-Meteo, tuned by rider reports. An estimate: trails differ.</span></p>`;
+    })();
+    // A rec site's full record replaces the short lines from the nightly file; if the province's record can't be read
+    // (no signal, or a rec trail), the short lines come back.
+    const short = () => { if (!live()) return; const more = accessInfo(x).filter((s) => !info.includes(s)); if (more.length) el.querySelector(".mp-kind").insertAdjacentHTML("afterend", `<p>${more.map(esc).join(" · ")}</p>`); };
+    if (window.tfPointInfo) window.tfPointInfo.fill(el.querySelector("[data-here]"), x.lat, x.lon, { rec: isRec ? x.id : "", isCurrent: live })
+      .then(() => { if (isRec && live() && !el.querySelector("[data-pi-rec]").innerHTML.trim()) short(); });
+    else if (isRec) short();
+    if (window.tfSnapTo && matchMedia("(max-width: 760px)").matches) { const p = $("panel"); if (!p || p.classList.contains("sheet-peek")) window.tfSnapTo("half"); }
+    setTimeout(() => panelScrollTo(el), 320);
+  }
   function syncAccessBtn() {
     const b = $("accessBtn");
     b.setAttribute("aria-pressed", String(state.access));
@@ -7220,7 +7508,7 @@ out body;`;
     const unoffSw = FRIEND ? sw(dots, "Unofficial") : "";   // the public map never shows unofficial trails (pubHidden)
     const section = (title, items) => `<li class="lg-more"><details data-k="${title}"${keyOpen.has(title) ? " open" : ""}><summary>${title}</summary><ul>${items}</ul></details></li>`;
     let html = state.colorBy === "loam"
-      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${SNOW_COLOR}`, `❄ Snow (${SNOW_CM} cm or more)`) + sw(`background: ${UNRATED}`, "Not read yet") + unoffSw
+      ? LMI_LEVELS.map((l, k) => sw(`background: ${LMI_RIDE[k][0]}`, `${k * 20}–${Math.min(100, l[0] - 1)} ${esc(l[1])}`)).join("") + sw(`background: ${SNOW_COLOR}`, `❄ Snow (${SNOW_CM} cm or more)`) + sw(`background: ${FROZEN_COLOR}`, "Frozen ground (soil at or below 0°C)") + sw(`background: ${UNRATED}`, "Not read yet") + unoffSw
       : byDiff
       ? Object.entries(DIFF).map(([k, v]) => sw(`background: ${v.color}`, `${v.sym} ${v.label}`)).join("")
         + sw(`background: repeating-linear-gradient(90deg, ${DIFF.blue.color} 0 6px, transparent 6px 10px)`, "Dashed: estimated level") + sw(`background: ${UNRATED}`, "Not rated") + unoffSw
@@ -7430,9 +7718,16 @@ out body;`;
     return prev[n];
   }
   const typosAllowed = (len) => len < 3 ? 0 : len <= 5 ? 1 : len <= 9 ? 2 : 3;
+  // One word and its plural (or the other way round): s, es, ies/y. Not a typo, so it scores like a whole word.
+  const sameWord = (a, b) => {
+    if (a.length > b.length) [a, b] = [b, a];
+    const t = b.slice(a.length);
+    return b.startsWith(a) ? t === "s" || t === "es" : a.endsWith("y") && b === a.slice(0, -1) + "ies";
+  };
   function wordScore(q, w) {
     if (w === q) return 1;
     if (q.length >= 2 && w.startsWith(q)) return 0.95;          // still typing the word
+    if (q.length >= 3 && sameWord(q, w)) return 0.95;            // "loam" / "loams", "lords" / "lord", "wood" / "woods"
     const k = typosAllowed(q.length);
     let d = editDist(q, w, k);
     if (q.length >= 3 && w.length > q.length) {                  // typo in a half-typed word
@@ -7647,7 +7942,12 @@ out tags center qt;`;
     });
     if (!caNamesP) caNamesP = (/^https?:$/.test(location.protocol) ? fetch("ca/names.json").then((r) => (r.ok ? r.json() : null)).catch(() => null) : Promise.resolve(null))
       .then((f) => {
-        caNames = f && f.v === 1 ? f.names.map(([name, lat, lon, kind, alt]) => ({ name, lat, lon, kind, texts: [norm(name), ...(alt || "").split(";").map(norm).filter(Boolean)] })) : [];
+        // h: every piece of it is mapped informal, closed or no bikes (scripts/build-name-index.mjs). The public map never
+        // names those (pubSecret), and neither does this list (deep test 2026-11-16: an informal Squamish trail showed in
+        // the box until its area's own names loaded, then vanished). Nor a trail on alex's own unofficial list.
+        const R = window.tfRatings, secret = (name, lat, lon, h) => globalThis.tfPub && (h === 1 || !!(R && R.hand && (R.hand([[lat, lon]], { name }) || {}).unoff));
+        caNames = f && f.v === 1 ? f.names.filter(([name, lat, lon, , , h]) => !secret(name, lat, lon, h))
+          .map(([name, lat, lon, kind, alt]) => ({ name, lat, lon, kind, texts: [norm(name), ...(alt || "").split(";").map(norm).filter(Boolean)] })) : [];
         if ($("trailQ").value.trim()) refreshHits();
       });
   }
@@ -7725,7 +8025,7 @@ out tags center qt;`;
     if (namePick) clearNamePick();
     $("trailQ").value = ""; $("trailHits").hidden = true; $("trailQ").blur();
     hitSel = -1;
-    if (window.tfPlaceSearch) window.tfPlaceSearch.go({ lat: p.lat, lon: p.lon, zoom: 14, km: p.kind === "t" && p.pop > 50000 ? 10 : p.kind === "t" ? 4 : 3 }, { sheet: false });
+    if (window.tfPlaceSearch) window.tfPlaceSearch.go({ name: p.name, lat: p.lat, lon: p.lon, zoom: 14, km: p.kind === "t" && p.pop > 50000 ? 10 : p.kind === "t" ? 4 : 3 }, { sheet: false });
     else map.fitBounds(placeArea().bounds);   // closer on the place itself (alex 2026-11-03); the name box still looks in the wider box
     syncWhere();
     if (window.tfLowerSheet) window.tfLowerSheet();
@@ -7798,7 +8098,7 @@ out tags center qt;`;
       return `<li class="hit ${x.kind === "M" || x.kind === "R" ? "mtb" : ""}" ${sel}<div><div class="hn">${esc(x.name)}</div><div class="hm">${esc(meta)}</div></div></li>`;
     }
     const g = h.g;
-    const meta = [g.kind, g.zone || nearTown(g.center.lat, g.center.lng), g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
+    const meta = [g.kind, g.zone || nearTown(g.center.lat, g.center.lng), pieceTag(g), g.items.length > 1 ? g.items.length + " segments" : "", fmtDist(h.d)].filter(Boolean).join(" · ");
     return `<li class="hit ${g.mtb ? "mtb" : ""}" role="option" id="hit${n}" data-n="${n}" aria-selected="${n === hitSel}"><span class="bar"></span>
       <div><div class="hn">${esc(g.name)} ${diffRangeBadge(g.tags, g.items.filter((i) => hasMtb(i.tags)).map((i) => i.tags))} ${g.isNew ? `<span class="newtag">New</span>` : ""} ${unofficial(g.tags).length ? unoffTag(UNOFF_FLAGGED) : ""} ${g.use ? `<span class="use-tag">${USE_LABEL[g.use]}</span>` : ""}</div><div class="hm">${esc(meta)}</div></div></li>`;
   }
@@ -7844,13 +8144,19 @@ out tags center qt;`;
     const local = hits, towns = placeHits(raw).filter((h, i, l) => h.s >= 0.97 || !local.length), far = caHits(raw, local, want).slice(0, Math.max(3, 10 - local.length));
     // Mountains, lakes, parks and regions from Photon once the typing pauses (place-search.js live), when few trails
     // matched (alex 2026-11-03: "propose some location when you start writing a search, for every sport").
-    const P = window.tfPlaceSearch;
+    // When a trail matched, they go under it: Search / Enter opens the first row, and "lords of the loam" opened a
+    // cape in Nova Scotia instead of Lord of the Loams (2026-11-16).
+    const P = window.tfPlaceSearch, more = [];
     if (P && P.live && local.length + far.length < 3) {
-      const here = you.ll || map.getCenter();
+      const here = you.ll || map.getCenter(), into = local.length || far.length ? more : towns;
+      const q = norm(raw), qWords = q.split(" ");
       for (const x of P.live(raw, () => { if ($("trailQ").value.trim() === raw) refreshHits(); })) {
-        if (towns.length >= 4) break;
-        if (towns.some((h) => P.norm(h.p.name) === P.norm(x.name) && Math.abs(h.p.lat - x.lat) + Math.abs(h.p.lon - x.lon) < 0.3)) continue;
-        towns.push({ p: { name: x.name, lat: x.lat, lon: x.lon, prov: "", kind: "l", pop: 0, label: x.sub, t: P.norm(x.name) }, s: 0.5, d: here.distanceTo([x.lat, x.lon]) });
+        if (towns.length + more.length >= 4) break;
+        // Only places whose name looks like what was typed: "lords of the loam" offered a cape and an islet in Nova
+        // Scotia, 4,400 km away (deep test 2026-11-16).
+        if (matchScore(q, qWords, norm(x.name)) < 0.45) continue;
+        if (towns.concat(more).some((h) => P.norm(h.p.name) === P.norm(x.name) && Math.abs(h.p.lat - x.lat) + Math.abs(h.p.lon - x.lon) < 0.3)) continue;
+        into.push({ p: { name: x.name, lat: x.lat, lon: x.lon, prov: "", kind: "l", pop: 0, label: x.sub, t: P.norm(x.name) }, s: 0.5, d: here.distanceTo([x.lat, x.lon]) });
       }
     }
     const added = riderHits(raw);
@@ -7858,7 +8164,7 @@ out tags center qt;`;
     const zb = zsel && zsel.bounds.pad(0.02), farIn = zb ? far.filter((h) => h.inArea) : [], farOut = far.filter((h) => !farIn.includes(h));
     const noneHere = !!zsel && !(wide ? 0 : local.length) && !farIn.length && !added.some(hitInArea);
     const farNote = noneHere && !(wide && local.length);   // the wide list above already said "Nothing named … in <area>"
-    hits = towns.concat(added, local, farIn, farOut);
+    hits = towns.concat(added, local, farIn, farOut, more);
     if (hitSel >= hits.length) hitSel = hits.length - 1;
     if (!loading) logUse("search", "Trail name:" + raw, hits.length);
     let n = 0;
@@ -7867,7 +8173,8 @@ out tags center qt;`;
       + (added.length ? `<li class="hhead"><span>Added by riders</span></li>` + rowsOf(added) : "")
       + (local.length && (towns.length || wide) ? `<li class="hhead${wide ? " hnone" : ""}"><span>${wide ? `Nothing named “${esc(raw)}” in ${esc(shortZone(zsel))}. Found in other areas:` : "Trails"}</span></li>` : "") + rowsOf(local)
       + (farIn.length ? `<li class="hhead"><span>${local.length ? "More trails" : "Trails"} in ${esc(shortZone(zsel))}</span></li>` + rowsOf(farIn) : "")
-      + (farOut.length ? `<li class="hhead${farNote ? " hnone" : ""}"><span>${farNote ? `Nothing named “${esc(raw)}” in ${esc(shortZone(zsel))}${loading ? " yet" : ""}. Found elsewhere in Canada:` : local.length ? "More across Canada" : "Trails across Canada"}</span></li>` + rowsOf(farOut) : "");
+      + (farOut.length ? `<li class="hhead${farNote ? " hnone" : ""}"><span>${farNote ? `Nothing named “${esc(raw)}” in ${esc(shortZone(zsel))}${loading ? " yet" : ""}. Found elsewhere in Canada:` : local.length ? "More across Canada" : "Trails across Canada"}</span></li>` + rowsOf(farOut) : "")
+      + (more.length ? `<li class="hhead"><span>Places</span></li>` + rowsOf(more) : "");
     let note = "";
     const failed = want.filter((z) => names.failed.has(z.id));
     if (loading && wide) note = `Not in ${esc(shortZone(zsel))}. Looking in the other areas around…`;
@@ -8082,7 +8389,17 @@ out tags center qt;`;
       rateTags(tags, geom, main.id);
       const ctags = { ...allTfOf(main.id), ...tags };   // a named path the all-trails job added in a riding area
       if (window.tfOfficial) await window.tfOfficial.load(L.latLngBounds(geom));   // official trails around it (official.js)
-      const c = classify(withOfficial(ctags, geom), routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
+      const otags = withOfficial(ctags, geom);
+      // The public map (not alex or a friend): an unofficial, closed or no-bikes trail opens no card at all, whatever
+      // the way in (a tap in 2D or 3D, a share link, a search, an alert). The base map still draws its plain path
+      // (alex 2026-11-16: "they should see it on the map like that but not able to click on it").
+      if (globalThis.tfPub && unofficial(otags).length) {
+        if (token !== foundToken) return;
+        foundLayer.clearLayers(); setStatus("");
+        if (view && view.lat != null) pickNote(view, "No trail info here"); else setStatus("No trail info for this one.", true);
+        return;
+      }
+      const c = classify(otags, routes.map((r) => r.name).concat(tags.route === "mtb" ? [tags.name] : []), types);
       const bounds = segs.reduce((b, s) => b.extend(L.latLngBounds(s)), L.latLngBounds(segs[0]));
       const t = {
         id: main.id, osmType: type, tags, pieceTags, routes, searched: true, geom, loamAt, chainAll, segments: segs, segIds, bounds,
@@ -8205,7 +8522,9 @@ out tags center qt;`;
     const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e]));
     const p = map.latLngToLayerPoint(ll);
     let best = null;
-    els.filter((e) => e.type === "way" && e.tags && (TRAIL_HW.test(e.tags.highway || "") || hasMtb(e.tags))).forEach((w) => {
+    // The public map: unofficial trails can't be picked (presentTrail), so a tap next to one finds the trail beside it.
+    const pickable = (w) => !globalThis.tfPub || !pubSecret({ ...allTfOf(w.id), ...w.tags }, ll, w.id);
+    els.filter((e) => e.type === "way" && e.tags && (TRAIL_HW.test(e.tags.highway || "") || hasMtb(e.tags)) && pickable(e)).forEach((w) => {
       const line = wayLine(w, nodes);
       if (line.length < 2) return;
       const pts = line.map((q) => map.latLngToLayerPoint(q));
@@ -8577,7 +8896,7 @@ out tags center qt;`;
         nameZoneSel.value = "near"; store.set("nameZone", "near");
         msg.hidden = true;
         $("nameNear").value = "";
-        if (window.tfPlaceSearch) window.tfPlaceSearch.go({ lat: gps[0], lon: gps[1], zoom: 14 }, { sheet: false }); else map.fitBounds(placeArea().bounds);   // close in on the point
+        if (window.tfPlaceSearch) window.tfPlaceSearch.go({ name: gpsLabel(gps), lat: gps[0], lon: gps[1], zoom: 14 }, { sheet: false }); else map.fitBounds(placeArea().bounds);   // close in on the point
         hitSel = -1;
         $("trailQ").focus();
         if ($("trailQ").value.trim()) loadNames();
@@ -8598,7 +8917,7 @@ out tags center qt;`;
       nameZoneSel.value = "near"; store.set("nameZone", "near");
       msg.hidden = true;
       $("nameNear").value = "";
-      if (window.tfPlaceSearch) window.tfPlaceSearch.go({ lat: c[0], lon: c[1], bb, zoom: 13 }, { maxZoom: 14, sheet: false }); else map.fitBounds(placeArea().bounds);   // close in on the place
+      if (window.tfPlaceSearch) window.tfPlaceSearch.go({ name: nearPlace.label, lat: c[0], lon: c[1], bb, zoom: 13 }, { maxZoom: 14, sheet: false, pinAt: { name: nearPlace.label, lat: +found.lat, lon: +found.lon } }); else map.fitBounds(placeArea().bounds);   // close in on the place
       hitSel = -1;
       $("trailQ").focus();
       if ($("trailQ").value.trim()) loadNames();
@@ -8768,19 +9087,29 @@ out tags center qt;`;
     else if (b.id === "wsNear") {
       const msg = $("wsMsg"), q = $("trailQ").value.trim();
       askLocation((ll) => { closeWhere(); nameNearAt(ll); syncWhere(); wsRerun(q); }, (text) => { msg.hidden = false; msg.textContent = text; });
-    } else if (b.id === "wsMoreBtn") $("wsForm").requestSubmit ? $("wsForm").requestSubmit() : $("wsForm").dispatchEvent(new Event("submit", { cancelable: true }));
+    } else if (b.id === "wsMoreBtn") { wsWantMore = true; $("wsForm").requestSubmit ? $("wsForm").requestSubmit() : $("wsForm").dispatchEvent(new Event("submit", { cancelable: true })); }
     else if (b.dataset.ws) wsPick(wsPicks[+b.dataset.ws]);
   });
+  let wsWantMore = false;   // "Search more places" tapped: search everything even when a listed one has the name
   $("wsQ").addEventListener("input", () => { wsMore = null; wsRender(); });
   $("wsForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = $("wsQ").value.trim();
     if (!q || !window.tfPlaceSearch) return;
+    // Enter or Go with an area or town by the very name typed already in the list: go there now, as a tap on it
+    // would (alex 2026-11-18: typed "squamish", pressed Enter and still had to tap).
+    const more = wsWantMore; wsWantMore = false;
+    if (!more) {
+      const same = wsPicks.find((o) => norm(wsName(o)) === norm(q));
+      if (same) { wsPick(same); return; }
+    }
     const msg = $("wsMsg"); if (msg) { msg.hidden = false; msg.textContent = `Looking for ${q}…`; }
     try {
       const hits = await window.tfPlaceSearch.search(q);
       if ($("wsQ").value.trim() !== q) return;
       wsMore = hits.filter((h) => h.ca !== false);
+      const same = window.tfPlaceSearch.sameName(wsMore, q);
+      if (same) { wsPick({ p: { name: same.name, lat: same.lat, lon: same.lon, kind: "t", pop: 0 } }); return; }
       wsRender();
       if (!wsMore.length) { const m = $("wsMsg"); m.hidden = false; m.textContent = `No place called ${q} found in Canada. Try the nearest town.`; }
     } catch { const m = $("wsMsg"); if (m) { m.hidden = false; m.textContent = "No signal: pick an area below, or try again."; } }
@@ -8827,51 +9156,52 @@ out tags center qt;`;
 })();
 </script>
 
-<script src="map3d.js?v=4890"></script>
-<script src="native-map.js?v=4890"></script>
-<script src="contours.js?v=4890"></script>
-<script src="clouds.js?v=4890"></script>
-<script src="smoke.js?v=4890"></script>
-<script src="radar.js?v=4890"></script>
-<script src="photo-slider.js?v=4890"></script>
-<script src="ski-terrain.js?v=4890"></script>
-<script src="place-search.js?v=4890"></script>
-<script src="winter.js?v=4890"></script>
-<script src="hunts.js?v=4890"></script>
-<script src="ski-points.js?v=4890"></script>
-<script src="offline.js?v=4890"></script>
-<script src="ride-stats.js?v=4890"></script>
-<script src="native-gps.js?v=4890"></script>
-<script src="navigate.js?v=4890"></script>
-<script src="go-there.js?v=4890"></script>
-<script src="planner.js?v=4890"></script>
-<script src="loops.js?v=4890"></script>
-<script src="ride-finds.js?v=4890"></script>
-<script src="rides.js?v=4890"></script>
-<script src="community.js?v=4890"></script>
-<script src="ride-files.js?v=4890"></script>
-<script src="rider-trails.js?v=4890"></script>
-<script src="account.js?v=4890"></script>
-<script src="friends.js?v=4890"></script>
-<script src="live.js?v=4890"></script>
-<script src="strava.js?v=4890"></script>
-<script src="moderation.js?v=4890"></script>
-<script src="reports.js?v=4890"></script>
-<script src="grades.js?v=4890"></script>
-<script src="trail-photos.js?v=4890"></script>
-<script src="visitors.js?v=4890"></script>
-<script src="usage.js?v=4890"></script>
-<script src="notify.js?v=4890"></script>
-<script src="closures.js?v=4890"></script>
-<script src="status.js?v=4890"></script>
-<script src="ask.js?v=4890"></script>
-<script src="areas.js?v=4890"></script>
-<script src="alpine.js?v=4890"></script>
-<script src="bikeparks.js?v=4890"></script>
-<script src="photo-find.js?v=4890"></script>
-<script src="whats-new.js?v=4890"></script>
-<script src="tutorials.js?v=4890"></script>
-<script src="app-update.js?v=4890"></script>
+<script src="map3d.js?v=__V__"></script>
+<script src="native-map.js?v=__V__"></script>
+<script src="contours.js?v=__V__"></script>
+<script src="shade.js?v=__V__"></script>
+<script src="clouds.js?v=__V__"></script>
+<script src="smoke.js?v=__V__"></script>
+<script src="radar.js?v=__V__"></script>
+<script src="photo-slider.js?v=__V__"></script>
+<script src="ski-terrain.js?v=__V__"></script>
+<script src="place-search.js?v=__V__"></script>
+<script src="winter.js?v=__V__"></script>
+<script src="hunts.js?v=__V__"></script>
+<script src="ski-points.js?v=__V__"></script>
+<script src="offline.js?v=__V__"></script>
+<script src="ride-stats.js?v=__V__"></script>
+<script src="native-gps.js?v=__V__"></script>
+<script src="navigate.js?v=__V__"></script>
+<script src="go-there.js?v=__V__"></script>
+<script src="planner.js?v=__V__"></script>
+<script src="loops.js?v=__V__"></script>
+<script src="ride-finds.js?v=__V__"></script>
+<script src="rides.js?v=__V__"></script>
+<script src="community.js?v=__V__"></script>
+<script src="ride-files.js?v=__V__"></script>
+<script src="rider-trails.js?v=__V__"></script>
+<script src="account.js?v=__V__"></script>
+<script src="friends.js?v=__V__"></script>
+<script src="live.js?v=__V__"></script>
+<script src="strava.js?v=__V__"></script>
+<script src="moderation.js?v=__V__"></script>
+<script src="reports.js?v=__V__"></script>
+<script src="grades.js?v=__V__"></script>
+<script src="trail-photos.js?v=__V__"></script>
+<script src="visitors.js?v=__V__"></script>
+<script src="usage.js?v=__V__"></script>
+<script src="notify.js?v=__V__"></script>
+<script src="closures.js?v=__V__"></script>
+<script src="status.js?v=__V__"></script>
+<script src="ask.js?v=__V__"></script>
+<script src="areas.js?v=__V__"></script>
+<script src="alpine.js?v=__V__"></script>
+<script src="bikeparks.js?v=__V__"></script>
+<script src="photo-find.js?v=__V__"></script>
+<script src="whats-new.js?v=__V__"></script>
+<script src="tutorials.js?v=__V__"></script>
+<script src="app-update.js?v=__V__"></script>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));</script>
 </body>
 </html>

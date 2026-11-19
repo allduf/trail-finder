@@ -1,11 +1,13 @@
 // Tries scripts/pr-fix/resolve.mjs on made-up PRs in a throwaway copy of this repo: node scripts/pr-fix/test.mjs
 // Two PRs both add a changelog line, a French line (same new fr-N.txt), a rule, and bump ?v= to the same number;
-// one more PR has a real code conflict, which must be left alone.
+// one more PR has a real code conflict, which must be left alone. Since 2026-11-19 main has ?v=__V__ (set at publish)
+// and no i18n-fr.js: the test first puts the old numbers back (main as it was before), runs the old cases, then turns
+// main into the new way and checks that a PR from before gets its numbers back to __V__ and loses its i18n-fr.js.
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fixBranch, git, versionAt } from "./resolve.mjs";
+import { fixBranch, git, versionAt, sharedVersion } from "./resolve.mjs";
 
 const repo = new URL("../../", import.meta.url).pathname;
 const dir = mkdtempSync(join(tmpdir(), "pr-fix-test-"));
@@ -18,10 +20,17 @@ try {
   const g = (...a) => git(dir, a);
   const read = (f) => readFileSync(join(dir, f), "utf8");
   const write = (f, s) => writeFileSync(join(dir, f), s);
+  const site = () => g("ls-files", "*.html", "*.js").split("\n").filter((f) => f && !f.startsWith("scripts/"));
+  // main as it was before 2026-11-19: numbers in the files, i18n-fr.js in git
+  const tokenMain = g("rev-parse", "HEAD").trim();
+  for (const f of site()) { const s = read(f), t = s.replaceAll("?v=__V__", "?v=5460").replace('"tf-__V__"', '"tf-5260"'); if (t !== s) write(f, t); }
+  execFileSync("node", ["scripts/i18n/build.mjs"], { cwd: dir, stdio: "ignore" });
+  g("add", "-A"); g("add", "-f", "i18n-fr.js"); g("commit", "-q", "-m", "numbers as before");
   const v0 = versionAt(dir, "HEAD"), sw0 = +/tf-(\d+)/.exec(read("sw.js"))[1];
+  let from = v0;   // the number main has when a PR starts
   const bump = (to) => {
-    for (const f of g("ls-files", "*.html", "*.js").split("\n").filter((f) => f && !f.startsWith("scripts/"))) {
-      const s = read(f), t = s.replaceAll(`?v=${v0}`, `?v=${to}`).replace(`"tf-${sw0}"`, `"tf-${sw0 + to - v0}"`);
+    for (const f of site()) {
+      const s = read(f), t = s.replaceAll(`?v=${from}`, `?v=${to}`).replace(`"tf-${sw0 + from - v0}"`, `"tf-${sw0 + to - v0}"`);
       if (t !== s) write(f, t);
     }
   };
@@ -34,7 +43,7 @@ try {
     if (to) bump(to);
     if (extra) extra();
     execFileSync("node", ["scripts/i18n/build.mjs"], { cwd: dir, stdio: "ignore" });
-    g("add", "-A"); g("commit", "-q", "-m", name);
+    g("add", "-A"); if (g("ls-files", "i18n-fr.js").trim()) g("add", "-f", "i18n-fr.js"); g("commit", "-q", "-m", name);
   };
   // first PR: goes into main
   change("pr-a", "Change A", "Changement A", "Alpha", v0 + 10, () => write("map3d.js", read("map3d.js").replace(/\n/, "\n// change A\n")));
@@ -81,6 +90,48 @@ try {
 
   g("checkout", "-q", "pr-d");
   ok(fixBranch(dir, "main", []).status === "skip", "data-only PR that merges cleanly is skipped");
+
+  // ---- main moves to ?v=__V__ and drops i18n-fr.js (2026-11-19) ----
+  g("checkout", "-q", "main");
+  const vMainNow = versionAt(dir, "main");
+  from = vMainNow;
+  change("pr-g", "Change G", "Changement G", "Golf", vMainNow + 10, () => write("webcams.js", "// change G\n" + read("webcams.js")));
+  g("checkout", "-q", "-b", "pr-h", "main"); write("lifts.js", "// change H\n" + read("lifts.js")); g("add", "-A"); g("commit", "-q", "-m", "pr-h");
+  g("checkout", "-q", "main");
+  g("checkout", tokenMain, "--", ...site().filter((f) => f !== "i18n-fr.js"), ".gitignore", "data/changelog.json", "scripts/i18n/build.mjs");
+  g("rm", "-q", "--cached", "i18n-fr.js"); g("add", "-A"); g("commit", "-q", "-m", "numbers set at publish");
+  ok(!g("ls-files", "i18n-fr.js").trim() && read("index.html").includes("?v=__V__"), "main now has __V__ and no i18n-fr.js");
+
+  g("checkout", "-q", "pr-g");
+  const rg = fixBranch(dir, "main", []);
+  const idx = read("index.html");
+  ok(rg.status === "fixed", `PR from before with numbers fixed (${rg.message})`);
+  ok(sharedVersion(idx) === null && idx.includes("?v=__V__") && read("sw.js").includes('"tf-__V__"') && !/\?v=\d/.test(read("ride.html")), "its numbers are __V__ again");
+  ok(!g("ls-files", "i18n-fr.js").trim(), "its i18n-fr.js left git");
+  ok(read("webcams.js").startsWith("// change G") && /Change G \|\|\| Changement G/.test(read("scripts/i18n/fr-99.txt")) && read("data/changelog.json").includes("Change G"), "its code, French and What's new line are kept");
+  let stampOk = true; try { execFileSync("node", ["scripts/stamp.mjs", "--check"], { cwd: dir, stdio: "ignore" }); } catch { stampOk = false; }
+  ok(stampOk, "stamp.mjs --check passes on it");
+  markers = ""; try { markers = g("grep", "-l", "-e", "^<<<<<<< ", "-e", "^>>>>>>> "); } catch { /* none found */ }
+  ok(markers === "", "no conflict markers");
+
+  g("checkout", "-q", "pr-h");
+  const rh = fixBranch(dir, "main", []);
+  ok(rh.status === "fixed" && read("lifts.js").startsWith("// change H") && read("index.html").includes("?v=__V__") && !g("ls-files", "i18n-fr.js").trim(),
+    `PR from before that never bumped gets main's __V__ (${rh.message})`);
+
+  // two new-style PRs (own What's new file, own French file, no numbers) merge without the bot
+  g("checkout", "-q", "-b", "pr-i", "main"); write("data/changelog.d/i.json", '{"date": "2026-11-19", "text": "I"}\n'); write("scripts/i18n/fr-change-i.txt", "I ||| I fr\n"); write("ask.js", "// I\n" + read("ask.js")); g("add", "-A"); g("commit", "-q", "-m", "pr-i");
+  g("checkout", "-q", "-b", "pr-j", "main"); write("data/changelog.d/j.json", '{"date": "2026-11-19", "text": "J"}\n'); write("scripts/i18n/fr-change-j.txt", "J ||| J fr\n"); write("hike.js", "// J\n" + read("hike.js")); g("add", "-A"); g("commit", "-q", "-m", "pr-j");
+  g("checkout", "-q", "main"); g("merge", "-q", "--no-ff", "pr-i", "-m", "merge I");
+  g("checkout", "-q", "pr-j");
+  ok(fixBranch(dir, "main", []).status === "skip", "new-style PRs never clash: nothing for the bot to fix");
+  g("checkout", "-q", "main"); g("merge", "-q", "--no-ff", "pr-j", "-m", "merge J");
+  execFileSync("node", ["scripts/stamp.mjs"], { cwd: dir, stdio: "ignore" });
+  const items = JSON.parse(read("data/changelog.json")).items.slice(0, 2).map((i) => i.text).join(" / ");
+  const n = 10000 + +g("rev-list", "--count", "--first-parent", "HEAD").trim();
+  ok(read("index.html").includes(`?v=${n}"`) && read("sw.js").includes(`"tf-${n}"`) && !read("index.html").includes("__V__"), `publish sets one number: ?v=${n}`);
+  ok(items === "J / I", `What's new has both, latest merge on top: ${items}`);
+  ok(read("i18n-fr.js").includes("J fr") && read("i18n-fr.js").includes("I fr"), "French made with both files");
 } catch (e) {
   console.error(e); fails++;
 } finally {

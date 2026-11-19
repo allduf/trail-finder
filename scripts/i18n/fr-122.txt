@@ -1,0 +1,2 @@
+# 3D keeps the dirt roads when tilted (moto.js far dirt roads, one MapLibre copy), 2026-11-17
+Adventure moto (ADV): the Dirt roads for my bike layer stays on when the 3D map is tilted or zoomed out, on every map style, and ADV topo's dirt roads and elevation lines now show in 3D too. ||| Moto d'aventure (ADV) : la couche Chemins de terre pour ma moto reste affichée quand la carte 3D est inclinée ou dézoomée, sur tous les styles de carte, et les chemins de terre et courbes de niveau de la carte ADV topo s’affichent aussi en 3D.
