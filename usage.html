@@ -578,7 +578,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     $("friendAdd").addEventListener("submit", (e) => { e.preventDefault(); set($("friendEmail").value.trim(), true, e.submitter || e.target.querySelector("button")); });
   }
   // Join the test sign-ups (join.html → supabase/testers.sql). alex adds each person by hand: no public test link.
-  const SPORTS = { mtb: "MTB", ski: "Skiing", hike: "Hiking", fish: "Fishing", hunt: "Hunting", moto: "Moto" };
+  const JSPORT = { mtb: "MTB", ski: "Skiing", hike: "Hiking", fish: "Fishing", hunt: "Hunting", moto: "Moto" };
   const PHONE = { iphone: "iPhone", android: "Android", both: "iPhone + Android" };
   let joinShow = "new";
   try { joinShow = localStorage.getItem("tf:usageJoinShow") || "new"; } catch {}
@@ -605,7 +605,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       ${fresh.some(isA) ? `<button class="btn" type="button" id="copyAnd">Copy new Android emails</button>` : ""}${fresh.some(isI) ? `<button class="btn" type="button" id="copyIos">Copy new iPhone emails</button>` : ""}</div>
       <p class="muted" style="margin:10px 0 0">${data.length} asked · ${fresh.length} new · added so far: ${added.filter(isA).length} Android, ${added.filter(isI).length} iPhone</p>
       ${list.length ? list.map((j, i) => `<div class="jrow"><span class="em">${esc(j.email)}</span> <span class="tag">${esc(PHONE[j.phone] || j.phone)}</span>${j.status === "added" ? ` <span class="tag good">Added</span>` : j.status === "no" ? ` <span class="tag">Not now</span>` : ""}
-        <div class="muted">${esc((j.sports || []).map((s) => SPORTS[s] || s).join(", ") || "no sport picked")}${j.area ? ` · ${esc(j.area)}` : ""} · ${j.lang === "fr" ? "French · " : ""}${esc(new Date(j.created_at).toLocaleDateString())}</div>
+        <div class="muted">${esc((j.sports || []).map((s) => JSPORT[s] || s).join(", ") || "no sport picked")}${j.area ? ` · ${esc(j.area)}` : ""} · ${j.lang === "fr" ? "French · " : ""}${esc(new Date(j.created_at).toLocaleDateString())}</div>
         <div class="acts">${j.status !== "added" ? `<button class="btn go" type="button" data-join="${i}" data-st="added">Added</button>` : `<button class="btn" type="button" data-join="${i}" data-st="new">Not added yet</button>`}${j.status === "new" ? `<button class="btn" type="button" data-join="${i}" data-st="no">Not now</button>` : ""}<button class="btn" type="button" data-join="${i}" data-st="delete">Delete</button></div></div>`).join("")
       : `<p class="muted">Nobody here yet.</p>`}`;
     box.querySelectorAll("[data-jshow]").forEach((b) => b.addEventListener("click", () => { joinShow = b.dataset.jshow; try { localStorage.setItem("tf:usageJoinShow", joinShow); } catch {} loadJoins(); }));
