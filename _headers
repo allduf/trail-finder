@@ -1,0 +1,8 @@
+# Cloudflare Pages response headers (pages.yml publishes this file with the site).
+# iPhone reads this file to know which trailfinderapp.ca links open in the Trail Finder app: it must be JSON.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
