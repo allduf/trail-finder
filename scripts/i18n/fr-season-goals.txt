@@ -1,0 +1,40 @@
+Season goals and a season recap in Saved, for every sport: for example trails new to you in mountain biking, days out in skiing, catches in fishing. Share the recap as a picture with numbers only (hunting recaps stay private). ||| Objectifs de saison et bilan de saison dans Enregistrés, pour chaque sport : par exemple les sentiers nouveaux pour vous en vélo de montagne, les jours de sortie en ski, les prises à la pêche. Partagez le bilan en image, avec des chiffres seulement (les bilans de chasse restent privés).
+Season goals ||| Objectifs de saison
+Goals for this season, and a recap ||| Les objectifs de cette saison, et un bilan
+Mountain bike season ||| Saison de vélo de montagne
+Ski season ||| Saison de ski
+Hiking season ||| Saison de randonnée
+Fishing season ||| Saison de pêche
+Hunting season ||| Saison de chasse
+Adventure moto season ||| Saison de moto d'aventure
+Trails new to you ||| Sentiers nouveaux pour vous
+Metres climbed ||| Mètres de montée
+Tours recorded ||| Sorties enregistrées
+Kilometres hiked ||| Kilomètres marchés
+Hunts tracked ||| Chasses suivies
+Kilometres walked ||| Kilomètres marchés
+0 turns it off ||| 0 le désactive
+Goal reached ||| Objectif atteint
+Goals are for this season. Here is what you did last season. ||| Les objectifs sont pour cette saison. Voici ce que vous avez fait la saison dernière.
+Change goals ||| Changer les objectifs
+Season recap ||| Bilan de la saison
+Busiest month ||| Mois le plus actif
+A trail counts as new to you the first time one of your saved rides covers it, or you mark it Ridden. ||| Un sentier compte comme nouveau pour vous la première fois qu'une de vos sorties enregistrées le parcourt, ou que vous le marquez Roulé.
+From the catches you saved in the fishing log, by the date of each catch. ||| D'après les prises enregistrées dans votre journal de pêche, selon la date de chaque prise.
+From the ski tours you recorded or imported. Goals count days only. ||| D'après les sorties de ski enregistrées ou importées. Les objectifs comptent les jours seulement.
+From the hunts you tracked, kept on this device and on your account when signed in. ||| D'après les chasses que vous avez suivies, gardées sur cet appareil et dans votre compte si vous êtes connecté.
+From the hikes you recorded or imported. ||| D'après les randonnées enregistrées ou importées.
+From the rides you recorded or imported. ||| D'après les sorties enregistrées ou importées.
+Hunting recaps stay private: there is no Share button. ||| Les bilans de chasse restent privés : il n'y a pas de bouton Partager.
+The picture shows numbers only: no map, trail names or places. ||| L'image montre seulement des chiffres : pas de carte, de noms de sentiers ni de lieux.
+Share recap ||| Partager le bilan
+Species caught ||| Espèces pêchées
+Rides ||| Sorties
+Catches ||| Prises
+Goal ||| Objectif
+Days out ||| Jours de sortie
+Kilometres ||| Kilomètres
+Season ||| Saison
+Goals ||| Objectifs
+This season ||| Cette saison
+Last season ||| La saison dernière
