@@ -1,0 +1,1 @@
+Hiking Today: hikes with snow show too, each with a trail condition estimate (snow, ice, mud, damp or firm) from weather models. ||| Randonnée aujourd'hui : les randonnées enneigées s'affichent aussi, chacune avec une estimation de l'état du sentier (neige, glace, boue, humide ou ferme) d'après les modèles météo.
