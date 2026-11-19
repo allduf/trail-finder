@@ -414,6 +414,7 @@
     { ids: [1105675082], c: [50.309, -122.942], r: 2000, who: "alex", named: "Hidden Peak Trail",
       note: "the unnamed AlpX black descent, Pemberton (its old_name is Hidden Peak Trail), which joins the Hidden Peak Trail climb" },
     { nh: "11sddb2", c: [50.322, -122.83], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail" },
+    { nh: "1upaj0r", c: [50.176, -122.915], r: 1500, who: "alex", unoff: "alex, who rides it, says it's an unofficial trail" },
     // One OpenStreetMap mapper (tresspasserlover69, 2026-10-07 to 14) maps new unsanctioned lines as bike paths (highway=cycleway,
     // bicycle=designated), which reads as official, and removed informal=yes from older ones. Their edits: "added sick new line",
     // "added death line", "fun freeride line built for trolldom".
