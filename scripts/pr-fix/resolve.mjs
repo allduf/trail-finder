@@ -6,6 +6,9 @@
 //   i18n-fr.js              made again from scripts/i18n/ (node scripts/i18n/build.mjs), never merged by hand
 //   ?v=N and sw.js tf-N     a spot where the two sides differ ONLY in these numbers takes main's text, then the whole
 //                           site gets one new number above main and every open PR
+// Since 2026-11-19 main has no numbers at all: ?v=__V__ and tf-__V__, set when the site is published
+// (scripts/stamp.mjs), and i18n-fr.js isn't kept in git. A PR from before that still carries numbers: they become
+// __V__ again, and its i18n-fr.js is dropped.
 // Anything else that conflicts (real code) is NOT touched: the merge is aborted and the caller comments on the PR.
 // Used by scripts/pr-fix/run.mjs (the "Fix PR conflicts" workflow); tested by scripts/pr-fix/test.mjs.
 import { execFileSync } from "node:child_process";
@@ -29,6 +32,7 @@ export function sharedVersion(indexHtml) {
   return best && best[1] >= 5 ? +best[0] : null;
 }
 export function versionAt(dir, rev) { return sharedVersion(show(dir, `${rev}:index.html`)); }
+export function tokenAt(dir, rev) { const s = show(dir, `${rev}:index.html`); return !!s && s.includes("?v=__V__"); }
 function swAt(dir, rev) { const s = show(dir, `${rev}:sw.js`); const m = s && /const VERSION = "tf-(\d+)"/.exec(s); return m ? +m[1] : null; }
 
 // ---- line merges ----
@@ -94,13 +98,18 @@ function rebuild(parts, pick) {
   return L.join("\n");
 }
 
-const vnorm = (a) => a.join("\n").replace(/\?v=\d+/g, "?v=#").replace(/\btf-\d+\b/g, "tf-#");
-const versionOnly = (h) => (vnorm(h.ours) === vnorm(h.theirs) ? h.theirs : null);
+const vnorm = (a) => a.join("\n").replace(/\?v=(\d+|__V__)/g, "?v=#").replace(/\btf-(\d+\b|__V__)/g, "tf-#");
+// A spot is fine when, leaving the version numbers aside, both sides agree, or only one side changed it.
+const versionOnly = (h) => {
+  const o = vnorm(h.ours), t = vnorm(h.theirs), b = vnorm(h.base);
+  return o === t || o === b ? h.theirs : t === b ? h.ours : null;
+};
 const bothAdded = (h) => (h.base.every((l) => !l.trim()) ? [...h.ours, ...h.theirs.filter((l) => !h.ours.includes(l))] : null);
 
 // Fix one file in conflict; returns the new text, or null when it is a real conflict.
-function resolveFile(dir, path) {
+function resolveFile(dir, path, frTracked = true) {
   const base = show(dir, `:1:${path}`), ours = show(dir, `:2:${path}`), theirs = show(dir, `:3:${path}`);
+  if (path === "i18n-fr.js" && !frTracked) return "DROP";   // main makes it at publish now
   if (path === "i18n-fr.js") return ours !== null && theirs !== null ? "REBUILD" : null;
   if (ours === null || theirs === null) return null;   // deleted on one side
   if (path === "data/changelog.json") return mergeChangelog(base, ours, theirs);
@@ -135,22 +144,25 @@ export function fixBranch(dir, main, others = []) {
   const mb = mergeBase.out.trim();
   const vMain = versionAt(dir, main), vHead = versionAt(dir, "HEAD"), vBase = versionAt(dir, mb);
   const swMain = swAt(dir, main), swHead = swAt(dir, "HEAD"), swBase = swAt(dir, mb);
+  const token = tokenAt(dir, main), frTracked = show(dir, `${main}:i18n-fr.js`) !== null;
   const prBumped = vHead !== null && vHead !== vBase;
   const upToDate = tryGit(dir, ["merge-base", "--is-ancestor", main, "HEAD"]).ok;
   const versionLow = prBumped && vMain !== null && vHead <= vMain;
-  if (upToDate && !versionLow) return { status: "skip", files: [], message: "up to date" };
+  const prNumbers = token && vHead !== null;   // main has __V__, this PR still has numbers
+  if (upToDate && !versionLow && !prNumbers) return { status: "skip", files: [], message: "up to date" };
 
   const merged = tryGit(dir, ["merge", "--no-ff", "--no-commit", main]);
   const unmerged = git(dir, ["diff", "--name-only", "--diff-filter=U"]).split("\n").filter(Boolean);
-  if (merged.ok && unmerged.length === 0 && !versionLow) {
+  if (merged.ok && unmerged.length === 0 && !versionLow && !prNumbers && (frTracked || !existsSync(join(dir, "i18n-fr.js")))) {
     git(dir, ["merge", "--abort"], { quiet: true });   // GitHub can merge this one by itself
     return { status: "skip", files: [], message: "merges cleanly" };
   }
   const bad = [];
   let rebuildFr = false;
   for (const f of unmerged) {
-    const r = resolveFile(dir, f);
+    const r = resolveFile(dir, f, frTracked);
     if (r === null) { bad.push(f); continue; }
+    if (r === "DROP") continue;
     if (r === "REBUILD") { rebuildFr = true; continue; }
     writeFileSync(join(dir, f), r);
   }
@@ -163,7 +175,15 @@ export function fixBranch(dir, main, others = []) {
 
   // one shared number for the whole site
   let version = null;
-  if (prBumped || unmerged.some((f) => f !== "i18n-fr.js" && !/^data\/|^scripts\/i18n\//.test(f))) {
+  if (token) {
+    // numbers the PR brought (its own and the one it started from) go back to __V__
+    const nums = [...new Set([vHead, vBase].filter((n) => n !== null))], sws = [...new Set([swHead, swBase].filter((n) => n !== null))];
+    if (nums.length || sws.length) {
+      const changed = setVersion(dir, nums.length ? nums : [-1], "__V__", sws.length ? sws : [-1], "__V__");
+      if (changed.length) git(dir, ["add", "--", ...changed]);
+      version = "__V__";
+    }
+  } else if (prBumped || unmerged.some((f) => f !== "i18n-fr.js" && !/^data\/|^scripts\/i18n\//.test(f))) {
     if (prBumped) {
       const top = Math.max(vMain ?? 0, ...others.filter((n) => Number.isFinite(n)));
       version = vHead > top ? vHead : top + 10;
@@ -177,7 +197,9 @@ export function fixBranch(dir, main, others = []) {
     }
   }
   // French: always made again from the word lists, so it can never be half of each side
-  if (existsSync(join(dir, "scripts/i18n/build.mjs"))) {
+  if (!frTracked) {
+    tryGit(dir, ["rm", "-q", "-f", "--cached", "--ignore-unmatch", "--", "i18n-fr.js"]);
+  } else if (existsSync(join(dir, "scripts/i18n/build.mjs"))) {
     execFileSync("node", ["scripts/i18n/build.mjs"], { cwd: dir, stdio: "ignore" });
     execFileSync("node", ["--check", "i18n-fr.js"], { cwd: dir, stdio: "ignore" });
     git(dir, ["add", "--", "i18n-fr.js"]);

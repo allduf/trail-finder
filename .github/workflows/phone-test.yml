@@ -32,6 +32,8 @@ jobs:
           node-version: 20
       - name: Wording check (nothing that promises safety or conditions)
         run: node scripts/wording-check.mjs
+      - name: Version number, What's new and French as the website gets them (scripts/stamp.mjs)
+        run: node scripts/stamp.mjs --test
       - name: Install the test browser
         # The runner's Ubuntu mirror (azure.archive.ubuntu.com) stopped sending files on 2026-11-11 and the install
         # hung until the 25 min limit, twice. The browser's system files come from the main Ubuntu mirror instead, and
