@@ -2018,7 +2018,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     saved = [entry, ...saved.filter((x) => x.name !== entry.name)].slice(0, 40);
     try { store.set("motoRoutes", saved); } catch {}
     route.name = entry.name;
-    hint(`Saved "${entry.name}". Find it under Saved routes.`);
+    hint(`Saved "${entry.name}". Find it under Saved routes.`); window.tfHappy && window.tfHappy("moto route");
     renderRoute();
   }
   function openSaved() {

@@ -108,3 +108,6 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   `bash scripts/site-data.sh get` puts them into `data/`.
 - Phone test: `node scripts/phone-test.mjs`. Wording check: `node scripts/wording-check.mjs`.
   French build: `node scripts/i18n/build.mjs`.
+- Claude Code setup in `.claude/` (see `.claude/README.md`): commands `/ship`, `/add-trail-info`, `/status`,
+  `/check-lag`, `/screens`; rule skills; read-only helper agents; a hook that runs the wording and version checks
+  after every edit of an app `.js` or `.html` file. Keep the skills in step with this file.

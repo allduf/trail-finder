@@ -14,6 +14,9 @@ project(':capacitor-device').projectDir = new File('../node_modules/@capacitor/d
 include ':capacitor-haptics'
 project(':capacitor-haptics').projectDir = new File('../node_modules/@capacitor/haptics/android')
 
+include ':capacitor-local-notifications'
+project(':capacitor-local-notifications').projectDir = new File('../node_modules/@capacitor/local-notifications/android')
+
 include ':capacitor-share'
 project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/share/android')
 
@@ -22,3 +25,6 @@ project(':capacitor-splash-screen').projectDir = new File('../node_modules/@capa
 
 include ':trail-gps'
 project(':trail-gps').projectDir = new File('../plugins/TrailGps/android')
+
+include ':trail-review'
+project(':trail-review').projectDir = new File('../plugins/TrailReview/android')

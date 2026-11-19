@@ -3198,7 +3198,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     setTour(t.id);
     renderPlan(); renderTours();
     if (quiet && old) return;   // an edit of a kept tour: no toast each time
-    window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
+    window.tfHappy && window.tfHappy("ski tour"); window.tfToast && window.tfToast(window.tfAccount && window.tfAccount.user ? "Tour saved: it's in Saved, on all your devices." : "Tour saved: it's in Saved.");
   }
   // A tour is kept as soon as it's made (✓ Done, Ask's Make this tour: force), then follows its edits (a point moved,
   // deleted or swapped on the card, Less exposed way on or off, Undo) without a Save tap. Its length and climb are
@@ -5556,6 +5556,22 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const h = (ski?.huts || []).find((x) => Math.abs(x.lat - lat) < 1e-5 && Math.abs(x.lon - lon) < 1e-5);
       if (h) select(h, true); else map.setView([lat, lon], 14);
     },
+    // The Today card (today.js): Avalanche Canada's ratings for today at a point, each band exactly as given, or
+    // { none } with the reason. Never the simulated example, never an old bulletin, never a day other than today.
+    avyToday: async (lat, lon) => {
+      if (example) return { none: "example" };
+      if (!avy) { try { await loadAvy(); } catch {} }
+      if (!avy || example) return { none: "load" };
+      const a = areaAt(lat, lon), f = a && a.forecast;
+      if (!a) return { none: "area" };
+      if (!f || !f.days || !f.days.length || f.early) return { none: f && f.early ? "early" : "forecast", area: a.name };
+      if (f.validUntil && new Date(f.validUntil) < new Date()) return { none: "old", area: a.name };
+      const d = f.days[0];
+      if (!d.date || d.date !== localDay()) return { none: "forecast", area: a.name };
+      const band = (b) => ({ r: d[b] || 0, label: DANGER[d[b] || 0].label, color: DANGER[d[b] || 0].color });
+      return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(),
+        bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
+    },
     // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
     dangerAt: (lat, lon, lo, hi) => { if (!avy && !example) loadAvy(); return dangerAt(lat, lon, lo, hi); },
     // freeride.js: every route loaded so far (home region and the Canada squares), loading the squares in bounds;
@@ -5699,7 +5715,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   setTimeout(() => {
     try {
       const today = new Date().toLocaleDateString("en-CA"), day = (d, n) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() + n); return x.toLocaleDateString("en-CA"); };
-      const soon = (k) => (JSON.parse(localStorage.getItem("tf:" + k)) || []).some((t) => t && (t.hut || t.camps || (t.lines || []).length) && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
+      // ...and a trip plan sent and not marked back (I'm back, trip-core.js), from 3 days before its return time to 3 days
+      // after, so the I'm back reminder shows whatever sport is open.
+      const back = (t) => { const pl = t.plan, o = pl && pl.sent && !pl.safe && pl.out ? new Date(pl.out).getTime() - Date.now() : NaN; return o > -3 * 864e5 && o < 3 * 864e5; };
+      const soon = (k) => (JSON.parse(localStorage.getItem("tf:" + k)) || []).some((t) => t && ((t.hut || t.camps || (t.lines || []).length) && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0) || back(t)));
       if (soon("skiTrips")) loadSport("ski").catch(() => {});
       if (soon("hikeTrips")) loadSport("hike").catch(() => {});   // a hike trip (hike-trip.js) the same way
       if (soon("fishingTrips")) loadSport("fish").catch(() => {});   // and a fishing trip (fishing-trip.js)
