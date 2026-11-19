@@ -1,6 +1,7 @@
 {
   "about": "What's new, shown once when the app opens (whats-new.js). Hand-edited: add one short plain line at the TOP of items for each change people will notice, with today's date. Newest first.",
   "items": [
+    {"date": "2026-11-19", "text": "MTB loam: trails where the soil surface is at or below 0°C now show \"Frozen\" (a soil temperature estimate) instead of prime loam, and no loam alert is sent for them. A trail that froze overnight says so."},
     {"date": "2026-11-19", "text": "Skiing: new freeride line, the Wedge NW Couloir above Wedgemount Lake, drawn from a climber's GPS track with skiers' trip reports on its card. Turn on Freeride lines in Layers, Resorts to see it."},
     {"date": "2026-11-19", "text": "Skiing: in-resort traverses and boot-packs (like Spanky's Ladder and Ruby Bowl Traverse at Whistler Blackcomb) now show under Resorts, not as snowshoe trails under Nordic."},
     {"date": "2026-11-18", "text": "Skiing: Webcams now start on for signed-in people too, so the live cameras show on the map. Turn them off in Layers, Snow and weather."},
