@@ -12,7 +12,7 @@
   "use strict";
   const T = window.tfToday, map = window.tfLeaflet;
   if (!T || !map || !window.L || !window.tfZoneTrails) return;
-  const NEAR_KM = 40, AREA_KM = 10, FIRE_KM = 25, NEW_DAYS = 183, REPORT_DAYS = 7, GO_MAX = 5;
+  const NEAR_KM = 40, AUTO_KM = 12, AREA_KM = 10, FIRE_KM = 25, NEW_DAYS = 183, REPORT_DAYS = 7, GO_MAX = 5;
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kmTo = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos(a[0] * Math.PI / 180), (a[0] - b[0]) * 110.57);
   const isPrime = (v) => v != null && v >= 40 && v < 60;
@@ -66,7 +66,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
   const anchor = $("wantList");
   if (anchor) anchor.before(btn);
   btn.addEventListener("click", () => open());
-  window.tfTodayOpen = () => open();
+  window.tfTodayOpen = (o) => open(o);
 
   let areasP = null;
   const ridingAreas = () => areasP || (areasP = fetch("data/riding-areas.json").then((r) => r.json()).then((f) => (f.areas || []).filter((a) => Array.isArray(a.c))).catch(() => { areasP = null; return []; }));
@@ -87,8 +87,12 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
   // The nearest point of a zone's box, to pick the zones within reach.
   const zoneKm = (z, c) => { const b = z.bounds; return kmTo(c, [Math.max(b.getSouth(), Math.min(b.getNorth(), c[0])), Math.max(b.getWest(), Math.min(b.getEast(), c[1]))]); };
 
-  let token = 0;
-  async function open() {
+  let token = 0, lastKm = NEAR_KM;
+  // auto: the once-a-day open when the app starts (today.js): only the trails within AUTO_KM, so a daily open on a weak
+  // signal doesn't pull the neighbouring towns' trail files (Squamish and Pemberton from Whistler, ~2.5 MB). Tapping
+  // Where to ride today later still looks within NEAR_KM.
+  async function open(opts) {
+    const km = lastKm = opts && opts.auto ? AUTO_KM : NEAR_KM;
     if (!dlg.open) { try { dlg.showModal(); } catch { dlg.setAttribute("open", ""); } }
     const my = ++token;
     $("tdFrom").textContent = "Finding where you are…";
@@ -97,18 +101,18 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const from = await whereFrom();
     if (my !== token) return;
     // Home zones, and anywhere else in Canada the map chunks around you (Bromont, Mont-Sainte-Anne...).
-    const zs = T.zonesNear ? await T.zonesNear(from.c, NEAR_KM) : T.zones.filter((z) => zoneKm(z, from.c) <= NEAR_KM);
+    const zs = T.zonesNear ? await T.zonesNear(from.c, km) : T.zones.filter((z) => zoneKm(z, from.c) <= km);
     if (my !== token) return;
-    $("tdFrom").textContent = `${from.you ? "From where you are" : "From the middle of the map (location not shared)"}, within ${NEAR_KM} km.`;
+    $("tdFrom").textContent = `${from.you ? "From where you are" : "From the middle of the map (location not shared)"}, within ${km} km.`;
     if (!zs.length) {
-      $("tdGo").innerHTML = `<li class="td-wait">No trails within ${NEAR_KM} km. Move the map to a riding town and try again.</li>`;
+      $("tdGo").innerHTML = `<li class="td-wait">No trails within ${km} km. Move the map to a riding town and try again.</li>`;
       $("tdAreas").innerHTML = "";
       return;
     }
     const [lists, areasAll, born] = await Promise.all([Promise.all(zs.map((z) => window.tfZoneTrails(z.id).catch(() => []))), ridingAreas(), T.firstMappedIn(zs).catch(() => null)]);
     if (my !== token) return;
-    const trails = lists.flat().filter((t) => t.c && kmTo(t.c, from.c) <= NEAR_KM).map((t) => ({ ...t, km: kmTo(t.c, from.c) }));
-    const areas = areasAll.filter((a) => zs.some((z) => z.id === a.zone) && kmTo(a.c, from.c) <= NEAR_KM + AREA_KM)
+    const trails = lists.flat().filter((t) => t.c && kmTo(t.c, from.c) <= km).map((t) => ({ ...t, km: kmTo(t.c, from.c) }));
+    const areas = areasAll.filter((a) => zs.some((z) => z.id === a.zone) && kmTo(a.c, from.c) <= km + AREA_KM)
       .map((a) => ({ ...a, km: kmTo(a.c, from.c), trails: [] })).sort((a, b) => a.km - b.km);
     trails.forEach((t) => {
       let best = null, d = AREA_KM;
@@ -141,7 +145,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const el = $("tdGo");
     if (!pick.length) {
       const read = trails.some((t) => t.v != null);
-      el.innerHTML = `<li class="td-wait">${read ? `No trail you haven't ridden within ${NEAR_KM} km is in prime loam now or in the next 3 days.` : "Couldn't read the loam right now. Try again in a few minutes."}</li>`;
+      el.innerHTML = `<li class="td-wait">${read ? `No trail you haven't ridden within ${lastKm} km is in prime loam now or in the next 3 days.` : "Couldn't read the loam right now. Try again in a few minutes."}</li>`;
       return;
     }
     el.innerHTML = pick.map((t, i) => `<li><button type="button" data-i="${i}"><b>${esc(t.name)}${t.isNew ? `<span class="td-new">New</span>` : ""}</b>
@@ -155,7 +159,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
 
   function renderAreas(areas) {
     const shown = areas.filter((a) => a.trails.length);
-    $("tdAreas").innerHTML = !shown.length ? `<li class="td-wait">No riding areas within ${NEAR_KM} km.</li>` : shown.map((a, i) => {
+    $("tdAreas").innerHTML = !shown.length ? `<li class="td-wait">No riding areas within ${lastKm} km.</li>` : shown.map((a, i) => {
       const read = a.trails.filter((t) => t.v != null), prime = read.filter((t) => t.prime), snowed = a.trails.filter((t) => t.snow), frozen = a.trails.filter((t) => t.frozen);
       const vs = read.map((t) => t.v).sort((x, y) => x - y), mid = vs.length ? vs[Math.floor(vs.length / 2)] : null;
       const soonDay = !prime.length && a.trails.map((t) => t.soon).filter(Boolean).sort((x, y) => x.d.localeCompare(y.d))[0];
