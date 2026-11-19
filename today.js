@@ -144,7 +144,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
   const cm = (v) => (v == null ? "–" : v < 0.5 ? "0 cm" : `${Math.round(v)} cm`);
   const mm = (v) => (v == null ? "–" : v < 0.5 ? "0 mm" : `${Math.round(v)} mm`);
   const deg = (v) => (v == null ? "–" : `${Math.round(v)}°C`);
-  const kv = (k, v) => `<div class="tdy-kv"><span>${esc(k)}</span><b>${esc(v)}</b></div>`;
+  const kv = (k, v) => `<div class="tdy-kv"><span>${esc(k)}</span><b>${[].concat(v).map((x) => `<span>${esc(x)}</span>`).join("")}</b></div>`;   // v: text, or pieces that translate on their own
   const windWord = (s) => (s.wind == null ? "" : s.wind < 5 ? "Wind light" : `Wind from ${compass(s.dir)}, up to ${Math.round(s.wind)} km/h${s.gust >= 40 ? `, gusts ${Math.round(s.gust)}` : ""}`);
   const row = (i, name, why, d, extra = "") => `<li><button type="button" data-go="${i}"><span class="tdy-top"><b>${esc(name)}</b>${d != null ? `<em>${esc(fmtKm(d))}</em>` : ""}</span>${[].concat(why || []).filter(Boolean).map((w) => `<small>${esc(w)}</small>`).join("")}${extra}</button></li>`;
   const go = (f) => { acts.push(f); return acts.length - 1; };
@@ -185,7 +185,14 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
       near, saved, fish: false,
       here: (s) => `${s ? kv("New snow, last 24 h", cm(s.snowPast)) + kv("Snow forecast, next 24 h", cm(s.snowNext)) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) : ""}${avyLine(avys[0])}`,
       why: (x, s, k) => snow(s),
-      extra: (x, s, k) => avyLine(avys[k]),
+      // A place with the same "no rating" reason as where you are: said once, at the top.
+      // Or in the same forecast area as where you are: one short line, the ratings are the ones at the top.
+      extra: (x, s, k) => {
+        const a = avys[k], h = avys[0];
+        if (a && h && a.none && a.none === h.none) return "";
+        if (a && h && a.bands && h.bands && a.area === h.area && a.url === h.url) return `<small>Avalanche ratings: the same Avalanche Canada forecast area as at the top.</small>`;
+        return avyLine(a);
+      },
       note: "New snow: a weather model's estimate at the area or the tour's start, not a snow report. Avalanche ratings: Avalanche Canada, exactly as given for today, by elevation band.",
     };
   }
@@ -203,11 +210,12 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
       if (!s || !F || !F.dayScore || !s.w.hourly.pressure_msl) return null;
       return F.dayScore(s.w.hourly, s.today, null);
     };
+    let hereBite = "";
     const biteWord = (b) => (b ? `Bite estimate ${b.s}/5${b.why.length ? `: ${b.why.join(", ")}` : ""}` : "");
     return {
       near, saved, fish: true,
-      here: (s) => { const b = bite(s); return s ? (b ? kv("Bite estimate", `${b.s}/5`) + (b.why.length ? `<small>${esc(b.why.join(", "))}</small>` : "") : "") + kv("Sunrise and sunset", `${hm(s.rise)} · ${hm(s.set)}`) + kv("Wind", windWord(s).replace(/^Wind /, "")) + kv("Rain or snow today", mm(s.wet)) : ""; },
-      why: (x, s) => [x.why0, biteWord(bite(s))],
+      here: (s) => { const b = bite(s); hereBite = biteWord(b); return s ? (b ? kv("Bite estimate", `${b.s}/5`) + (b.why.length ? `<small>${esc(b.why.join(", "))}</small>` : "") : "") + kv("Sunrise and sunset", `${hm(s.rise)} · ${hm(s.set)}`) + kv("Wind", windWord(s).replace(/^Wind /, "")) + kv("Rain or snow today", mm(s.wet)) : ""; },
+      why: (x, s) => [x.why0, ((w) => (w === hereBite ? "" : w))(biteWord(bite(s)))],   // the same as at the top: said once
       extra: () => "",
       note: [top && top.sea, `Waters: ranked by how fresh the stocking is and the river flow, from the province's stocking reports and the river gauges. Bite estimate: a 1 to 5 guide from the weather (pressure, wind, cloud, rain) and the moon, not a promise of fish.`],
     };
@@ -231,7 +239,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
     const scent = (s) => (s && s.wind != null && s.wind >= 5 ? `${windWord(s)}: your scent drifts ${compass(s.dir + 180)}` : s ? windWord(s) : "");
     return {
       near, saved, fish: false, noDist: true,
-      here: (s) => (sky ? kv("Legal light", `${sky.rise ? hm(sky.rise - 30 * 60000) : "–"} to ${sky.set ? hm(sky.set.valueOf() + 30 * 60000) : "–"}`) + kv("Moon", `${sky.moon.name}, ${sky.moon.pct}%`) : "")
+      here: (s) => (sky ? kv("Legal light", `${sky.rise ? hm(sky.rise - 30 * 60000) : "–"} – ${sky.set ? hm(sky.set.valueOf() + 30 * 60000) : "–"}`) + kv("Moon", [sky.moon.name, `, ${sky.moon.pct}%`]) : "")
         + (s ? kv("Wind", scent(s).replace(/^Wind /, "")) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) + kv("Rain or snow today", mm(s.wet)) : ""),
       why: (x, s) => x.why0 || [scent(s), s && s.wet >= 1 ? `${mm(s.wet)} of rain or snow` : ""],
       extra: () => "",
