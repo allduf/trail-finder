@@ -1,0 +1,87 @@
+Adventure moto: Day ride. Pick where you start and how long you want to ride, and get loops that come back to the start, with hot springs, viewpoints, waterfalls and scenic roads on the way, each loop with its dirt share, closures, and rain and snow along it. ||| Moto d'aventure : Sortie d'un jour. Choisissez votre départ et combien de temps vous voulez rouler, et obtenez des boucles qui reviennent au départ, avec des sources chaudes, des points de vue, des chutes et des routes panoramiques en chemin, chaque boucle avec sa part de terre, ses fermetures, et la pluie et la neige le long du trajet.
+Day ride ||| Sortie d'un jour
+Where you start ||| Votre départ
+Loops that come back to where you start, with places to stop on the way. ||| Des boucles qui reviennent à votre départ, avec des arrêts en chemin.
+Where I am ||| Où je suis
+Middle of the map ||| Milieu de la carte
+Or type where you start ||| Ou tapez votre départ
+Type where you start ||| Tapez votre départ
+Use ||| Utiliser
+Starting from ||| Départ de
+Where you are ||| Où vous êtes
+The middle of the map ||| Le milieu de la carte
+How long do you want to ride? ||| Combien de temps voulez-vous rouler?
+Riding time ||| Temps de route
+Find loops ||| Trouver des boucles
+Riding times and distances: the route server's estimate (Valhalla, on OpenStreetMap roads), without the stops. Hot springs, viewpoints, waterfalls and lighthouses: OpenStreetMap. Scenic roads: the app's own list, each with its source. A place may be closed, on private land or reached on foot. ||| Temps de route et distances : estimation du serveur d'itinéraires (Valhalla, sur les routes d'OpenStreetMap), sans les arrêts. Sources chaudes, points de vue, chutes et phares : OpenStreetMap. Routes panoramiques : la liste de l'app, chacune avec sa source. Un endroit peut être fermé, sur un terrain privé ou accessible à pied seulement.
+Turn on your location (◎ on the map) first. ||| Activez d'abord votre position (◎ sur la carte).
+Looking for hot springs, viewpoints and scenic roads around the start… ||| Recherche de sources chaudes, de points de vue et de routes panoramiques autour du départ…
+No signal: Day ride needs the route server. ||| Pas de signal : Sortie d'un jour a besoin du serveur d'itinéraires.
+Scenic road ||| Route panoramique
+the app's list of scenic roads ||| la liste de routes panoramiques de l'app
+source ||| source
+Checking surfaces and closures… ||| Vérification des surfaces et des fermetures…
+Couldn't check surfaces and closures on this loop: open it to try again. ||| Impossible de vérifier les surfaces et les fermetures de cette boucle : ouvrez-la pour réessayer.
+Dirt (OpenStreetMap surfaces) ||| Terre (surfaces d'OpenStreetMap)
+Couldn't check closures: open the loop to try again. ||| Impossible de vérifier les fermetures : ouvrez la boucle pour réessayer.
+Closed on this loop: ||| Fermé sur cette boucle :
+Road events and warnings on it ||| Événements routiers et avertissements sur le trajet
+Open the loop to see them. ||| Ouvrez la boucle pour les voir.
+No closures, gates, washouts or fire closures found on it in the sources the app reads. ||| Aucune fermeture, barrière, route emportée ou fermeture pour feu trouvée sur le trajet dans les sources que lit l'app.
+Checking rain and snow along it… ||| Vérification de la pluie et de la neige le long du trajet…
+The weather didn't load: open the loop for its high points. ||| La météo n'a pas pu se charger : ouvrez la boucle pour ses points hauts.
+Rain or snow, last 2 days (most at any point checked) ||| Pluie ou neige, 2 derniers jours (le plus à un des points vérifiés)
+Rain or snow, next 24 h ||| Pluie ou neige, prochaines 24 h
+Lowest temperature there, next 24 h ||| Température la plus basse à cet endroit, prochaines 24 h
+Dirt roads can stay muddy for days after rain. ||| Les chemins de terre peuvent rester boueux plusieurs jours après la pluie.
+Via ||| Par
+and ||| et
+riding, estimate ||| de route, estimation
+stop ||| arrêt
+stops ||| arrêts
+Same road both ways for about ||| Même route à l'aller et au retour sur environ
+of it. ||| du trajet.
+It uses a ferry: check its schedule. ||| Elle prend un traversier : vérifiez son horaire.
+Open this loop ||| Ouvrir cette boucle
+Loops for about ||| Boucles d'environ
+of riding from ||| de route au départ de
+Rain, snow and temperatures: an estimate for points along each loop and its highest point. Closures: the same check as Plan a route (forest road status, gates, motor vehicle closures, wildfires and each province's 511). Things change faster than any map. ||| Pluie, neige et températures : une estimation pour des points le long de chaque boucle et son point le plus haut. Fermetures : la même vérification que Planifier un itinéraire (état des chemins forestiers, barrières, fermetures aux véhicules motorisés, feux de forêt et le 511 de chaque province). Les choses changent plus vite que n'importe quelle carte.
+Stops on this loop ||| Arrêts sur cette boucle
+Day ride: loops from here ||| Sortie d'un jour : boucles à partir d'ici
+Pick how long you want to ride: loops that come back here, with hot springs, viewpoints and scenic roads on the way ||| Choisissez combien de temps vous voulez rouler : des boucles qui reviennent ici, avec des sources chaudes, des points de vue et des routes panoramiques en chemin
+Day ride is still loading: try again in a moment. ||| Sortie d'un jour se charge encore : réessayez dans un instant.
+paved ||| asphaltée
+partly gravel ||| en partie gravier
+gravel ||| gravier
+Highway 99 along Howe Sound, past the Stawamus Chief and Shannon and Brandywine falls, to Whistler. ||| La route 99 le long de Howe Sound, devant le Stawamus Chief et les chutes Shannon et Brandywine, jusqu'à Whistler.
+Highway 99 over the Coast Mountains, past Joffre Lakes and Duffey Lake, with steep grades and tight turns. ||| La route 99 à travers la chaîne Côtière, devant les lacs Joffre et le lac Duffey, avec de fortes pentes et des virages serrés.
+Highway 1 up the Fraser Canyon, through seven tunnels and past Hell's Gate. ||| La route 1 dans le canyon du Fraser, par sept tunnels et devant Hell's Gate.
+Highway 3 through E.C. Manning Provincial Park and over Allison Pass. ||| La route 3 à travers le parc provincial E.C. Manning et par le col Allison.
+A winding valley road past Fish Lake; the Sandon ghost town is a short side road. ||| Une route sinueuse de vallée devant le lac Fish; la ville fantôme de Sandon est à un court détour.
+A curvy lakeshore road on the east side of Kootenay Lake, to the Kootenay Bay ferry. ||| Une route sinueuse au bord du lac, sur la rive est du lac Kootenay, jusqu'au traversier de Kootenay Bay.
+Highway 6 over Monashee Pass, down to the Needles cable ferry on Lower Arrow Lake. ||| La route 6 par le col Monashee, jusqu'au traversier à câble de Needles sur le lac Lower Arrow.
+Highway 33 through the hills and down the Kettle River valley by Beaverdell. ||| La route 33 dans les collines puis la vallée de la rivière Kettle par Beaverdell.
+Highway 4 over the mountains, past Kennedy Lake, to Tofino and the west coast. ||| La route 4 à travers les montagnes, devant le lac Kennedy, jusqu'à Tofino et la côte ouest.
+Highway 20 down The Hill from Heckman Pass to the Bella Coola valley: a steep gravel section with switchbacks. ||| La route 20 qui descend The Hill du col Heckman à la vallée de Bella Coola : une section de gravier en forte pente avec des lacets.
+Highway 37A through a narrow valley past Bear Glacier, to Stewart. ||| La route 37A dans une vallée étroite devant le glacier Bear, jusqu'à Stewart.
+Highway 1 over Rogers Pass in Glacier National Park. ||| La route 1 par le col Rogers dans le parc national des Glaciers.
+Highway 93 from Radium through Sinclair Canyon and Kootenay National Park, over Vermilion Pass. ||| La route 93 de Radium par le canyon Sinclair et le parc national Kootenay, par le col Vermilion.
+Highway 12 along the dry benches high above the Fraser River. ||| La route 12 sur les terrasses sèches bien au-dessus du fleuve Fraser.
+Highway 8 along the Nicola River through dry hills and ranch land. ||| La route 8 le long de la rivière Nicola, dans des collines sèches et des terres de ranch.
+Highway 93 from Lake Louise to Jasper past glaciers, Peyto Lake, Bow Summit and the Columbia Icefield. ||| La route 93 de Lake Louise à Jasper, devant des glaciers, le lac Peyto, le col Bow et le champ de glace Columbia.
+The slower road beside Highway 1 between Banff and Lake Louise, past Johnston Canyon. ||| La route plus lente à côté de la route 1 entre Banff et Lake Louise, devant le canyon Johnston.
+Highway 40 through Kananaskis Country and over Highwood Pass, about 2,200 m. ||| La route 40 à travers Kananaskis Country et par le col Highwood, environ 2 200 m.
+Highway 22 through the foothills and ranch land, with the Rockies to the west. ||| La route 22 dans les contreforts et les terres de ranch, avec les Rocheuses à l'ouest.
+The south end of the Dempster Highway, to Tombstone Territorial Park. ||| Le bout sud de la route Dempster, jusqu'au parc territorial Tombstone.
+Highway 17 along Lake Superior through Lake Superior Provincial Park and past Agawa Bay. ||| La route 17 le long du lac Supérieur, à travers le parc provincial du Lac-Supérieur et devant la baie Agawa.
+Highway 60 through the lakes and forest of Algonquin Park. ||| La route 60 à travers les lacs et la forêt du parc Algonquin.
+Route 132 along the St. Lawrence shore, with steep hills down into the villages, to Gaspé. ||| La route 132 le long du Saint-Laurent, avec de fortes côtes qui descendent dans les villages, jusqu'à Gaspé.
+Route 362 over the hills above the St. Lawrence, through Les Éboulements and Saint-Irénée. ||| La route 362 dans les collines au-dessus du Saint-Laurent, par Les Éboulements et Saint-Irénée.
+The Cabot Trail through Cape Breton Highlands National Park, over French and MacKenzie mountains by the sea. ||| La piste Cabot à travers le parc national des Hautes-Terres-du-Cap-Breton, par les monts French et MacKenzie au bord de la mer.
+Route 430 from Deer Lake into Gros Morne National Park, by Bonne Bay to Rocky Harbour and Cow Head. ||| La route 430 de Deer Lake au parc national du Gros-Morne, par Bonne Bay jusqu'à Rocky Harbour et Cow Head.
+A Parks Canada pass is needed to stop in the national park. ||| Un laissez-passer de Parcs Canada est requis pour s'arrêter dans le parc national.
+Avalanche control can close this highway in winter (DriveBC). A Parks Canada pass is needed to stop in the national park. ||| Le contrôle des avalanches peut fermer cette route en hiver (DriveBC). Un laissez-passer de Parcs Canada est requis pour s'arrêter dans le parc national.
+A Parks Canada pass is needed to travel this road. ||| Un laissez-passer de Parcs Canada est requis pour emprunter cette route.
+Parks Canada closes parts of it to vehicles at some times of year. A Parks Canada pass is needed to stop in the national park. ||| Parcs Canada en ferme des parties aux véhicules à certaines périodes de l'année. Un laissez-passer de Parcs Canada est requis pour s'arrêter dans le parc national.
+Highwood Pass closes every winter, Dec 1 to Jun 15 (Alberta Parks). A Kananaskis Conservation Pass is needed to park in Kananaskis Country. ||| Le col Highwood ferme chaque hiver, du 1er déc. au 15 juin (Alberta Parks). Un Kananaskis Conservation Pass est requis pour se stationner dans Kananaskis Country.
+An Ontario Parks day permit is needed to stop in the park. ||| Un permis de jour de Parcs Ontario est requis pour s'arrêter dans le parc.

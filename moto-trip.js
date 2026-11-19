@@ -27,8 +27,8 @@
   const svg = H.svg, IC = H.IC;
   const TENT = '<path d="M3 20 12 4l9 16z"/><path d="M12 4v16M9 20l3-5 3 5"/>';   // the hike trip's tent (Moto's camp icon reads like a warning sign this size)
   const css = document.createElement("style");
-  css.textContent = `#motoPane .mt-actions.five { grid-template-columns: repeat(5, 1fr); }
-#motoPane .mt-actions.five .mt-act { font-size: .7rem; padding: 6px 2px; }
+  css.textContent = `#motoPane .mt-actions.five { grid-template-columns: repeat(3, 1fr); }   /* six buttons with Day ride (moto.js): two rows of three */
+#motoPane .mt-actions.five .mt-act { min-height: 50px; }
 #motoPane .mt-act[aria-pressed="true"] { background: ${COL}; border-color: ${COL}; color: #fff; }
 #motoPane .mt-act[aria-pressed="true"] svg { color: #fff; }
 #motoPane .tp-card { border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-sm); }

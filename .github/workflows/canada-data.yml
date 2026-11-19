@@ -62,10 +62,10 @@ jobs:
             # Ski resort runs, groomed nordic and snowmobile trails (scripts/build-canada-winter.mjs); relation members come along.
             osmium tags-filter --overwrite -o /tmp/osm/s.pbf /tmp/osm/p.pbf \
               w/piste:type w/snowmobile=yes,designated,permissive w/ski:nordic=yes,designated r/route=ski,piste,snowmobile r/piste:type
-            # Gas stations, campsites, hot springs, moto shops and ferry landings (scripts/build-moto.mjs, Moto mode).
+            # Gas stations, campsites, hot springs, moto shops, ferry landings and named viewpoints, waterfalls and lighthouses (scripts/build-moto.mjs, Moto mode).
             osmium tags-filter --overwrite -o /tmp/osm/m.pbf /tmp/osm/p.pbf \
-              nwr/amenity=fuel,ferry_terminal,shelter nwr/tourism=camp_site,caravan_site,wilderness_hut,alpine_hut nwr/natural=hot_spring \
-              nwr/shop=motorcycle,motorcycle_repair,tyres
+              nwr/amenity=fuel,ferry_terminal,shelter nwr/tourism=camp_site,caravan_site,wilderness_hut,alpine_hut,viewpoint nwr/natural=hot_spring,waterfall \
+              nwr/shop=motorcycle,motorcycle_repair,tyres nwr/waterway=waterfall nwr/man_made=lighthouse
             osmium export --overwrite -a type,id -f geojsonseq -o /tmp/osm/m.geojsonseq /tmp/osm/m.pbf
             node scripts/build-moto.mjs ingest "$p" /tmp/osm/m.geojsonseq || echo "::warning::Moto points failed for $p"
             # Hiking places: trailheads, parking, huts, campsites, viewpoints, peaks, waterfalls, water, toilets (scripts/build-canada-hike.mjs).
