@@ -113,6 +113,11 @@ window.tfDragSort = (root, o) => {
   const UP_LABEL = "Uphill ski route (skin track)";
   const UP_ABOUT = "A way up for skinning, not a run down. At a ski resort, skinning up usually needs an uphill pass and is only allowed at set hours and on set runs: check the resort's uphill rules before you go.";
   window.tfSkiIsUphill = isUphill;
+  // In-resort traverses and boot-packs (scripts/build-winter.mjs resortTerrain, r.walk; alex 2026-11-19): OpenStreetMap
+  // maps them as walk-on-snow paths, so they used to show as snowshoe trails under Nordic. They're the resort's.
+  const WALK_LABEL = "Resort traverse or boot-pack";
+  const WALK_ABOUT = "A traverse or hike inside the ski resort's boundary that skiers use to reach terrain, as mapped on OpenStreetMap. Whether it is open, and its conditions, are set by the resort: check with the resort.";
+  const kindLabel = (r, t) => isUphill(r) ? UP_LABEL : r && r.walk ? WALK_LABEL : t.label;
   // Sledding and tubing hills (type "sled") aren't drawn: alex asked to take out what isn't needed.
   const HUT = { label: "Huts and cabins", color: "#7a2e10" };
   // Where to leave the car for a tour: blue P pins (alex 2026-10-25: "all ski access that i see look like parking lot").
@@ -1503,7 +1508,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         const r = x.g[0], t = TYPES[r.type] || TYPES.other, len = x.g.reduce((s2, y) => s2 + km(y), 0);
         ic = `<span class="sk-ic"><span class="sk-sw" style="background:${t.color}"></span></span>`;
         nm = esc(nameOf(r) || "Unnamed " + t.label.toLowerCase());
-        sub = [riskPill(x.k), isUphill(r) ? "Uphill (skin track)" : r.type !== usual && esc(SHORT[r.type] || t.label), r.area ? "bowl or area" : len >= 0.05 ? `${len < 10 ? len.toFixed(1) : Math.round(len)} km long` : "", diffPill(r.diff)].filter(Boolean).join(" · ");
+        sub = [riskPill(x.k), isUphill(r) ? "Uphill (skin track)" : r.walk ? WALK_LABEL : r.type !== usual && esc(SHORT[r.type] || t.label), r.area ? "bowl or area" : len >= 0.05 ? `${len < 10 ? len.toFixed(1) : Math.round(len)} km long` : "", diffPill(r.diff)].filter(Boolean).join(" · ");
       } else if (x.h.src === "c2c") {
         const [top, way] = c2cName(x.h.name), tg = x.h.tags || {};
         ic = `<span class="sk-ic"><span class="sk-pin" style="background:${START.color}">⛷</span></span>`;
@@ -1595,7 +1600,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       }
       for (const { g, s } of groups.values()) {
         const r = g[0], d = awayM(c.lat, c.lng, g), free = window.tfFreeride && window.tfFreeride.isFree && window.tfFreeride.isFree(r);
-        out.push({ name: (free && r.frName) || nameOf(r), sub: `${free ? "Freeride line" : isUphill(r) ? UP_LABEL : (TYPES[r.type] || TYPES.other).label} · ${kmAway(d)}`, ic: free ? "◆" : ROUTE_IC[r.type] || "❄", s, d, route: g });
+        out.push({ name: (free && r.frName) || nameOf(r), sub: `${free ? "Freeride line" : kindLabel(r, TYPES[r.type] || TYPES.other)} · ${kmAway(d)}`, ic: free ? "◆" : ROUTE_IC[r.type] || "❄", s, d, route: g });
       }
       for (const h of [...(ski.huts || []), ...(ski.starts || [])]) {
         const s = score(h.name, q);
@@ -2653,9 +2658,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const card = isRoute ? `<div class="sk-rc">
         <img class="sk-rc-ph" id="skRcPh" alt="" hidden referrerpolicy="no-referrer">
         <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
-        <div class="sk-rc-tag" id="skRcTag">${[esc(isUphill(r) ? UP_LABEL : t.label), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
+        <div class="sk-rc-tag" id="skRcTag">${[esc(kindLabel(r, t)), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
         ${r.wb ? `<p class="sk-wbst" id="skWbSt"><span>Whistler Blackcomb today</span> <b>…</b></p>` : ""}
-        ${isUphill(r) ? `<p class="sk-hint sk-up">⬆ ${esc(UP_ABOUT)}</p>` : ""}
+        ${isUphill(r) ? `<p class="sk-hint sk-up">⬆ ${esc(UP_ABOUT)}</p>` : r.walk ? `<p class="sk-hint">${esc(WALK_ABOUT)}</p>` : ""}
         <div class="sk-rc-elev" id="skRcStats">${rcGrid([[len.toFixed(1) + " km", "Length"], ["…", "Climb"], ["…", "Descent"], ["…", "Takes"], ["…", "Top"], ["…", "Bottom"]])}<p class="sk-note">Loading heights…</p></div>
         <div class="sk-cond" id="skCond">${condHtml()}</div>
         <div class="sk-rc-btns">
@@ -2669,7 +2674,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart && !/^(parking|trailhead)$/.test(r.kind) ? `<div id="skHutPh" class="sk-hutphs"><p class="sk-note sk-hutph-none">Looking for photos of the hut…</p></div>` : ""}${isHut && !isStart ? bookHtml(r) : ""}`;
     d.innerHTML = `${card}<div id="skMore"${isRoute && !moreOpen ? " hidden" : ""} class="sk-morebox">
       ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
-      <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : isUphill(r) ? UP_LABEL : t.label)}</dd>
+      <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : kindLabel(r, t))}</dd>
       ${isHut ? "" : r.area ? `<dt>Size</dt><dd>${hectares(r).toFixed(0)} ha: mapped as an area (a bowl or zone), not a line to follow</dd>`
         : `<dt>Length</dt><dd>${group.reduce((s, x) => s + km(x), 0).toFixed(1)} km${group.length > 1 ? ` (${group.length} pieces)` : ""}</dd>`}
       ${r.diff ? `<dt>Difficulty</dt><dd>${esc(DIFF[r.diff] || r.diff)}</dd>` : ""}
@@ -2856,7 +2861,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (tg) {
       const L1 = days.length ? T.LIGHTS[T.light((days.find((x) => x.j === Math.min(day, f.days.length - 1)) || days[0]).r, cls.c)] : null;
       tg.innerHTML = [L1 ? `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : "", classPill(cls.c, official ? "Official ATES rating" : ""),
-        esc(isUphill(r) ? UP_LABEL : (TYPES[r.type] || TYPES.other).label), diffPill(r.diff)].filter(Boolean).join(" · ");
+        esc(kindLabel(r, TYPES[r.type] || TYPES.other)), diffPill(r.diff)].filter(Boolean).join(" · ");
     }
     renderCond();
     const cw = $("skRcWatch");
