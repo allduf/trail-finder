@@ -26,6 +26,10 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - State facts, their source, and say "estimate" where it is one. Use "may", "can", "likely".
 - Never promise safety, accuracy, access, legality, or conditions. Avoid "safe/safer/safest", "guaranteed",
   "open", "legal/allowed" as a promise, "no avalanche", "dry", or a green all-clear for the absence of a hazard.
+- `terms.html` covers features in general, so a normal feature needs no terms edit. Route or tour planning waits
+  on `tfRiskOk(kind)` and shows `tfRiskLine()` (`risk.js`). Change `terms.html` (English and French) and raise
+  `TERMS_V` only for a new kind of risk: something paid, gear sales or rentals, guided trips, a new country, or
+  data shared in a new way (that goes in `privacy.html`).
 - `scripts/wording-check.mjs` runs in the phone test and fails on risky words. Mark a code-only word list with
   `// wording-ok`; do not use that to get past real wording.
 
