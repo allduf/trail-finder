@@ -173,9 +173,11 @@ body.sport-alt #ridesBtn { display: none !important; }
     const list = [...by.values()].map((e) => {
       const rs = [...e.rideIds].map((i) => rides[i]);
       const shape = window.tfRideShape ? window.tfRideShape(e.lines) : {};
-      return { key: e.key, gps: true, type: "w", ids: [...new Set(e.ids)].slice(0, 40), name: e.name, kind: "", zone: "", at: Math.max(...rs.map((r) => r.start || 0)), n: rs.length, ...shape };
+      // first: the first bike ride on it (season goals, season.js: trails new to you). A ski tour or hike doesn't count.
+      const bike = rs.filter((r) => r.sport !== "ski" && r.sport !== "hike" && r.start > 0);
+      return { key: e.key, gps: true, type: "w", ids: [...new Set(e.ids)].slice(0, 40), name: e.name, kind: "", zone: "", at: Math.max(...rs.map((r) => r.start || 0)), n: rs.length, ...(bike.length ? { first: Math.min(...bike.map((r) => r.start)) } : {}), ...shape };
     });
-    const sig = list.map((e) => e.key + e.n + e.at).sort().join();
+    const sig = list.map((e) => e.key + e.n + e.at + (e.first || "")).sort().join();
     if (sig === gpsSig) return;
     gps = list; gpsSig = sig;
     window.dispatchEvent(new Event("tf:ridden"));
