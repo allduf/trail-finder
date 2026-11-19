@@ -5699,7 +5699,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   setTimeout(() => {
     try {
       const today = new Date().toLocaleDateString("en-CA"), day = (d, n) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() + n); return x.toLocaleDateString("en-CA"); };
-      const soon = (k) => (JSON.parse(localStorage.getItem("tf:" + k)) || []).some((t) => t && (t.hut || t.camps || (t.lines || []).length) && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0));
+      // ...and a trip plan sent and not marked back (I'm back, trip-core.js), from 3 days before its return time to 3 days
+      // after, so the I'm back reminder shows whatever sport is open.
+      const back = (t) => { const pl = t.plan, o = pl && pl.sent && !pl.safe && pl.out ? new Date(pl.out).getTime() - Date.now() : NaN; return o > -3 * 864e5 && o < 3 * 864e5; };
+      const soon = (k) => (JSON.parse(localStorage.getItem("tf:" + k)) || []).some((t) => t && ((t.hut || t.camps || (t.lines || []).length) && t.date && day(t.date, -1) <= today && today <= day(t.date, t.nights || 0) || back(t)));
       if (soon("skiTrips")) loadSport("ski").catch(() => {});
       if (soon("hikeTrips")) loadSport("hike").catch(() => {});   // a hike trip (hike-trip.js) the same way
       if (soon("fishingTrips")) loadSport("fish").catch(() => {});   // and a fishing trip (fishing-trip.js)
