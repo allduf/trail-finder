@@ -40,7 +40,7 @@ li { margin: 4px 0; }
 <section lang="en" data-l="en">
 <a class="back" href="./">← Back to the map</a><a class="lang" href="#fr" data-to="fr">Français</a>
 <h1>Privacy</h1>
-<p class="muted">Last updated November 17, 2026</p>
+<p class="muted">Last updated November 19, 2026</p>
 
 <p>Trail Finder is a map app for mountain biking, skiing, hiking, hunting, fishing and adventure riding. You can use all of it without an account. We don't sell your data, we don't show ads, and nothing is used to track you across other apps or websites.</p>
 
@@ -81,13 +81,15 @@ li { margin: 4px 0; }
   <li><b>Supabase:</b> accounts, saved things, posts, live location, alerts, I agree records and how the app is used.</li>
   <li><b>Google:</b> photo search, Ask and fish ID (only if you said yes to Google's AI).</li>
   <li><b>Brevo:</b> sends the sign-in emails.</li>
-  <li><b>Apple:</b> delivers notifications on iPhone. <b>GitHub:</b> hosts the website.</li>
+  <li><b>Apple:</b> delivers notifications on iPhone.</li>
+  <li><b>Cloudflare:</b> hosts the website, and keeps the nightly backup: an encrypted copy of accounts, saved things, posts and photos.</li>
 </ul>
 <p>They may use your data only to provide their service to us (except Google's free plan, see above).</p>
 
 <h2>How long we keep it</h2>
 <ul>
   <li>Your account and what's saved to it: until you delete it.</li>
+  <li>Nightly backups (encrypted, so lost data can be put back if something goes wrong): 30 days. What you delete, or a deleted account, is gone from the backups within 30 days.</li>
   <li>Live location: until you stop, or 2 hours after the last update.</li>
   <li>Shared ride lines (Help improve Trail Finder): until you take them back, at most 2 years.</li>
   <li>How the app is used and the visit count: 1 year.</li>
@@ -101,7 +103,7 @@ li { margin: 4px 0; }
 <p>You can ask to see, correct or delete your data, get a copy, or take back a yes you gave us. Most of it you can do yourself:</p>
 <ul>
   <li><b>Copy:</b> signed in, open More → Account → Settings → Download my data. You get one file with everything saved to your account and the settings on this device.</li>
-  <li><b>Delete:</b> signed in, open More → Account → Settings → Delete my account. It deletes your account and everything saved to it, right away. To delete what's only on your phone, delete the app.</li>
+  <li><b>Delete:</b> signed in, open More → Account → Settings → Delete my account. It deletes your account and everything saved to it, right away (from the encrypted backups within 30 days). To delete what's only on your phone, delete the app.</li>
   <li><b>Say no:</b> Google's AI, How the app is used, alerts, live location and ride sharing each turn off in the app.</li>
   <li>For anything else, write to <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>. We answer within 30 days.</li>
 </ul>
@@ -123,7 +125,7 @@ li { margin: 4px 0; }
 <section lang="fr" data-l="fr" hidden>
 <a class="back" href="./">← Retour à la carte</a><a class="lang" href="#en" data-to="en">English</a>
 <h1>Confidentialité</h1>
-<p class="muted">Mise à jour le 17 novembre 2026</p>
+<p class="muted">Mise à jour le 19 novembre 2026</p>
 
 <p>Trail Finder est une application de cartes pour le vélo de montagne, le ski, la randonnée, la chasse, la pêche et la moto d’aventure. Tout fonctionne sans compte. Nous ne vendons pas vos données, nous ne montrons pas de publicité, et rien ne sert à vous suivre dans d’autres applications ou sites.</p>
 
@@ -164,13 +166,15 @@ li { margin: 4px 0; }
   <li><b>Supabase :</b> comptes, éléments enregistrés, publications, position en direct, alertes, preuves d’accord et utilisation de l’appli.</li>
   <li><b>Google :</b> recherche par photo, Demandez et identification des poissons (seulement si vous avez dit oui à l’IA de Google).</li>
   <li><b>Brevo :</b> envoie les courriels de connexion.</li>
-  <li><b>Apple :</b> livre les notifications sur iPhone. <b>GitHub :</b> héberge le site.</li>
+  <li><b>Apple :</b> livre les notifications sur iPhone.</li>
+  <li><b>Cloudflare :</b> héberge le site et garde la sauvegarde de chaque nuit : une copie chiffrée des comptes, éléments enregistrés, publications et photos.</li>
 </ul>
 <p>Elles peuvent utiliser vos données seulement pour nous fournir leur service (sauf le forfait gratuit de Google, voir plus haut).</p>
 
 <h2>Combien de temps nous les gardons</h2>
 <ul>
   <li>Votre compte et ce qui y est enregistré : jusqu’à ce que vous le supprimiez.</li>
+  <li>Sauvegardes de chaque nuit (chiffrées, pour pouvoir remettre des données perdues en cas de problème) : 30 jours. Ce que vous supprimez, ou un compte supprimé, disparaît des sauvegardes en 30 jours au plus.</li>
   <li>Position en direct : jusqu’à l’arrêt, ou 2 heures après la dernière mise à jour.</li>
   <li>Tracés partagés (Aidez à améliorer Trail Finder) : jusqu’à ce que vous les repreniez, au plus 2 ans.</li>
   <li>Utilisation de l’appli et nombre de visites : 1 an.</li>
@@ -184,7 +188,7 @@ li { margin: 4px 0; }
 <p>Vous pouvez demander à voir, corriger ou supprimer vos données, en obtenir une copie, ou retirer un consentement donné. Vous pouvez faire la plupart de ces choses vous-même :</p>
 <ul>
   <li><b>Copie :</b> connecté, ouvrez Plus → Compte → Réglages → Télécharger mes données. Vous obtenez un fichier avec tout ce qui est enregistré dans votre compte et les réglages de cet appareil.</li>
-  <li><b>Suppression :</b> connecté, ouvrez Plus → Compte → Réglages → Supprimer mon compte. Votre compte et tout ce qui y est enregistré sont supprimés tout de suite. Pour ce qui est seulement sur le téléphone, supprimez l’application.</li>
+  <li><b>Suppression :</b> connecté, ouvrez Plus → Compte → Réglages → Supprimer mon compte. Votre compte et tout ce qui y est enregistré sont supprimés tout de suite (des sauvegardes chiffrées en 30 jours au plus). Pour ce qui est seulement sur le téléphone, supprimez l’application.</li>
   <li><b>Dire non :</b> l’IA de Google, l’utilisation de l’appli, les alertes, la position en direct et le partage des sorties se désactivent chacun dans l’application.</li>
   <li>Pour le reste, écrivez à <a href="mailto:trailfinder.help@outlook.com">trailfinder.help@outlook.com</a>. Nous répondons dans les 30 jours.</li>
 </ul>
