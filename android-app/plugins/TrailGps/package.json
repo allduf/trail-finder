@@ -1,0 +1,11 @@
+{
+  "name": "trail-gps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Android app's own GPS for recording rides: keeps going with the screen off (a foreground service). The same calls as ios-app/plugins/TrailGps, used by native-gps.js, navigate.js and live.js on the website.",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}

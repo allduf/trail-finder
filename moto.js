@@ -347,6 +347,14 @@ dialog.mt-dlg .mt-xb { font: inherit; border: 0; background: var(--chip); color:
 .mt-planbar button { font: inherit; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); color: var(--fg); padding: 6px 12px; cursor: pointer; }
 .mt-planbar button.go { background: ${ACC}; border-color: ${ACC}; color: #fff; }
 @media (max-width: 760px) { .mt-planbar { top: calc(env(safe-area-inset-top, 0px) + 84px); left: 12px; right: 12px; transform: none; justify-content: space-between; white-space: normal; } }
+/* The ride typed in plain words (alex 2026-11-17: "the same ask box as skiing"), under the tip while there's no route. */
+.mt-planbar.asking { flex-wrap: wrap; border-radius: 18px; white-space: normal; max-width: calc(100% - 24px); box-sizing: border-box; padding: 8px 8px 8px 14px; }
+@media (min-width: 761px) { .mt-planbar.asking { width: 460px; } .mt-planbar.asking #mtPlanTip { flex: 1; } }
+.mt-planbar .mt-ask { flex: 1 1 100%; display: flex; gap: 6px; margin: 0; }
+.mt-planbar .mt-ask[hidden] { display: none; }
+.mt-planbar .mt-ask input { flex: 1; min-width: 0; font: inherit; font-size: 16px; font-weight: 400; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--fg); }
+.mt-planbar .mt-ask button { background: ${ACC}; border-color: ${ACC}; color: #fff; font-weight: 700; }
+#motoPane .mt-asked { font-size: .8rem; border-left: 4px solid ${ACC}; padding: 4px 0 4px 9px; display: flex; flex-direction: column; gap: 6px; }
 body.sport-moto .nav-strip button { min-height: 48px; }
 #motoPane .mt-saferow .mt-pill { flex: 1; justify-content: center; }
 #motoPane .mt-saferow .mt-pill.armed { border-color: #2f9e44; color: #2b8a3e; }
@@ -543,33 +551,65 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const cap = capOf(cur()), col = (g) => FIT[fitOf(g, cap)][1];
     return ["case", ["==", ["get", "class"], "track"], col(3), col(2)];
   }
-  function roadLayers(src, prefix) {
+  // The far dirt roads (index.html's tfdirt://, zoom 7 to 12): "c" is "t" for a track, "r" for a gravel road.
+  function farPaint() {
+    const cap = capOf(cur()), col = (g) => FIT[fitOf(g, cap)][1];
+    return ["case", ["==", ["get", "c"], "t"], col(3), col(2)];
+  }
+  const DIRT = { type: "vector", minzoom: 7, maxzoom: 11, tiles: ["tfdirt://{z}/{x}/{y}"], attribution: "Dirt roads: OpenStreetMap" };
+  // OpenFreeMap carries gravel roads only from zoom 13 and tracks from 14, so zoomed out (or far off in a tilted 3D
+  // view, which draws the distance from zoomed-out tiles) the dirt roads went missing (alex 2026-11-17, recording: the
+  // green dashed roads vanished as the 3D map tilted). Up to zoom 13 they come from our own far dirt-road tiles (far =
+  // that source's id, when tfdirt:// is set up), as in ADV topo; from 13, OpenFreeMap's own.
+  function roadLayers(src, prefix, far) {
     const width = ["interpolate", ["linear"], ["zoom"], 9, 1.2, 12, 2.6, 15, 4.5];
-    return [
-      { id: prefix + "case", type: "line", source: src, "source-layer": "transportation", filter: ROAD_FILTER, layout: { "line-cap": "round", "line-join": "round" },
+    const z = far ? { minzoom: 13 } : {};
+    const farLayers = !far ? [] : [
+      { id: prefix + "far-case", type: "line", source: far, "source-layer": "dirt", maxzoom: 13, minzoom: 9, layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#fff", "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.2, 12.9, 4.4] } },
+      { id: prefix + "far-road", type: "line", source: far, "source-layer": "dirt", maxzoom: 13, filter: ["!=", ["get", "c"], "t"], layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": farPaint(), "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 10, 1.1, 12.9, 2.5] } },
+      { id: prefix + "far-track", type: "line", source: far, "source-layer": "dirt", maxzoom: 13, filter: ["==", ["get", "c"], "t"], layout: { "line-join": "round" },
+        paint: { "line-color": farPaint(), "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 10, 1.1, 12.9, 2.5], "line-dasharray": [2, 1] } },
+    ];
+    return [...farLayers,
+      { id: prefix + "case", type: "line", source: src, "source-layer": "transportation", filter: ROAD_FILTER, layout: { "line-cap": "round", "line-join": "round" }, ...z,
         paint: { "line-color": "#fff", "line-opacity": 0.85, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.6, 12, 4.6, 15, 7] } },
-      { id: prefix + "road", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["!=", ["get", "class"], "track"]], layout: { "line-cap": "round", "line-join": "round" },
+      { id: prefix + "road", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["!=", ["get", "class"], "track"]], layout: { "line-cap": "round", "line-join": "round" }, ...z,
         paint: { "line-color": roadPaint(), "line-width": width } },
-      { id: prefix + "track", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["==", ["get", "class"], "track"]], layout: { "line-join": "round" },
+      { id: prefix + "track", type: "line", source: src, "source-layer": "transportation", filter: ["all", ROAD_FILTER, ["==", ["get", "class"], "track"]], layout: { "line-join": "round" }, ...z,
         paint: { "line-color": roadPaint(), "line-width": width, "line-dasharray": [2, 1] } },
     ];
   }
+  const dirtOk = () => !!(window.tfDirtProtocol && window.tfDirtProtocol());
   map.createPane("motoGL").style.zIndex = 360;
   map.getPane("motoGL").style.pointerEvents = "none";
   let gl = null, glLoading = null;
+  // While the 3D map is on, the flat map's roads are let go (its own graphics context and road tiles): kept hidden
+  // under the 3D map, they were a second map's worth of phone memory, and drawn again all at once when going back to
+  // the flat map. The usage page showed the iPhone app dying twice there, on the Roads tab just after the 3D map
+  // (alex 2026-11-16). Back on the flat map they come again (map3d.js sends "tf:3d" once its memory is let go).
+  const flat3d = () => map.getContainer().classList.contains("is3d");
   async function showRoads(on) {
+    if (on && flat3d()) on = false;
     if (!on) { if (gl) { map.removeLayer(gl); gl = null; } return; }
     if (gl || glLoading) return;
     glLoading = window.tfLoadVectorLib ? window.tfLoadVectorLib().catch(() => null) : Promise.resolve(null);
     await glLoading; glLoading = null;
-    if (!isMoto() || !shown.has("roads") || gl || !L.maplibreGL) return;
-    gl = L.maplibreGL({ pane: "motoGL", interactive: false, attributionControl: false, style: { version: 8, sources: { m: OFM }, layers: roadLayers("m", "mt-") } }).addTo(map);
+    if (!isMoto() || !shown.has("roads") || gl || !L.maplibreGL || flat3d()) return;
+    gl = L.maplibreGL({ pane: "motoGL", interactive: false, attributionControl: false, style: { version: 8, sources: dirtOk() ? { m: OFM, d: DIRT } : { m: OFM }, layers: roadLayers("m", "mt-", dirtOk() ? "d" : null) } }).addTo(map);
   }
   // BC's forest service and other resource roads (DataBC FTEN), drawn from zoom 9: the OpenStreetMap tiles above only
   // carry dirt roads from zoom 13 and tracks from 14, too close in to plan a day. Coloured like a good gravel road for
   // your bike (most are), since the map image can't say which; tap one for its own details.
   const FTEN = "pub:WHSE_FOREST_TENURE.FTEN_ROAD_SECTION_LINES_SVW";
-  const ftenSld = () => `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>${FTEN}</Name><UserStyle><FeatureTypeStyle><Rule><LineSymbolizer><Stroke><CssParameter name="stroke">${FIT[fitOf(2, capOf(cur()))][1]}</CssParameter><CssParameter name="stroke-width">2</CssParameter><CssParameter name="stroke-opacity">0.8</CssParameter></Stroke></LineSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
+  // Thin and light when far out (alex 2026-11-17, "it looks weird with all the dirt roads": a whole island of 2 px green
+  // lines), full width from zoom 13. DataBC draws each rule at its own map scale (zoom 11 and out, 12, 13 and in).
+  const ftenSld = () => {
+    const c = FIT[fitOf(2, capOf(cur()))][1];
+    const rule = (min, max, w, o) => `<Rule>${min ? `<MinScaleDenominator>${min}</MinScaleDenominator>` : ""}${max ? `<MaxScaleDenominator>${max}</MaxScaleDenominator>` : ""}<LineSymbolizer><Stroke><CssParameter name="stroke">${c}</CssParameter><CssParameter name="stroke-width">${w}</CssParameter><CssParameter name="stroke-opacity">${o}</CssParameter></Stroke></LineSymbolizer></Rule>`;
+    return `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>${FTEN}</Name><UserStyle><FeatureTypeStyle>${rule(200000, 0, 0.7, 0.45)}${rule(100000, 200000, 1.2, 0.65)}${rule(0, 100000, 2, 0.8)}</FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
+  };
   const ftenLayer = L.tileLayer.wms("https://openmaps.gov.bc.ca/geo/pub/wms", { layers: FTEN, styles: "", format: "image/png", transparent: true, SLD_BODY: ftenSld(), minZoom: 9, maxZoom: 19, pane: "motoGL", bounds: L.latLngBounds([48.2, -139.1], [60, -114]), attribution: "DataBC" });
   function paintRoads() {
     if (ftenLayer._map) ftenLayer.setParams({ SLD_BODY: ftenSld() });
@@ -578,6 +618,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     for (const m of [g, gl3]) {
       if (!m || !m.getLayer) continue;
       for (const id of ["mt-road", "mt-track"]) if (m.getLayer(id)) m.setPaintProperty(id, "line-color", paint);
+      for (const id of ["mt-far-road", "mt-far-track"]) if (m.getLayer(id)) m.setPaintProperty(id, "line-color", farPaint());
     }
   }
   // The dirt road under a point of the map, from the drawn tiles: { name, class, surface } or null.
@@ -921,12 +962,22 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     try { const [h] = window.tfPlan && window.tfPlan.heights ? await window.tfPlan.heights([[p[0], p[1]]]) : []; if (h != null) return h; } catch {}
     return getJ(`https://api.open-meteo.com/v1/elevation?latitude=${p[0].toFixed(4)}&longitude=${p[1].toFixed(4)}`, 8000).then((j) => j.elevation && j.elevation[0]).catch(() => null);
   }
+  // A campsite from OpenStreetMap that is also a BC rec site (same place, within 500 m) gets the site's record too.
+  function recIdAt(k, p) {
+    if (k === "rec") return p[4] || "";
+    if (k !== "camp") return "";
+    let best = "", bestKm = 0.5;
+    for (const r of recList()) { const d = Math.abs(r[0] - p[0]) < 0.01 ? kmBetween([r[0], r[1]], [p[0], p[1]]) : 9; if (d < bestKm) { bestKm = d; best = r[4]; } }
+    return best || "";
+  }
+  const heights = new Map();   // one height ask per point for the card and its weather
+  const heightMemo = (p) => { const k = `${p[0]},${p[1]}`; if (!heights.has(k)) heights.set(k, heightOf(p)); return heights.get(k); };
   async function pinDetails(k, p) {
     const id = k === "rec" ? "" : String(p[4] || ""), key = id || `${p[0]},${p[1]}`;
     if (pinCache.has(key)) return pinCache.get(key);
     const [osm, ele] = await Promise.all([
       /^[nwr][0-9a-z]+$/.test(id) ? getJ(`https://api.openstreetmap.org/api/0.6/${OSM_TYPE[id[0]]}/${parseInt(id.slice(1), 36)}.json`, 10000).catch(() => null) : null,
-      heightOf(p)]);
+      heightMemo(p)]);
     const el = osm && osm.elements && osm.elements[0], t = (el && el.tags) || {};
     const facts = [], rows = [];
     const fact = (txt, no) => facts.push(`<li${no ? ' class="no"' : ""}>${esc(txt)}</li>`);
@@ -957,7 +1008,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       if (t.second_hand === "yes" || t.shop === "motorcycle") fact("Sales");
     }
     if (t.seasonal && t.seasonal !== "no") fact(t.seasonal === "yes" ? "Seasonal" : `Open ${t.seasonal}`);
-    if (k === "rec") { if (p[5]) row("Upkeep", esc(p[5])); row("More", `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(p[4] || "")}" target="_blank" rel="noopener">BC rec site page</a> (fees, access, closures)`); }
+    if (k === "rec") { row("More", `<a href="https://www.sitesandtrailsbc.ca/search/search-result.aspx?site=${encodeURIComponent(p[4] || "")}" target="_blank" rel="noopener">BC rec site page</a> (fees, access, closures)`); }
     if (t.brand && t.brand !== p[2]) row("Brand", esc(t.brand));
     if (t.operator && t.operator !== p[2]) row("Run by", esc(t.operator));
     if (t.opening_hours) row("Hours", esc(t.opening_hours === "24/7" ? "Open 24 hours" : t.opening_hours));
@@ -991,10 +1042,15 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const g = gradeOfTile(s.road), f = fitOf(g, cap);
       gradeHtml = `<p><span class="mt-badge" style="--c:${FIT[f][1]}">${esc(FIT[f][0])}</span></p><p><b>Grade ${g}: ${esc(GRADES[g][0])}</b> · ${esc(GRADES[g][1])}</p><p class="mt-note" data-osm>Looking up this road's details…</p>`;
     }
-    el.innerHTML = head + pinLine + gradeHtml + `<div data-can><p class="mt-note">Checking where you can ride…</p></div><div data-near></div>`;
+    el.innerHTML = head + pinLine + gradeHtml + (s.pin ? `<div data-here></div>` : "") + `<div data-can><p class="mt-note">Checking where you can ride…</p></div><div data-near></div>`;
     el.querySelector(".mt-x").onclick = () => { el.hidden = true; spot = null; spotLayer.removeLayer(spotMarker); spotSeq++; renderNear(); };
     const ap = el.querySelector("[data-addpt]");
     if (ap) ap.onclick = () => addPoint([s.lat, s.lon]);
+    if (s.pin) cardDrawn("pin", el, s.pin);
+    // At this spot (point-info.js): the weather there for 3 days, checked across 3 models, at its own height, sunrise
+    // and sunset, BC fire bans and wildfires, and a BC rec site's full record.
+    if (s.pin && window.tfPointInfo) window.tfPointInfo.fill(el.querySelector("[data-here]"), s.lat, s.lon,
+      { rec: recIdAt(s.pin.k, s.pin.p), isCurrent: () => my === spotSeq });
     if (s.pin) pinDetails(s.pin.k, s.pin.p).then((h) => { const box = my === spotSeq && el.querySelector("[data-pin]"); if (box) box.innerHTML = h; });
     // The road's own tags (OpenStreetMap), through the router's map: the way's id, then its tags.
     if (s.road) roadDetails(s.lat, s.lon).then((d) => {
@@ -1088,11 +1144,22 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   let planning = false, planPts = store.get("motoPlan", []), planStyle = store.get("motoStyle", "dirt"), planLoop = store.get("motoLoop", false), route = null, routeSeq = 0, routeErr = "";
   const planBar = document.createElement("div");
   planBar.className = "mt-planbar"; planBar.hidden = true;
-  planBar.innerHTML = `<span id="mtPlanTip">Tap the map: start, then where you want to go</span><button type="button" id="mtPlanUndo">↶</button><button type="button" class="go" id="mtPlanDone">Done</button>`;
+  planBar.innerHTML = `<span id="mtPlanTip">Tap the map: start, then where you want to go</span><button type="button" id="mtPlanUndo">↶</button><button type="button" class="go" id="mtPlanDone">Done</button>
+    <form class="mt-ask" role="search" hidden><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type the ride you want" placeholder="Or type the ride you want"><button type="submit">Plan it</button></form>`;
   document.querySelector(".mapwrap").append(planBar);
   L.DomEvent.disableClickPropagation(planBar);
   $("mtPlanUndo").onclick = () => { planPts.pop(); planChanged(); };
   $("mtPlanDone").onclick = () => setPlanning(false);
+  // Or the ride in plain words, like Skiing's Plan a tour: Ask (ask.js) reads it ("Squamish to Pemberton, mostly dirt",
+  // "200 km dirt loop from Kamloops") and planAsk() below plans it.
+  const askBar = planBar.querySelector(".mt-ask");
+  askBar.addEventListener("submit", (e) => { e.preventDefault(); const i = askBar.querySelector("input"), q = i.value.trim(); i.blur(); askRide(q); });
+  function askRide(q) {
+    if (!window.tfAsk) { hint("Ask isn't loaded yet: try again in a moment."); return; }
+    window.tfAsk.open(q, { plan: true });
+  }
+  // Words that read like a ride, not one place: "to", "via", "loop", a length, dirt or paved.
+  const rideLike = (q) => /\s(?:to|via|through|then|and back)\s|\bloop\b|\bround trip\b|\d\s*(?:km|h\b|hours?)|\b(?:dirt|gravel|paved|pavement|twisties|mix|mixed)\b/i.test(" " + q + " ");
   function setPlanning(on) {
     planning = on;
     planBar.hidden = !on;
@@ -1126,7 +1193,11 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       renderRoute();
     }
   }, 10 * 60000);
-  const tip = () => { $("mtPlanTip").textContent = !planPts.length ? "Tap the map where you start" : planPts.length === 1 ? "Now tap where you want to go" : `${planPts.length} points · tap to add more`; };
+  const tip = () => {
+    $("mtPlanTip").textContent = !planPts.length ? "Tap the map where you start" : planPts.length === 1 ? "Now tap where you want to go" : `${planPts.length} points · tap to add more`;
+    const on = planPts.length < 2;
+    if (askBar.hidden === on) { askBar.hidden = !on; planBar.classList.toggle("asking", on); if (planBox && !phone()) renderRoute(); }
+  };
   function addPoint(ll) {
     planPts.push([+ll[0].toFixed(5), +ll[1].toFixed(5)]);
     if (!planning && planPts.length === 1) setPlanning(true);
@@ -1812,9 +1883,12 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (!planBox) {
       planBox = window.tfPlaceSearch.box({ button: "Add", label: "Type a place to add to the route", onPick: addPlace });
       planBox.classList.add("mt-place");
+      // One box: a ride typed here ("to Lillooet via the Hurley, mostly dirt") goes to Ask, a place is added as a point.
+      planBox.addEventListener("submit", (e) => { const q = planBox.tfInput.value.trim(); if (!q || !rideLike(q)) return; e.preventDefault(); e.stopImmediatePropagation(); planBox.tfInput.value = ""; planBox.tfInput.blur(); planBox.querySelector(".ps-msg").textContent = ""; planBox.querySelector(".ps-hits").innerHTML = ""; askRide(q); }, true);
+      planBox.tfInput.addEventListener("input", () => { const b = planBox.querySelector(".ps-go"); if (b) b.textContent = rideLike(planBox.tfInput.value) ? "Plan it" : "Add"; });
       planBox.addEventListener("focusout", () => setTimeout(() => { if (renderLater && !planBox.contains(document.activeElement)) { renderLater = false; renderRoute(); } }, 300));
     }
-    planBox.tfInput.placeholder = planPts.length ? "Type where you want to go" : "Type where you start";
+    planBox.tfInput.placeholder = planPts.length >= 2 ? "Type where you want to go" : "Type a place or a ride";
     return planBox;
   }
   function addPlace(p) {
@@ -1838,7 +1912,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     let body = "";
     if (loading && !r) body = `<p class="mt-note">${esc(offProg || "Finding the roads…")}</p>`;
     else if (routeErr) body = `<div class="mt-warn">${esc(routeErr)}</div>`;
-    else if (!r) body = `<p class="mt-note">${planPts.length ? "Tap where you want to go, or type it above." : "Tap the map where you start, type a place above, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
+    else if (!r) body = `<p class="mt-note">${planPts.length ? planPts.length === 1 ? "Tap where you want to go, or type it or the ride you want." : "Tap where you want to go, or type it above." : "Type the ride you want above, like “Squamish to Pemberton, mostly dirt” or “200 km dirt loop from Kamloops”. Or tap the map where you start, or use From where I am."} Points can be dragged; tap one to remove it.</p>`;
     else {
       const st = routeStats(r), fp = fuelPlan(r), cap = capOf(b), tr = r.edges && trafficOf(r), dirtPct = r.edges ? Math.round((100 * st.dirt) / Math.max(0.1, r.km)) : null;
       const bar = r.edges ? `<div class="mt-bar" aria-label="Surfaces along the route">${[1, 2, 3, 4, 5].map((g) => st.byG[g] > 0 ? `<i style="width:${(100 * st.byG[g]) / r.km}%;background:${g === 1 ? "#495057" : FIT[fitOf(g, cap)][1]}" title="Grade ${g}: ${fmtKm(st.byG[g])}"></i>` : "").join("")}</div>
@@ -1856,15 +1930,17 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
         <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time + (tr ? tr.delay : 0))}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
         ${r.offline ? `<div class="mt-warn ok">${svg(IC.cell, 14)} Planned with no signal, from the roads in your saved offline maps. Closures and road reports from today weren't checked: plan again when you have signal.</div>` : ""}
-        ${bar}${hard}${trafficHtml(r)}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
+        ${askedHtml(r)}${bar}${hard}${trafficHtml(r)}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
         ${camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping near the end (${camps.length})</summary><ul class="mt-list">${camps.map(([d, p]) => `<li style="--c:${PT.camp.c}"><b>${esc(p[2] || "Campsite")}</b><small>${p[3] ? esc(p[3]) + " · " : ""}${fmtKm(d)} from the end</small></li>`).join("")}</ul></details>` : ""}
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
         <div class="mt-row"><button type="button" class="mt-pill go" data-r="ride">${svg(IC.ride, 16)}Ride it</button><button type="button" class="mt-pill" data-r="save">${svg(IC.save, 16)}Save</button><button type="button" class="mt-pill" data-r="gpx">${svg(IC.dl, 16)}GPX</button><button type="button" class="mt-pill" data-r="offline">${svg(IC.dl, 16)}Save offline</button><button type="button" class="mt-pill" data-r="fly">${svg(IC.fly, 16)}Fly it in 3D</button></div>`;
     }
-    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>${styles}${tools}<div class="mt-placeslot"></div>${wpListHtml()}${body}
+    el.innerHTML = `<header>${svg(IC.plan)}<h3>Plan a route</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div class="mt-placeslot"></div>${styles}${tools}${wpListHtml()}${body}
       <p class="mt-note">For your ${esc(b.name || TYPES[b.type].label)} (rides grade ${capOf(b)} well). Routes by Valhalla on OpenStreetMap roads.</p>${window.tfRiskLine ? window.tfRiskLine() : ""}`;
     const slot = el.querySelector(".mt-placeslot"), pb = planPlaceBox();
     if (pb) slot.replaceWith(pb); else slot.remove();
+    // On a computer, while the box on the map is there, it's the one box (a phone's sheet can cover the map: both stay).
+    if (pb) pb.hidden = planning && !askBar.hidden && !phone();
     el.querySelector(".mt-x").onclick = () => { setPlanning(false); route = null; routeErr = ""; drawRoute(); renderRoute(); drawRange(); pane.querySelector('[data-act="plan"]').classList.remove("on"); };
     el.querySelectorAll("[data-style]").forEach((x) => (x.onclick = () => { planStyle = x.dataset.style; store.set("motoStyle", planStyle); renderRoute(); buildRoute(); }));
     el.querySelectorAll("[data-show]").forEach((x) => (x.onclick = () => { const [a, z] = x.dataset.show.split(",").map(Number); const seg = route.line.slice(a, z + 1); if (seg.length) { if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); const bb = L.latLngBounds(seg).pad(0.6); map.fitBounds(bb, { maxZoom: 15 }); if (in3d()) gl3.fitBounds([[bb.getWest(), bb.getSouth()], [bb.getEast(), bb.getNorth()]], { maxZoom: 15, padding: 40 }); } }));
@@ -1881,12 +1957,16 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       planChanged(); renderRoute();
     }));
     el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
+    if (r) cardDrawn("route", el, r);
   }
+  // A card drawn again (a planned route, an ADV route, a campsite): the Moto trip (moto-trip.js) adds its buttons to it.
+  const cardDrawn = (kind, el, item) => window.dispatchEvent(new CustomEvent("tf:moto-card", { detail: { kind, el, item } }));
   function routeAct(a, btn) {
     if (a === "loop") { planLoop = !planLoop; store.set("motoLoop", planLoop); drawWaypoints(); buildRoute(); renderRoute(); }
     else if (a === "edit") setPlanning(true);
+    else if (a === "reloop" && askLoop) { btn.disabled = true; planAsk({ pts: [{ ll: askLoop.at, name: askLoop.name }], loop: true, km: askLoop.km, turn: askLoop.turn + 1 }); }
     else if (a === "unavoid") { avoidMine = []; store.set("motoAvoid", avoidMine); buildRoute(); }
-    else if (a === "clear") { planPts = []; avoidMine = []; store.set("motoAvoid", avoidMine); route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
+    else if (a === "clear") { askLoop = null; planPts = []; avoidMine = []; store.set("motoAvoid", avoidMine); route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); drawRange(); if (!planning) setPlanning(true); else { tip(); renderRoute(); } }
     else if (a === "me") {
       if (!you) { hint("Turn on your location (◎ on the map) first."); return; }
       planPts.unshift([+you.lat.toFixed(5), +you.lon.toFixed(5)]);
@@ -2159,11 +2239,13 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
         g.__mtSld = sld;
         g.addSource("mt-ften", { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 17, bounds: [-139.1, 48.2, -114, 60],
           tiles: [`https://openmaps.gov.bc.ca/geo/pub/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(FTEN)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(sld)}&BBOX={bbox-epsg-3857}`] });
-        g.addLayer({ id: "mt-ften", type: "raster", source: "mt-ften", minzoom: 8, paint: { "raster-opacity": 0.9 } });
+        g.addLayer({ id: "mt-ften", type: "raster", source: "mt-ften", minzoom: 8, paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 11, 0.8, 13, 0.95] } });
       }
       g.setLayoutProperty("mt-ften", "visibility", on && shown.has("roads") ? "visible" : "none");
       if (!g.getSource("mt-ofm")) g.addSource("mt-ofm", OFM);
-      for (const l of roadLayers("mt-ofm", "mt-")) {
+      const far = !g.getLayer("mt-case") || g.getLayer("mt-far-road") ? dirtOk() : false;   // not added under roads already drawn without them
+      if (far && !g.getSource("mt-dirt")) g.addSource("mt-dirt", DIRT);
+      for (const l of roadLayers("mt-ofm", "mt-", far ? "mt-dirt" : null)) {
         if (!g.getLayer(l.id)) g.addLayer(l);
         g.setLayoutProperty(l.id, "visibility", on && shown.has("roads") ? "visible" : "none");
       }
@@ -2217,6 +2299,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     drawWaypoints();
   }
   window.addEventListener("tf:map3d", (e) => on3d(e.detail));
+  window.addEventListener("tf:3d", () => showRoads(isMoto() && shown.has("roads")));
   if (window.trailMap3d) on3d(window.trailMap3d);
 
   // ---------- high points: snow and frost where the route climbs ----------
@@ -2611,6 +2694,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     el.querySelectorAll("[data-trip]").forEach((x) => (x.onclick = () => showTrip(x.dataset.trip)));
     const pb = el.querySelector('[data-t="plan"]'); if (pb) pb.onclick = () => planTrip(open);
     const bb = el.querySelector('[data-t="back"]'); if (bb) bb.onclick = () => { tripOpen = null; tripLayer.clearLayers(); renderTrips(); };
+    if (open) cardDrawn("adv", el, open);
   }
   // One route with all it has: photo, what it is, highlights, the hardest part, water, ferries, permits, best months,
   // gas stops (gaps longer than your range in red) and camps along it, trip reports.
@@ -2664,6 +2748,82 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     showCard($("mtRoute"));
   }
 
+  // ---------- a ride typed in plain words (Ask, ask.js) ----------
+  // alex 2026-11-17: "one you click on plan a route i want to see the same ask box as skiing so the user can tell the
+  // app what ride they want to do". Ask reads the words (start, places on the way, finish, loop, length, dirt or
+  // paved) and finds the places; here they become the route points and the style. A loop with only a start and a length
+  // ("200 km dirt loop from Kamloops") gets two points on the way: mapped gas stations (and, for Most dirt, campsites
+  // and BC rec sites, which sit on forest roads), picked so the loop comes out about that long. Another loop picks other
+  // ones. The router then plans it the same as tapped points: the rider checks it and decides.
+  let askLoop = null;   // { at, name, km, turn, got (km planned), kinds }
+  const destOf = (p, deg, km) => { const b = (deg * Math.PI) / 180; return [p[0] + (km / 111.2) * Math.cos(b), p[1] + (km / (111.2 * Math.cos((p[0] * Math.PI) / 180))) * Math.sin(b)]; };
+  async function loopVias(o) {
+    await Promise.all([loadPts("fuel"), loadPts("camp")].map((x) => Promise.resolve(x).catch(() => {})));
+    const S = o.at, box = o.km / 2 / 111.2 + 0.1;
+    const inBox = (p) => Math.abs(p[0] - S[0]) < box && Math.abs(p[1] - S[1]) < box / Math.cos((S[0] * Math.PI) / 180);
+    const cands = [...listOf("fuel").filter(inBox).map((p) => ({ p, k: "gas" })), ...(planStyle === "dirt" ? campsAll().filter(inBox).map((p) => ({ p, k: "camp" })) : [])]
+      .map((c) => ({ ...c, ll: [c.p[0], c.p[1]] }));   // Leaflet takes [lat, lon] only, not the point's name and extras
+    const near = (q, max) => { let best = null, bd = max; for (const c of cands) { const d = kmBetween(q, c.ll); if (d < bd) { bd = d; best = c; } } return best ? { ...best, d: bd } : null; };
+    // A triangle from the start: two points d km out, 60° apart (3 sides of d, and roads wind about 20% more).
+    const pick = (d) => {
+      const opts = [];
+      for (let k = 0; k < 12; k++) {
+        const th = k * 30, A = destOf(S, th - 30, d), B = destOf(S, th + 30, d), a = near(A, d * 0.35), b = near(B, d * 0.35);
+        if (!a || !b || a.p === b.p || kmBetween(a.ll, b.ll) < d * 0.4 || kmBetween(S, a.ll) < d * 0.5 || kmBetween(S, b.ll) < d * 0.5) continue;
+        opts.push({ th, a, b, s: a.d + b.d });
+      }
+      opts.sort((x, y) => x.s - y.s);
+      const out = [];   // ways that face different directions first, so Another loop gives another loop
+      for (const x of opts) if (!out.some((y) => Math.abs(((x.th - y.th + 540) % 360) - 180) < 75)) out.push(x);
+      return out.length ? out : opts;
+    };
+    let d = o.km / 3.6, opts = pick(d);
+    if (!opts.length) return null;
+    let w = opts[o.turn % opts.length];
+    // The length on the roads, once: too short or too long by a third, the points move in or out.
+    try {
+      const r = await routeOnce([S, w.a.ll, w.b.ll, S], [], null);
+      const f = o.km / Math.max(1, r.km);
+      if (f < 0.75 || f > 1.33) {
+        d *= Math.max(0.4, Math.min(2.5, f));
+        const again = pick(d).sort((x, y) => Math.abs(((x.th - w.th + 540) % 360) - 180) - Math.abs(((y.th - w.th + 540) % 360) - 180));
+        if (again.length) w = again[0];
+      }
+    } catch { /* no answer from the router: buildRoute says why */ }
+    return { pts: [w.a, w.b] };
+  }
+  async function planAsk(o) {
+    toPanel();
+    if (o.style && STYLES[o.style]) { planStyle = o.style; store.set("motoStyle", planStyle); }
+    planLoop = !!o.loop; store.set("motoLoop", planLoop);
+    const pts = (o.pts || []).map((x) => { const q = [+x.ll[0].toFixed(5), +x.ll[1].toFixed(5)]; if (x.name) wpNames.set(wpKey(q), x.name); return q; });
+    if (!pts.length) return;
+    askLoop = null; route = null; routeErr = ""; avoidMine = []; store.set("motoAvoid", avoidMine);
+    if (planLoop && pts.length === 1 && o.km) {
+      planPts = pts; drawWaypoints(); routeErr = ""; $("mtRoute").hidden = false; offProg = "Picking points on the way for your loop…"; renderRoute(true); showCard($("mtRoute"));
+      const v = await loopVias({ at: pts[0], km: o.km, turn: o.turn || 0 });
+      offProg = "";
+      if (!v) { routeErr = `No gas stations${planStyle === "dirt" ? " or campsites" : ""} mapped in the right places for a loop of about ${Math.round(o.km)} km from here: tap the map where you want to go.`; setPlanning(true); renderRoute(); return; }
+      v.pts.forEach((x) => { const q = [+x.p[0].toFixed(5), +x.p[1].toFixed(5)]; wpNames.set(wpKey(q), realName(x.p[2]) || (x.k === "gas" ? "Gas station" : "Campsite")); pts.push(q); });
+      askLoop = { at: pts[0], name: o.pts[0].name || "", km: o.km, turn: o.turn || 0, kinds: [...new Set(v.pts.map((x) => x.k))] };
+    }
+    planPts = pts;
+    store.set("motoPlan", planPts);
+    if (pts.length < 2) { drawWaypoints(); drawRoute(); setPlanning(true); map.setView(pts[0], Math.max(map.getZoom(), 10)); showCard($("mtRoute")); return; }
+    if (planning) setPlanning(false);
+    drawWaypoints(); drawRoute();
+    map.fitBounds(L.latLngBounds(pts).pad(0.15));
+    showCard($("mtRoute"));
+    await buildRoute();
+  }
+  // On the route's card: what Ask did with the words.
+  function askedHtml(r) {
+    if (!askLoop || !planLoop || !planPts.length || wpKey(planPts[0]) !== wpKey(askLoop.at)) return "";
+    const what = askLoop.kinds.length > 1 ? "a gas station or a campsite" : askLoop.kinds[0] === "camp" ? "a campsite" : "a gas station";
+    return `<div class="mt-asked"><span>You asked for a loop of about ${Math.round(askLoop.km)} km${askLoop.name ? ` from ${esc(askLoop.name)}` : ""}: this one is ${fmtKm(r.km)}. Points 1 and 2 are each ${what} the app picked to make the loop that long. Drag them, or try another.</span>
+      <div class="mt-row"><button type="button" class="mt-pill" data-r="reloop">${svg(IC.loop, 16)}Another loop</button></div></div>`;
+  }
+
   // ---------- for other scripts ----------
   window.tfMoto = {
     spot(lat, lon) { setSpot(lat, lon, "tap"); toPanel(); },   // a shared spot (ski-points.js #pin=)
@@ -2677,6 +2837,30 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       else if (what === "log") openLog();
       else if (what === "trips") openTrips();
     },
+  };
+  // The Moto trip (moto-trip.js, on trip-core.js): the bikes, gas, camps, routes and cards it builds from.
+  // A route as one of the trip's lines (ls: its points), and one line planned again here (turns, surfaces, Ride it).
+  const planLine = (ll, name) => { planTrip({ n: name, line: ll }); };
+  window.tfMoto.trip = {
+    ACC, svg, IC, TYPES, TIRES, SKILL, GRADES, RESERVE, rangeOf, usable, capOf, fitOf, loadModels, typeOfKg, kmBetween, fmtKm, realName, PT,
+    bikes: () => bikes.slice(), myBike: () => bike(),
+    fuelReady: () => listOf("fuel").length > 0,
+    fuelPlan: (line) => (line && line.length > 1 ? fuelPlan({ line }) : null),
+    // Campsites and BC rec sites near ll (the map's data: all of Canada for campsites, rec sites once the map has been there).
+    campsNear: (ll, km, n = 12) => nearest(campsAll(), ll[0], ll[1], n, km).map(([d, p]) => ({ d, p })),
+    kindLine,
+    routeItem: () => (route && route.line && route.line.length > 1 ? { name: route.name || "My adventure route", ls: [route.line], km: route.km, time: route.time } : null),
+    advItem: (t) => { const ll = tripLine(t); return ll.length > 1 ? { rid: "adv:" + t.id, name: t.n, label: `grade ${t.grade || 2}`, ls: [ll] } : null; },
+    advRoutes: () => loadTrips(),
+    openAdv: async (id) => { toPanel(); await openTrips(); showTrip(id); },
+    planLine: (ll, name) => { toPanel(); planLine(ll, name); },
+    planAsk,   // Ask (ask.js): { pts: [{ ll, name }], style, loop, km }
+    planNow: () => ({ pts: planPts.map((p) => ({ ll: p, name: wpNames.get(wpKey(p)) || "" })), style: planStyle, loop: planLoop, planning }),
+    STYLES,
+    planFrom: (ll) => { toPanel(); planPts = ll ? [[+ll[0].toFixed(5), +ll[1].toFixed(5)]] : []; route = null; routeErr = ""; store.set("motoPlan", planPts); drawWaypoints(); drawRoute(); setPlanning(true); renderRoute(); showCard($("mtRoute")); },
+    openSpot: (lat, lon) => { map.setView([lat, lon], Math.max(map.getZoom(), 12)); setSpot(lat, lon, "tap"); toPanel(); },
+    cellNear: async (lat, lon) => { const c = await loadCell(); return c ? cellNear(lat, lon) : null; },
+    showCard, toPanel, hint, getJ, postJ, OVERPASS,
   };
   // Offline maps (offline.js) saved in Moto keep the gas, camping and hot spring lists too.
   window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json", "data/moto-models.json"] : []);

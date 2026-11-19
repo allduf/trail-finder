@@ -5,6 +5,8 @@ name: Fix PR conflicts
 # again), and the shared ?v= / sw.js tf- number (one new number above main and every open PR). Then it starts the
 # required iPhone test on the new commit so auto-merge can go on. Real code conflicts are never touched: the PR gets a
 # comment naming the files. Rules: scripts/pr-fix/resolve.mjs. Test: node scripts/pr-fix/test.mjs
+# Since 2026-11-19 new PRs don't touch any of those (?v=__V__ set at publish, data/changelog.d/, own fr-<name>.txt,
+# no i18n-fr.js in git: scripts/stamp.mjs); this still brings older PRs over (their numbers become __V__ again).
 # Leave a PR alone: give it the label "no-auto-fix".
 on:
   push:

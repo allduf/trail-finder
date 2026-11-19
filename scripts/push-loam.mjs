@@ -178,19 +178,36 @@ const dayName = (d, today) => {
   const n = Math.round((Date.parse(d) - Date.parse(today)) / 86400e3);
   return n === 1 ? "tomorrow" : new Date(d + "T12:00Z").toLocaleDateString("en-CA", { weekday: "long", timeZone: "UTC" });
 };
+// Open-Meteo sometimes drops a request ("fetch failed", 429, 5xx): try again after 5, 20 and 60 s before giving up on
+// a chunk, so one hiccup doesn't skip a whole alert run (fix list item 51, 15 Nov 2026: loam read at 0 of 49 spots).
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+async function fetchJsonRetry(url, waits = [5e3, 20e3, 60e3]) {
+  for (let n = 0; ; n++) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(30e3) });
+      if (r.ok) return await r.json();
+      const err = new Error("HTTP " + r.status);
+      if (r.status !== 429 && r.status < 500) throw Object.assign(err, { final: true });
+      throw err;
+    } catch (e) {
+      if (e.final || n >= waits.length) throw e;
+      console.log(`  ${e.message}, trying again in ${waits[n] / 1e3} s`);
+      await sleep(waits[n]);
+    }
+  }
+}
 const lmi = new Map(), soonOf = new Map(), cellList = [...cells];
 for (let i = 0; i < cellList.length; i += 50) {
   const chunk = cellList.slice(i, i + 50), ll = chunk.map((k) => k.split(","));
   try {
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}` +
-      "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth");
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const json = await r.json();
+    const json = await fetchJsonRetry(`https://api.open-meteo.com/v1/forecast?latitude=${ll.map((x) => x[0]).join(",")}&longitude=${ll.map((x) => x[1]).join(",")}` +
+      "&timezone=auto&past_days=1&forecast_days=4&current=temperature_2m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm");
     (Array.isArray(json) ? json : [json]).forEach((w, k) => {
       let j = w.hourly.time.findIndex((x) => x > w.current.time) - 1;
       if (j < 0) j = w.hourly.time.length - 1;
       // Snow on the ground (5 cm or more, as on the site): the soil under it can read prime, but it isn't, so no reading.
-      const snowy = (n) => (w.hourly.snow_depth && w.hourly.snow_depth[n]) >= 0.05;
+      // Frozen ground (soil surface at or below 0°C, as frostAt on the site): frozen water reads as moisture, so no reading either.
+      const snowy = (n) => (w.hourly.snow_depth && w.hourly.snow_depth[n]) >= 0.05 || (w.hourly.soil_temperature_0cm && w.hourly.soil_temperature_0cm[n] != null && w.hourly.soil_temperature_0cm[n] <= 0);
       lmi.set(chunk[k], snowy(j) ? null : lmiAt(w.hourly, j, chunk[k]));
       const today = w.current.time.slice(0, 10), h = w.hourly;
       const i = h.time.findIndex((x, n) => x.slice(0, 10) > today && x.endsWith("T13:00") && !snowy(n) && isPrime(lmiAt(h, n, chunk[k])));

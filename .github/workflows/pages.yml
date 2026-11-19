@@ -37,9 +37,16 @@ jobs:
         with:
           ref: main
           path: site
+          fetch-depth: 0        # main's history (no file contents) for the version number: scripts/stamp.mjs
+          filter: blob:none
       - name: Add the data jobs' files
         working-directory: site
         run: bash scripts/site-data.sh get
+      - name: Set the version number, What's new and French (scripts/stamp.mjs)
+        # Pull requests never set ?v= / tf- numbers, data/changelog.json lines or i18n-fr.js by hand (2026-11-19): they
+        # are made here, the same for every publish of the same main, one number higher after each merge.
+        working-directory: site
+        run: node scripts/stamp.mjs
       - name: Add the Canada-wide data
         run: |
           git clone -q --depth 1 --branch canada-data "https://github.com/${GITHUB_REPOSITORY}.git" canada || { echo "No canada-data branch yet."; exit 0; }
@@ -49,7 +56,7 @@ jobs:
           git clone -q --depth 1 --branch japan-data "https://github.com/${GITHUB_REPOSITORY}.git" japan || { echo "No japan-data branch yet."; exit 0; }
           mv japan/jp site/jp
       - name: Leave out what the website doesn't need
-        run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app site/old-address
+        run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app site/old-address site/data/changelog.d
       - name: Publish to Cloudflare Pages (trailfinderapp.ca)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -15,6 +15,7 @@
   "use strict";
   const C = window.Capacitor;
   if (!C || !C.isNativePlatform || !C.isNativePlatform()) return;
+  if (C.getPlatform && C.getPlatform() !== "ios") return;   // the Android app updates itself through Google Play
   const KEY = "tf:appUpdateSeen", INTERNAL = "tf:appInternal", WAIT_MS = 4500, AGAIN_MS = 3600e3, REMIND_MS = 24 * 3600e3;
   const has = (name) => (C.isPluginAvailable ? C.isPluginAvailable(name) : !!(C.Plugins || {})[name]);
   const plugin = (name) => (C.registerPlugin ? C.registerPlugin(name) : (C.Plugins || {})[name]);

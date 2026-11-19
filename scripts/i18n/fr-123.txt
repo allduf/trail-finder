@@ -1,0 +1,2 @@
+# 3D: sharper stand-in photos while loading (map3d.js satlo z11), 2026-11-17
+3D map: while the sharp photos load after you tilt or zoom out, the ground around them is much less blurry. ||| Carte 3D : pendant que les photos nettes se chargent après avoir incliné ou dézoomé, le sol autour est beaucoup moins flou.

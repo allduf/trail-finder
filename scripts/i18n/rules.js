@@ -17,8 +17,67 @@
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
+    // Fishing trips (fishing-trip.js)
+    [/^wind (\d+) km\/h (N|NE|E|SE|S|SW|W|NW)(?:, gusts (\d+))?$/, function (m, w, d, g) { return "vent " + w + " km/h " + d.replace(/W/g, "O") + (g ? ", rafales " + g : ""); }],
+    [/^sun (.+) to (.+)$/, "soleil $1 à $2"],
+    [/^(\d+) mm of rain \((\d+)% chance\)$/, "$1 mm de pluie ($2 % de risque)"],
+    [/^(high|low) tide (.+), (-?[\d.]+) m$/, function (m, k, t, h) { return "marée " + (k === "high" ? "haute" : "basse") + " " + t + ", " + h.replace(".", ",") + " m"; }],
+    [/^Fish here on (.+)$/, "Pêcher ici pendant $1"],
+    [/^The water of your trip: (.+)$/, "Le plan d'eau de votre voyage : $1"],
+    [/^River now: (.+)$/, "Rivière maintenant : $1"],
+    [/^Flies for (\w+): (.+)$/, function (m, mo, f) { return "Mouches pour " + tt(mo).toLowerCase() + " : " + f; }],
+    [/^(\d+) fish$/, function (m, n) { return n + " poisson" + (n > 1 ? "s" : ""); }],
+    // Hike trips (hike-trip.js)
+    [/^High point of (.+) \(([\d,]+) m\): (-?\d+°|–), low (-?\d+°|–)$/, function (m, n, e, a, b) { return "Point culminant de " + n + " (" + e.replace(",", " ") + " m) : " + a + ", min. " + b; }],
+    [/^Day (\d+)$/, "Jour $1"],
+    [/^Which day for (.+)$/, "Quel jour pour $1"],
+    [/^(.+) \((campsite|hut or shelter|trailhead)\)$/, function (m, n, k) { return n + " (" + tw(k) + ")"; }],
+    [/^low (-?\d+)°$/, "min. $1°"],
+    [/^at (?!the |least |most |any |all |first |last |night |dawn |dusk )(.+)$/, "à $1"],
+    [/^wind (\d+) km\/h(?:, gusts (\d+))?$/, function (m, w, g) { return "vent " + w + " km/h" + (g ? ", rafales " + g : ""); }],
+    [/^snow above about ([\d,]+) m$/, function (m, n) { return "neige au-dessus d'environ " + n.replace(",", " ") + " m"; }],
+    [/^sunset (.+)$/, "coucher du soleil $1"],
+    [/^(\d+) cm of snow$/, "$1 cm de neige"],
+    [/^(\d+) mm of rain$/, "$1 mm de pluie"],
+    [/^(\d+)% chance$/, "$1 % de risque"],
+    [/^Night (\d+) · (.+)$/, function (m, n, d) { return "Nuit " + n + " · " + tt(d); }],
+    [/^Night (\d+) of (.+)$/, function (m, n, t) { return "Nuit " + n + " de " + t; }],
+    [/^Sleep here: night (\d+) of (.+)$/, function (m, n, t) { return "Dormir ici : nuit " + n + " de " + t; }],
+    [/^Start (.+) here$/, function (m, t) { return "Commencer " + t + " ici"; }],
+    [/^Where you sleep night (\d+)$/, function (m, n) { return "Où vous dormez la nuit " + n; }],
+    [/^Sleeping bag rated to (-?\d+)°C or warmer$/, function (m, n) { return "Sac de couchage pour " + n + " °C ou plus chaud"; }],
+    [/^Tents? (?:for (\d+) \(about (\d+)\))?, poles and pegs$/, function (m, p, n) { return (p ? "Tentes pour " + p + " (environ " + n + ")" : "Tente") + ", arceaux et piquets"; }],
+    [/^Stove and about (\d+) g of fuel$/, function (m, g) { return "Réchaud et environ " + g + " g de combustible"; }],
+    [/^Water bottles or a bladder: 2 L( each)?$/, function (m, e) { return "Gourdes ou sac d'hydratation : 2 L" + (e ? " chacun" : ""); }],
+    [/^Snacks for (\d+) days$/, function (m, n) { return "Collations pour " + n + " jours"; }],
+    [/^Warm layer, toque and gloves: down to (-?\d+)°C at camp$/, function (m, n) { return "Couche chaude, tuque et gants : jusqu'à " + n + " °C au camp"; }],
+    [/^Dry socks for (\d+) nights?$/, function (m, n) { return "Bas secs pour " + n + " nuit" + (n > 1 ? "s" : ""); }],
+    [/^(\d+) breakfasts?, (\d+) lunches and (\d+) dinners?(?: for (\d+))?$/, function (m, b, l, d, p) { return b + " déjeuner" + (b > 1 ? "s" : "") + ", " + l + " dîners et " + d + " souper" + (d > 1 ? "s" : "") + (p ? " pour " + p : ""); }],
+    [/^Bear spray( each)?, where you can reach it$/, function (m, e) { return "Vaporisateur anti-ours" + (e ? " chacun" : "") + ", à portée de main"; }],
+    // Moto trips (moto-trip.js)
+    [/^Day (\d+): (.+)$/, function (m, n, r) { return "Jour " + n + " : " + r; }],
+    [/^(.+) \((campground|BC rec site|motel|hotel|guest house|hostel|cabin|place)(?:, (.+) from the end of day (\d+))?\)$/, function (m, n, k, d, j) { var K = { campground: "camping", "BC rec site": "site récréatif de la C.-B.", motel: "motel", hotel: "hôtel", "guest house": "gîte", hostel: "auberge", cabin: "chalet", place: "endroit" }; return n + " (" + K[k] + (d ? ", à " + d + " de la fin du jour " + j : "") + ")"; }],
+    [/^Start a (\d+)-day moto trip from (where you are|the middle of the map|.+), (.+)$/, function (m, n, w, d) { return "Commencer un voyage moto de " + n + " jours " + (w === "where you are" ? "à partir d'où vous êtes" : w === "the middle of the map" ? "à partir du milieu de la carte" : "au départ de " + w) + ", " + tt(d); }],
+    [/^Added to (.+) as day (\d+)\.$/, function (m, t, n) { return "Ajouté à " + t + " comme jour " + n + "."; }],
+    [/^\+ Add to the trip: (.+)$/, function (m, t) { return "+ Ajouter au voyage : " + t; }],
+    [/^Spare fuel: about (\d+) L \(see Gas for every bike\)$/, "Essence de réserve : environ $1 L (voir Essence pour chaque moto)"],
+    [/^Gloves, and a warm pair: down to (-?\d+)°C$/, "Gants, et une paire chaude : jusqu'à $1 °C"],
+    [/^(\d+) breakfasts? and (\d+) dinners?(?: for (\d+))?$/, function (m, b, d, p) { return b + " déjeuner" + (b > 1 ? "s" : "") + " et " + d + " souper" + (d > 1 ? "s" : "") + (p ? " pour " + p : ""); }],
+    [/^Tents?(?: for (\d+) \(about (\d+)\))?$/, function (m, p, n) { return p ? "Tentes pour " + p + " (environ " + n + ")" : "Tente"; }],
+    [/^(\d+) of (\d+) bikes?$/, "$1 moto(s) sur $2"],
+    [/^(.+)'s bike$/, "Moto de $1"],
+    [/^Use (.+)$/, "Utiliser $1"],
+    [/^Trip started\. Tap a route below, then \+ Add to moto trip\.$/, "Voyage commencé. Touchez un itinéraire plus bas, puis + Ajouter au voyage moto."],
+    // Weather checked across models (wxcheck.js)
+    [/^Middle value of (\d+) weather models checked against each other:?$/, function (m, n) { return "Valeur du milieu de " + n + " modèles météo comparés entre eux :"; }],
+    [/^((?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\))(?:, (?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
+    [/^(Wind|High|Low|Snow|Rain or snow \(water\)): ((?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat))*) \(([\d.]+) to ([\d.]+) (mm|cm|°C|km\/h)\)$/, function (m, w, ds, a, b, u) {
+      var DJ = { Today: "aujourd'hui", Sun: "dim.", Mon: "lun.", Tue: "mar.", Wed: "mer.", Thu: "jeu.", Fri: "ven.", Sat: "sam." };
+      var WW = { Wind: "Vent", High: "Max.", Low: "Min.", Snow: "Neige", "Rain or snow (water)": "Pluie ou neige (eau)" };
+      return WW[w] + " : " + ds.split(", ").map(function (d) { return DJ[d]; }).join(", ") + " (" + a.replace(".", ",") + " à " + b.replace(".", ",") + " " + u + ")"; }],
     [/^Added to your trip to (.+)\.$/, function (m, h) { return "Ajouté à votre séjour : " + tt(h) + "."; }],
     [/^(paid by (.+)|who paid\?)(?: · split with (.+))?$/, function (m, a, by, w) { return (by ? "payé par " + by : "qui a payé?") + (w ? " · partagé avec " + (w === "everyone" ? "tout le monde" : w) : ""); }],
+    [/^Part (\d+) of (\d+) \((north|west) to (south|east)\), a road splits it$/, function (m, i, n, a, b) { var C = { north: "nord", south: "sud", west: "ouest", east: "est" }; return "Partie " + i + " sur " + n + " (du " + C[a] + " au " + C[b] + "), une route le coupe"; }],
     [/^added by (.+)$/, function (m, n) { return "ajouté par " + n; }],
     [/^Got it: what you add shows "added by (.+)"\.$/, function (m, n) { return "C'est noté : ce que vous ajoutez affiche « ajouté par " + n + " »."; }],
     [/^(\d+) shared items? (?:has|have) no one yet: tap Who\? beside it\.$/, function (m, n) { return n + (n === "1" ? " article commun n'a" : " articles communs n'ont") + " personne pour l'instant : touchez Qui ? à côté."; }],
@@ -54,6 +113,9 @@
     [/^(\d+) of (\d+) (chairlifts|lifts) running$/, function (m, a, b, k) { return a + " " + (k === "chairlifts" ? "télésièges" : "remontées") + " en marche sur " + b; }],
     [/^(\d+) of (\d+) magic carpets$/, "$1 tapis magiques sur $2"],
     [/^Today at (.+?)(:?)$/, function (m, n, c) { return "Aujourd'hui à " + n + (c ? " :" : ""); }],
+    // jp-resorts.js: a Japan ski resort's card (2026-11-14)
+    [/^Ski resort · (\d+) lifts? on the map$/, function (m, n) { return "Station de ski · " + n + (n === "1" ? " remontée" : " remontées") + " sur la carte"; }],
+    [/^Part of (Niseko United|Kagura)$/, function (m, n) { return "Fait partie de " + n; }],
     [/^(.+) says (\d+) of its (\d+) lifts run today( but not which ones)?\.$/, function (m, n, a, b, w) { return n + " indique que " + a + " de ses " + b + " remontées fonctionnent aujourd'hui" + (w ? ", sans dire lesquelles" : "") + "."; }],
     [/^The resort's report has no time on it: checked (.+)\.$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t); return "Le rapport de la station n'indique pas d'heure : vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : t) + "."; }],
     [/^From the resort's own report, checked (.+):$/, function (m, t) { var a = /^(\d+) min ago$/.exec(t), h = /^(\d+) h ago$/.exec(t), d = /^(\d+) days? ago$/.exec(t); return "Du rapport de la station, vérifié " + (t === "just now" ? "à l'instant" : a ? "il y a " + a[1] + " min" : h ? "il y a " + h[1] + " h" : d ? "il y a " + d[1] + " j" : t) + " :"; }],
@@ -228,4 +290,15 @@
         .replace(/rain on snow up to about (.+?): 1\.5x below that/, "pluie sur neige jusqu'à environ $1 : 1,5x en dessous")
         .replace(/warming to (-?\d+)°C at (.+?): sunny slopes count up to 1\.4x/, "réchauffement jusqu'à $1 °C à $2 : pentes ensoleillées jusqu'à 1,4x") + ".";
     }],
+    // Frozen ground on MTB trails (index.html frostAt, status.js), 2026-11-19
+    [/^Above 0°C at 1 pm from about (.+)\.$/, function (m, d) { return "Au-dessus de 0 °C à 13 h à partir d'environ " + (d === "tomorrow" ? "demain" : d === "today" ? "aujourd'hui" : tt(d).toLowerCase()) + "."; }],
+    // Freeze line by height (index.html loadFreeze), 2026-11-19
+    [/^Ground likely frozen above about ([\d,]+) m( now)?$/, function (m, n, w) { return "Sol probablement gelé au-dessus d'environ " + n.replace(/,/g, " ") + " m" + (w ? " maintenant" : ""); }],
+    [/^Models: (.+) to ([\d,]+) m$/, function (m, a, b) { return "Modèles : " + a.replace(/,/g, " ").replace("over", "plus de") + " à " + b.replace(/,/g, " ") + " m"; }],
+    [/^Models: (.+) to over 3,000 m$/, function (m, a) { return "Modèles : " + a.replace(/,/g, " ") + " à plus de 3 000 m"; }],
+    [/^This trail: ([\d,]+) to ([\d,]+) m$/, function (m, a, b) { return "Ce sentier : " + a.replace(/,/g, " ") + " à " + b.replace(/,/g, " ") + " m"; }],
+    [/^Ground height of the weather model here: ([\d,]+) m$/, function (m, a) { return "Hauteur du sol du modèle météo ici : " + a.replace(/,/g, " ") + " m"; }],
+    [/^(7 am|1 pm) (?:about ([\d,]+) m|(down to the valley)|(none below 3,000 m))$/, function (m, h, n, v, x) { return (h === "7 am" ? "7 h" : "13 h") + " " + (n ? "environ " + n.replace(/,/g, " ") + " m" : v ? "jusqu'au fond de la vallée" : "aucun sous 3 000 m"); }],
+    [/^Freeze line: the height where the soil reaches 0°C, the middle of 3 weather models \((.+)\)\. An estimate: shade, sun and snow change it on the ground\.$/, function (m, l) { return "Limite de gel : la hauteur où le sol atteint 0 °C, la valeur du milieu de 3 modèles météo (" + l.replace(/(\d),(\d)/g, "$1 $2").replace(/over /g, "plus de ") + "). Une estimation : l'ombre, le soleil et la neige la changent sur le terrain."; }],
+    [/^(All|\d+ of \d+) trails?: ground likely frozen now \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : sol probablement gelé maintenant (estimation de la température du sol)"; }],
   ];

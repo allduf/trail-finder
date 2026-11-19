@@ -35,8 +35,10 @@ ul.ps-hits:empty { display: none; }
 .ps-more { color: #1f5fe0; font-weight: 700; font-size: .88rem; }
 .ps-pin { position: relative; width: 0; height: 0; cursor: pointer; }
 .ps-pin-dot { position: absolute; left: -15px; top: -40px; width: 30px; height: 40px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
-.ps-pin-name { position: absolute; left: 0; bottom: 44px; transform: translateX(-50%); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
-  font: 700 13px/1.2 var(--font-body, system-ui); color: #111; background: #fff; padding: 4px 9px; border-radius: 9px; box-shadow: 0 1px 5px rgba(0,0,0,.45); }
+.ps-pin-name { position: absolute; left: 0; bottom: 44px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; white-space: nowrap; max-width: 240px;
+  font: 700 13px/1.2 var(--font-body, system-ui); color: #111; background: #fff; padding: 4px 6px 4px 9px; border-radius: 9px; box-shadow: 0 1px 5px rgba(0,0,0,.45); }
+.ps-pin-tx { overflow: hidden; text-overflow: ellipsis; }
+.ps-pin-x { flex: none; width: 16px; height: 16px; padding: 2px; border-radius: 50%; background: #e9e9ec; color: #333; box-sizing: border-box; }
 `;
   document.head.append(css);
 
@@ -167,21 +169,25 @@ ul.ps-hits:empty { display: none; }
     // In 3D it's also looked at less tilted for a search, so the place fills the screen, not the far valleys behind it.
     if (d3 && window.tf3dSearchView) window.tf3dSearchView({ lat: b.getCenter().lat, lon: b.getCenter().lng, dy: (br.y - tl.y) / 2, km: (bb[1] - bb[0]) * 111.32 });
     map.setView(map.unproject(c, z), z, { animate: false });
-    if (o.pin !== false) dropPin(p, bb);
+    if (o.pin !== false) dropPin(o.pinAt || p);
   }
 
   // ---------- the place's pin ----------
   // A red pin with the place's name on the spot found, on the flat map and the 3D map (alex 2026-11-09, recording of a
   // search for Microwave Ridge: "it not clear where it is exactly": the ridge's name was one small label among the
-  // peaks'). Not for a whole region (its middle isn't a place). It stays until the next search, a tap on it, or another
-  // sport.
+  // peaks'). Every place searched gets it, a big town or a region too (alex 2026-11-18: "why sometime there is a marker
+  // on the location you search for and sometime there is no marker": a town whose outline was over ~16 km tall, like
+  // Squamish or Whistler from the place search, got none, and MTB's town search never had one). It sits on the spot
+  // the search gives for the place (a town's centre, a region's labelled point). It stays until the next search, a tap
+  // on it, or another sport.
   const PIN_SVG = `<svg class="ps-pin-dot" viewBox="0 0 30 40" aria-hidden="true"><path d="M15 39C15 39 28 24.5 28 14A13 13 0 0 0 2 14C2 24.5 15 39 15 39Z" fill="#e0262b" stroke="#fff" stroke-width="2.4"/><circle cx="15" cy="14" r="5" fill="#fff"/></svg>`;
   let pin2 = null, pin3 = null, pinAt = null;
   const pinEl = (p) => {
     const el = document.createElement("div");
     el.className = "ps-pin";
     el.title = p.name + " (tap to take the pin away)";
-    el.innerHTML = `<span class="ps-pin-name">${esc(p.name)}</span>${PIN_SVG}`;
+    // The x says a tap takes it away (alex 2026-11-18: "how do we make that marker disappear?"); a tap anywhere on it does.
+    el.innerHTML = `<span class="ps-pin-name"><span class="ps-pin-tx">${esc(p.name)}</span><svg class="ps-pin-x" viewBox="0 0 12 12" aria-label="Take the pin away" role="img"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg></span>${PIN_SVG}`;
     return el;
   };
   function clearPin() {
@@ -197,11 +203,14 @@ ul.ps-hits:empty { display: none; }
     el.addEventListener("click", (e) => { e.stopPropagation(); clearPin(); });
     pin3 = new maplibregl.Marker({ element: el, anchor: "center", opacityWhenCovered: 1 }).setLngLat([pinAt.lon, pinAt.lat]).addTo(gl);
   }
-  function dropPin(p, bb) {
+  function dropPin(p) {
     clearPin();
-    if (!p || !p.name || p.lat == null || (bb && bb[1] - bb[0] > 0.15)) return;
+    if (!p || !p.name || p.lat == null) return;
     pinAt = { name: p.name, lat: p.lat, lon: p.lon };
-    pin2 = L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "", html: pinEl(pinAt).outerHTML, iconSize: [0, 0], iconAnchor: [0, 0] }), zIndexOffset: 2000, title: p.name, keyboard: false })
+    // Its own layer above every other marker (fuel, camps, webcams...), which covered its name and took the tap meant
+    // to take it away.
+    if (!map.getPane("psPin")) map.createPane("psPin").style.zIndex = 680;
+    pin2 = L.marker([p.lat, p.lon], { pane: "psPin", icon: L.divIcon({ className: "", html: pinEl(pinAt).outerHTML, iconSize: [0, 0], iconAnchor: [0, 0] }), zIndexOffset: 2000, title: p.name, keyboard: false })
       .on("click", (e) => { L.DomEvent.stopPropagation(e); clearPin(); }).addTo(map);
     pin3d();
   }
@@ -330,6 +339,9 @@ ul.ps-hits:empty { display: none; }
 
   const hitHtml = (p, i) => `<li><button type="button" data-i="${i}"><span class="ps-ic" aria-hidden="true">${esc(p.ic || "📍")}</span><span class="ps-tx"><b>${esc(p.name)}</b><small>${esc(p.sub || "")}</small></span></button></li>`;
 
+  // The place in a list named exactly what's typed (accents, case and dashes aside), a Canadian one first.
+  const sameName = (list, q) => { const n = norm(q); const all = (list || []).filter((x) => x && x.name && norm(x.name) === n); return all.find((x) => x.ca !== false) || all[0] || null; };
+
   // ---------- a search box ----------
   // box({ placeholder, label, local(q) -> places shown while typing, onPick(place) (default: go there) })
   function box(o = {}) {
@@ -340,6 +352,10 @@ ul.ps-hits:empty { display: none; }
       <p class="ps-msg" role="status"></p><ul class="ps-hits"></ul>`;
     const input = el.querySelector("input"), msg = el.querySelector(".ps-msg"), ul = el.querySelector("ul");
     let rows = [];
+    // What was last sent with Enter or Go. The suggestions asked for while typing can come back after that, and they
+    // used to redraw the list over the search's answer, back to "Not in the list? Press Go" (alex 2026-11-18,
+    // recording: typed "pemberton", pressed Enter and Go, and it looked like nothing happened).
+    let sent = "";
     const show = (list, note) => {
       rows = list;
       ul.innerHTML = list.map(hitHtml).join("");
@@ -355,14 +371,21 @@ ul.ps-hits:empty { display: none; }
       const q = input.value.trim();
       const loc = q.length >= 2 && o.local ? (o.local(q) || []).slice(0, 5) : [];
       const all = [...loc, ...townHits(q, 5 - Math.min(loc.length, 3))].slice(0, 5);
-      addNew(all, live(q, () => { if (input.value.trim() === q) typed(); }), 7);
+      addNew(all, live(q, () => { if (input.value.trim() === q && sent !== q) typed(); }), 7);
+      // What's typed counts as a search too (the usage page), not only Go: most people tap a place from this list.
+      // Sent once the typing stops (usage.js), with how many places showed by then.
+      if (q.length >= 2) logUse("search", "Place:" + q, all.length);
       show(all, q.length >= 2 ? (all.length ? "Not in the list? Press Go to search every place." : q.length >= 3 && !parseGps(q) && !Array.isArray(liveCache.get(norm(q))) ? "Looking…" : "Keep typing, or press Go to search every place.") : "");
     };
-    input.addEventListener("input", () => { typed(); if (!towns) loadTowns(() => { if (document.activeElement === input || input.value.trim()) typed(); }); });
+    input.addEventListener("input", () => { sent = ""; typed(); if (!towns) loadTowns(() => { if ((document.activeElement === input || input.value.trim()) && sent !== input.value.trim()) typed(); }); });
     el.addEventListener("submit", async (e) => {
       e.preventDefault();
       const q = input.value.trim();
       if (!q) return;
+      sent = q;
+      // Enter or Go with the place already in the list by that very name: go there now, no second search.
+      const shown = sameName(rows, q);
+      if (shown) { pick(shown); return; }
       const loc = o.local ? o.local(q) || [] : [];
       msg.textContent = `Finding ${q}…`;
       try {
@@ -373,6 +396,10 @@ ul.ps-hits:empty { display: none; }
         // A sport's own search box: several words that aren't a place are a question for Ask (one box for everything).
         if (!all.length && !o.onPick && window.tfAsk && !document.body.classList.contains("sport-hike") && q.split(/\s+/).length >= 3) { show([]); input.blur(); window.tfAsk.open(q); return; }
         if (!all.length) { show([], `Couldn't find “${q}”. Try a town or mountain name.`); return; }
+        // The place by the very name typed goes straight there, as a tap on it would (alex 2026-11-18: typed
+        // "squamish", pressed Enter and got a list to tap instead of the map going there). Canada first.
+        const same = sameName(all, q);
+        if (same) { pick(same); return; }
         if (all.length === 1) { pick(all[0]); return; }
         input.blur();   // the phone keyboard out of the way of the list
         show(all, "Tap the one you mean.");
@@ -385,5 +412,5 @@ ul.ps-hits:empty { display: none; }
   // towns(q, n, then): the Canadian towns and places named q while typing (Skiing's find box); then() runs once the
   // list has loaded, the first time.
   const townsNamed = (q, n, then) => { if (!towns) loadTowns(then); return townHits(q, n); };
-  window.tfPlaceSearch = { search, go, clearPin, box, parseGps, hitHtml, towns: townsNamed, live, addNew, slips, norm };
+  window.tfPlaceSearch = { search, go, clearPin, sameName, box, parseGps, hitHtml, towns: townsNamed, live, addNew, slips, norm };
 })();

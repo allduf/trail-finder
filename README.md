@@ -94,5 +94,12 @@ Screen. Android: open it in Chrome, tap the ⋮ menu, then Install app (or Add t
 with the Trail Finder icon. `manifest.webmanifest` and `icons/` hold the name and icons; `sw.js` keeps a copy of the
 pages, scripts and the last `data/*.json` it loaded so the app still opens with no signal. Pages and data are always
 fetched from the network first, so new deploys and each nightly data build show up whenever there is a connection.
-Map tiles, weather and OpenStreetMap lookups still need a connection. When changing the list of files in `sw.js`,
-bump its `VERSION` so phones drop the old copy.
+Map tiles, weather and OpenStreetMap lookups still need a connection. `sw.js`'s `VERSION` and every script's `?v=`
+are written `__V__` and set to one new number each time the site is published (`scripts/stamp.mjs`): never edit them.
+
+**Pull requests never touch shared numbers or shared lines** (2026-11-19), so parallel PRs don't clash:
+- script tags: `name.js?v=__V__` (the publish sets the number; the phone test fails on a hand-set number);
+- What's new: a new file `data/changelog.d/<short-name>.json` with `{"date": "YYYY-MM-DD", "text": "..."}`, not an
+  edit of `data/changelog.json`;
+- French: a new file `scripts/i18n/fr-<short-name>.txt` named after the change, not the next number. `i18n-fr.js` is
+  no longer in git: `node scripts/i18n/build.mjs` makes it locally, the publish and the phone test make it too.

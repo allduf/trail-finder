@@ -1,0 +1,98 @@
+# Moto trips (moto-trip.js, 2026-11-17)
+Moto trips ||| Voyages moto
+moto trip ||| voyage moto
+Riders and bikes ||| Motocyclistes et motos
+optional ||| facultatif
+Optional: add each rider's bike and Gas for every bike checks the gaps between gas stations against each bike's range. ||| Facultatif : ajoutez la moto de chaque motocycliste et Essence pour chaque moto compare les écarts entre les stations-service à l'autonomie de chaque moto.
+Gas for every bike ||| Essence pour chaque moto
+Scenic places along the way ||| Beaux endroits en chemin
+Your routes, one for each day ||| Vos itinéraires, un par jour
+Where you sleep ||| Où vous dormez
+Each day ||| Chaque jour
+Pick a bike ||| Choisir une moto
+Change ||| Changer
+Make ||| Marque
+Model ||| Modèle
+Bike name ||| Nom de la moto
+Tank (L) ||| Réservoir (L)
+L/100 km ||| L/100 km
+Or the range you get (km) ||| Ou votre autonomie (km)
+Electric bikes, or your own number ||| Motos électriques, ou votre propre chiffre
+The list fills in the maker's numbers: check them for your bike (a bigger tank, a thirsty one). ||| La liste remplit les chiffres du fabricant : vérifiez-les pour votre moto (un plus gros réservoir, une moto gourmande).
+Take off ||| Retirer
+No bike picked (optional). ||| Aucune moto choisie (facultatif).
+Riding with friends? Add their names in Your group (below) and each gets a bike here. ||| Vous roulez entre amis? Ajoutez leurs noms dans Votre groupe (plus bas) et chacun a sa moto ici.
+Ranges are estimates from the tank and fuel use entered: wind, speed, load and dirt can use a lot more. Check them against your own bikes. ||| Les autonomies sont des estimations à partir du réservoir et de la consommation entrés : le vent, la vitesse, la charge et la terre peuvent consommer beaucoup plus. Vérifiez-les avec vos propres motos.
+Loading the gas stations… ||| Chargement des stations-service…
+Couldn't check this route. ||| Impossible de vérifier cet itinéraire.
+Add your bikes under Riders and bikes (optional) to check these gaps against each bike's range. ||| Ajoutez vos motos sous Motocyclistes et motos (facultatif) pour comparer ces écarts à l'autonomie de chaque moto.
+Looking for viewpoints and places to see along your routes… ||| Recherche de points de vue et d'endroits à voir le long de vos itinéraires…
+No viewpoints or places to see mapped within 2 km of this route. ||| Aucun point de vue ni endroit à voir cartographié à moins de 2 km de cet itinéraire.
+Places along the way load when you have signal. ||| Les endroits en chemin se chargent quand vous avez du signal.
+Try again ||| Réessayer
+Viewpoint ||| Point de vue
+Waterfall ||| Chute
+Hot spring ||| Source thermale
+Historic site ||| Site historique
+Lighthouse ||| Phare
+Museum ||| Musée
+Place to see ||| Endroit à voir
+Photo: Wikipedia / Wikimedia Commons ||| Photo : Wikipédia / Wikimedia Commons
+Pick where you sleep ||| Choisir où vous dormez
+Not picked ||| Pas choisi
+Plan a route ||| Planifier un itinéraire
+Start a moto trip with this route ||| Commencer un voyage moto avec cet itinéraire
++ Add to moto trip ||| + Ajouter au voyage moto
+Like: Kootenays, 3 days ||| Par ex. : Kootenays, 3 jours
+Riding gear ||| Équipement de moto
+The bike ||| La moto
+Papers ||| Papiers
+Essentials ||| Essentiels
+Camping ||| Camping
+Clothes ||| Vêtements
+Before you go ||| Avant de partir
+Helmet (and a visor cleaner) ||| Casque (et un nettoyant pour visière)
+Riding jacket and pants with armour ||| Manteau et pantalon de moto avec protections
+Gloves ||| Gants
+Riding boots ||| Bottes de moto
+Rain suit ||| Habit de pluie
+Rain suit: rain in the forecast ||| Habit de pluie : pluie prévue
+Neck warmer or buff ||| Cache-cou
+Earplugs ||| Bouchons d'oreilles
+Bike checked: tires, chain, oil, brakes, lights ||| Moto vérifiée : pneus, chaîne, huile, freins, phares
+Tool kit for your bikes ||| Trousse d'outils pour vos motos
+Tire repair kit and a pump or CO2 ||| Trousse de réparation de pneu et une pompe ou du CO2
+Spare tubes and tire irons (tubed tires) ||| Chambres à air de rechange et démonte-pneus (pneus à chambre)
+Chain lube ||| Lubrifiant à chaîne
+Zip ties, tape and a spare lever ||| Attaches, ruban et un levier de rechange
+Tow strap ||| Sangle de remorquage
+Spare fuel bottle or can ||| Bouteille ou bidon d'essence de rechange
+Spare key ||| Clé de rechange
+Licence, registration and insurance ||| Permis, immatriculation et assurance
+Cash and a card: some gas stations and ferries are card-only or cash-only ||| Argent comptant et une carte : certaines stations et certains traversiers n'acceptent que la carte ou que l'argent
+Satellite messenger or PLB (inReach, Zoleo): many back roads have no cell signal ||| Messager satellite ou balise (inReach, Zoleo) : beaucoup de routes secondaires n'ont pas de signal cellulaire
+First aid kit ||| Trousse de premiers soins
+Phone mount, cable and a power bank ||| Support de téléphone, câble et batterie externe
+This trip saved offline, and a paper map ||| Ce voyage enregistré hors ligne, et une carte papier
+Water and snacks for each day ||| Eau et collations pour chaque jour
+Headlamp ||| Lampe frontale
+Sunglasses and sunscreen ||| Lunettes de soleil et crème solaire
+Bear spray, where you can reach it ||| Chasse-ours, à portée de main
+Sleeping pad ||| Matelas de sol
+Stove and fuel ||| Réchaud et combustible
+Pot, lighter, mug, spoon ||| Casserole, briquet, tasse, cuillère
+Water filter or tablets ||| Filtre à eau ou comprimés
+Food storage away from bears ||| Rangement de la nourriture à l'abri des ours
+Warm layer for the evenings ||| Couche chaude pour les soirées
+Camp shoes ||| Souliers de camp
+Trip saved offline (button below) ||| Voyage enregistré hors ligne (bouton plus bas)
+Trip plan left with a friend (below) ||| Plan de sortie laissé à un proche (plus bas)
+How the roads were, where you stopped, what to bring next time. ||| L'état des routes, où vous vous êtes arrêtés, quoi apporter la prochaine fois.
+Add the gas, campsites, motels, ferries, food and anything else the group shares. ||| Ajoutez l'essence, les campings, les motels, les traversiers, la nourriture et tout ce que le groupe partage.
+Campgrounds and motels on popular routes can fill up in summer: check with them before you go. Many BC rec sites are first come, first served. ||| Les campings et les motels des itinéraires populaires peuvent être complets l'été : vérifiez avec eux avant de partir. Beaucoup de sites récréatifs de la C.-B. sont premier arrivé, premier servi.
+Pick where you sleep (above) to see it here. ||| Choisissez où vous dormez (plus haut) pour le voir ici.
+No campsites loaded near here: zoom the map in on where you're going. ||| Aucun camping chargé près d'ici : zoomez la carte sur votre destination.
+Finding campsites near here… ||| Recherche de campings près d'ici…
+3-day dirt trip from Kamloops ||| Voyage de 3 jours sur terre au départ de Kamloops
+Moto trips: plan a multi-day ride with a route for each day, scenic places along the way with photos, where you sleep (campsites, motels, hotels), the weather each day and, if you want, a gas check for every rider's bike. Ask "3-day dirt trip from Kamloops" to start one. ||| Voyages moto : planifiez une randonnée de plusieurs jours avec un itinéraire par jour, les beaux endroits en chemin avec photos, où vous dormez (campings, motels, hôtels), la météo de chaque jour et, si vous voulez, une vérification de l'essence pour la moto de chaque motocycliste. Demandez « Voyage de 3 jours sur terre au départ de Kamloops » pour en commencer un.
+Your bike ||| Votre moto

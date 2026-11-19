@@ -1,0 +1,16 @@
+{
+  "about": "Notes on single lifts from sources other than OpenStreetMap (resort pages, local reports), shown on the lift's card (lifts.js). Match by the lift's OpenStreetMap way id (osm). Hand-edited: keep each note a plain fact with its source and the day it was checked; never promise access or safety. The English text and title need a French line in scripts/i18n/fr-N.txt.",
+  "notes": [
+    {
+      "osm": 1162746902,
+      "lift": "Mountain Sightseeing Lift Alps No.11 Pair Lift",
+      "resort": "Hakuba Norikura Onsen Ski Resort",
+      "title": "Waiver to ride",
+      "text": "The resort asks riders to hand in a mountain-climbing registration form, or to agree to and sign its No.11 Pair Lift waiver, before riding this lift. Rules can change: check with the resort before you go.",
+      "link": "https://www.hakunori.com/pdf/alps11lift2.pdf",
+      "linkText": "Waiver and pre-registration (resort, Japanese)",
+      "src": "Hakuba Norikura Onsen Ski Resort's website and a local report",
+      "checked": "2026-11-14"
+    }
+  ]
+}
