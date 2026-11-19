@@ -1653,6 +1653,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 <script src="noback.js?v=__V__"></script>
 <script src="risk.js?v=__V__"></script>
 <script src="welcome.js?v=__V__"></script>
+<script src="feedback.js?v=__V__"></script>
 <script src="native.js?v=__V__"></script>
 <script src="keyboard.js?v=__V__"></script>
 <script src="rotate.js?v=__V__"></script>
@@ -5930,6 +5931,7 @@ out body;`;
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
       ${window.tfTutorials && window.tfTutorials.list.length ? card("tutorials", "▶", "Tutorials", "Short videos: how to use each feature") : ""}
       ${card("about", "?", "How it works", "")}
+      ${window.tfFeedback ? card("feedback", "💬", "Send feedback", "Bugs, wrong trails, ideas: straight to us") : ""}
       ${card("support", "✉", "Help and support", "Questions, problems, ideas")}
       ${card("privacy", "🔒", "Privacy", "What the app keeps and how to delete it")}
       ${card("terms", "📜", "Terms and safety", "Your own risk, the rules for posts")}`;
@@ -6185,6 +6187,7 @@ out body;`;
     else if (act === "full") $("fullBtn").click();
     else if (act === "account") document.querySelector(".brand [data-account-slot] button")?.click();
     else if (act === "about") $("aboutBtn").click();
+    else if (act === "feedback") { if (window.tfFeedback) window.tfFeedback.open(); }   // feedback.js
     else if (act === "support" || act === "privacy" || act === "terms") location.href = act + ".html";
     else if (act === "news") window.tfWhatsNew.open();
     else if (act === "tutorials") window.tfTutorials.open();   // tutorials.js

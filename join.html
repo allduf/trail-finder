@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f4a">
+<title>Join the test · Trail Finder</title>
+<style>
+/* Join the test (alex 2026-11-19): people ask to test the iPhone or Android app. The request goes to a private table
+   (supabase/testers.sql, tf_join_add) that only alex reads, on usage.html → Manage. There is no public TestFlight or
+   Play link here on purpose (the app is not public): alex adds each person by hand.
+   English and French on one page, like support.html: the language follows the app (tf:lang) or the phone. */
+:root {
+  --bg: #f3f5f2; --panel: #ffffff; --fg: #1d2420; --muted: #5c6862; --line: #d9dfda; --accent: #1f6f4a; --bad: #b42318;
+  --font-display: "Arial Narrow", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --accent: #5cc98f; --bad: #ff8a80; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #121714; --panel: #1a201c; --fg: #e6ebe7; --muted: #9aa69f; --line: #2c3530; --accent: #5cc98f; --bad: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 560px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 32px); }
+.back { display: inline-block; color: var(--accent); font-weight: 600; text-decoration: none; padding: 8px 0; }
+.lang { float: right; padding: 8px 0; color: var(--accent); }
+h1 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .02em; font-size: 1.7rem; margin: 8px 0 4px; }
+p { margin: 8px 0; }
+.muted { color: var(--muted); font-size: .9rem; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin: 14px 0; }
+fieldset { border: 0; padding: 0; margin: 0 0 16px; }
+legend, label.lbl { display: block; font-weight: 600; margin-bottom: 6px; padding: 0; }
+input[type="email"], input[type="text"] { width: 100%; font: inherit; font-size: 16px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); }
+.hint { color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips label { position: relative; }
+.chips input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.chips span { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 22px; background: var(--bg); cursor: pointer; user-select: none; }
+.chips input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.chips input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+button.go { width: 100%; min-height: 50px; font: inherit; font-weight: 700; font-size: 1.05rem; border: 0; border-radius: 14px; background: var(--accent); color: #fff; cursor: pointer; }
+button.go:disabled { opacity: .6; }
+.msg { min-height: 1.4em; margin: 10px 0 0; }
+.msg.err { color: var(--bad); }
+.done h2 { margin: 0 0 6px; font-size: 1.2rem; }
+ul.how { padding-left: 20px; margin: 6px 0; }
+ul.how li { margin: 4px 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="./" data-t="back">← Trail Finder</a><a class="lang" href="#" id="langBtn">Français</a>
+<h1 data-t="title">Join the test</h1>
+<p data-t="lead">Trail Finder is one map app for outdoor sports in Canada: mountain biking, skiing, hiking, fishing, hunting and adventure moto. It's still being tested, and we're looking for people around Sea to Sky and beyond to try it and tell us what's missing.</p>
+
+<div class="card" id="formCard">
+<form id="join" novalidate>
+  <fieldset>
+    <label class="lbl" for="email" data-t="email">Your email</label>
+    <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required maxlength="120" placeholder="you@example.com">
+    <p class="hint" data-t="emailHint">Use the email of your Apple ID (iPhone) or Google account (Android): the test invite is sent there.</p>
+  </fieldset>
+  <fieldset>
+    <legend data-t="phone">Your phone</legend>
+    <div class="chips" role="radiogroup">
+      <label><input type="radio" name="phone" value="iphone" required><span>iPhone</span></label>
+      <label><input type="radio" name="phone" value="android"><span>Android</span></label>
+      <label><input type="radio" name="phone" value="both"><span data-t="both">Both</span></label>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend data-t="sports">What you do (pick any)</legend>
+    <div class="chips">
+      <label><input type="checkbox" name="sport" value="mtb"><span data-t="s-mtb">Mountain biking</span></label>
+      <label><input type="checkbox" name="sport" value="ski"><span data-t="s-ski">Skiing</span></label>
+      <label><input type="checkbox" name="sport" value="hike"><span data-t="s-hike">Hiking</span></label>
+      <label><input type="checkbox" name="sport" value="fish"><span data-t="s-fish">Fishing</span></label>
+      <label><input type="checkbox" name="sport" value="hunt"><span data-t="s-hunt">Hunting</span></label>
+      <label><input type="checkbox" name="sport" value="moto"><span data-t="s-moto">Adventure moto</span></label>
+    </div>
+  </fieldset>
+  <fieldset>
+    <label class="lbl" for="area" data-t="area">Where you go out (optional)</label>
+    <input type="text" id="area" name="area" maxlength="60" autocomplete="address-level2" placeholder="Squamish">
+  </fieldset>
+  <div class="hp" aria-hidden="true"><label for="website">Website</label><input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>
+  <button type="submit" class="go" id="send" data-t="send">Ask to join</button>
+  <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  <p class="muted" data-t="privacy">We use your email only to send your test invite and news about the test. To be taken off the list, write to trailfinder.help@outlook.com. More in our <a href="privacy.html">privacy page</a>.</p>
+</form>
+</div>
+
+<div class="card done" id="done" hidden>
+  <h2 data-t="thanks">Thanks, you're on the list.</h2>
+  <p data-t="next">Invites are sent by hand, in small groups, so it can take a few days.</p>
+  <ul class="how">
+    <li data-t="nextIos">iPhone: you'll get an email from TestFlight. Install the free TestFlight app, then tap the link in the email.</li>
+    <li data-t="nextAnd">Android: you'll get an email with a Google Play link to join the test. Stay in the test for at least 14 days if you can: Google needs that before the app can be released.</li>
+  </ul>
+  <p data-t="feedback">Once you're in, More → Send feedback in the app goes straight to us.</p>
+</div>
+
+<p class="muted" data-t="note">The app is a test version: things may change or break, and trail, weather and avalanche information comes from public sources and may be out of date or wrong. Always check local conditions and rules yourself.</p>
+</main>
+<script>
+(() => {
+  // The project's public Supabase address and publishable key (the same as account.js): the form calls tf_join_add,
+  // which only adds a request. Nobody can read the list with this key.
+  const URL_ = "https://fohdmserpbkurcvcrbbb.supabase.co", KEY = "sb_publishable_kzmEvM2ENCwNcH7-Nu-pOA_88II-bhX";
+  const FR = {
+    back: "← Trail Finder", title: "Rejoindre le test",
+    lead: "Trail Finder est une seule application de cartes pour les sports de plein air au Canada : vélo de montagne, ski, randonnée, pêche, chasse et moto d’aventure. Elle est encore en test, et nous cherchons des gens dans le Sea to Sky et ailleurs pour l’essayer et nous dire ce qui manque.",
+    email: "Votre courriel", emailHint: "Utilisez le courriel de votre identifiant Apple (iPhone) ou de votre compte Google (Android) : l’invitation au test y sera envoyée.",
+    phone: "Votre téléphone", both: "Les deux", sports: "Ce que vous pratiquez (au choix)",
+    "s-mtb": "Vélo de montagne", "s-ski": "Ski", "s-hike": "Randonnée", "s-fish": "Pêche", "s-hunt": "Chasse", "s-moto": "Moto d’aventure",
+    area: "Où vous allez (facultatif)", send: "Demander à rejoindre",
+    privacy: "Nous utilisons votre courriel seulement pour vous envoyer l’invitation et des nouvelles du test. Pour être retiré de la liste, écrivez à trailfinder.help@outlook.com. Plus de détails dans notre <a href=\"privacy.html#fr\">page de confidentialité</a>.",
+    thanks: "Merci, vous êtes sur la liste.", next: "Les invitations sont envoyées à la main, par petits groupes : cela peut prendre quelques jours.",
+    nextIos: "iPhone : vous recevrez un courriel de TestFlight. Installez l’application gratuite TestFlight, puis touchez le lien du courriel.",
+    nextAnd: "Android : vous recevrez un courriel avec un lien Google Play pour rejoindre le test. Restez dans le test au moins 14 jours si possible : Google l’exige avant que l’application puisse être publiée.",
+    feedback: "Une fois dans le test, Plus → Envoyer un commentaire dans l’application nous l’envoie directement.",
+    note: "L’application est une version de test : des choses peuvent changer ou briser, et l’information sur les sentiers, la météo et les avalanches vient de sources publiques et peut être périmée ou erronée. Vérifiez toujours vous-même les conditions et les règles locales.",
+  };
+  const ERR = {
+    en: { email: "Please enter a valid email.", phone: "Please pick your phone.", busy: "Too many requests right now. Please try again tomorrow.", net: "Couldn't send. Check your connection and try again.", wait: "Sending…" },
+    fr: { email: "Entrez un courriel valide.", phone: "Choisissez votre téléphone.", busy: "Trop de demandes en ce moment. Réessayez demain.", net: "Envoi impossible. Vérifiez votre connexion et réessayez.", wait: "Envoi…" },
+  };
+  const EN = {};
+  document.querySelectorAll("[data-t]").forEach((el) => { EN[el.dataset.t] = el.innerHTML; });
+  let lang = location.hash === "#fr" ? "fr" : location.hash === "#en" ? "en" : null;
+  if (!lang) { try { lang = localStorage.getItem("tf:lang"); } catch (e) {} }
+  if (lang !== "fr" && lang !== "en") lang = /^fr/i.test(navigator.language || "") ? "fr" : "en";
+  const show = (l) => {
+    lang = l;
+    document.documentElement.lang = l;
+    document.querySelectorAll("[data-t]").forEach((el) => { el.innerHTML = (l === "fr" ? FR : EN)[el.dataset.t] || EN[el.dataset.t]; });
+    document.title = (l === "fr" ? "Rejoindre le test" : "Join the test") + " · Trail Finder";
+    document.getElementById("langBtn").textContent = l === "fr" ? "English" : "Français";
+  };
+  show(lang);
+  document.getElementById("langBtn").addEventListener("click", (e) => { e.preventDefault(); show(lang === "fr" ? "en" : "fr"); });
+
+  const opened = Date.now(), form = document.getElementById("join"), msg = document.getElementById("msg"), btn = document.getElementById("send");
+  const say = (k, err) => { msg.textContent = ERR[lang][k] || k; msg.className = "msg" + (err ? " err" : ""); };
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = form.email.value.trim().toLowerCase(), phone = (form.querySelector('input[name="phone"]:checked') || {}).value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { say("email", true); form.email.focus(); return; }
+    if (!phone) { say("phone", true); return; }
+    btn.disabled = true; say("wait");
+    try {
+      const res = await fetch(`${URL_}/rest/v1/rpc/tf_join_add`, {
+        method: "POST", headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` },
+        body: JSON.stringify({ email, phone, sports: [...form.querySelectorAll('input[name="sport"]:checked')].map((c) => c.value),
+          area: form.area.value.trim().slice(0, 60), lang, hp: form.website.value, ms: Date.now() - opened }),
+      });
+      const out = res.ok ? await res.json() : null;
+      if (out === "ok") { document.getElementById("formCard").hidden = true; document.getElementById("done").hidden = false; window.scrollTo({ top: 0 }); return; }
+      say(out === "email" || out === "phone" || out === "busy" ? out : "net", true);
+    } catch (err) { say("net", true); }
+    btn.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>
