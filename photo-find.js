@@ -536,7 +536,11 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     if (!canvases.length) throw new Error("no frames could be taken from the video");
     // Up to 3 frames spread through the video (the middle ones), or the picture.
     const pick = canvases.length <= 3 ? canvases : [canvases[1], canvases[Math.floor(canvases.length / 2)], canvases[canvases.length - 2]];
-    media = { jpegs: pick.map(jpeg), hash: dhash(pick[0]) };
+    media = { jpegs: pick.map(jpeg), hash: dhash(pick[0]), sky: null };
+    // The line where blue sky meets the mountains, if the picture (or a frame) has one: the one read over most columns.
+    if (window.tfSkyline && window.tfSkyline.read) {
+      for (const c of pick) { let k = null; try { k = window.tfSkyline.read(c); } catch {} if (k && (!media.sky || k.cols > media.sky.cols)) media.sky = k; }
+    }
     return canvases;
   }
   async function readWords(my, canvases) {
@@ -1300,6 +1304,29 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       }
       woods = { c: [c.lat, c.lng], km: Math.round(R / 100) / 10, where, shows };
     }
+    // The skyline: mountains against a blue sky in the picture, compared with the skyline the terrain shows from each
+    // trail around where the AI places it (or in the area the rider gave). 2026-11-19: a Cream Puff picture the AI put on
+    // Mackenzie Ridge, 3 km off, fit best on Cream Puff's own ridge. Terrain heights are about 100 m a pixel, so it finds
+    // the ridge or slope, not the exact trail on it: the trails there go up, and the online check looks around there.
+    const sky = await skylineSpot(my, vp, told, outside);
+    if (my !== job) return null;
+    if (sky) {
+      const near = (await trailsNear([sky.at], 2500, 300)).list;
+      if (my !== job) return null;
+      for (const g of near) {
+        const fit = sky.fits.get(keyOf(g)), d = Math.min(...g.geoms.flat().map((p) => sky.at.distanceTo(p)));
+        const thr = sky.score * 1.5 + 0.02, strong = fit != null && fit <= thr;
+        const why = strong ? "the mountain skyline in the picture fits the view from it (estimate from terrain heights)"
+          : `${(d / 1000).toFixed(1)} km from where the mountain skyline in the picture fits best (estimate from terrain heights)`;
+        // The closer the fit, the higher: the skyline outweighs a guess of the spot, not a name read in the picture.
+        const s = strong ? 0.97 + 0.1 * (1 - (fit - sky.score) / Math.max(0.001, thr - sky.score)) : 0.7 + 0.15 * Math.max(0, 1 - d / 2500);
+        const have = hits.find((h) => keyOf(h.g) === keyOf(g));
+        if (have) { have.s = Math.max(have.s + (strong ? 0.1 : 0.05), s + (have.named ? 0.1 : 0)); have.why.unshift(why); have.sky = strong; }
+        else hits.push({ g, s, why: [why], lm: true, sky: strong });
+      }
+      // A trail listed only for being around the AI's guess of the spot stays under the ones the skyline fits.
+      hits.forEach((h) => { if (!h.sky && !h.named && !h.past) h.s = Math.min(h.s, 0.95); });
+    }
     // The trails in a riding area named in the words.
     for (const p of areas.slice(0, 2)) {
       const { list } = await trailsNear([p.c], AREA_M);
@@ -1385,10 +1412,10 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     const top = rows.length ? rows[0].s : 0;
     return {
       woods,
-      spot: placed ? vp : null,
+      spot: sky ? { lat: sky.at.lat, lon: sky.at.lng, km: 3, alt: Math.round(sky.h), where: sky.where } : placed ? vp : null,
       // Nothing places it, or only the AI's guess, and no area picked or named: the rider is asked where it was (then it's
       // looked at as in the woods).
-      askArea: !told.length && (!placed || !seenFrom) && !hits.some((h) => (h.named || h.past) && h.s >= STRONG) ? (placed ? "guess" : "none") : "",
+      askArea: !told.length && !sky && (!placed || !seenFrom) && !hits.some((h) => (h.named || h.past) && h.s >= STRONG) ? (placed ? "guess" : "none") : "",
       places: [...new Set(found.map((p) => p.label))],
       more: more.map((h) => ({ ...rowOf(h, h.lm && !h.woods ? "landmark" : aiSeen ? "mixed" : "words"), sure: !!(h.named || h.past), conf: "Possible", taught: !!h.taught })),
       rows: rows.map((h, i) => {
@@ -1396,6 +1423,46 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         return { ...rowOf(h, h.lm && !h.woods ? "landmark" : aiSeen ? "mixed" : "words"), sure, best, conf: best ? "Best match" : h.s >= top - 0.05 && h.s >= STRONG ? "Likely" : "Possible", taught: !!h.taught };
       }),
     };
+  }
+  // Where the picture's skyline fits the terrain best (skyline.js), among the trails around where the AI places it, or in
+  // the area the rider gave. Only a clear fit counts: much better than most spots looked at, and close in degrees. null
+  // otherwise (no skyline in the picture, no tiles, or nothing stands out).
+  async function skylineSpot(my, vp, told, outside) {
+    const S = window.tfSkyline;
+    if (!S || !S.place || !media || !media.sky) return null;
+    let c = null, R = 0;
+    if (vp && vp.km > 0 && vp.km <= 40 && (!told.length || outside(L.latLng(vp.lat, vp.lon)) <= 20000)) { c = L.latLng(vp.lat, vp.lon); R = vpRadius(vp); }
+    else if (told.length && told.length <= 3) {
+      const b = told.reduce((a, z) => a.extend(z.bounds), L.latLngBounds(told[0].bounds.getSouthWest(), told[0].bounds.getNorthEast()));
+      c = b.getCenter(); R = Math.min(20000, c.distanceTo(b.getNorthEast()));
+    }
+    if (!c) return null;
+    say("Matching the mountain skyline in the picture with the terrain…", 0.986);
+    const { list } = await trailsNear([c], R, 3000);
+    if (my !== job || !list.length) return null;
+    // A point every 150 m or so along each trail, keyed by its trail; at most about 2500 (a few seconds on a phone).
+    let pts = [];
+    for (const g of list) for (const ge of g.geoms) {
+      let last = null;
+      for (const p of ge) {
+        if (last && L.latLng(last).distanceTo(p) < 150) continue;
+        last = p;
+        if (c.distanceTo(p) <= R) pts.push({ lat: p[0], lon: p[1], k: g.ws.join(" ") + "|" + g.zone.id, zone: g.zone.name.split(" (")[0] });
+      }
+    }
+    if (pts.length > 2500) { const k = pts.length / 2500; pts = pts.filter((_, i) => Math.floor(i / k) !== Math.floor((i - 1) / k)); }
+    let res = null;
+    try { res = await S.place(media.sky, pts, (f) => { if (my === job) say("Matching the mountain skyline in the picture with the terrain…", 0.986 + 0.01 * f); }); } catch { res = null; }
+    if (my !== job || !res || res.length < 20) return null;
+    const best = res[0], scores = res.map((r) => r.score).sort((a, b) => a - b), med = scores[scores.length >> 1];
+    if (TEST && TEST.diag) TEST.diag.sky = { n: pts.length, score: +best.score.toFixed(3), rms: +best.rms.toFixed(2), med: +med.toFixed(3), at: [best.lat, best.lon], fov: best.fov, head: best.head };
+    // Tried 2026-11-19: the right spot fit within 0.3 degrees (a real picture and one drawn from the terrain); the same
+    // picture mirrored, or looked for in Squamish, best fit at 0.8 to 1 degree. Those must not count.
+    if (!best.fine || best.rms > 0.5 || best.score > 0.35 * med) return null;
+    const fits = new Map();
+    for (const r of res) if (r.fine && !fits.has(r.k)) fits.set(r.k, r.score);
+    if (TEST && TEST.diag) TEST.diag.sky.fits = [...fits].slice(0, 12).map(([k, v]) => [k.split("|")[0], +v.toFixed(3)]);
+    return { at: L.latLng(best.lat, best.lon), h: best.h, score: best.score, fits, where: best.zone };
   }
   // A trail group from a confirmed match (trail_matches row).
   // Older matches found by GPS saved the area's name, not its id: both lead to the same zone (so the trail isn't listed twice).
@@ -1504,8 +1571,9 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
       if (d > R) return;
       const z = zones[i], key = F.norm(name) + "|" + z.id;
       let g = groups.get(key);
-      if (!g) groups.set(key, (g = { name, type: "w", ws: core(words(name)), alts: [], items: [], tags: w.tags, zone: z, pts: [], d, mtb: true }));
+      if (!g) groups.set(key, (g = { name, type: "w", ws: core(words(name)), alts: [], items: [], tags: w.tags, zone: z, pts: [], d, mtb: true, geoms: [] }));
       g.items.push({ t: "w", id: w.id, c: mid, tags: w.tags });
+      g.geoms.push(w.geom);
       g.pts.push(w.geom[0], mid, w.geom[w.geom.length - 1]);
       if (d < g.d) g.d = d;
     }));
