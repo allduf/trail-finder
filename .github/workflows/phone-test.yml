@@ -41,11 +41,15 @@ jobs:
         # 2026-11-18: runners came up on us-east-2.ec2.archive.ubuntu.com instead (about 1 small file a second, the
         # install hit 25 min three times on PR #808), so every regional mirror name is switched, not only azure's.
         # Newer runners list mirrors through "mirror+file:/etc/apt/apt-mirrors.txt", so that file is rewritten too.
+        # 2026-11-19: archive.ubuntu.com itself crawled (40 kB/s): apt update took 15 min, and one failed download of a
+        # command-not-found list ("c-n-f Metadata") failed the whole install. Neither the translations nor those lists
+        # are needed to install the browser's files, so apt no longer fetches them.
         run: |
           sudo sed -i -E 's#http://[a-z0-9.-]+\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#mirror\+file:/etc/apt/apt-mirrors\.txt#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
           [ -f /etc/apt/apt-mirrors.txt ] && echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt >/dev/null || true
           grep -h "^URIs\|^deb " /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null | sort -u || true
           printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
+          printf 'Acquire::Languages "none";\nAcquire::IndexTargets::deb::CNF::DefaultEnabled "false";\n' | sudo tee /etc/apt/apt.conf.d/99tf-lean >/dev/null
           npm install --no-save --no-package-lock playwright@1.48.2
           npx playwright install --with-deps webkit
       - name: Test every sport at iPhone size
