@@ -733,33 +733,43 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       : `On for this phone. ${watchingText()}${sent} Checked at ${PUSH_TIMES}.`);
     if (!NATIVE) getKey().catch(() => {});
   }
+  // Turn phone notifications on for this device: asks the phone (from a tap: iPhone requires it), then saves its push
+  // address. Used by the 📱 switch and by the ask after a save (below). Throws "blocked", "not allowed" or "setup".
+  async function pushTurnOn() {
+    if (NATIVE) {
+      // The app: iOS asks once (Allow / Don't Allow), then Apple gives this phone's push address.
+      let p = (await NP.checkPermissions()).receive;
+      if (p !== "granted") p = (await NP.requestPermissions()).receive;
+      nativePerm = p;
+      if (p !== "granted") throw new Error(p === "denied" ? "blocked" : "not allowed");
+      const sub = nativeSub(await nativeToken());
+      if (!pushId()) lsSet("tf:pushId", crypto.randomUUID());
+      lsSet("tf:pushSaved", null);
+      await pushSave(sub);
+    } else {
+      // Ask first, straight from the tap (iPhone requires it), then subscribe.
+      const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (perm !== "granted") throw new Error(perm === "denied" ? "blocked" : "not allowed");
+      const key = await getKey();
+      if (!key) throw new Error("setup");
+      const reg = await swReady();
+      const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
+      if (!pushId()) lsSet("tf:pushId", crypto.randomUUID());
+      lsSet("tf:pushSaved", null);
+      await pushSave(sub);
+      reg.showNotification("Phone notifications are on", { body: `Trail Finder checks at ${PUSH_TIMES}.`, icon: "icons/icon-192.png", tag: "tf-on" }).catch(() => {});
+    }
+  }
+  const pushFail = (err) => (err.message === "blocked" ? "Notifications are blocked for Trail Finder. Allow them in your phone's settings, then try again."
+    : err.message === "setup" ? "Phone notifications aren't set up on the site yet. Try again later."
+    : err.message === "not allowed" ? "Tap Allow when your phone asks, to get notifications."
+    : `Couldn't turn on notifications (${err.message}). Try again in a moment.`);
   q("ntPushOn").addEventListener("change", async (e) => {
     const on = e.target;
     on.disabled = true;
     try {
-      if (on.checked && NATIVE) {
-        // The app: iOS asks once (Allow / Don't Allow), then Apple gives this phone's push address.
-        let p = (await NP.checkPermissions()).receive;
-        if (p !== "granted") p = (await NP.requestPermissions()).receive;
-        nativePerm = p;
-        if (p !== "granted") throw new Error(p === "denied" ? "blocked" : "not allowed");
-        const sub = nativeSub(await nativeToken());
-        if (!pushId()) lsSet("tf:pushId", crypto.randomUUID());
-        lsSet("tf:pushSaved", null);
-        await pushSave(sub);
-      } else if (on.checked) {
-        // Ask first, straight from the tap (iPhone requires it), then subscribe.
-        const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
-        if (perm !== "granted") throw new Error(perm === "denied" ? "blocked" : "not allowed");
-        const key = await getKey();
-        if (!key) throw new Error("setup");
-        const reg = await swReady();
-        const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
-        if (!pushId()) lsSet("tf:pushId", crypto.randomUUID());
-        lsSet("tf:pushSaved", null);
-        await pushSave(sub);
-        reg.showNotification("Phone notifications are on", { body: `Trail Finder checks at ${PUSH_TIMES}.`, icon: "icons/icon-192.png", tag: "tf-on" }).catch(() => {});
-      } else {
+      if (on.checked) await pushTurnOn();
+      else {
         const id = pushId();
         lsSet("tf:pushId", null); lsSet("tf:pushSaved", null);
         if (id) await rpc("push_delete", { p_id: id }).catch(() => {});
@@ -771,12 +781,108 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     } catch (err) {
       on.checked = false; on.disabled = false;
       lsSet("tf:pushId", null);
-      pushMsg(err.message === "blocked" ? "Notifications are blocked for Trail Finder. Allow them in your phone's settings, then try again."
-        : err.message === "setup" ? "Phone notifications aren't set up on the site yet. Try again later."
-        : err.message === "not allowed" ? "Tap Allow when your phone asks, to get notifications."
-        : `Couldn't turn on notifications (${err.message}). Try again in a moment.`);
+      pushMsg(pushFail(err));
     }
   });
+  // ---------- the ask after a save (alex 2026-11-19: "ask for notifications right after someone saves an area or tour") ----------
+  // Nothing asks for notifications when the app opens. Right after someone saves something their sport's phone
+  // notifications can follow, a small card says what they'd get and why ("why" first, then the phone's own Allow box):
+  //  - Mountain biking: a trail added to the To ride list (prime loam) or regions saved (new trails, loam);
+  //  - Skiing: a tour saved or watched (avalanche danger, Avalanche Canada);
+  //  - Fishing: a fishing trip saved (fresh stocking near where the map is).
+  // Hiking, hunting and Adventure moto have no phone notifications yet, so they're never asked.
+  // "Not now" (or the phone's Don't Allow) means never again; the 📱 switch in the bell's box stays the way to turn it
+  // on later. A card left alone closes after 25 s and can come back at a later save (3 days apart, 3 times at most).
+  // Only within 4 s of a tap, so lists that grow from the account (another device) never ask. tf:pushAsk, this device only.
+  const ASK_KEY = "tf:pushAsk", ASK_WHY = {
+    mtb: "Trail Finder can send a notification when a trail on your To ride list is likely in prime loam (an estimate from Open-Meteo soil moisture), and when new trails are mapped in regions you pick.",
+    ski: "Trail Finder can send a notification when Avalanche Canada's danger rating goes up to Considerable or more in regions you pick, or on a tour you watch. Always read the full forecast before you go.",
+    fish: "Trail Finder can send a notification when a lake or river within 50 km of where the map is now shows up in the BC, Alberta or Ontario stocking reports.",
+  };
+  const askState = () => { try { return JSON.parse(lsGet(ASK_KEY) || "{}") || {}; } catch { return {}; } };
+  const askPut = (st) => lsSet(ASK_KEY, JSON.stringify(st));
+  const nowSport = () => { const sel = document.getElementById("sport"); return (sel && sel.value) || store.get("sport", "mtb"); };
+  const count = (k, f) => { try { return f(store.get(k, null)); } catch { return 0; } };
+  const len = (v) => (Array.isArray(v) ? v.length : 0);
+  const ASK_SAVES = {   // what counts as a save in each sport: a number that goes up
+    mtb: [() => count("folders", (f) => { const x = Array.isArray(f) && f.find((x) => x && x.id === "want"); return x && Array.isArray(x.trails) ? x.trails.length : 0; }), () => count("notify", (p) => (p && p.zones ? p.zones.length : 0))],
+    ski: [() => count("skiTours", len), () => count("skiWatch", len)],
+    fish: [() => count("fishingTrips", len)],
+  };
+  const askSnap = () => { const o = {}; for (const sp in ASK_SAVES) o[sp] = ASK_SAVES[sp].map((f) => f()); return o; };
+  let askLast = askSnap(), askTap = 0;
+  document.addEventListener("click", (e) => { if (e.isTrusted !== false && e.target.closest && e.target.closest("button, [role=button], a, label")) askTap = Date.now(); }, true);
+  const pushIsOn = () => !!pushId() && perm() === "granted";
+  window.addEventListener("tf:setting", () => {
+    const cur = askSnap(), was = askLast; askLast = cur;
+    if (Date.now() - askTap > 4000 || !pushOk || pushIsOn() || perm() === "denied") return;
+    const sp = nowSport();
+    if (!ASK_SAVES[sp] || !cur[sp].some((n, i) => n > was[sp][i])) return;
+    const st = askState(), now = Date.now();
+    if (st.no || (st.shown || 0) >= 3 || now - (st.at || 0) < 3 * DAY) return;
+    st.shown = (st.shown || 0) + 1; st.at = now; askPut(st);
+    setTimeout(() => showAsk(sp), 2600);   // after the page's own "Saved" toast
+  });
+  const askCss = document.createElement("style");
+  askCss.textContent = `
+.nt-ask, .nt-ask * { box-sizing: border-box; }
+.nt-ask { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px); z-index: 2400; width: min(380px, calc(100vw - 32px));
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.28); opacity: 0; transition: opacity .2s, transform .2s; }
+.nt-ask.on { opacity: 1; transform: translate(-50%, 0); }
+.nt-ask strong { display: flex; align-items: center; gap: 8px; font-size: 1rem; margin-bottom: 4px; }
+.nt-ask strong svg { flex: none; }
+.nt-ask p { margin: 0 0 8px; font-size: .9rem; color: var(--muted); line-height: 1.35; }
+.nt-ask p.nt-ask-small { font-size: .8rem; }
+.nt-ask .nt-ask-row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.nt-ask button { margin: 0; min-height: 40px; line-height: 1.2; font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.nt-ask button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }`;
+  document.head.appendChild(askCss);
+  function showAsk(sp) {
+    if (pushIsOn() || document.querySelector(".nt-ask")) return;
+    if (document.querySelector(".acct-nudge")) { const st = askState(); st.shown = Math.max(0, (st.shown || 1) - 1); st.at = 0; askPut(st); return; }   // the Sign in card came up for this save: one card per save, so ask at the next one
+    const el = document.createElement("div");
+    el.className = "nt-ask"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Phone notifications");
+    el.innerHTML = `<strong></strong><p class="nt-ask-why"></p><p class="nt-ask-small"></p><div class="nt-ask-row"><button type="button" data-a="no">Not now</button><button type="button" class="go" data-a="on">Turn on</button></div>`;
+    const icon = window.tfLine ? window.tfLine("🔔", 20) : "";
+    el.querySelector("strong").innerHTML = (icon && icon !== "🔔" ? icon : "") + "<span></span>";
+    el.querySelector("strong span").textContent = "Get phone notifications?";
+    el.querySelector(".nt-ask-why").textContent = ASK_WHY[sp];
+    el.querySelector(".nt-ask-small").textContent = "Checked a few times a day. Notifications can be late or missed, so check the source before you go. You can change this anytime with the bell.";
+    let timer = setTimeout(() => close(), 25000);
+    const close = () => { clearTimeout(timer); el.classList.remove("on"); setTimeout(() => el.remove(), 250); };
+    el.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-a]"); if (!b) return;
+      if (b.dataset.a === "no") { const st = askState(); st.no = 1; askPut(st); close(); return; }
+      if (b.dataset.a === "ok") { close(); return; }
+      if (b.dataset.a === "pick") { close(); openBox(); return; }
+      clearTimeout(timer);
+      el.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+      try {
+        await pushTurnOn();   // straight from the tap: the phone's own Allow box
+        if (sp === "ski" && !avyOn()) store.set("avyAlert", true);
+        if (sp === "fish" && !fishOn()) { const c = fishWhere(); if (c) store.set("fishAlert", { c, since: new Date().toISOString() }); }
+        pushSync(0, true);
+        el.querySelector("strong span").textContent = "Phone notifications are on";
+        const none = sp !== "fish" && /^It's watching nothing/.test(watchingText());
+        el.querySelector(".nt-ask-why").textContent = sp === "fish" ? "It watches lakes and rivers within 50 km of where the map is now for fresh stocking reports."
+          : none ? "Pick the regions it watches with the bell." : watchingText();
+        if (none) { el.querySelector(".nt-ask-small").hidden = true; el.querySelector(".nt-ask-row").innerHTML = `<button type="button" data-a="ok">OK</button><button type="button" class="go" data-a="pick">Pick regions</button>`; timer = setTimeout(() => close(), 15000); return; }
+      } catch (err) {
+        lsSet("tf:pushId", null);
+        if (err.message === "blocked") { const st = askState(); st.no = 1; askPut(st); }   // the phone's Don't Allow: never ask again
+        el.querySelector("strong span").textContent = "Notifications aren't on";
+        el.querySelector(".nt-ask-why").textContent = pushFail(err);
+      }
+      el.querySelector(".nt-ask-small").hidden = true;
+      el.querySelector(".nt-ask-row").innerHTML = `<button type="button" class="go" data-a="ok">OK</button>`;
+      timer = setTimeout(() => close(), 15000);
+      if (box.open) paintPush();
+    });
+    document.body.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("on"));
+  }
+  window.tfPushAsk = { show: showAsk };   // for the phone test
+
   // Tapping a notification opens this box: in this window (sw.js sends a message) or a new one (#notify).
   if (pushOk && !NATIVE) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tf === "loam") openBox(); });
   if (location.hash === "#notify" || location.hash === "#loam") { history.replaceState(null, "", location.pathname + location.search); setTimeout(openBox, 600); }
