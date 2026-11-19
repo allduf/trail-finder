@@ -1,0 +1,11 @@
+{
+  "name": "trail-review",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shows Apple's own rating card (StoreKit) when the website asks after a happy moment. Used by rate.js on the website.",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}
