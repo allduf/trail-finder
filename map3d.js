@@ -2830,8 +2830,8 @@
           // anything brighter than bare ground is clipped): on a sunny November photo the alpine was one flat glare and
           // the slopes, names and lines were hard to read (alex 2026-11-19, "It is too white"). The photo is kept as it
           // is, only a little less bright at the top, and the slopes get the same soft hill shading as the offline map
-          // (the "shade" layer below, a bit stronger while Live is on), so the mountains' shape reads again.
-          { id: "live", type: "raster", source: "live", layout: { visibility: "none" }, paint: { "raster-brightness-max": 0.9, "raster-contrast": 0.05 } },
+          // (the "shade" layer below: soft shadows only while Live is on, close up), so the mountains' shape reads again.
+          { id: "live", type: "raster", source: "live", layout: { visibility: "none" }, paint: { "raster-brightness-max": 0.93 } },
           // Soft sun and shadow on the slopes, so white mountains still read in winter.
           { id: "shade", type: "hillshade", source: "shade", layout: { visibility: "none" },
             paint: { "hillshade-exaggeration": 0.35, "hillshade-shadow-color": "#3a4a66", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#5a6a80" } },
@@ -3139,8 +3139,12 @@
       // Live online: the hill shading over the photo too (see the live layer), stronger than offline so it shows on snow.
       const liveShade = !off && photos === "live";
       if (liveShade) gl.setLayoutProperty("shade", "visibility", "visible");
-      gl.setPaintProperty("shade", "hillshade-exaggeration", liveShade ? 0.5 : 0.35);
-      gl.setPaintProperty("shade", "hillshade-shadow-color", liveShade ? "#2e3d5a" : "#3a4a66");
+      // Only soft shadows, no white highlight (that turned the forest a hazy blue-grey) and none at all far out, where
+      // the coarse heights drew harsh streaks over whole valleys (alex 2026-11-19, "Live map look weird").
+      gl.setPaintProperty("shade", "hillshade-exaggeration", liveShade ? ["interpolate", ["linear"], ["zoom"], 10, 0, 11.5, 0.2, 13, 0.32, 14, 0.36] : 0.35);
+      gl.setPaintProperty("shade", "hillshade-shadow-color", liveShade ? "#4a5260" : "#3a4a66");
+      gl.setPaintProperty("shade", "hillshade-highlight-color", liveShade ? "rgba(255,255,255,0)" : "#ffffff");
+      gl.setPaintProperty("shade", "hillshade-accent-color", liveShade ? "rgba(0,0,0,0)" : "#5a6a80");
       if (off) for (const id of ["satlo", "sat", "sumhi", "fill", "live", "topo", "osm"]) gl.setLayoutProperty(id, "visibility", "none");
       // Topo: past its sharp pictures (and while one is still coming), the land drawn from OpenFreeMap with the hills
       // shaded, like the offline map (see the topo source).
