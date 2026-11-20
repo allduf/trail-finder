@@ -156,7 +156,7 @@
       const g = gl.getBounds(), dy = (g.getNorth() - g.getSouth()) * 0.5, dx = (g.getEast() - g.getWest()) * 0.5;
       s = g.getSouth() - dy; n = g.getNorth() + dy; w = g.getWest() - dx; e = g.getEast() + dx;
     }
-    else { const g = map.getBounds().pad(0.3); s = g.getSouth(); n = g.getNorth(); w = g.getWest(); e = g.getEast(); }
+    else { const g = map.getBounds().pad(window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen() ? 4 : 0.3); s = g.getSouth(); n = g.getNorth(); w = g.getWest(); e = g.getEast(); }   // native 3D: tilted, sees far
     s = clamp(s, -80, 84); n = clamp(n, -80, 84); w = clamp(w, -179.9, 179.9); e = clamp(e, -179.9, 179.9);
     const cell = Math.max(0.1, Math.ceil((Math.max(n - s, e - w) / 110) * 10) / 10), snap = cell * 5;
     s = Math.floor(s / snap) * snap; n = Math.ceil(n / snap) * snap; w = Math.floor(w / snap) * snap; e = Math.ceil(e / snap) * snap;
@@ -334,10 +334,34 @@
   window.addEventListener("tf:map3d", () => setTimeout(() => { sync3d(); }, 0));
   if ($("btn3d")) $("btn3d").addEventListener("click", () => setTimeout(() => { if (on) draw(); }, 60));
 
+  // ---------- native 3D on the iPhone (native-map.js, ios-app/.../NativeWeather.swift) ----------
+  // The same frame as the bar, under the trails: radar as the same tiles, the forecast as the same painted picture
+  // (for a wider box, fcBox: a tilted view sees far). "{}" while off. The caption says the time and the source.
+  const T = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
+  const nativeOpen = () => !!(window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen());
+  let nativePic = null;   // { f, pic }: the forecast picture last sent
+  const nativeData = () => {
+    if (!on || !span) return "{}";
+    const src = secOf(frame) === "radar" ? "Environment Canada" : "Environment Canada RDPS";
+    const caption = `${T(secOf(frame) === "radar" ? "Radar" : "Rain and snow forecast")}: ${whenEl.textContent} · ${T(src)}`;
+    if (secOf(frame) === "radar") return JSON.stringify({ tiles: tilesUrl(), maxzoom: 7, opacity: OPACITY, credit: ATTR, caption });
+    const f = frame;
+    fcPicture(f, fcBox()).then((pic) => {
+      if (!on || frame !== f || (nativePic && nativePic.pic === pic)) return;
+      nativePic = { f, pic };
+      if (window.tfNative && window.tfNative.send) window.tfNative.send("radar");
+    }, () => {});
+    if (!nativePic || nativePic.f !== f) return "{}";
+    return JSON.stringify({ image: nativePic.pic.url, bounds: nativePic.pic.bounds, opacity: 1, credit: FC_ATTR, caption });
+  };
+  if (window.tfNative && window.tfNative.addLayer) window.tfNative.addLayer("radar", nativeData);
+  const sendNative = () => { if (nativeOpen() && window.tfNative.send) window.tfNative.send("radar"); };
+
   let draw3dTimer = 0;
   function draw() {
     if (!on) return;
     draw2d();
+    sendNative();
     clearTimeout(draw3dTimer);
     draw3dTimer = setTimeout(sync3d, playing ? 0 : 250);
     here();
@@ -535,6 +559,7 @@
       if (overlay && map.hasLayer(overlay)) map.removeLayer(overlay);
       shownUrl = "";
       sync3d();
+      sendNative();
     }
   }
   btn.addEventListener("click", () => { on = !on; store.set("radar", on); apply(); });

@@ -136,10 +136,22 @@
   window.addEventListener("tf:map3d", () => setTimeout(() => { sync3d(); }, 0));
   if ($("btn3d")) $("btn3d").addEventListener("click", () => setTimeout(() => { if (on) draw(); }, 60));
 
+  // ---------- native 3D on the iPhone (native-map.js, ios-app/.../NativeWeather.swift) ----------
+  // The same tiles, the same hour, under the trails; "{}" while off. The caption says the hour and the source, as the bar.
+  const T = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
+  const nativeData = () => {
+    if (!on || !run || !covered(hour)) return "{}";
+    return JSON.stringify({ tiles: tilesUrl(), maxzoom: 4, opacity: OPACITY, credit: ATTR,
+      caption: `${T("Smoke forecast")}: ${whenEl.textContent} · ${T("Environment Canada FireWork")}` });
+  };
+  if (window.tfNative && window.tfNative.addLayer) window.tfNative.addLayer("smoke", nativeData);
+  const sendNative = () => { if (window.tfNative && window.tfNative.send) window.tfNative.send("smoke"); };
+
   let draw3dTimer = 0;
   function draw() {
     if (!on) return;
     draw2d();
+    sendNative();
     clearTimeout(draw3dTimer);
     draw3dTimer = setTimeout(sync3d, playing ? 0 : 250);
     here();
@@ -342,6 +354,7 @@
       if (overlay && map.hasLayer(overlay)) map.removeLayer(overlay);
       shownUrl = "";
       sync3d();
+      sendNative();
     }
   }
   btn.addEventListener("click", () => { on = !on; store.set("smoke", on); apply(); });

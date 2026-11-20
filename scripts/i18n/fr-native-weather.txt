@@ -1,0 +1,5 @@
+Smoke forecast ||| Prévision de fumée
+Rain and snow forecast ||| Prévision de pluie et de neige
+Environment Canada ||| Environnement Canada
+Environment Canada RDPS ||| Environnement Canada SRPD
+Environment Canada FireWork ||| Environnement Canada FireWork
