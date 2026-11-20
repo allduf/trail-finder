@@ -54,11 +54,13 @@ final class NativeSearch: NativeLayer {
     }
 
     private func show(error: String?) {
-        guard let screen = screen, screen.presentedViewController == nil else { return }
+        guard let screen = screen else { return }
+        // Something still open (the Search box opened again): the answer replaces it.
+        if let open = screen.presentedViewController { open.dismiss(animated: false) { [weak self] in self?.show(error: error) }; return }
         if hits.isEmpty {
             let msg = error == "offline" ? t("The search needs a connection.") : t("No place found.")
             let a = UIAlertController(title: asked, message: msg, preferredStyle: .alert)
-            a.addAction(UIAlertAction(title: "OK", style: .cancel))
+            a.addAction(UIAlertAction(title: t("OK"), style: .cancel))
             screen.present(a, animated: true)
             return
         }

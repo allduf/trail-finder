@@ -8,7 +8,8 @@ import UIKit
 // card's second line), k (which picture: cam, hut, park, saved, search, ski, pin) and c (its colour, "#rrggbb"), r (how
 // much it matters: a bigger one keeps its place when pins would overlap, as on the web 3D map).
 // A tap shows the usual card (name, what it is) with Details: that goes back to the page and opens the pin's own card
-// there, the same one a tap on the flat map opens (the live webcam, the hut's facts...).
+// there, the same one a tap on the flat map opens (the live webcam, the hut's facts...). The searched place's pin (nd: 1)
+// has no Details.
 // Lifts, trails and the dots under the MTB trailheads were already tappable here (TrailMapPlugin's trail card).
 final class NativePins: NativeLayer {
     let key = "pins"
@@ -69,7 +70,8 @@ final class NativePins: NativeLayer {
         guard let i = (f.attribute(forKey: "i") as? NSNumber)?.intValue else { return false }
         let name = (f.attribute(forKey: "n") as? String) ?? ""
         screen.showFeatureCard(name: name.isEmpty ? "Pin" : name, sub: f.attribute(forKey: "s") as? String,
-                               colour: f.attribute(forKey: "c") as? String, open: i, at: f.coordinate, key: key)
+                               colour: f.attribute(forKey: "c") as? String, open: i, at: f.coordinate, key: key,
+                               details: (f.attribute(forKey: "nd") as? NSNumber)?.intValue != 1)
         return true
     }
 

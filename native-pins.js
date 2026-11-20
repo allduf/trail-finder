@@ -15,7 +15,7 @@
   // matters when pins would overlap (map3d.js PIN_RANK) and its colour when the picture names none.
   const KINDS = [
     { re: /\bps-pin\b/, k: "search", s: "Searched place", r: 99, c: "#e0262b" },
-    { re: /\bsp-pin\b/, k: "saved", s: "Saved spot", r: 90, c: "#2b8a3e" },
+    { re: /\bsp-pin\b/, k: "saved", s: "Saved spot", r: 90, c: null },   // its sport's colour (ski-points.js), below
     { re: /\bsk-hutpin\b/, k: "hut", s: "Hut or cabin", r: 60, c: "#7a2e10" },
     { re: /\bsk-pin park\b/, k: "park", s: "Parking", r: 30, c: "#1f5fe0" },
     { re: /\bwc-pin bc\b/, k: "cam", s: "Webcam", r: 20, c: "#0b7285" },
@@ -24,9 +24,10 @@
     { re: /\bsk-pin\b[^>]*>\s*⛷/, k: "ski", s: "", r: 40, c: "#d9480f" },   // a ski tour start (winter.js)
   ];
   const textOf = (h) => { const d = document.createElement("div"); d.innerHTML = String(h || ""); return d.textContent.replace(/\s+/g, " ").trim(); };
+  const savedColour = () => { const b = document.body.classList; return b.contains("sport-hunt") ? "#a34f00" : b.contains("sport-fish") ? "#0c8599" : "#0a7d6e"; };
   const colourIn = (h) => { const m = /background(?:-color)?:\s*(#[0-9a-f]{6}|#[0-9a-f]{3})\b/i.exec(h); return m ? m[1] : null; };
 
-  let hits = [];   // the pins sent last, by number (the card's Details)
+  let hits = [];   // the pins sent last, by number
   const paneHidden = new Map();
   const hiddenPane = (o) => {
     const name = o.pane || "markerPane";
@@ -37,10 +38,9 @@
     const out = [], near = map.getBounds().pad(2);
     hits = []; paneHidden.clear();
     map.eachLayer((l) => {
-      if (!(l instanceof L.Marker) || !l.options.icon) return;
+      if (!tappable(l)) return;
       const o = l.options;
-      if (o.interactive === false || o.draggable || o.opacity === 0 || hiddenPane(o)) return;
-      if (!(l.listens("click") || l.getPopup())) return;
+      if (o.opacity === 0 || hiddenPane(o)) return;
       const at = l.getLatLng();
       if (!near.contains(at)) return;
       const io = o.icon.options || {}, h = io.html, html = (io.className || "") + " " + (h && h.outerHTML != null ? h.outerHTML : String(h || ""));
@@ -50,23 +50,31 @@
       if (!name) { const tip = l.getTooltip && l.getTooltip(); name = tip ? textOf(tip.getContent()) : ""; }
       // The rest keep their whole title as the name ("Trailhead: Lost Lake", "Oboe, north side: slackcountry, outside
       // ski patrol"): which side of the colon is the name differs from pin to pin.
-      if (!name) name = textOf(h).slice(0, 40);
-      const c = (kind && kind.k !== "ski" && kind.c) || colourIn(html) || (kind && kind.c) || "#1c1c1e";
+      if (!name) name = textOf(h && h.outerHTML != null ? h.outerHTML : h).slice(0, 40) || t(kind && kind.s ? kind.s : "Pin");
+      const c = (kind && kind.k === "saved" && savedColour()) || (kind && kind.k !== "ski" && kind.c) || colourIn(html) || (kind && kind.c) || "#1c1c1e";
       const k = kind ? kind.k : "pin";
       out.push({ type: "Feature", geometry: { type: "Point", coordinates: [Math.round(at.lng * 1e5) / 1e5, Math.round(at.lat * 1e5) / 1e5] },
-        properties: { i: hits.length, n: name, s: sub, k, c, img: `tfpin:${k}:${c.toLowerCase()}`, r: -(kind ? kind.r : 10 + Math.min(9, (o.zIndexOffset || 0) / 100)) } });
-      hits.push({ l, k });
+        properties: { i: hits.length, n: name, s: sub, k, c, nd: k === "search" ? 1 : 0, img: `tfpin:${k}:${c.toLowerCase()}`, r: -(kind ? kind.r : 10 + Math.min(9, (o.zIndexOffset || 0) / 100)) } });
+      hits.push(l);
     });
     return JSON.stringify({ type: "FeatureCollection", features: out });
   }
 
-  // Details on a pin's card: its own card here, as a tap on it would open it. The searched place's pin has none (a tap
-  // there takes it away), so the map just stays on the place.
-  N.addLayer("pins", pins, (n, latlng) => {
-    const h = hits[n];
-    if (!h || h.k === "search" || !map.hasLayer(h.l)) return;
-    h.l.fire("click", { latlng: h.l.getLatLng() || latlng });
-  });
+  // Details on a pin's card: its own card here, as a tap on it would open it. The pin is found again by where it is
+  // (the card gives the pin's own spot), not by its number: the page redraws some pins after every move (huts,
+  // webcams), and the numbers sent last may not be the ones the native screen showed. Once the flat map has settled
+  // where the native one was. The searched place's pin has no Details (nd): a tap on it here takes it away.
+  const tappable = (l) => l instanceof L.Marker && l.options.icon && l.options.interactive !== false && !l.options.draggable && (l.listens("click") || l.getPopup());
+  N.addLayer("pins", pins, (n, latlng) => setTimeout(() => {
+    let best = null, bd = 3e-5;
+    map.eachLayer((l) => {
+      if (!tappable(l)) return;
+      const p = l.getLatLng(), d = Math.abs(p.lat - latlng.lat) + Math.abs(p.lng - latlng.lng);
+      const io = l.options.icon.options || {}, h = io.html;
+      if (d < bd && !/\bps-pin\b/.test(h && h.outerHTML != null ? h.outerHTML : String(h || ""))) { best = l; bd = d; }
+    });
+    if (best) best.fire("click", { latlng: best.getLatLng() });
+  }, 350));
 
   // Sent again as pins come and go (each move redraws some) and as the map follows the native one, once it settles.
   let later = 0;

@@ -8,8 +8,8 @@
   if (!N || !N.addLayer || !N.on || !N.send) return;
   const t = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   const WORDS = ["Search", "Search a place", "A town, mountain, lake or region, or a GPS point", "Place name", "Cancel",
-    "The search needs a connection.", "No place found.", "Place"];
-  let answer = null, hits = [];
+    "The search needs a connection.", "No place found.", "Place", "OK"];
+  let answer = null, hits = [], latest = "";
   // At open: the words shown on the native screen, in the page's language. After a search: its answer.
   N.addLayer("search", () => {
     if (answer) return answer;
@@ -21,11 +21,14 @@
   N.on("search", async (e) => {
     const q = String(e.q || "").trim(), P = window.tfPlaceSearch;
     if (!q) return;
+    latest = q;   // an older search answering late is dropped (here and on the native screen)
     if (!P || !P.search) { reply({ q, hits: [], error: "offline" }); return; }
     try {
-      hits = (await P.search(q)) || [];
+      const found = (await P.search(q)) || [];
+      if (q !== latest) return;
+      hits = found;
       reply({ q, hits: hits.map((h) => ({ name: h.name, sub: h.sub || "", lat: h.lat, lon: h.lon, bb: h.bb || null })) });
-    } catch { hits = []; reply({ q, hits: [], error: "offline" }); }
+    } catch { if (q === latest) { hits = []; reply({ q, hits: [], error: "offline" }); } }
   });
   // The place picked: its pin here (no moving the sheet; the map follows the native one).
   N.on("searchPick", (e) => {

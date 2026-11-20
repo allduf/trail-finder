@@ -129,6 +129,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private let card = UIView()
     private let cardName = UILabel()
     private let cardSwatch = UIView()
+    private var cardDetails: UIButton?
     private let cardSub = UILabel()            // a feature card's second line (what it is: "Webcam", "Hut"...)
     private let toolStack = UIStackView()      // features' own buttons, under Back (addToolButton)
     // The native 3D features (NativeLayers.swift), each with its own sources and layers; 3D only.
@@ -215,6 +216,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         cardText.spacing = 2
         cardText.translatesAutoresizingMaskIntoConstraints = false
         let details = pill("Details ›", #selector(detailsTapped))
+        cardDetails = details
         let shut = UIButton(type: .system)
         shut.setTitle("✕", for: .normal)
         shut.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
@@ -319,7 +321,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         if left { return }
         left = true
         var e = camera()
-        e["details"] = details && !card.isHidden
+        e["details"] = details && !card.isHidden && cardDetails?.isHidden != true
         e["layers"] = layers
         e["open"] = picked
         e["tapLat"] = pickedAt.latitude
@@ -454,7 +456,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // A feature's own card: the same card as a trail's (name, colour, and a second line saying what it is), with Details
     // coming back to the page: "closed" then carries feature: key and open: the feature's own number, and the feature's
     // page side opens it there (window.tfNative.addLayer's onDetails).
-    func showFeatureCard(name: String, sub: String? = nil, colour: String?, open: Int, at: CLLocationCoordinate2D, key: String? = nil) {
+    // details: false for a feature with nothing more to open (the card has no Details then).
+    func showFeatureCard(name: String, sub: String? = nil, colour: String?, open: Int, at: CLLocationCoordinate2D, key: String? = nil, details: Bool = true) {
+        cardDetails?.isHidden = !details
         picked = open
         pickedAt = at
         pickedFeature = key
@@ -531,6 +535,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private func showCard(_ f: MLNFeature?) {
         pickedFeature = nil
         cardSub.isHidden = true
+        cardDetails?.isHidden = false
         guard let f = f else {
             picked = -1
             card.isHidden = true

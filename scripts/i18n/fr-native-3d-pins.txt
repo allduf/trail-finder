@@ -10,3 +10,5 @@ Place name ||| Nom de l'endroit
 The search needs a connection. ||| La recherche a besoin d'une connexion.
 No place found. ||| Aucun endroit trouvé.
 Place ||| Endroit
+OK ||| OK
+Pin ||| Épingle
