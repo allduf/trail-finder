@@ -297,12 +297,14 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         }
     }
 
-    func leave(details: Bool, layers: Bool = false) {
+    // extra: a feature's own keys for the page ("closed"), e.g. avy: true for the avalanche card's "Full forecast".
+    func leave(details: Bool, layers: Bool = false, extra: [String: Any] = [:]) {
         if left { return }
         left = true
         var e = camera()
         e["details"] = details && !card.isHidden
         e["layers"] = layers
+        extra.forEach { e[$0.key] = $0.value }
         e["open"] = picked
         e["tapLat"] = pickedAt.latitude
         e["tapLon"] = pickedAt.longitude

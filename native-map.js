@@ -168,8 +168,10 @@
   // The ground layers (native-ground.js) open in native 3D once this phone's app build has shown it draws them
   // ("tf-native-ground", set the first time a native 3D map with them opens); older builds keep the web 3D map for them.
   const groundNative = () => { try { return localStorage.getItem("tf-native-ground") === "1"; } catch { return false; } };
+  const avyNative = () => { try { return localStorage.getItem("tf-native-avy") === "1"; } catch { return false; } };
   const webOnly = () => {
-    if (tf("avy", false) === true || pressed("avyBtn")) return true;   // avalanche stays in the web 3D map (its own step)
+    // Avalanche: native 3D only once this phone's build has shown its avalanche card (native-avalanche.js, "tf-native-avy").
+    if ((tf("avy", false) === true || pressed("avyBtn")) && !(groundNative() && avyNative())) return true;
     if (groundNative()) return false;
     if (["contourBtn", "shadeBtn"].some(pressed)) return true;
     if (!document.body.classList.contains("sport-ski")) return false;

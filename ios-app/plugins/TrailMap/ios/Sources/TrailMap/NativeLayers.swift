@@ -28,6 +28,7 @@ extension NativeLayer {
 enum NativeLayers {
     // One line per feature (keep in alphabetical order: parallel pull requests then add different lines).
     static let all: [() -> NativeLayer] = [
+        { NativeAvalanche() },                     // NativeAvalanche.swift: the avalanche card (its colours come through NativeGround)
         { NativeGround() },
         { NativeOverlay(key: "radar", row: 0) },   // NativeWeather.swift: rain and snow radar and forecast
         { NativeOverlay(key: "smoke", row: 1) },   // NativeWeather.swift: wildfire smoke forecast

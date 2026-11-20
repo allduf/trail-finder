@@ -9,7 +9,8 @@
 //     keys shown on the map. Sent at opening, and again when a layer goes on or off or is drawn again ("tf:ground").
 //   - "groundTile" { r, id, z, x, y } from the native map: the picture comes back as "T|r|<base64 PNG>" ("" = nothing
 //     there, "!" = it couldn't be painted now); "groundStop" { r } when the map no longer needs it.
-// Avalanche is never sent here: it stays in the web 3D map only, until its own step (avalanche-exact).
+// Avalanche (step 8) comes through here too, winter.js's own paint(), only to app builds that show its card beside it
+// (native-avalanche.js): the PNGs are lossless, so the colours are Avalanche Canada's band ratings exactly.
 // On the website, and in app builds without native 3D, this file does nothing.
 (() => {
   "use strict";

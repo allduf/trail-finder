@@ -12,7 +12,7 @@ import UIKit
 //   - "T|<request>|<base64 PNG>": a picture asked for ("" when there's nothing there, "!" when it couldn't be painted
 //     now, for example with no signal: MapLibre then asks again later).
 // MapLibre loads a layer's tiles from a made-up address (GroundTiles.host); GroundTileProtocol answers those requests by
-// asking the page ("groundTile" { r, id, z, x, y }) and handing back what it paints. Avalanche is never one of these.
+// asking the page ("groundTile" { r, id, z, x, y }) and handing back what it paints. Avalanche comes this way too (step 8), with its card in NativeAvalanche.swift.
 final class NativeGround: NativeLayer {
     let key = "ground"
     private struct Item: Equatable {

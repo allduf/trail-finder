@@ -4616,6 +4616,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return out;
   }
 
+  // The iPhone's own 3D map (native 3D, step 8; native-ground.js and native-avalanche.js): the very same paint() as the
+  // 2D and web 3D maps, sent as lossless PNGs, so the colours are Avalanche Canada's band ratings exactly, from one piece
+  // of code (avalanche-rules). Only once this phone's app build draws the avalanche card beside it ("tf-native-avy", set
+  // when the native map shows it): an older build would get the colours without the card and its warnings.
+  const nativeAvyOk = () => { try { return localStorage.getItem("tf-native-avy") === "1"; } catch { return false; } };
+  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y), on: () => sport === "ski" && avyOn && nativeAvyOk(), ver: () => String(ver), min: 8, max: 14, opacity: 1, z: 360,
+    credit: "Avalanche forecast: Avalanche Canada · Terrain: Mapzen Terrain Tiles", keep: false });
+
   // 2D map layer
   map.createPane("avy").style.zIndex = 360;
   const AvyGrid = L.GridLayer.extend({
@@ -5290,6 +5298,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (want) { if (!map.hasLayer(avyGrid)) avyGrid.addTo(map); else avyGrid.redraw(); }
     else if (map.hasLayer(avyGrid)) map.removeLayer(avyGrid);
     sync3d();
+    groundChanged();   // native 3D asks for the new pictures (a new day, example on or off, the forecast in)
     renderForecast();
     fillSpotAvy();
     if (sport === "ski") renderList();   // the trip planner lights follow the forecast and the day picked
