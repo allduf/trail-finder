@@ -1,0 +1,4 @@
+Photo find now compares the mountain skyline in your picture with the terrain, to help find where it may have been taken. ||| La recherche par photo compare maintenant la ligne des montagnes de votre photo avec le relief, pour aider à trouver où elle a pu être prise.
+Matching the mountain skyline in the picture with the terrain… ||| Comparaison de la ligne des montagnes de la photo avec le relief…
+the mountain skyline in the picture fits the view from it (estimate from terrain heights) ||| la ligne des montagnes de la photo correspond à la vue depuis ce sentier (estimation d'après l'altitude du terrain)
+km from where the mountain skyline in the picture fits best (estimate from terrain heights) ||| km de l'endroit où la ligne des montagnes de la photo correspond le mieux (estimation d'après l'altitude du terrain)

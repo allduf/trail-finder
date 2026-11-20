@@ -104,7 +104,9 @@ const results = [];
 for (const [i, c] of cases.entries()) {
   if (i) await new Promise((ok) => setTimeout(ok, GAP_MS));
   const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
-  await page.addInitScript(([skip, pub]) => { window.tfPhotoTest = { skip }; if (!pub) try { localStorage.setItem("tf-friend", "1"); } catch {} }, [c.skip, PUBLIC]);
+  // The Today card (today.js, opens with the app since 2026-11-19) sits over the page, so the tap on "Where was it
+  // taken?" never landed: off for the test, as a rider can turn it off.
+  await page.addInitScript(([skip, pub]) => { window.tfPhotoTest = { skip }; try { localStorage.setItem("tf:todayAuto", "false"); if (!pub) localStorage.setItem("tf-friend", "1"); } catch {} }, [c.skip, PUBLIC]);
   // Signed out, friends.js would turn the friend view off again (and reload): not loaded in alex's view.
   if (!PUBLIC) await page.route(/\/friends\.js(\?|$)/, (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "" }));
   const t0 = Date.now();
