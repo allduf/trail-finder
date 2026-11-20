@@ -24,6 +24,25 @@ addEventListener("error", (e) => {
 }, true);
 </script>
 <script src="i18n.js?v=__V__"></script>
+<script>
+// A web viewer too old for the map (no Object.hasOwn: Chrome before 93, Safari before 15.4). Google Play's review
+// phones (2026-11-13 and 11-20) ran one: MapLibre threw errors there and the map broke. They get a short note on how to
+// update instead. Close hides it for this visit.
+if (typeof Object.hasOwn !== "function") addEventListener("DOMContentLoaded", () => {
+  // A dialog of its own, so the Terms dialog (also modal) can't cover it for good: whichever opens last is on top.
+  const n = document.createElement("dialog");
+  n.id = "oldViewer";
+  n.style.cssText = "max-width:420px;margin:auto 8px;background:#fff;color:#12291d;border:1px solid #c9d3cc;border-radius:12px;padding:12px 14px;box-shadow:0 4px 18px rgba(0,0,0,.18);font:15px/1.4 system-ui,sans-serif";
+  const t = document.createElement("p"); t.style.margin = "0 0 8px";
+  t.textContent = "This phone's web viewer is out of date, so the map may not show or may stop working.";
+  const h = document.createElement("p"); h.style.margin = "0 0 10px";
+  h.textContent = "On Android, updating Android System WebView and Chrome in Google Play may fix it. On iPhone, updating iOS may fix it.";
+  const c = document.createElement("button"); c.type = "button"; c.className = "btn"; c.textContent = "Close";
+  c.onclick = () => (n.close ? n.close() : null, n.remove());
+  n.append(t, h, c); document.body.append(n);
+  if (n.showModal) n.showModal(); else n.setAttribute("open", "");
+});
+</script>
 <script src="wxcheck.js?v=__V__"></script>
 <script src="point-info.js?v=__V__"></script>
 <script src="line-icons.js?v=__V__"></script>
