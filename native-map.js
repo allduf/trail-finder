@@ -70,7 +70,11 @@
     // without waiting for its get().
     on(name, fn) { TrailMap.addListener(String(name), fn); },
     post(key, data) { if (open && open3d && TrailMap.layer) TrailMap.layer({ key: String(key), data: String(data) }).catch(() => {}); },
+    // "Details" on a feature's own card (one it showed with open -1, at its own spot): fn({ tapLat, tapLon }) opens
+    // it on the page and returns true; otherwise the page opens what's at that spot, as for a trail.
+    onDetails(fn) { if (typeof fn === "function") details.push(fn); },
   };
+  const details = [];
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
   const dashKey = (d, w) => {
@@ -149,6 +153,7 @@
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
+    if (!(e.open >= 0)) for (const fn of details) { try { if (fn(e)) return; } catch {} }
     // "Details" on a trail's card: the trail opens as if tapped there (most trails are found by the map's own tap).
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
