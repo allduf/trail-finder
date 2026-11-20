@@ -18,6 +18,9 @@ import UIKit
 // names...).
 // winter: true (Skiing only) adds Skiing's Winter map to 3D, first in the list (WinterTiles below), and opens on it when
 // the page's map is on Winter.
+// In 3D a "Layers" button closes it with layers: true in "closed": the page opens its own 3D map there, with its Layers
+// open, for what only the web map draws (avalanche, slopes, planning...): "native for viewing, web for tools" (alex
+// 2026-11-20).
 // Events back to the page: "moved" { lat, lon, zoom, bearing } after each move (the page loads the trails there and
 // sends them with update), and "closed" { lat, lon, zoom, bearing, details, open, tapLat, tapLon } when it's left:
 // details is true when "Details" was pressed on a trail's card, open is that trail's i (-1 when it has none) and
@@ -162,6 +165,14 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let locate = pill("◎ Me", #selector(locateTapped))
         styled(styleBtn, styleTitle(), #selector(styleTapped))
         [back, tag, locate, styleBtn].forEach { view.addSubview($0) }
+        if threeD {
+            let layers = pill("☰ Layers", #selector(layersTapped))
+            view.addSubview(layers)
+            NSLayoutConstraint.activate([
+                layers.trailingAnchor.constraint(equalTo: styleBtn.leadingAnchor, constant: -8),
+                layers.centerYAnchor.constraint(equalTo: locate.centerYAnchor)
+            ])
+        }
 
         // The trail card: name, colour, Details (opens the trail's details on the page) and ✕.
         card.backgroundColor = .white
@@ -246,6 +257,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
 
     @objc private func backTapped() { leave(details: false) }
+    @objc private func layersTapped() { leave(details: false, layers: true) }
     @objc private func detailsTapped() { leave(details: true) }
     @objc private func cardClose() { showCard(nil) }
     @objc private func locateTapped() {
@@ -270,11 +282,12 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         }
     }
 
-    func leave(details: Bool) {
+    func leave(details: Bool, layers: Bool = false) {
         if left { return }
         left = true
         var e = camera()
         e["details"] = details && !card.isHidden
+        e["layers"] = layers
         e["open"] = picked
         e["tapLat"] = pickedAt.latitude
         e["tapLon"] = pickedAt.longitude
