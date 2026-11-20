@@ -15,7 +15,7 @@
 #       6.5 C per km, the same rate Open-Meteo uses, before comparing them)
 # The app takes the middle value of the models and shows their range. One model alone never decides.
 #
-# Days: 09 UTC to 09 UTC (1 am to 1 am Pacific standard time), today and the next 5 days. Amounts between two model
+# Days: 09 UTC to 09 UTC (2 am to 2 am in BC on UTC-7), today and the next 5 days. Amounts between two model
 # output times are filled in proportionally (an estimate). Highs and lows come from each model's max/min fields (or
 # hourly temperatures for HRDPS).
 #
@@ -327,7 +327,7 @@ def gem():
                 else:
                     S.w[h] = rgg(kmh(v, info))
                 eccodes.codes_release(info["handle"])
-    log("  GDPS: water to %d h, hours to %d h" % (max(S.acc), max(S.t)))
+    log("  GDPS: water to %d h, %d temperature and %d wind steps" % (max(S.acc), len(S.t), len(S.w)))
     return S
 
 

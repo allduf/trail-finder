@@ -164,9 +164,9 @@
   // 9 km, NOAA GFS and DWD ICON from their free open-data servers and saves each model's daily water, high and low on a
   // 0.1 degree grid over BC (data/wx/blend/<lat>_<lon>.json). For places inside that grid, a card's
   // daily amounts, highs and lows become the middle of those 4 models; the hours are scaled so they add up to the same
-  // day total (the snow split by height in winter.js then agrees with it). Hours, wind and everything else stay the
-  // middle of Open-Meteo's 3 models. Days are 1 am to 1 am Pacific standard time (the models' 09 UTC), an hour off
-  // the card's midnight: fine for a daily estimate. No file, an old file or a place outside: the card is as before.
+  // day total (the snow split by height in winter.js then agrees with it). Hours: see applyHours below. Days run
+  // 09 UTC to 09 UTC (2 am in BC on UTC-7, 1 or 2 am on Mountain time), a couple of hours off the card's midnight:
+  // fine for a daily estimate. No file, an old file or a place outside: the card is as before.
   const BLEND = "data/wx/blend/";
   const BLEND_NAMES = { gem: "Environment Canada (HRDPS 2.5 km and GDPS)", ecmwf: "ECMWF (9 km)", gfs: "NOAA (GFS)", icon: "DWD (ICON)" };
   const BOX = [48, -139, 60, -114], LAPSE = 0.0065;
@@ -314,11 +314,15 @@
     blendTiles.set(key, { at: Date.now(), p });
     return p;
   };
-  async function hoursAt(lat, lon, elev) {
+  async function hoursAt(lat, lon, elev, again) {
     const t = await hourTile(lat, lon);
     if (!t || !Array.isArray(t.h) || !Array.isArray(t.models)) return null;
     const run = runMs(t.run);
-    if (!(Date.now() - run < RUN_MAX_AGE_MS)) return null;
+    if (!(Date.now() - run < RUN_MAX_AGE_MS)) {
+      const key = `h/${(Math.floor(lat * 2 + 1e-9) / 2).toFixed(1)}_${(Math.floor(lon * 2 + 1e-9) / 2).toFixed(1)}`, c = blendTiles.get(key);
+      if (!again && c && Date.now() - c.at > 10 * 60000) { blendTiles.delete(key); return hoursAt(lat, lon, elev, true); }
+      return null;
+    }
     const per = Math.round(1 / t.step), n = t.size || 5;
     const i = Math.min(n - 1, Math.max(0, Math.floor((lat - t.lat0) * per + 1e-6))), j = Math.min(n - 1, Math.max(0, Math.floor((lon - t.lon0) * per + 1e-6)));
     const c = i * n + j;
@@ -327,6 +331,21 @@
     return { models: t.models, at: t.h.map((h) => run + h * 3600000),
       t: t.models.map((m, k) => col(t.t, k, (x) => x / 10 + zAdj(k))), w: t.models.map((m, k) => col(t.w, k, (x) => x)), p: t.models.map((m, k) => col(t.p, k, (x) => x / 10)) };
   }
+  // A local "YYYY-MM-DDTHH:MM" of the answer -> ms, with that hour's own offset (daylight saving can change inside
+  // the forecast).
+  const tzFmt = new Map();
+  const offsetAt = (tz, ms) => {
+    try {
+      if (!tzFmt.has(tz)) tzFmt.set(tz, new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }));
+      const p = Object.fromEntries(tzFmt.get(tz).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+      return Date.UTC(+p.year, p.month - 1, +p.day, +p.hour % 24, +p.minute) - Math.floor(ms / 60000) * 60000;
+    } catch { return null; }
+  };
+  const localMs = (tm, w) => {
+    const asUtc = Date.parse(tm + ":00Z"), off0 = (w.utc_offset_seconds || 0) * 1000;
+    const o = offsetAt(w.timezone, asUtc - off0);
+    return asUtc - (o == null ? off0 : o);
+  };
   // One model's value at time ms: straight line between its nearest values no more than 6 h apart.
   const between = (at, vals, ms) => {
     let a = -1;
@@ -344,18 +363,16 @@
     const T = hb.t.map((v) => between(hb.at, v, ms)).filter((x) => x != null);
     const W = hb.w.map((v) => between(hb.at, v, ms)).filter((x) => x != null);
     const k = blockOf(hb.at, ms), P = k < 0 ? [] : hb.p.map((v) => (v[k] == null ? null : v[k] / 3)).filter((x) => x != null);
-    return { t: T.length >= 3 ? round1(median(T)) : null, w: W.length >= 3 ? Math.round(median(W)) : null, p: P.length >= 3 ? r2(median(P)) : null,
-      wEach: hb.w.map((v) => between(hb.at, v, ms)) };
+    return { t: T.length >= 3 ? round1(median(T)) : null, w: W.length >= 3 ? Math.round(median(W)) : null, p: P.length >= 3 ? r2(median(P)) : null };
   }
-  // Each local day's highest wind (from the hours), by model and blended, for days the hours cover whole.
-  function applyHours(w, hb, local) {
+  function applyHours(w, hb) {
     if (!hb || !w || !w.check) return w;
-    const H = w.hourly, D = w.daily, off = (w.utc_offset_seconds || 0) * 1000, now = Date.now(), kinds = { ...(w.check.blendKinds || {}) };
+    const H = w.hourly, now = Date.now(), kinds = { ...(w.check.blendKinds || {}) };
     const first = hb.at[0] - 3 * 3600000, last = hb.at[hb.at.length - 1];
     let did = false;
     if (H && Array.isArray(H.time)) {
       H.time.forEach((tm, k) => {
-        const ms = Date.parse(tm + ":00Z") - off;
+        const ms = localMs(tm, w);
         if (!(ms >= first && ms <= last) || ms < now - 3 * 3600000) return;
         const v = hourValues(hb, ms);
         if (v.t != null && Array.isArray(H.temperature_2m) && typeof H.temperature_2m[k] === "number") {
@@ -385,54 +402,44 @@
             if (Array.isArray(H.showers)) H.showers[k] = 0;
             if (Array.isArray(H.snowfall)) H.snowfall[k] = r2(v.p * sh * CM_PER_MM);
           }
+          // The hour's icon follows the amount where it crosses wet / dry.
+          if (Array.isArray(H.weather_code) && typeof H.weather_code[k] === "number") {
+            const c = H.weather_code[k], snowy = typeof tt === "number" ? tt <= 1 : false;
+            if (c >= 51 && v.p < 0.05) H.weather_code[k] = 3;
+            else if (c < 51 && v.p >= 0.3) H.weather_code[k] = snowy ? (v.p >= 2 ? 73 : 71) : (v.p >= 2 ? 63 : 61);
+          }
           kinds.water = did = true;
         }
       });
-    }
-    // Daily highest wind: only on local time, for whole days the hours cover.
-    const splits = [];
-    if (local && D && Array.isArray(D.time) && Array.isArray(D.wind_speed_10m_max)) {
-      D.time.forEach((date, di) => {
-        if (date < w.check.today) return;
-        const start = Date.parse(date + "T00:00:00Z") - off;
-        if (start < first || start + 24 * 3600000 > last) return;
-        const per = hb.models.map(() => -Infinity);
-        let mid = -Infinity;
-        for (let h = 0; h < 24; h++) {
-          const v = hourValues(hb, start + h * 3600000);
-          if (v.w != null) mid = Math.max(mid, v.w);
-          v.wEach.forEach((x, m) => { if (x != null) per[m] = Math.max(per[m], x); });
+      // "Now" agrees with this hour.
+      const C = w.current;
+      if (C && typeof C === "object" && did) {
+        const v = hourValues(hb, now);
+        if (v.t != null && typeof C.temperature_2m === "number") {
+          if (typeof C.apparent_temperature === "number") C.apparent_temperature = round1(C.apparent_temperature + (v.t - C.temperature_2m));
+          C.temperature_2m = v.t;
         }
-        if (!isFinite(mid) || typeof D.wind_speed_10m_max[di] !== "number") return;
-        const oldMax = D.wind_speed_10m_max[di];
-        D.wind_speed_10m_max[di] = Math.round(mid);
-        if (Array.isArray(D.wind_gusts_10m_max) && typeof D.wind_gusts_10m_max[di] === "number") {
-          const f = oldMax > 1 ? Math.min(3, Math.max(1, D.wind_gusts_10m_max[di] / oldMax)) : 1.5;
-          D.wind_gusts_10m_max[di] = Math.max(Math.round(mid), Math.round(mid * f));
+        if (v.w != null && typeof C.wind_speed_10m === "number") {
+          if (typeof C.wind_gusts_10m === "number") C.wind_gusts_10m = Math.max(v.w, Math.round(v.w * (C.wind_speed_10m > 1 ? Math.min(3, Math.max(1, C.wind_gusts_10m / C.wind_speed_10m)) : 1.5)));
+          C.wind_speed_10m = v.w;
         }
-        kinds.wind = did = true;
-        const v = per.filter(isFinite), lo = Math.min(...v), hi = Math.max(...v);
-        if (v.length >= 2 && hi - lo >= SPLIT.wind.gap && hi >= SPLIT.wind.min) splits.push({ date, key: "wind", what: SPLIT.wind.word, lo, hi, unit: "km/h" });
-        w.check.splits = w.check.splits.filter((s) => !(s.date === date && s.key === "wind"));
-      });
+      }
     }
+    // Daily highest wind stays Open-Meteo's: the models' 3-hourly values would miss peaks in between.
     if (!did) return w;
-    w.check = { ...w.check, splits: w.check.splits.concat(splits), blend: hb.models.map((m) => BLEND_NAMES[m] || m), blendKinds: { ...kinds, hours: true },
+    w.check = { ...w.check, blend: hb.models.map((m) => BLEND_NAMES[m] || m), blendKinds: { ...kinds, hours: true },
       hourModels: w.check.hourModels || w.check.models };
     return w;
   }
   async function withBlend(w) {
     try {
       // Places inside the grid whose answer is in local time on Pacific or Mountain time (BC and the Rockies' west
-      // edge): days run 1 am to 1 am Pacific standard time, an hour or two off midnight on Mountain time, fine for a
-      // daily estimate. Answers in UTC (timezone GMT) get no daily values: their days don't line up.
-      // Hours are times, so answers in UTC (GMT) get the hours too, just not the days.
-      if (!w || typeof w !== "object" || !w.check || typeof w.latitude !== "number") return w;
-      const local = BLEND_ZONES.has(w.timezone), utc = w.timezone === "GMT" || w.timezone === "UTC";
-      if (!local && !utc) return w;
-      const [hb, b] = await Promise.all([hoursAt(w.latitude, w.longitude, w.elevation), local ? blendAt(w.latitude, w.longitude, w.elevation) : null]);
-      applyHours(w, hb, local);
-      return local ? applyBlend(w, b) : w;
+      // edge): days run 09 UTC to 09 UTC, a couple of hours off local midnight, fine for a daily
+      // estimate. Answers in UTC (timezone GMT) are left alone: their days don't line up with the hours.
+      if (!w || typeof w !== "object" || !w.check || typeof w.latitude !== "number" || !BLEND_ZONES.has(w.timezone)) return w;
+      const [hb, b] = await Promise.all([hoursAt(w.latitude, w.longitude, w.elevation), blendAt(w.latitude, w.longitude, w.elevation)]);
+      applyHours(w, hb);
+      return applyBlend(w, b);
     } catch { return w; }
   }
   async function getChecked(url, ms = 15000) {
@@ -482,7 +489,7 @@
       const what = (parts.length === 3 ? `${parts[0]}, ${parts[1]} and ${parts[2]}` : parts.join(" and ")).replace(/^t/, "T").replace(/^w/, "W") + ":";
       const h = `<p class="${cls}"><span>${what}</span> <span>middle value of ${c.blend.length} weather models read directly from their makers:</span> <span>${c.blend.map(esc).join(", ")}</span><span>.</span>`
         + (k.hours ? ` <span>Hours: every 3 hours from each model, filled in between.</span>` : "")
-        + (c.hourModels && c.hourModels.length ? ` <span>${k.hours && k.wind ? "Sky, gusts and other values" : "Hours and wind"}: middle of ${c.hourModels.length} models</span> <span>through Open-Meteo.</span>` : "")
+        + (c.hourModels && c.hourModels.length ? ` <span>${k.hours ? "Sky, gusts and other values" : "Hours and wind"}: middle of ${c.hourModels.length} models</span> <span>through Open-Meteo.</span>` : "")
         + ` <span>Still an estimate.</span></p>`;
       return h + splitList(c, cls);
     }

@@ -9,7 +9,7 @@ name: Weather model blend
 # On a pull request that changes the script it only does a quick test run, without saving anything.
 on:
   schedule:
-    - cron: "25 10 * * *"   # daily 10:25 UTC (2:25 am Pacific standard time)
+    - cron: "25 10 * * *"   # daily 10:25 UTC (3:25 am in BC)
   workflow_dispatch:        # "Run workflow" button on the Actions tab
   pull_request:
     paths:
