@@ -10,7 +10,7 @@ import MapLibre
 // is worked out from the square (as tfWinterShard and sharpBase in map3d.js). MapLibre can only fill {z}/{x}/{y} into
 // one address, so the style asks a made-up address (Self.host) and this object, as MapLibre's URL rewriter, turns it
 // into the real one. Lists of squares (~55 KB) are loaded once, before the Winter style is shown.
-final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
+final class WinterTiles: NSObject {
     static let shared = WinterTiles()
     static let host = "winter.trailfinder.invalid"
     static let credit = "Winter: Copernicus Sentinel-2 data 2025-2026 (ESA), via AWS Open Data"
@@ -34,9 +34,15 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
     var ready: Bool { lock.lock(); defer { lock.unlock() }; return loaded }
     var fresh: Bool { lock.lock(); defer { lock.unlock() }; return loaded && !stale }
 
-    // MapLibre's address rewriter: set once a 3D screen opens (the late-summer mountains need it too, no lists).
+    // MapLibre's address rewriter (TileRewriter, shared with Moto's dirt roads): set once a 3D screen opens (the
+    // late-summer mountains need it too, no lists).
+    private var installed = false
     func install() {
-        if MLNOfflineStorage.shared.delegate !== self { MLNOfflineStorage.shared.delegate = self }
+        lock.lock()
+        let first = !installed
+        installed = true
+        lock.unlock()
+        if first { TileRewriter.add(host: Self.host) { [unowned self] in self.rewrite($0) } }
         loadSummer()
     }
 
@@ -155,9 +161,8 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
         return dir.appendingPathComponent("winter-list-\(i).json")
     }
 
-    // MapLibre's URL rewriter (called off the main thread, for every download): only our made-up address is changed.
-    func offlineStorage(_ storage: MLNOfflineStorage, urlForResourceOf kind: MLNResourceKind, with url: URL) -> URL {
-        guard url.host == Self.host else { return url }
+    // MapLibre's URL rewriter (TileRewriter, called off the main thread, for every download) for our made-up address.
+    private func rewrite(_ url: URL) -> URL {
         let p = url.path.split(separator: "/").map(String.init)
         guard p.count == 4, let z = Int(p[1]), let x = Int(p[2]), let y = Int(p[3]) else { return Self.none }
         return real(p[0], z, x, y) ?? Self.none
