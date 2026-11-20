@@ -300,6 +300,8 @@ body.sk-route-focus :is(.wc-gl, .hc-pin, .sk-pin.park) { transform: scale(.75); 
 .sk-planbar button.go { background: #1f5fe0; border-color: #1f5fe0; color: #fff; }
 @media (max-width: 999px) { .sk-planbar { top: 70px; width: calc(100% - 24px); } .sk-planbar .pb-msg { flex-basis: 100%; } }
 #skiPane .sk-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#skiPane .sk-lowhint { margin: 2px 0 6px; }
+#skiPane .sk-lowlink { background: none; border: 0; padding: 4px 0; min-height: 32px; font: inherit; font-size: .9rem; color: var(--accent, #1d5fbf); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 #skiPane .sk-tourrow { display: flex; flex-direction: column; gap: 6px; }
 #skiPane .sk-tourrow .btn, #skiPane .sk-tourname .btn, #skiPane .sk-tourscard .sk-row .btn { font-size: .9rem; padding: 9px 14px; min-height: 40px; }
 #skiPane .sk-tour-ok { color: var(--accent); font-weight: 700; }
@@ -3077,11 +3079,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (info && !plan.on && plan.tour) { const t = tourOf(); if (t && t.km == null && tourSame(t)) { keepTour(false); return; } }   // its length and climb, now known
     const sum = n < 2 ? "" : !info ? `<p>Working out heights and slopes…</p>`
       : `<p><b>${(info.total / 1000).toFixed(1)} km</b> · ↑ ${fmtM(info.up)} · ↓ ${fmtM(info.down)} · top ${fmtM(info.max)}</p>
-        <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : info.maxSlope >= 30 ? "only short bits on 30°+ slopes" : "no 30°+ slopes under it"}</p>`;
+        <p>Steepest ${Math.round(info.maxSlope)}° · ${info.km30 >= 0.05 ? `<b>${info.km30.toFixed(1)} km on 30°+ slopes</b>` : info.maxSlope >= 30 ? "only short bits on 30°+ slopes" : "no 30°+ slopes under it"}</p>
+        ${info.maxSlope >= 30 && !plan.safe && !plan.on ? `<p class="sk-lowhint"><button type="button" class="sk-lowlink" id="skLowLink">See a lower-angle line</button></p>` : ""}`;
     card.innerHTML = `${plan.on ? `<p><b>Tap the map</b> to add each point of your tour: ${plan.safe ? "where you start, then where you want to go (add more points to go a certain way). The Less exposed way finds a line between them." : "up the skin track, then the way down."} ${n ? "" : "Start where you park."}</p>` : `<p><b>${safePath() ? "Your tour, less exposed way" : "Your planned tour"}</b></p>`}
       ${sum}
-      ${tourRow(n)}
       <div class="sk-row"><button type="button" class="btn sk-safebtn" id="skSafeBtn" aria-pressed="${plan.safe}">${plan.safe ? "Less exposed way: on" : "Find a less exposed way"}</button></div>
+      ${tourRow(n)}
       ${safeHtml()}
       <div class="sk-row">${plan.on && n ? `<button type="button" class="btn" id="skPlanUndo">↶ Undo</button>` : ""}${n ? `<button type="button" class="btn" id="skPlanClear">Clear</button>` : ""}${!plan.on && n > 1 ? `<button type="button" class="btn" id="skPlanMap">${plan.show ? "Hide from map" : "Show on map"}</button><button type="button" class="btn" id="skPlanShow">Show details</button>` : ""}</div>
       ${safePath() ? "" : ptsHtml()}`;
@@ -3094,6 +3097,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (plan.show) { const r = planRoute(); if (r) map.fitBounds(r.bounds, { padding: [30, 30], maxZoom: 15 }); }
     });
     $("skSafeBtn").addEventListener("click", () => setSafe(!plan.safe));
+    // A link right beside the 30°+ fact (alex 2026-11-20: people did not notice "Find a less exposed way"; "invite them
+    // without inviting directly"). Same as the button: turns the Less exposed way on for this tour.
+    const ll = $("skLowLink"); if (ll) ll.addEventListener("click", () => setSafe(true));
     // A tap on a point or step shows it up close (alex 2026-11-05: "i wanted to have a better view of the point you
     // click on to see it better on the map"; before, the map only slid over at the zoom it had, the point stayed small
     // and far): a 1 km square around it fills what the phone sheet leaves showing, in 3D tilted 55° and turned to
