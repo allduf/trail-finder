@@ -23,8 +23,9 @@ description: Use when making any user-facing change to the Trail Finder app and 
 9. Run `node scripts/wording-check.mjs` and `node scripts/stamp.mjs --check`. Take before and after screenshots
    (`phone-screenshots`).
 10. Open the pull request. The required check is "phone". It merges on its own once ready and checks pass, one
-    auto-merge at a time; tell alex after it goes live. Pull before pushing (the "Fix PR conflicts" workflow merges
+    auto-merge at a time, after an independent code review (`/code-review`) with its findings fixed; tell alex
+    after it goes live. Pull before pushing (the "Fix PR conflicts" workflow merges
     main into open pull requests). Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` skip
-    "phone": run "Phone test" on the branch. Changes under `ios-app/` or `android-app/`: start the iPhone and
-    Android builds together after merging.
+    "phone": run "Phone test" on the branch. Changes under `ios-app/` or `android-app/`: tell alex before opening the
+    pull request, start the iPhone and Android builds together after merging, and tell alex both build numbers.
 11. Never do anything that makes the app officially public (store submit, public TestFlight, removing `noindex`).

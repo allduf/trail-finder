@@ -115,6 +115,8 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - Every pull request merges on its own once it is ready and its checks pass (alex, 2026-11-20: "i want all of them
   merge when they are ready"). Turn on auto-merge for one pull request at a time, and tell alex after it goes live.
   This never covers going public (see "Do not go public").
+- Before a pull request merges on its own, its thread runs an independent code review (`/code-review`) and fixes
+  what it finds.
 - Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check. Then
   start it by hand (run "Phone test" on the branch) so the merge can go through.
 - Changes under `ios-app/` or `android-app/` need new iPhone and Android builds: start both after merging and tell
