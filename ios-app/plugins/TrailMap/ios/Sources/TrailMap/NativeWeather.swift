@@ -52,7 +52,10 @@ final class NativeOverlay: NativeLayer {
     private func apply(_ style: MLNStyle) {
         let opacity = (info["opacity"] as? NSNumber)?.doubleValue ?? 0.7
         if let tiles = info["tiles"] as? String, !tiles.isEmpty {
-            if shown == tiles { return }
+            if shown == tiles {
+                (style.layer(withIdentifier: layerId) as? MLNRasterStyleLayer)?.rasterOpacity = NSExpression(forConstantValue: opacity)
+                return
+            }
             remove(style)
             gen += 1
             shown = tiles
