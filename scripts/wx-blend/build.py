@@ -15,7 +15,7 @@
 #       6.5 C per km, the same rate Open-Meteo uses, before comparing them)
 # The app takes the middle value of the models and shows their range. One model alone never decides.
 #
-# Days: 09 UTC to 09 UTC (1 am to 1 am Pacific standard time), today and the next 5 days. Amounts between two model
+# Days: 09 UTC to 09 UTC (2 am to 2 am in BC on UTC-7), today and the next 5 days. Amounts between two model
 # output times are filled in proportionally (an estimate). Highs and lows come from each model's max/min fields (or
 # hourly temperatures for HRDPS).
 #
@@ -167,6 +167,7 @@ class Series:
     def __init__(self):
         self.acc = {0: np.zeros(NY * NX)}
         self.tmax, self.tmin = [], []      # (start h, end h, field C)
+        self.t, self.w = {}, {}            # hour -> temperature C / wind speed km/h at that hour (for the hours file)
         self.z = None
 
     def acc_at(self, h):
@@ -218,6 +219,19 @@ def metres_height(v, info):
     return v
 
 
+def kmh(v, info):
+    u = str(info["units"]).lower()
+    if "kt" in u or "knot" in u:
+        return v * 1.852
+    if "km" in u:
+        return v
+    return v * 3.6                          # m s**-1
+
+
+def speed(u, v):
+    return np.hypot(u, v)
+
+
 def water_mm(v, info):
     return v * 1000 if str(info["units"]).strip() == "m" else v
 
@@ -264,9 +278,16 @@ def gem():
         for info, v in messages(d):
             t = rg(kelvin(v, info))
             S.tmax.append((prev, h, t)); S.tmin.append((prev, h, t))
+            if h % 3 == 0:
+                S.t[h] = t
             eccodes.codes_release(info["handle"])
         prev = h
-    log("  HRDPS: %d water steps, %d temperature hours" % (len(S.acc) - 1, len(S.tmax)))
+    datas = pool_get([eccc_url("hrdps", "WIND_AGL-10m", h) for h in steps])
+    for h, d in zip(steps, datas):
+        for info, v in messages(d):
+            S.w[h] = rg(kmh(v, info))
+            eccodes.codes_release(info["handle"])
+    log("  HRDPS: %d water steps, %d temperature hours, %d wind steps" % (len(S.acc) - 1, len(S.tmax), len(S.w)))
     # GDPS from 48 h, joined onto HRDPS: water added from the HRDPS 48 h total, temperatures moved to HRDPS heights.
     msgs = messages(get(eccc_url("gdps", "GeopotentialHeight_Sfc", 0)))
     if not msgs:
@@ -297,7 +318,16 @@ def gem():
                 a = max(a, 48)
                 wins.append((a, h, rgg(kelvin(v, info)) + shift))
                 eccodes.codes_release(info["handle"])
-    log("  GDPS: water to %d h" % max(S.acc))
+    for var in ("AirTemp_AGL-2m", "WindSpeed_AGL-10m"):
+        datas = pool_get([eccc_url("gdps", var, h) for h in gsteps[1:]])
+        for h, d in zip(gsteps[1:], datas):
+            for info, v in messages(d):
+                if var.startswith("AirTemp"):
+                    S.t[h] = rgg(kelvin(v, info)) + shift
+                else:
+                    S.w[h] = rgg(kmh(v, info))
+                eccodes.codes_release(info["handle"])
+    log("  GDPS: water to %d h, %d temperature and %d wind steps" % (max(S.acc), len(S.t), len(S.w)))
     return S
 
 
@@ -332,19 +362,27 @@ def ecmwf():
     jobs = []
     for h in steps:
         ix = idx.get(h) or {}
-        for p in ("tp", "mx2t3", "mn2t3", "mx2t6", "mn2t6"):
+        for p in ("tp", "mx2t3", "mn2t3", "mx2t6", "mn2t6", "2t", "10u", "10v"):
             if p in ix:
                 jobs.append((h, p, (base + f"{h}h-oper-fc-sfc.grib2", ix[p])))
     datas = pool_get([j[2] for j in jobs], 8)
+    uv = {}
     for (h, p, _), d in zip(jobs, datas):
         for info, v in messages(d):
             if p == "tp":
                 S.acc[h] = rg(water_mm(v, info))
+            elif p == "2t":
+                S.t[h] = rg(kelvin(v, info))
+            elif p in ("10u", "10v"):
+                uv.setdefault(h, {})[p] = v        # speed from u and v on the model grid, then to our cells
             else:
                 a, b = step_window(info["stepRange"])
                 (S.tmax if p.startswith("mx") else S.tmin).append((a, b, rg(kelvin(v, info))))
             eccodes.codes_release(info["handle"])
-    log("  ECMWF: water to %d h, %d max windows" % (max(S.acc), len(S.tmax)))
+    for h, x in uv.items():
+        if "10u" in x and "10v" in x:
+            S.w[h] = rg(speed(x["10u"], x["10v"]) * 3.6)
+    log("  ECMWF: water to %d h, %d max windows, %d wind steps" % (max(S.acc), len(S.tmax), len(S.w)))
     return S
 
 
@@ -378,13 +416,20 @@ def gfs():
     S.z = rg(msgs[0][1])
     release(msgs)
     steps = list(range(3, LAST + 4, 3))
-    want = [("APCP", "surface", "0-"), ("TMAX", "2 m above ground", None), ("TMIN", "2 m above ground", None)]
+    want = [("APCP", "surface", "0-"), ("TMAX", "2 m above ground", None), ("TMIN", "2 m above ground", None),
+            ("TMP", "2 m above ground", None), ("UGRD", "10 m above ground", None), ("VGRD", "10 m above ground", None)]
     with ThreadPoolExecutor(6) as ex:
         jobs = [j for js in ex.map(lambda h: ranges(h, want), steps) for j in js]
+    uv = {}
     for d in pool_get(jobs, 6):
         for info, v in messages(d):
             a, b = step_window(info["stepRange"])
-            if info["shortName"] == "tp":
+            sn = info["shortName"]
+            if sn in ("2t", "t"):
+                S.t[b] = rg(kelvin(v, info))
+            elif sn in ("10u", "u", "10v", "v"):
+                uv.setdefault(b, {})["u" if "u" in sn else "v"] = v
+            elif info["shortName"] == "tp":
                 if a == 0:
                     S.acc[b] = rg(v)
             elif info["shortName"] in ("tmax", "mx2t"):
@@ -392,7 +437,10 @@ def gfs():
             elif info["shortName"] in ("tmin", "mn2t"):
                 S.tmin.append((a, b, rg(kelvin(v, info))))
             eccodes.codes_release(info["handle"])
-    log("  GFS: water to %d h, %d max windows" % (max(S.acc), len(S.tmax)))
+    for h, x in uv.items():
+        if "u" in x and "v" in x:
+            S.w[h] = rg(speed(x["u"], x["v"]) * 3.6)
+    log("  GFS: water to %d h, %d max windows, %d temperature and %d wind steps" % (max(S.acc), len(S.tmax), len(S.t), len(S.w)))
     return S
 
 
@@ -410,7 +458,8 @@ def icon():
     S.z = rg(hs[0][1])
     for m in (la, lo, hs):
         release(m)
-    psteps = sorted(set(BOUND) | {12, 36, 60})   # day edges + the score's 12 UTC edges
+    hsteps = list(range(3, 79, 3)) + list(range(84, LAST + 4, 6))   # the hours file: 3-hourly, then 6-hourly
+    psteps = sorted(set(BOUND) | {12, 36, 60} | set(hsteps))   # day edges + the score's 12 UTC edges + hours
     datas = pool_get([one("tot_prec", h) for h in psteps], 6)
     for h, d in zip(psteps, datas):
         for info, v in messages(d):
@@ -424,7 +473,21 @@ def icon():
                 a, b = step_window(info["stepRange"])
                 wins.append((a, b, rg(kelvin(v, info))))
                 eccodes.codes_release(info["handle"])
-    log("  ICON: water to %d h, %d max windows" % (max(S.acc), len(S.tmax)))
+    for var in ("t_2m", "u_10m", "v_10m"):
+        datas = pool_get([one(var, h) for h in hsteps], 6)
+        for h, d in zip(hsteps, datas):
+            for info, v in messages(d):
+                if var == "t_2m":
+                    S.t[h] = rg(kelvin(v, info))
+                else:
+                    S.w.setdefault(h, {})[var] = v
+                eccodes.codes_release(info["handle"])
+    for h in list(S.w):
+        x = S.w[h]
+        S.w[h] = rg(speed(x["u_10m"], x["v_10m"]) * 3.6) if isinstance(x, dict) and "u_10m" in x and "v_10m" in x else None
+        if S.w[h] is None:
+            del S.w[h]
+    log("  ICON: water to %d h, %d max windows, %d wind steps" % (max(S.acc), len(S.tmax), len(S.w)))
     return S
 
 
@@ -607,6 +670,35 @@ def main():
                  "lo": [[q(x[cells]) if x is not None else None for x in per[n][2]] for n in names]}
             json.dump(t, open(os.path.join(OUT, f"{ty}_{tx}.json"), "w"), separators=(",", ":"))
             tiles += 1
+    # The hours file: each model every 3 hours (water in the 3 hours before, temperature and wind at that hour), one
+    # file per 0.5 degree square (5 x 5 cells): data/wx/blend/h/<lat>_<lon>.json. Missing hours (ECMWF and ICON are
+    # 6-hourly later on) are null; the app fills them from the hours around.
+    HS = list(range(3, LAST + 1, 3))
+    hdir = os.path.join(OUT, "h")
+    os.makedirs(hdir, exist_ok=True)
+    hp, ht, hw = {}, {}, {}
+    for n in names:
+        S = series[n]
+        P, T, W = [], [], []
+        for h in HS:
+            a, b = S.acc_at(h - 3), S.acc_at(h)
+            P.append(None if a is None or b is None else np.maximum(b - a, 0))
+            T.append(S.t.get(h))
+            W.append(S.w.get(h))
+        hp[n], ht[n], hw[n] = P, T, W
+    hfiles = 0
+    for i0 in range(0, NY, 5):
+        for j0 in range(0, NX, 5):
+            cells = np.array([(i0 + a) * NX + (j0 + b) for a in range(5) for b in range(5)])
+            la, lo = round(LAT0 + i0 * STEP, 1), round(LON0 + j0 * STEP, 1)
+            t = {"v": 1, "run": RUN + "T00Z", "h": HS, "models": names, "lat0": la, "lon0": lo, "step": STEP, "size": 5,
+                 "z": [q(series[n].z[cells], 1) for n in names],
+                 "p": [[q(x[cells]) if x is not None else None for x in hp[n]] for n in names],
+                 "t": [[q(x[cells]) if x is not None else None for x in ht[n]] for n in names],
+                 "w": [[q(x[cells], 1) if x is not None else None for x in hw[n]] for n in names]}
+            json.dump(t, open(os.path.join(hdir, f"{la:.1f}_{lo:.1f}.json"), "w"), separators=(",", ":"))
+            hfiles += 1
+    log("Wrote %d hours squares" % hfiles)
     meta = {"v": 1, "run": RUN + "T00Z", "made": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
             "days": dates, "dayStartUTC": B0, "box": [LAT0, LON0, LAT1, LON1], "step": STEP, "lapse": LAPSE,
             "models": [{"id": n, "name": l, "credit": c} for n, f, l, c in MODELS if n in series]}

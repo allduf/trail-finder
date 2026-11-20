@@ -83,6 +83,7 @@
     [/^middle value of (\d+) weather models read directly from their makers:?$/, function (m, n) { return "valeur du milieu de " + n + " modèles météo lus directement chez leurs producteurs :"; }],
     [/^((?:Environment Canada \(HRDPS 2\.5 km and GDPS\)|ECMWF \(9 km\)|NOAA \(GFS\)|DWD \(ICON\))(?:, (?:Environment Canada \(HRDPS 2\.5 km and GDPS\)|ECMWF \(9 km\)|NOAA \(GFS\)|DWD \(ICON\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
     [/^Hours and wind: middle of (\d+) models$/, "Heures et vent : milieu de $1 modèles"],
+    [/^Sky, gusts and other values: middle of (\d+) models$/, "Ciel, rafales et autres valeurs : milieu de $1 modèles"],
     [/^((?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\))(?:, (?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
     [/^(Wind|High|Low|Snow|Rain or snow \(water\)): ((?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat))*) \((-?[\d.]+) to (-?[\d.]+) (mm|cm|°C|km\/h)\)$/, function (m, w, ds, a, b, u) {
       var DJ = { Today: "aujourd'hui", Sun: "dim.", Mon: "lun.", Tue: "mar.", Wed: "mer.", Thu: "jeu.", Fri: "ven.", Sat: "sam." };
