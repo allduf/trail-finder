@@ -159,6 +159,99 @@
   // Fetches an Open-Meteo forecast URL (one place or several) checked across the three models. ms: time limit.
   // Same answer shape as the plain call, plus w.check = { models: [names], splits: [...] } (models [] when only the
   // plain call worked).
+  // ---- Models read directly from their makers (alex 2026-11-20, "own free model blend") ----
+  // scripts/wx-blend/build.py (daily, GitHub Actions) reads Environment Canada GEM (HRDPS 2.5 km, then GDPS), ECMWF
+  // 9 km, NOAA GFS and DWD ICON from their free open-data servers and saves each model's daily water, high and low on a
+  // 0.1 degree grid over BC (data/wx/blend/<lat>_<lon>.json). For places on Pacific time inside that grid, a card's
+  // daily amounts, highs and lows become the middle of those 4 models; the hours are scaled so they add up to the same
+  // day total (the snow split by height in winter.js then agrees with it). Hours, wind and everything else stay the
+  // middle of Open-Meteo's 3 models. Days are 1 am to 1 am Pacific standard time (the models' 09 UTC), an hour off
+  // the card's midnight: fine for a daily estimate. No file, an old file or a place outside: the card is as before.
+  const BLEND = "data/wx/blend/";
+  const BLEND_NAMES = { gem: "Environment Canada (HRDPS 2.5 km and GDPS)", ecmwf: "ECMWF (9 km)", gfs: "NOAA (GFS)", icon: "DWD (ICON)" };
+  const BOX = [48, -139, 60, -114], LAPSE = 0.0065;
+  const blendTiles = new Map();
+  const blendTile = (lat, lon) => {
+    if (!(lat >= BOX[0] && lat < BOX[2] && lon >= BOX[1] && lon < BOX[3])) return Promise.resolve(null);
+    const key = `${Math.floor(lat)}_${Math.floor(lon)}`;
+    if (!blendTiles.has(key)) blendTiles.set(key, fetch(`${BLEND}${key}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+      .then((t) => { if (!t) setTimeout(() => blendTiles.delete(key), 10 * 60000); return t; }));
+    return blendTiles.get(key);
+  };
+  // Each model's day numbers at one place: [{ date, p: [mm by model], hi: [C], lo: [C] }], temperatures moved to the
+  // place's height (6.5 C per km, like Open-Meteo) from each model's own ground height in that cell.
+  async function blendAt(lat, lon, elev) {
+    const t = await blendTile(lat, lon);
+    if (!t || !Array.isArray(t.days) || !Array.isArray(t.models)) return null;
+    const i = Math.min(9, Math.max(0, Math.floor((lat - t.lat0) / t.step))), j = Math.min(9, Math.max(0, Math.floor((lon - t.lon0) / t.step)));
+    const c = i * 10 + j;
+    const val = (a, d, k, f) => { const x = a && a[k] && a[k][d]; return x && typeof x[c] === "number" ? f(x[c]) : null; };
+    return {
+      models: t.models,
+      days: t.days.map((date, d) => ({
+        date,
+        p: t.models.map((m, k) => val(t.p, d, k, (x) => x / 10)),
+        hi: t.models.map((m, k) => val(t.hi, d, k, (x) => x / 10 + (typeof elev === "number" && t.z[k] && typeof t.z[k][c] === "number" ? LAPSE * (t.z[k][c] - elev) : 0))),
+        lo: t.models.map((m, k) => val(t.lo, d, k, (x) => x / 10 + (typeof elev === "number" && t.z[k] && typeof t.z[k][c] === "number" ? LAPSE * (t.z[k][c] - elev) : 0))),
+      })),
+    };
+  }
+  const round1 = (v) => Math.round(v * 10) / 10;
+  // Puts the 4 models' middle values into one place's (already checked) answer. Returns it changed in place.
+  function applyBlend(w, b) {
+    if (!b || !w || !w.check) return w;
+    const today = w.check.today, used = new Set(), splitsB = [];
+    const D = w.daily, H = w.hourly;
+    for (const day of b.days) {
+      if (day.date < today) continue;
+      const P = day.p.filter((x) => x != null), HI = day.hi.filter((x) => x != null), LO = day.lo.filter((x) => x != null);
+      let any = false;
+      const di = D && Array.isArray(D.time) ? D.time.indexOf(day.date) : -1;
+      if (P.length >= 3) {
+        const m = round1(median(P));
+        any = true;
+        // Hours of that day scaled to the day total (water fields only); none in the hours but some in the models:
+        // spread evenly, an estimate.
+        if (H && Array.isArray(H.time) && Array.isArray(H.precipitation)) {
+          const idx = H.time.map((t, k) => (String(t).slice(0, 10) === day.date ? k : -1)).filter((k) => k >= 0);
+          const sum = idx.reduce((s, k) => s + (H.precipitation[k] || 0), 0);
+          if (idx.length) {
+            if (sum > 0.05) {
+              const f = m / sum;
+              for (const key of ["precipitation", "rain", "showers", "snowfall"]) if (Array.isArray(H[key])) idx.forEach((k) => { if (typeof H[key][k] === "number") H[key][k] = Math.round(H[key][k] * f * 100) / 100; });
+            } else if (m >= 0.5) idx.forEach((k) => { H.precipitation[k] = Math.round((m / idx.length) * 100) / 100; });
+          }
+        }
+        if (di >= 0) {
+          const old = D.precipitation_sum ? D.precipitation_sum[di] : null;
+          for (const key of ["rain_sum", "showers_sum", "snowfall_sum"]) if (Array.isArray(D[key]) && typeof D[key][di] === "number") D[key][di] = old > 0.05 ? Math.round(D[key][di] * (m / old) * 100) / 100 : D[key][di];
+          if (Array.isArray(D.precipitation_sum)) D.precipitation_sum[di] = m;
+        }
+        const lo = Math.min(...P), hi = Math.max(...P);
+        if (hi - lo >= SPLIT.rain.gap && hi >= SPLIT.rain.ratio * lo) splitsB.push({ date: day.date, key: "rain", what: SPLIT.rain.word, lo, hi, unit: "mm" });
+      }
+      for (const [vals, key, field] of [[HI, "hi", "temperature_2m_max"], [LO, "lo", "temperature_2m_min"]]) {
+        if (vals.length < 3) continue;
+        any = true;
+        if (di >= 0 && Array.isArray(D[field])) D[field][di] = round1(median(vals));
+        const lo = Math.min(...vals), hi = Math.max(...vals);
+        if (hi - lo >= SPLIT[key].gap) splitsB.push({ date: day.date, key, what: SPLIT[key].word, lo, hi, unit: "°C" });
+      }
+      if (any) used.add(day.date);
+    }
+    if (!used.size) return w;
+    const names = b.models.map((m) => BLEND_NAMES[m] || m);
+    w.check = { ...w.check, splits: w.check.splits.filter((s) => !(used.has(s.date) && (s.key === "rain" || s.key === "hi" || s.key === "lo"))).concat(splitsB),
+      blend: names, hourModels: w.check.models };
+    return w;
+  }
+  async function withBlend(w) {
+    try {
+      if (!w || typeof w !== "object" || !w.check || w.timezone !== "America/Vancouver") return w;
+      const b = await blendAt(w.latitude, w.longitude, w.elevation);
+      return applyBlend(w, b);
+    } catch { return w; }
+  }
   async function getChecked(url, ms = 15000) {
     const go = (u) => fetch(u, { signal: AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined }).then((r) => {
       if (!r.ok) { const e = new Error(isRefusal(r.status) ? "too many requests today, try later" : `HTTP ${r.status}`); e.status = r.status; throw e; }
@@ -166,7 +259,7 @@
     });
     try {
       const j = await go(withModels(url));
-      return Array.isArray(j) ? j.map(blendOne) : blendOne(j);
+      return Array.isArray(j) ? Promise.all(j.map((x) => withBlend(blendOne(x)))) : withBlend(blendOne(j));
     } catch (e) {
       if (e && isRefusal(e.status)) throw e;
       const mark = (x) => (x && typeof x === "object" ? { ...x, check: { models: [], splits: [] } } : x);
@@ -178,14 +271,9 @@
   const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const dayName = (ymd, today) => (ymd === today ? "Today" : DAY[new Date(ymd + "T12:00:00Z").getUTCDay()]);
   const num = (v, unit) => (unit === "°C" ? Math.round(v) : unit === "mm" && v < 10 ? Math.round(v * 10) / 10 : Math.round(v));
-  // The line under a weather card: which models, and the days they disagree on. Liability-safe: estimates, sources
-  // named, nothing promised.
-  function noteHtml(w, opts = {}) {
-    const c = w && w.check;
-    if (!c) return "";
-    const cls = opts.cls || "wx-check";
-    if (!c.models.length) return `<p class="${cls}"><span>Weather from Open-Meteo's automatic model choice, not checked against other models this time. An estimate.</span></p>`;
-    let h = `<p class="${cls}"><span>Middle value of ${c.models.length} weather models checked against each other:</span> <span>${c.models.map(esc).join(", ")}</span><span>. Still an estimate.</span></p>`;
+  // The days the models disagree on, one line per kind.
+  function splitList(c, cls) {
+    let h = "";
     if (c.splits.length) {
       h += `<p class="${cls} wx-split"><span>The models disagree on these, so treat them as less certain:</span></p><ul class="${cls}">`
         + Object.keys(SPLIT).map((key) => {
@@ -199,7 +287,23 @@
     }
     return h;
   }
-  window.tfWx = { MODELS, getChecked, blendOne, noteHtml, median };
+  // The line under a weather card: which models, and the days they disagree on. Liability-safe: estimates, sources
+  // named, nothing promised.
+  function noteHtml(w, opts = {}) {
+    const c = w && w.check;
+    if (!c) return "";
+    const cls = opts.cls || "wx-check";
+    if (c.blend && c.blend.length) {
+      const h = `<p class="${cls}"><span>Daily rain and snow (as water), highs and lows: middle value of ${c.blend.length} weather models read directly from their makers:</span> <span>${c.blend.map(esc).join(", ")}</span><span>.</span>`
+        + (c.hourModels && c.hourModels.length ? ` <span>Hours and wind: middle of ${c.hourModels.length} models</span> <span>through Open-Meteo.</span>` : "")
+        + ` <span>Still an estimate.</span></p>`;
+      return h + splitList(c, cls);
+    }
+    if (!c.models.length) return `<p class="${cls}"><span>Weather from Open-Meteo's automatic model choice, not checked against other models this time. An estimate.</span></p>`;
+    let h = `<p class="${cls}"><span>Middle value of ${c.models.length} weather models checked against each other:</span> <span>${c.models.map(esc).join(", ")}</span><span>. Still an estimate.</span></p>`;
+    return h + splitList(c, cls);
+  }
+  window.tfWx = { MODELS, getChecked, blendOne, noteHtml, median, blendAt };
   const st = document.createElement("style");
   st.textContent = ".wx-check{font-size:12px;color:#5d6670;margin:6px 0 0;line-height:1.35}ul.wx-check{padding-left:18px;margin:2px 0 0}.wx-split{color:#8a5a00}";
   (document.head || document.documentElement).appendChild(st);
