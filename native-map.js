@@ -176,15 +176,15 @@
   const tf = (k, d) => { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const pressed = (id) => { const b = document.getElementById(id); return !!b && !b.hidden && b.getAttribute("aria-pressed") === "true"; };
   const GROUND = ["avy", "slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND
-  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // before hunting.js loads (its tfHunt.webOnly3d)
+  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // a hunting.js from before tfHunt.web3d
   const webOnly = () => {
     if (tf("avy", false) === true || ["avyBtn", "contourBtn", "shadeBtn"].some(pressed)) return true;
-    // Hunting: its picture layers and slope angle / aspect are drawn only by the web 3D map (NativeHunting.swift draws
-    // the rest). Not stored yet = Hunting's first-time set (zones, parks, scent cone): all native.
+    // Hunting: slope angle / aspect and the pictures the phone repaints are drawn only by the web 3D map (hunting.js
+    // tfHunt.web3d; NativeHunting.swift draws the rest). Not stored yet = Hunting's first-time set: all native.
     if (document.body.classList.contains("sport-hunt")) {
       const hunt = tf("huntLayers2", null);
-      const web = (window.tfHunt && window.tfHunt.webOnly3d) || HUNT_WEB;
-      if (Array.isArray(hunt) && hunt.some((k) => web.includes(k))) return true;
+      if (window.tfHunt && window.tfHunt.web3d) { if (window.tfHunt.web3d()) return true; }
+      else if (Array.isArray(hunt) && hunt.some((k) => HUNT_WEB.includes(k))) return true;
     }
     if (!document.body.classList.contains("sport-ski")) return false;
     const shown = tf("skiLayers2", null);

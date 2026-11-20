@@ -10,11 +10,13 @@ import UIKit
 //   - the scent cone's orange fill (Scent cone);
 //   - the range rings round the spot (Range rings) and the glassing view's 5 km circle;
 //   - the glassing view (What can I see from here?): the ground hidden from the spot darkened, worked out on the page;
-//   - the spot pin.
+//   - the spot pin;
+//   - the picture layers (land, property lines, forest, burns, cut blocks, wetlands, far from roads): raster tiles from
+//     the same map servers as the flat map, the addresses worked out on the page (hunting.js nativePics).
 // The page sends everything near the view as text under the key "hunt" (hunting.js window.tfNative.addLayer), only in
-// Hunting and only what's switched on there, so other sports draw nothing from here. Hunting's picture layers (land,
-// forest, burns, cut blocks, wetlands, far from roads, property lines) and slope angle and aspect are drawn only by
-// the web 3D map: with any of them on, the 3D button opens that one (native-map.js webOnly).
+// Hunting and only what's switched on there, so other sports draw nothing from here.
+// Slope angle and aspect, and the pictures the phone repaints (Alberta forest types, Quebec public land), are drawn only
+// by the web 3D map: with any of them on, the 3D button opens that one (hunting.js tfHunt.web3d).
 final class NativeHunting: NativeLayer {
     let key = "hunt"
     private static let orange = UIColor(red: 0xd9 / 255, green: 0x48 / 255, blue: 0x0f / 255, alpha: 1)   // ORANGE in hunting.js
@@ -25,10 +27,15 @@ final class NativeHunting: NativeLayer {
     private var glass: (at: String, image: UIImage, quad: MLNCoordinateQuad)?
     private var glassShown: String?   // the glassing view on the current style (its "at"), so a move doesn't reload it
     private var round = 0
+    // A picture layer: one raster source + layer per entry ("hn-pic:" + id); its address keyed so a change reloads it.
+    private struct Pic: Equatable { let id: String, tiles: String, z: Int, to: Int?, opacity: Double, bounds: [Double], attr: String }
+    private var pics: [Pic] = []
+    private var picsShown: [String: Pic] = [:]   // on the current style, by id
     private weak var screen: TrailMapScreen?   // its style is the one showing now (a new base map brings a new one)
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
-        glassShown = nil   // a new style has no glassing view yet
+        glassShown = nil   // a new style has no glassing view or pictures yet
+        picsShown = [:]
         style.setImage(NativeHunting.hatch(), forName: "hn-hatch")
         for k in NativeHunting.shapes where style.source(withIdentifier: "hn-" + k) == nil {
             style.addSource(MLNShapeSource(identifier: "hn-" + k, shape: parsed[k], options: nil))
@@ -99,6 +106,7 @@ final class NativeHunting: NativeLayer {
         inner.circleStrokeWidth = NSExpression(forConstantValue: 1.5)
         style.addLayer(inner)
         showGlass(style)
+        showPics(style)
     }
 
     // The page's text: { fills, labels, cone, rings, spot } as GeoJSON, glass: { at, box: [w, s, e, n], png (base64) } or
@@ -125,15 +133,53 @@ final class NativeHunting: NativeLayer {
                                                  bottomRight: CLLocationCoordinate2D(latitude: s, longitude: e),
                                                  topRight: CLLocationCoordinate2D(latitude: n, longitude: e)))
             }
+            let pics: [Pic] = ((o["pics"] as? [[String: Any]]) ?? []).compactMap { p in
+                guard let id = p["id"] as? String, let tiles = p["tiles"] as? String, let z = (p["z"] as? NSNumber)?.intValue else { return nil }
+                return Pic(id: id, tiles: tiles, z: z, to: (p["to"] as? NSNumber)?.intValue, opacity: (p["opacity"] as? NSNumber)?.doubleValue ?? 1,
+                           bounds: (p["bounds"] as? [Double]) ?? [], attr: (p["attr"] as? String) ?? "")
+            }
             DispatchQueue.main.async {
                 guard mine == self.round else { return }
                 self.parsed = shapes
                 self.glass = glass
+                self.pics = pics
                 // Only a style this feature has set up (added(to:) runs again for a new one, with what's here now).
                 guard let style = self.screen?.mapLibreView.style ?? style, style.layer(withIdentifier: "hn-fill") != nil else { return }
                 for k in NativeHunting.shapes { (style.source(withIdentifier: "hn-" + k) as? MLNShapeSource)?.shape = shapes[k] }
                 self.showGlass(style)
+                self.showPics(style)
             }
+        }
+    }
+
+    // The picture layers: taken away when gone or changed, added under everything else of Hunting's (and the trails).
+    // Tile zoom = the page's Leaflet zoom (256 px tiles); the native map's zoom is one less. An entry made for one zoom
+    // (its address changes with the zoom) shows only there; the last one also deeper, stretched.
+    private func showPics(_ style: MLNStyle) {
+        let want = Dictionary(pics.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for (id, p) in picsShown where want[id] != p {
+            if let l = style.layer(withIdentifier: "hn-pic:" + id) { style.removeLayer(l) }
+            if let s = style.source(withIdentifier: "hn-pic:" + id) { style.removeSource(s) }
+            picsShown[id] = nil
+        }
+        for p in pics where picsShown[p.id] == nil {
+            var opts: [MLNTileSourceOption: Any] = [.tileSize: 256, .minimumZoomLevel: p.z, .maximumZoomLevel: p.to ?? 19]
+            if p.bounds.count == 4 {
+                opts[.coordinateBounds] = NSValue(mlnCoordinateBounds: MLNCoordinateBounds(
+                    sw: CLLocationCoordinate2D(latitude: p.bounds[1], longitude: p.bounds[0]),
+                    ne: CLLocationCoordinate2D(latitude: p.bounds[3], longitude: p.bounds[2])))
+            }
+            if !p.attr.isEmpty { opts[.attributionHTMLString] = p.attr }
+            let src = MLNRasterTileSource(identifier: "hn-pic:" + p.id, tileURLTemplates: [p.tiles], options: opts)
+            style.addSource(src)
+            let l = MLNRasterStyleLayer(identifier: "hn-pic:" + p.id, source: src)
+            l.rasterOpacity = NSExpression(forConstantValue: p.opacity)
+            l.rasterFadeDuration = NSExpression(forConstantValue: 0)
+            l.minimumZoomLevel = Float(p.z - 1)
+            if let to = p.to { l.maximumZoomLevel = Float(to) }
+            if let lowest = ["hn-glass", "hn-fill"].lazy.compactMap({ style.layer(withIdentifier: $0) }).first { style.insertLayer(l, below: lowest) }
+            else if let b = screen?.trailsBottomLayer() { style.insertLayer(l, below: b) } else { style.addLayer(l) }
+            picsShown[p.id] = p
         }
     }
 

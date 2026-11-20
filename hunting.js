@@ -1983,7 +1983,34 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       cone: fc(cp.length ? [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [cp.concat([cp[0]])] } }] : []),
       spot: fc(spot && spot.how !== "centre" ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [r5(spot.lon), r5(spot.lat)] } }] : []),
       glass: g ? { at: g.at, box: g.box, ...(glassSent === g.at ? {} : { png: g.png }) } : null,
+      pics: nativePics(),
     });
+  }
+  // Picture layers for the native map: the same map servers and addresses as the flat map (picUrl), with MapLibre's
+  // {bbox-epsg-3857} where the tile's box goes. Addresses that change with the zoom (property lines, far from roads)
+  // go as one entry per zoom: { id, z (Leaflet zoom = tile zoom), to (last zoom it serves, null = deeper too), tiles,
+  // opacity, bounds [w, s, e, n], attr }. Far from roads' band widths also follow the latitude: worked out at the
+  // view's, to the half degree (a few metres at most), so a pan doesn't load new pictures. Pictures repainted on the
+  // phone (Alberta forest types, Quebec public land) aren't here: those open the web 3D map (tfHunt.web3d).
+  const NATIVE_MAX = 19;
+  function nativePics() {
+    const view = map.getBounds().pad(0.5), c = map.getCenter(), out = [];
+    const lat = Math.max(-84, Math.min(84, Math.round(c.lat * 2) / 2)), sn = Math.sin((lat * Math.PI) / 180);
+    const tileAt = (z) => [Math.floor(((c.lng + 180) / 360) * 2 ** z), Math.floor((0.5 - Math.log((1 + sn) / (1 - sn)) / (4 * Math.PI)) * 2 ** z)];
+    for (const p of PICS) {
+      if (p.recolor || !shown.has(p.layer) || !picNear(p, view)) continue;
+      const bb = picBounds(p), base = { opacity: p.opacity, bounds: [bb[0][1], bb[0][0], bb[1][1], bb[1][0]], attr: p.attr.replace(/<[^>]+>/g, "") };
+      if (!p.url) { out.push({ id: p.id, z: p.min, to: null, tiles: p.tmpl.replace("{bbox}", "{bbox-epsg-3857}"), ...base }); continue; }
+      let last = null;
+      for (let z = p.min; z <= NATIVE_MAX; z++) {
+        const [x, y] = tileAt(z), tiles = p.url(z, x, y).split(tileBox(z, x, y)).join("{bbox-epsg-3857}");
+        if (last && last.tiles === tiles) { last.to = z; continue; }
+        last = { id: `${p.id}@${z}`, z, to: z, tiles, ...base };
+        out.push(last);
+      }
+      if (last) last.to = null;
+    }
+    return out;
   }
   let nativeTimer = 0, nativeLast = null, nativeNext = null;
   const nativeSent = (d) => { nativeLast = d; glassSent = glass && glass.png ? glass.at : ""; return d; };
@@ -2126,8 +2153,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 
   // For ski-points.js: the hunting zone at a point, for the harvest log.
   window.tfHunt = {
-    // native-map.js: with any of these on, the 3D button opens the web 3D map (NativeHunting.swift doesn't draw them).
-    webOnly3d: ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"],
+    // native-map.js: true when the 3D button should open the web 3D map: slope or aspect on, or a picture the phone repaints (Alberta
+    // forest types, Quebec public land) is on near the view (the native map can't repaint pictures).
+    web3d: () => isHunt() && (["slope", "aspect"].some((k) => shown.has(k)) || PICS.some((p) => p.recolor && shown.has(p.layer) && picNear(p))),
     spot(lat, lon) { setSpot(lat, lon, "tap"); showSpot(lat, lon); },   // a shared spot (ski-points.js #pin=)
     // moto.js (Can I ride here): the parks, reserves, closures and other land at a point or in a box, the same
     // outlines as the Hunting rules layer ({ k, n, p, b, g } with g as flat [lat, lon, ...] rings).
