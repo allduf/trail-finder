@@ -1989,8 +1989,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // Picture layers for the native map: the same map servers and addresses as the flat map (picUrl), with MapLibre's
   // {bbox-epsg-3857} where the tile's box goes. Addresses that change with the zoom (property lines, far from roads)
   // go as one entry per zoom: { id, z (Leaflet zoom = tile zoom), to (last zoom it serves, null = deeper too), tiles,
-  // opacity, bounds [w, s, e, n], attr }. Far from roads' band widths also follow the latitude: worked out at the
-  // view's, to the half degree (a few metres at most), so a pan doesn't load new pictures. Pictures repainted on the
+  // opacity, bounds [w, s, e, n], attr }, only for zooms near the view's (sent again as it zooms). Far from roads' band
+  // widths also follow the latitude: worked out at the view's, to the half degree (cos changes ~1% over that: tens of
+  // metres on a 2-3 km band at most, inside the band's own estimate), so a pan doesn't load new pictures. Pictures repainted on the
   // phone (Alberta forest types, Quebec public land) aren't here: those open the web 3D map (tfHunt.web3d).
   const NATIVE_MAX = 19;
   function nativePics() {
@@ -2002,13 +2003,14 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const bb = picBounds(p), base = { opacity: p.opacity, bounds: [bb[0][1], bb[0][0], bb[1][1], bb[1][0]], attr: p.attr.replace(/<[^>]+>/g, "") };
       if (!p.url) { out.push({ id: p.id, z: p.min, to: null, tiles: p.tmpl.replace("{bbox}", "{bbox-epsg-3857}"), ...base }); continue; }
       let last = null;
-      for (let z = p.min; z <= NATIVE_MAX; z++) {
+      const z0 = Math.max(p.min, Math.floor(map.getZoom()) - 2), z1 = Math.min(NATIVE_MAX, Math.ceil(map.getZoom()) + 3);
+      for (let z = z0; z <= z1; z++) {
         const [x, y] = tileAt(z), tiles = p.url(z, x, y).split(tileBox(z, x, y)).join("{bbox-epsg-3857}");
         if (last && last.tiles === tiles) { last.to = z; continue; }
         last = { id: `${p.id}@${z}`, z, to: z, tiles, ...base };
         out.push(last);
       }
-      if (last) last.to = null;
+      if (last && z1 === NATIVE_MAX) last.to = null;
     }
     return out;
   }

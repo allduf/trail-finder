@@ -34,8 +34,6 @@ final class NativeHunting: NativeLayer {
     private weak var screen: TrailMapScreen?   // its style is the one showing now (a new base map brings a new one)
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
-        glassShown = nil   // a new style has no glassing view or pictures yet
-        picsShown = [:]
         style.setImage(NativeHunting.hatch(), forName: "hn-hatch")
         for k in NativeHunting.shapes where style.source(withIdentifier: "hn-" + k) == nil {
             style.addSource(MLNShapeSource(identifier: "hn-" + k, shape: parsed[k], options: nil))
@@ -44,6 +42,8 @@ final class NativeHunting: NativeLayer {
         let src = { (k: String) in style.source(withIdentifier: "hn-" + k) }
         guard let fills = src("fills"), let labels = src("labels"), let cone = src("cone"), let rings = src("rings"),
               let spot = src("spot"), style.layer(withIdentifier: "hn-fill") == nil else { return }
+        glassShown = nil   // a new style has no glassing view or pictures yet
+        picsShown = [:]
         let below = screen.trailsBottomLayer()
         let under = { (l: MLNStyleLayer) in if let b = below { style.insertLayer(l, below: b) } else { style.addLayer(l) } }
 
@@ -162,7 +162,10 @@ final class NativeHunting: NativeLayer {
             if let s = style.source(withIdentifier: "hn-pic:" + id) { style.removeSource(s) }
             picsShown[id] = nil
         }
-        for p in pics where picsShown[p.id] == nil {
+        // In the page's order, bottom to top (as the flat map's): each goes under the next one already there.
+        for (i, p) in pics.enumerated() where picsShown[p.id] == nil {
+            if let l = style.layer(withIdentifier: "hn-pic:" + p.id) { style.removeLayer(l) }   // never two of one id
+            if let s = style.source(withIdentifier: "hn-pic:" + p.id) { style.removeSource(s) }
             var opts: [MLNTileSourceOption: Any] = [.tileSize: 256, .minimumZoomLevel: p.z, .maximumZoomLevel: p.to ?? 19]
             if p.bounds.count == 4 {
                 opts[.coordinateBounds] = NSValue(mlnCoordinateBounds: MLNCoordinateBounds(
@@ -177,7 +180,8 @@ final class NativeHunting: NativeLayer {
             l.rasterFadeDuration = NSExpression(forConstantValue: 0)
             l.minimumZoomLevel = Float(p.z - 1)
             if let to = p.to { l.maximumZoomLevel = Float(to) }
-            if let lowest = ["hn-glass", "hn-fill"].lazy.compactMap({ style.layer(withIdentifier: $0) }).first { style.insertLayer(l, below: lowest) }
+            let above = pics[(i + 1)...].lazy.compactMap { self.picsShown[$0.id] != nil ? style.layer(withIdentifier: "hn-pic:" + $0.id) : nil }.first
+            if let next = above ?? ["hn-glass", "hn-fill"].lazy.compactMap({ style.layer(withIdentifier: $0) }).first { style.insertLayer(l, below: next) }
             else if let b = screen?.trailsBottomLayer() { style.insertLayer(l, below: b) } else { style.addLayer(l) }
             picsShown[p.id] = p
         }
