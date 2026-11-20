@@ -66,12 +66,16 @@
       if (d != null) TrailMap.layer({ key: String(key), data: String(d) }).catch(() => {});
     },
     isOpen: () => open && open3d,
+    // "Details" on a feature's own card (one it showed with open -1, at its own spot): fn({ tapLat, tapLon }) opens
+    // it on the page and returns true; otherwise the page opens what's at that spot, as for a trail.
+    onDetails(fn) { if (typeof fn === "function") details.push(fn); },
     // has(key): this app build draws that feature itself (TrailMap.features; older builds have no such call).
     has: (key) => !!nativeKeys && nativeKeys.has(String(key)),
     // moveWait(ms): how long the page waits after the native map moves before sending the trails again (500 ms); a
     // Flyover moves it every second, so it waits longer meanwhile. Nothing: back to 500.
     moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
   };
+  const details = [];
   let nativeKeys = null, moveWait = 500;
   try { Promise.resolve(TrailMap.features()).then((r) => { nativeKeys = new Set((r && r.keys) || []); }, () => { nativeKeys = new Set(); }); } catch { nativeKeys = new Set(); }
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
@@ -155,6 +159,7 @@
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
+    if (!(e.open >= 0)) for (const fn of details) { try { if (fn(e)) return; } catch {} }
     // "Details" on a trail's card: the trail opens as if tapped there (most trails are found by the map's own tap).
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
