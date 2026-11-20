@@ -144,7 +144,7 @@ final class NativeOffline: NativeLayer {
     }
 
     private func showTag(_ on: Bool) {
-        guard let v = screen?.view else { return }
+        guard let sc = screen, let v = sc.view else { return }
         if tag.superview == nil {
             tag.font = .systemFont(ofSize: 12, weight: .semibold)
             tag.textColor = .white
@@ -154,7 +154,7 @@ final class NativeOffline: NativeLayer {
             tag.textAlignment = .center
             tag.translatesAutoresizingMaskIntoConstraints = false
             v.addSubview(tag)
-            let g = v.safeAreaLayoutGuide
+            let g = sc.mapArea   // inside the map: clear of a tool's bar from the page (NativeTools.swift)
             NSLayoutConstraint.activate([
                 tag.centerXAnchor.constraint(equalTo: g.centerXAnchor),
                 tag.topAnchor.constraint(equalTo: g.topAnchor, constant: 44),

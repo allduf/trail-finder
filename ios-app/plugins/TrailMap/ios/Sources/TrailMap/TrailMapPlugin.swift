@@ -571,6 +571,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // The lowest trail layer: a feature drawn under the trails inserts its layers below this one.
     func trailsBottomLayer() -> MLNStyleLayer? { map.style?.layer(withIdentifier: "tf-line") }
     var mapLibreView: MLNMapView { map }
+    // Where a feature's own labels and buttons go: the map's part of the screen, inside the safe area (it shrinks while a
+    // tool's bar from the page is open, setToolInsets).
+    var mapArea: UILayoutGuide { area }
     // A feature's own card: the same card as a trail's (name, colour, and a second line saying what it is), with Details
     // coming back to the page: "closed" then carries feature: key and open: the feature's own number, and the feature's
     // page side opens it there (window.tfNative.addLayer's onDetails).
