@@ -112,10 +112,13 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 ## Pull requests and merging
 - The required check on main is "phone" (`.github/workflows/phone-test.yml`: wording check, then every sport
   at iPhone size).
-- Merge only with alex's yes. Turn on auto-merge for one pull request at a time.
-- Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check. With alex's
-  yes, start it by hand (run "Phone test" on the branch) so the merge can go through, or alex merges by hand.
-- Changes under `ios-app/` or `android-app/` need a new app build: tell alex before merging.
+- Every pull request merges on its own once it is ready and its checks pass (alex, 2026-11-20: "i want all of them
+  merge when they are ready"). Turn on auto-merge for one pull request at a time, and tell alex after it goes live.
+  This never covers going public (see "Do not go public").
+- Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check. Then
+  start it by hand (run "Phone test" on the branch) so the merge can go through.
+- Changes under `ios-app/` or `android-app/` need new iPhone and Android builds: start both after merging and tell
+  alex the build numbers.
 - The "Fix PR conflicts" workflow (`.github/workflows/pr-fix.yml`) merges main into open pull requests, and moves
   older ones over to `__V__`, `changelog.d` and French files. Pull before pushing to a pull request branch.
 - If a phone check was cancelled after a merge update, run it again.
