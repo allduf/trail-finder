@@ -119,6 +119,12 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       areas.forEach((a) => { const k = kmTo(t.c, a.c); if (k < d) { d = k; best = a; } });
       t.area = best; if (best) best.trails.push(t);
     });
+    // The areas, rider reports, fires and closures show at once; the loam fills in when it's read (it can take a while
+    // the first time: hundreds of spots, spread out to stay inside the weather service's limits).
+    renderAreas(areas);
+    addReports(areas, my);
+    addFires(areas, my);
+    addClosures(areas, my);
     const pts = trails.map((t) => t.c);
     const [vals, soon, snow, frozen] = await Promise.all([window.tfLoamAt ? window.tfLoamAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
       window.tfLoamSoon ? window.tfLoamSoon(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
@@ -131,10 +137,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const newSince = Date.now() - NEW_DAYS * 864e5;
     trails.forEach((t) => { const ts = born ? t.ids.map((id) => born.get(id)).filter(Boolean) : []; t.born = ts.length === t.ids.length && ts.length ? Math.min(...ts) : null; t.isNew = !!t.born && t.born >= newSince; });
     renderGo(trails);
-    renderAreas(areas);
-    addReports(areas, my);
-    addFires(areas, my);
-    addClosures(areas, my);
+    areas.filter((a) => a.el).forEach(fillLoam);
   }
 
   function renderGo(trails) {
@@ -160,13 +163,8 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
   function renderAreas(areas) {
     const shown = areas.filter((a) => a.trails.length);
     $("tdAreas").innerHTML = !shown.length ? `<li class="td-wait">No riding areas within ${lastKm} km.</li>` : shown.map((a, i) => {
-      const read = a.trails.filter((t) => t.v != null), prime = read.filter((t) => t.prime), snowed = a.trails.filter((t) => t.snow), frozen = a.trails.filter((t) => t.frozen);
-      const vs = read.map((t) => t.v).sort((x, y) => x - y), mid = vs.length ? vs[Math.floor(vs.length / 2)] : null;
-      const soonDay = !prime.length && a.trails.map((t) => t.soon).filter(Boolean).sort((x, y) => x.d.localeCompare(y.d))[0];
-      const loam = mid == null ? "Loam not available" : prime.length ? `<b>${prime.length} of ${read.length} trails in prime loam</b> · middle ${mid}`
-        : `${level(mid)[1]} · Loam ${mid}${soonDay ? ` · <b>prime ${esc(soonDay.day)}</b>` : ""}`;
       return `<li class="td-area" data-a="${i}"><header><b>${esc(a.name)}</b><small>${Math.round(a.km)} km</small></header>
-        <p>${dot(prime.length ? prime[0].v : mid)}${loam}</p><p class="td-close"></p>${snowed.length ? `<p class="td-snow">❄ ${snowed.length === a.trails.length ? "All" : `${snowed.length} of ${a.trails.length}`} trail${a.trails.length > 1 ? "s" : ""} likely under snow (${Math.max(...snowed.map((t) => t.snow))} cm at the most)</p>` : ""}${frozen.length ? `<p class="td-frozen">${frozen.length === a.trails.length ? "All" : `${frozen.length} of ${a.trails.length}`} trail${a.trails.length > 1 ? "s" : ""}: ground likely frozen now (soil temperature estimate)</p>` : ""}<p class="td-rep"><small>Checking rider reports…</small></p><p class="td-fire"></p>
+        <p class="td-loam">${dot(null)}<small>Checking the loam…</small></p><p class="td-close"></p><p class="td-snow" hidden></p><p class="td-frozen" hidden></p><p class="td-rep"><small>Checking rider reports…</small></p><p class="td-fire"></p>
         <div class="td-act"><button type="button" data-go>Trails here</button>${window.tfLoops ? `<button type="button" data-loops aria-expanded="false">🔁 Loops</button>` : ""}${window.tfOffline ? `<button type="button" data-off>⤓ Save offline</button>` : ""}</div><div class="td-loops" hidden></div></li>`;
     }).join("");
     $("tdAreas").querySelectorAll("[data-a]").forEach((li) => {
@@ -187,6 +185,22 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
         window.tfOffline.saveBox([Math.min(...lat), Math.min(...lon), Math.max(...lat), Math.max(...lon)], a.name);
       });
     });
+  }
+
+  // An area's loam, snow and frozen ground, once the readings are in.
+  function fillLoam(a) {
+    const read = a.trails.filter((t) => t.v != null), prime = read.filter((t) => t.prime), snowed = a.trails.filter((t) => t.snow), frozen = a.trails.filter((t) => t.frozen);
+    const vs = read.map((t) => t.v).sort((x, y) => x - y), mid = vs.length ? vs[Math.floor(vs.length / 2)] : null;
+    const soonDay = !prime.length && a.trails.map((t) => t.soon).filter(Boolean).sort((x, y) => x.d.localeCompare(y.d))[0];
+    const loam = mid == null ? "Loam not available" : prime.length ? `<b>${prime.length} of ${read.length} trails in prime loam</b> · middle ${mid}`
+      : `${level(mid)[1]} · Loam ${mid}${soonDay ? ` · <b>prime ${esc(soonDay.day)}</b>` : ""}`;
+    const n = a.trails.length, s = n > 1 ? "s" : "";
+    a.el.querySelector(".td-loam").innerHTML = `${dot(prime.length ? prime[0].v : mid)}${loam}`;
+    const sn = a.el.querySelector(".td-snow"), fr = a.el.querySelector(".td-frozen");
+    sn.hidden = !snowed.length;
+    if (snowed.length) sn.textContent = `❄ ${snowed.length === n ? "All" : `${snowed.length} of ${n}`} trail${s} likely under snow (${Math.max(...snowed.map((t) => t.snow))} cm at the most)`;
+    fr.hidden = !frozen.length;
+    if (frozen.length) fr.textContent = `${frozen.length === n ? "All" : `${frozen.length} of ${n}`} trail${s}: ground likely frozen now (soil temperature estimate)`;
   }
 
   // Rider reports from the last week, per area: how many, the latest, trees down.

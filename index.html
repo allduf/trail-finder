@@ -4058,8 +4058,10 @@ out body;`;
       : why.includes("hourly") ? "too many requests this hour, try later" : "too many requests today, try later");
   }
   // Loam for whole lists and alert regions (hundreds of places) is spread out so it never takes the whole minute's
-  // allowance (a trail's own weather and elevation then still load), and it stops for a while after a 429.
-  const LOAM_PER_MIN = 300;
+  // allowance (600 places; a trail's own weather and elevation then still load), and it stops for a while after a 429.
+  // 450: Where to ride today near Whistler asks about 315 (90 loam cells, 15 freeze-line squares x 5 heights x 3 models)
+  // and fits in one minute, so it doesn't wait a minute for the last few (alex 2026-11-20: "really long to load").
+  const LOAM_PER_MIN = 450;
   let meteoPause = 0, loamSent = [];   // [time, places] of loam requests in the last minute
   async function loamTurn(n) {
     for (;;) {
@@ -4185,8 +4187,24 @@ out body;`;
     for (let k = 1; k < FZ_H.length; k++) if (temps[k] <= 0) return Math.round(FZ_H[k - 1] + (FZ_H[k] - FZ_H[k - 1]) * temps[k - 1] / (temps[k - 1] - temps[k]));
     return Infinity;
   }
-  async function loadFreeze(keys) {
+  // Asked for at once by several parts (Where to ride today reads loam, snow, frost and the coming days together):
+  // a cell already on its way is waited for, never asked for again.
+  const fzFlight = new Map();
+  function loadFreeze(keys) {
     const need = [...new Set(keys.map(fzKeyOf))].filter((k) => { const c = fzCells.get(k); return !c || Date.now() - c.at > WX_FRESH_MS; });
+    return inFlight(fzFlight, need, loadFreezeNow);
+  }
+  // Shared by the loam and freeze readers: starts only the keys not already on their way, waits for all of them.
+  function inFlight(flight, keys, run) {
+    const fresh = keys.filter((k) => !flight.has(k)), waits = new Set(keys.filter((k) => flight.has(k)).map((k) => flight.get(k)));
+    if (fresh.length) {
+      const p = run(fresh).catch(() => {}).finally(() => fresh.forEach((k) => { if (flight.get(k) === p) flight.delete(k); }));
+      fresh.forEach((k) => flight.set(k, p));
+      waits.add(p);
+    }
+    return Promise.all(waits).then(() => {});
+  }
+  async function loadFreezeNow(need) {
     for (let i = 0; i < need.length; i += 10) {
       const chunk = need.slice(i, i + 10), lat = [], lon = [], ele = [];
       chunk.forEach((k) => { const [a, b] = k.split(","); FZ_H.forEach((e) => { lat.push(a); lon.push(b); ele.push(e); }); });
@@ -4318,7 +4336,9 @@ out body;`;
     loamBusy = false;
     render();
   }
-  async function fetchLoamCells(need) {
+  const loamFlight = new Map();
+  function fetchLoamCells(need) { return inFlight(loamFlight, [...new Set(need)], fetchLoamCellsNow); }
+  async function fetchLoamCellsNow(need) {
     await loamTuneReady;
     await loadFreeze(need).catch(() => {});
     for (let i = 0; i < need.length; i += 50) {
