@@ -1,0 +1,5 @@
+# English ||| French (Quebec). One line each. The English is the text the app shows, without icons in front or : after.
+No signal: the saved map ||| Pas de réseau : la carte enregistrée
+iPhone 3D copy saved ||| Copie 3D sur l’iPhone enregistrée
+iPhone 3D copy: not finished, it carries on with signal ||| Copie 3D sur l’iPhone : pas finie, elle continue avec du réseau
+iPhone 3D copy: saving ||| Copie 3D sur l’iPhone : enregistrement

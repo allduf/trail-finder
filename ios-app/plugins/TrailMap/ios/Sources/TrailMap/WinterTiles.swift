@@ -47,10 +47,16 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
             guard let u = URL(string: s) else { continue }
             group.enter()
             URLSession.shared.dataTask(with: u) { data, resp, _ in
+                var list: [[Int]]?
                 if let data = data, (resp as? HTTPURLResponse)?.statusCode == 200 {
-                    let list = (try? JSONSerialization.jsonObject(with: data)) as? [[Int]]
-                    gotLock.lock(); got[i] = list; gotLock.unlock()
+                    list = (try? JSONSerialization.jsonObject(with: data)) as? [[Int]]
+                    if list != nil, let f = Self.kept(i) { try? data.write(to: f, options: .atomic) }
                 }
+                // No signal: the copy from the last time (offline maps, NativeOffline.swift), so Winter still opens.
+                if list == nil, let f = Self.kept(i), let d = try? Data(contentsOf: f) {
+                    list = (try? JSONSerialization.jsonObject(with: d)) as? [[Int]]
+                }
+                gotLock.lock(); got[i] = list; gotLock.unlock()
                 group.leave()
             }.resume()
         }
@@ -82,6 +88,14 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
             self.lock.unlock()
             calls.forEach { $0(ok) }
         }
+    }
+
+    // Where each list's last copy is kept on the phone.
+    private static func kept(_ i: Int) -> URL? {
+        guard let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("trail-map", isDirectory: true) else { return nil }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("winter-list-\(i).json")
     }
 
     // MapLibre's URL rewriter (called off the main thread, for every download): only our made-up address is changed.
