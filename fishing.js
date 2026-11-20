@@ -1051,6 +1051,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       farFeats = lists.flat();
     } else farFeats = [];
     farKey = key;
+    window.dispatchEvent(new Event("tf:fishnative"));
     const data = { type: "FeatureCollection", features: farFeats };
     const gl = hl && hl.getMaplibreMap && hl.getMaplibreMap();
     const put = () => { const s = gl && gl.getSource("cf"); if (s) s.setData(data); };
@@ -2423,7 +2424,20 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // map3d.js copies Leaflet lines (the zone outlines), not dots: the gauge, stocking, tide and access dots and the spot
   // pin are added here; a tap on a dot opens it, a tap elsewhere picks a spot as on the flat map.
   let gl3 = null, spot3 = null, applyWait = false;
+  // Zone, park and boating-zone fills and names (map3d.js and the iPhone's native 3D bring over only their outlines),
+  // from what drawZones and drawBoatZones put on the flat map.
+  function fillsAndNames() {
+    const fills = [], names = [];
+    if (isFish()) {
+      [zoneLayer, boatLayer].forEach((g) => g.eachLayer((l) => fills.push({ type: "Feature", properties: { c: l.options.fillColor, o: Math.min(0.35, l.options.fillOpacity * 1.6) },
+        geometry: { type: "MultiPolygon", coordinates: ((r) => (Array.isArray(r[0]) ? r : [r]))(l.getLatLngs()).filter((r) => r.length > 2).map((r) => [[...r, r[0]].map((q) => [q.lng, q.lat])]) } })));
+      [labelLayer, boatLabels].forEach((g) => g.eachLayer((m) => { const sp = m.options.icon.options.html.match(/--c:([^"]+)">([^<]*)</); if (sp) names.push({ type: "Feature", properties: { c: sp[1], t: sp[2].replace(/&amp;/g, "&") }, geometry: { type: "Point", coordinates: [m.getLatLng().lng, m.getLatLng().lat] } }); }));
+    }
+    return { fills, names };
+  }
   function sync3d() {
+    // The iPhone's native 3D (native-fishing.js) sends its copy again once things settle, when it's open.
+    window.dispatchEvent(new Event("tf:fishnative"));
     const gl = gl3;
     if (!gl || !window.maplibregl) return;
     const apply = () => {
@@ -2433,13 +2447,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
         gl.addSource("fs-pts", { type: "geojson", data });
         gl.addLayer({ id: "fs-pts", type: "circle", source: "fs-pts", paint: { "circle-color": ["get", "c"], "circle-radius": ["get", "r"], "circle-stroke-color": "#fff", "circle-stroke-width": 2, "circle-pitch-alignment": "viewport" } });
       } else gl.getSource("fs-pts").setData(data);
-      // Zone and park fills and names (map3d.js brings over only their outlines), from what drawZones put on the flat map.
-      const fills = [], names = [];
-      if (isFish()) {
-        [zoneLayer, boatLayer].forEach((g) => g.eachLayer((l) => fills.push({ type: "Feature", properties: { c: l.options.fillColor, o: Math.min(0.35, l.options.fillOpacity * 1.6) },
-          geometry: { type: "MultiPolygon", coordinates: ((r) => (Array.isArray(r[0]) ? r : [r]))(l.getLatLngs()).filter((r) => r.length > 2).map((r) => [[...r, r[0]].map((q) => [q.lng, q.lat])]) } })));
-        [labelLayer, boatLabels].forEach((g) => g.eachLayer((m) => { const sp = m.options.icon.options.html.match(/--c:([^"]+)">([^<]*)</); if (sp) names.push({ type: "Feature", properties: { c: sp[1], t: sp[2].replace(/&amp;/g, "&") }, geometry: { type: "Point", coordinates: [m.getLatLng().lng, m.getLatLng().lat] } }); }));
-      }
+      const { fills, names } = fillsAndNames();
       const under = gl.getLayer("osm-roads") ? "osm-roads" : undefined;
       if (!gl.getSource("fs-fill")) {
         gl.addSource("fs-fill", { type: "geojson", data: { type: "FeatureCollection", features: fills } });
@@ -2514,6 +2522,47 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     }
     if (T) for (const q of T.SRC) vis("fs3-cl-" + q.id, cOn);
   }
+  // ---------- the iPhone's native 3D (alex only for now: native-fishing.js sends these, NativeFishing.swift draws them) ----------
+  // The fishing dots and the zone outlines go over with the trails (native-map.js copies the flat map's dots and lines);
+  // these are the rest of what the web 3D map draws for Fishing, as text: "main" (fills, names, the picked spot, which
+  // water colours, Crown land and depth tiles are on), "creeks" (creeks from further away) and "depth" (lake depth
+  // lines). null outside Fishing. Crown land's pictures go straight from each province's server; Quebec's is asked
+  // through its WMS with our colour in the request, so it needs no repainting on the phone (the web map repaints it).
+  const FC = (features) => JSON.stringify({ type: "FeatureCollection", features });
+  const nat = { creeks: [null, ""], depth: [-1, ""] };
+  window.tfFish.native3d = (part) => {
+    if (!isFish()) return null;
+    if (part === "creeks") {
+      const f = shown.has("creeks") ? farFeats : [];
+      if (nat.creeks[0] !== f) nat.creeks = [f, FC(f)];
+      return nat.creeks[1];
+    }
+    if (part === "depth") {
+      const v = shown.has("depth") ? depthVer : -2;
+      if (nat.depth[0] !== v) nat.depth = [v, FC(v === -2 ? [] : depthFeats)];
+      return nat.depth[1];
+    }
+    const { fills, names } = fillsAndNames(), T = window.tfCrown;
+    const pin = spot && spot.how !== "centre" ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [spot.lon, spot.lat] } }] : [];
+    const box = (b) => [b[1], b[0], b[3], b[2]];   // [s, w, n, e] -> [w, s, e, n]
+    const crown = shown.has("crown") && T ? T.SRC.map((q) => {
+      const [[s0, w0], [n0, e0]] = T.bounds(q);
+      const tiles = q.tint
+        ? `${q.svc.replace("/rest/services/", "/services/")}/WMSServer?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=0&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(
+          `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>0</Name><UserStyle><FeatureTypeStyle><Rule><PolygonSymbolizer><Fill><CssParameter name="fill">${T.COL[q.kind]}</CssParameter></Fill></PolygonSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`)}&BBOX={bbox-epsg-3857}`
+        : T.url(q, 0, 0, 0).replace(/bbox=[^&]*/, "bbox={bbox-epsg-3857}");
+      return { id: q.id, tiles, min: q.min, b: [w0, s0, e0, n0], o: q.kind === "private" ? 0.36 : 0.26 };
+    }) : [];
+    const db = depthTiles.options.bounds;
+    const depth = shown.has("depth") ? {
+      mb: { tiles: `${MB_DEPTH}/tile/{z}/{y}/{x}.pbf`, b: box(MB_BOX), c: C.depth },
+      bc: { tiles: `${WMS}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=pub%3AWHSE_FISH.BATH_LAKE_BATHYMETRIC_SP&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}`,
+        b: [db.getWest(), db.getSouth(), db.getEast(), db.getNorth()] },
+    } : null;
+    return JSON.stringify({ fills: { type: "FeatureCollection", features: fills }, names: { type: "FeatureCollection", features: names },
+      pin: { type: "FeatureCollection", features: pin }, accent: ACC, water: Object.fromEntries(HL.map((k) => [k, shown.has(k)])), crown, depth });
+  };
+
   // This file loads the first time Fishing is picked (winter.js), often after the 3D map was built: take that one too.
   const on3d = (e) => {
     gl3 = e.detail;
