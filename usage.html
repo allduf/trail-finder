@@ -227,6 +227,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     </section>
 
     <section data-panel="problems">
+      <p class="muted" id="reviewLine" hidden></p>
       <h2>Crashes</h2>
       <p class="muted">Times the app died and iOS opened it again (usually out of memory). Newest first; Version is the app version it happened on (shown since 13 Nov).</p>
       <div class="card"><table id="crashes"></table></div>
@@ -779,6 +780,13 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     }
     return new Set([...by].filter(([, b]) => b.s.size === 1 && !b.did && b.ms < 60e3 && !b.label).map(([d]) => d));
   };
+  // Test and review devices: the Android emulator of the phone check (os "Android 14 · sdk_gphone64_x86_64", from before
+  // usage.js skipped it) and Google Play's review phones (screen 435x725, an old Android web viewer the map can't run
+  // on; they came the days a new Android build went to Google, 13 and 20 Nov 2026, from outside Canada and tapped every
+  // button about 10 s apart). Their crashes, errors and slow loads aren't real people's, so they're left out of every
+  // count; "Show them" puts them back.
+  let showReview = false;
+  const reviewDevices = () => new Set(rows.filter((r) => /sdk_gphone|emulator/i.test(r.os || "") || r.screen === "435x725").map((r) => r.device));
   // Taps that save something, and taps that go out with it, in every sport: known button ids, or a button's own words.
   const SAVE = new Set(["#wantBtn", "#savePick", "#ridden", "#spfSave", "#spcSave", "#skSaveBtn", "#rtSave", "#navSave", "#planSave", "#viewSave"]);
   const SAVE_TEXT = /^(💾 )?(save|saved|to ride|log (a |this )?(catch|harvest|hunt)|add (a )?(pin|catch|harvest)|drop (a )?pin)\b/i;
@@ -798,7 +806,8 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const meSet = new Set([...rows, ...(all || [])].filter(isMe).map((r) => r.device));
     const view = who || (meSet.size ? "others" : "all");
     const blank = blankDevices();
-    const keep = (device) => (showBlank || !blank.has(device)) && (view === "all" || (view === "me") === meSet.has(device));
+    const review = reviewDevices();
+    const keep = (device) => (showBlank || !blank.has(device)) && (showReview || !review.has(device)) && (view === "all" || (view === "me") === meSet.has(device));
     document.querySelectorAll("[data-who]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.who === view)));
     $("whoHint").textContent = meSet.size ? (view === "others" ? "Your own phone and computer (named Me) are left out. Pick Everyone or Only me to see what you did." : "") : "Tip: in Testers, tap “This is me” on your own phone to leave it out.";
     const shown = rows.filter((r) => realError(r) && keep(r.device));
@@ -1054,7 +1063,11 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const people = [...devices.values()].sort((a, b) => new Date(b.last) - new Date(a.last));
     const blankN = [...blank].filter((dev) => view === "all" || (view === "me") === meSet.has(dev)).length;
     const blankLine = blankN ? `<p class="muted" id="blankLine">${showBlank ? `Showing ${blankN} blank open${blankN === 1 ? "" : "s"} (one visit under a minute, nothing tapped).` : `${blankN} blank open${blankN === 1 ? "" : "s"} hidden: phones that opened the app once for under a minute and tapped nothing, mostly on days a new TestFlight build went out (likely Apple checking the build).`} <button type="button" class="btn" id="blankBtn">${showBlank ? "Hide them" : "Show them"}</button></p>` : "";
-    $("people").innerHTML = blankLine + people.map((d) => {
+    const reviewN = [...review].filter((dev) => view === "all" || (view === "me") === meSet.has(dev)).length;
+    const reviewText = reviewN ? `${showReview ? `Showing ${reviewN} test and review device${reviewN === 1 ? "" : "s"}.` : `${reviewN} test and review device${reviewN === 1 ? "" : "s"} hidden: the Android emulator of the phone check, and Google Play's review phones (screen 435x725, an old Android web viewer), whose crashes, errors and slow loads aren't real people's.`} <button type="button" class="btn" data-review>${showReview ? "Hide them" : "Show them"}</button>` : "";
+    $("reviewLine").innerHTML = reviewText; $("reviewLine").hidden = !reviewText;
+    const reviewLine = reviewText ? `<p class="muted">${reviewText}</p>` : "";
+    $("people").innerHTML = blankLine + reviewLine + people.map((d) => {
       const top = [...d.taps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
       const sports = [...d.sport.entries()].sort((a, b) => b[1] - a[1]).map(([k, ms]) => `${SPORTS[k] || k} ${mins(ms)}`).join(" · ");
       const map = quantile(d.maps, 0.5);
@@ -1090,6 +1103,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
       if (!error) paint();
     }));
     if ($("blankBtn")) $("blankBtn").onclick = () => { showBlank = !showBlank; paint(); };
+    document.querySelectorAll("button[data-review]").forEach((b) => { b.onclick = () => { showReview = !showReview; paint(); }; });
     document.querySelectorAll("button[data-me]").forEach((b) => b.addEventListener("click", async () => {
       if (!(await setLabel(b.dataset.me, "Me"))) { who = null; try { localStorage.removeItem("tf:usageWho"); } catch {} paint(); }
     }));
