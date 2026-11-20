@@ -1,0 +1,7 @@
+Mountain biking: snow on trails is now checked against Environment Canada's snow analysis, so valley trails no longer show snow the model kept from the mountainside. Where the ground froze overnight, Where to ride today says trails may be icy in spots. ||| Vélo de montagne : la neige sur les sentiers est maintenant comparée à l'analyse de neige d'Environnement Canada, donc les sentiers de vallée n'affichent plus la neige que le modèle gardait du flanc de la montagne. Là où le sol a gelé pendant la nuit, Où rouler aujourd'hui indique que les sentiers peuvent être glacés par endroits.
+Snow likely on the ground here ||| Neige probable au sol ici
+Environment Canada snow analysis, an estimate ||| analyse de neige d'Environnement Canada, une estimation
+Open-Meteo snow depth, an estimate ||| épaisseur de neige Open-Meteo, une estimation
+Snow likely on the trails ||| Neige probable sur les sentiers
+Snow likely (estimate) ||| Neige probable (estimation)
+Loam: Open-Meteo soil moisture (one model), tuned by rider reports. An estimate. ||| Loam : humidité du sol Open-Meteo (un modèle), ajustée par les rapports des cyclistes. Une estimation.
