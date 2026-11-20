@@ -30,18 +30,21 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
     private var loaded = false
     private var waiting: [(Bool) -> Void] = []
 
+    private var stale = false                  // the lists came from the copy kept for no signal: fetched again next load
     var ready: Bool { lock.lock(); defer { lock.unlock() }; return loaded }
+    var fresh: Bool { lock.lock(); defer { lock.unlock() }; return loaded && !stale }
 
     // done(true) once the lists are in (on the main thread); done(false) when they couldn't come (offline).
     func load(_ done: @escaping (Bool) -> Void) {
         lock.lock()
-        if loaded { lock.unlock(); DispatchQueue.main.async { done(true) }; return }
+        if loaded && !stale { lock.unlock(); DispatchQueue.main.async { done(true) }; return }
         waiting.append(done)
         let first = waiting.count == 1
         lock.unlock()
         if !first { return }
         MLNOfflineStorage.shared.delegate = self
         var got = [[[Int]]?](repeating: nil, count: Self.lists.count)
+        var kept = false
         let gotLock = NSLock(), group = DispatchGroup()
         for (i, s) in Self.lists.enumerated() {
             guard let u = URL(string: s) else { continue }
@@ -53,10 +56,12 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
                     if list != nil, let f = Self.kept(i) { try? data.write(to: f, options: .atomic) }
                 }
                 // No signal: the copy from the last time (offline maps, NativeOffline.swift), so Winter still opens.
+                var old = false
                 if list == nil, let f = Self.kept(i), let d = try? Data(contentsOf: f) {
                     list = (try? JSONSerialization.jsonObject(with: d)) as? [[Int]]
+                    old = list != nil
                 }
-                gotLock.lock(); got[i] = list; gotLock.unlock()
+                gotLock.lock(); got[i] = list; if old { kept = true }; gotLock.unlock()
                 group.leave()
             }.resume()
         }
@@ -65,6 +70,8 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
             let ok = got[0] != nil || got[1] != nil
             self.lock.lock()
             if ok {
+                self.have = [:]   // a second load (the first came from the kept copy) starts over
+                self.some = [:]
                 for (site, list) in [got[0] ?? [], got[1] ?? []].enumerated() {
                     for p in list where p.count == 2 {
                         let k = p[0] * 4096 + p[1]
@@ -82,6 +89,7 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
                 self.sharpWest = Set(west)
                 self.sharpCa = Set((got[3] ?? []).filter { $0.count == 2 }.map { $0[0] * 4096 + $0[1] }).subtracting(self.sharpWest)
                 self.loaded = true
+                self.stale = kept
             }
             let calls = self.waiting
             self.waiting = []

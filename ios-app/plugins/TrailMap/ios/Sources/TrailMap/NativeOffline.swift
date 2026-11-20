@@ -183,6 +183,7 @@ final class OfflinePacks: NSObject {
     private var packsObs: NSKeyValueObservation?
     private var waiting: [([MLNOfflinePack]) -> Void] = []
     private var creating: Set<String> = []
+    private var wanted: Set<String> = []       // the areas the page last asked for
     private var observing = false
     private var notifyQueued = false
 
@@ -231,6 +232,7 @@ final class OfflinePacks: NSObject {
         withPacks { [weak self] _ in
             guard let self = self else { return }
             let byId = Dictionary(want.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            self.wanted = Set(byId.keys)
             var have: [String: Set<String>] = [:]
             for (p, c) in self.ours {
                 let id = (c["id"] as? String) ?? "", a = byId[id]
@@ -259,7 +261,9 @@ final class OfflinePacks: NSObject {
 
     private func resume(_ p: MLNOfflinePack, _ c: [String: Any]) {
         guard let style = OfflinePacks.style(c) else { return }
-        putStyle(style, p.region.styleURL) { p.resume() }
+        let go = { self.putStyle(style, p.region.styleURL) { ok in if ok && p.state != .invalid { p.resume() } } }
+        // Winter photo addresses need WinterTiles as MapLibre's URL rewriter (set by its load), fresh from their sites.
+        if (c["ski"] as? Bool) ?? false { WinterTiles.shared.load { ok in if ok && WinterTiles.shared.fresh { go() } } } else { go() }
     }
 
     private func create(_ a: Area, _ parts: [String]) {
@@ -269,28 +273,34 @@ final class OfflinePacks: NSObject {
             guard let self = self, let tmpl = tmpl else { finish(); return }   // no signal: the next sync tries again
             let go = {
                 for part in parts {
+                    let key = a.id + "/" + part
                     let c: [String: Any] = ["tf": "offline", "id": a.id, "part": part, "boxes": a.boxes, "ski": a.ski, "tmpl": tmpl]
                     guard let style = OfflinePacks.style(c), let region = OfflinePacks.region(a, part, styleBase: OfflinePacks.styleBase),
-                          let ctxData = try? JSONSerialization.data(withJSONObject: c) else { continue }
-                    self.putStyle(style, region.styleURL) {
+                          let ctxData = try? JSONSerialization.data(withJSONObject: c) else { self.creating.remove(key); continue }
+                    self.putStyle(style, region.styleURL) { ok in
+                        guard ok else { self.creating.remove(key); return }
                         MLNOfflineStorage.shared.addPack(for: region, withContext: ctxData) { pack, _ in
-                            pack?.resume()
-                            self.creating.remove(a.id + "/" + part)
+                            self.creating.remove(key)
+                            guard let pack = pack else { return }
+                            // Deleted on the page while this was being set up: no copy for it.
+                            if !self.wanted.contains(a.id) { MLNOfflineStorage.shared.removePack(pack, withCompletionHandler: nil); return }
+                            pack.resume()
                         }
                     }
                 }
             }
             if !a.ski { go(); return }
-            // Winter photo addresses need WinterTiles' lists (it turns the made-up ones into real ones while saving).
-            WinterTiles.shared.load { ok in if ok { go() } else { finish() } }
+            // Winter photo addresses need WinterTiles' lists (it turns the made-up ones into real ones while saving),
+            // fresh from their sites (not the copy kept for no signal, which may lack newer squares).
+            WinterTiles.shared.load { ok in if ok && WinterTiles.shared.fresh { go() } else { finish() } }
         }
     }
 
     // The pack's own style, put in MapLibre's store just before it's needed (the store may let an old copy go).
-    private func putStyle(_ style: [String: Any], _ url: URL, then: @escaping () -> Void) {
-        guard let data = try? JSONSerialization.data(withJSONObject: style) else { return }
+    private func putStyle(_ style: [String: Any], _ url: URL, then: @escaping (Bool) -> Void) {
+        guard let data = try? JSONSerialization.data(withJSONObject: style) else { then(false); return }
         MLNOfflineStorage.shared.preload(data, for: url, modifiedOn: Date(), expiresOn: Date.distantFuture, eTag: nil, mustRevalidate: false)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: then)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { then(true) }
     }
 
     // The newest OpenFreeMap tile address (from its TileJSON), or nil with no signal.
@@ -351,8 +361,10 @@ final class OfflinePacks: NSObject {
     // Per area: { id: { pct, saved, active, bytes } }.
     func status() -> [String: Any] {
         var by: [String: (exp: UInt64, done: UInt64, bytes: UInt64, all: Bool, active: Bool)] = [:]
+        var unknown: Set<String> = []   // a pack MapLibre hasn't reported on yet (just after the app starts)
         for (p, c) in ours {
             let id = (c["id"] as? String) ?? ""
+            if p.state == .unknown { unknown.insert(id) }
             var s = by[id] ?? (0, 0, 0, true, false)
             let g = p.progress
             s.exp += max(g.countOfResourcesExpected, g.countOfResourcesCompleted)
@@ -363,7 +375,7 @@ final class OfflinePacks: NSObject {
             by[id] = s
         }
         var out: [String: Any] = [:]
-        for (id, s) in by {
+        for (id, s) in by where !unknown.contains(id) {
             out[id] = ["pct": s.exp > 0 ? Int(100 * s.done / s.exp) : 0, "saved": s.all, "active": s.active, "bytes": Double(s.bytes)]
         }
         return ["areas": out]

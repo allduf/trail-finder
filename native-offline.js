@@ -22,7 +22,7 @@
   const drawData = () => JSON.stringify({
     online: navigator.onLine,
     noSignal: t("No signal: the saved map"),
-    areas: load().map((a) => ({ box: a.box, label: `${a.missing ? "⚠" : "✓"} ${t("Saved")}: ${a.name}` })),
+    areas: load().map((a) => ({ box: a.box, label: `${a.missing ? "\u26A0\uFE0E" : "✓"} ${t("Saved")}: ${a.name}` })),
   });
   const N = () => window.tfNative;
   if (N() && N().addLayer) N().addLayer("offline", drawData);
@@ -47,7 +47,8 @@
   later(30000);   // once the app has settled, so opening it stays as quick as before
 
   // Its line under each area in Offline maps (offline.js redraws the list; this adds to each row).
-  const mb = (b) => (b < 1e6 ? "under 1 MB" : b < 1e9 ? Math.round(b / 1e6) + " MB" : (b / 1e9).toFixed(1) + " GB");
+  const fr = () => !!(window.tfLang && window.tfLang.lang === "fr");
+  const mb = (b) => (b < 1e6 ? t("under 1 MB") : b < 1e9 ? Math.round(b / 1e6) + (fr() ? " Mo" : " MB") : (b / 1e9).toFixed(1).replace(".", fr() ? "," : ".") + (fr() ? " Go" : " GB"));
   function line(p) {
     if (!p) return "";
     if (p.saved) return "✓ " + t("iPhone 3D copy saved") + ` (${mb(p.bytes || 0)})`;
