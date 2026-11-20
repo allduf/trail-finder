@@ -3,7 +3,7 @@ import MapLibre
 import UIKit
 
 // Search a place from native 3D and fly there (alex 2026-11-20, native 3D parity step 2), as the page's search does on
-// the web 3D map. A "Search" button under Back asks for a name (or a GPS point); the page (native-search.js) looks it up
+// the web 3D map. A "Search" button at the top right asks for a name (or a GPS point); the page (native-search.js) looks it up
 // with its own place search (place-search.js: OpenStreetMap's Nominatim, Canada first) and sends back up to six places;
 // picking one flies there, a little less tilted so the place fills the screen, and the page drops its red pin there,
 // which comes back here with the other pins (NativePins.swift).
@@ -72,7 +72,7 @@ final class NativeSearch: NativeLayer {
         a.addAction(UIAlertAction(title: t("Cancel"), style: .cancel))
         // iPad: the list comes from the Search button's corner.
         a.popoverPresentationController?.sourceView = screen.view
-        a.popoverPresentationController?.sourceRect = CGRect(x: 60, y: 140, width: 1, height: 1)
+        a.popoverPresentationController?.sourceRect = CGRect(x: screen.view.bounds.width - 60, y: 80, width: 1, height: 1)
         screen.present(a, animated: true)
     }
 

@@ -131,7 +131,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private let cardSwatch = UIView()
     private var cardDetails: UIButton?
     private let cardSub = UILabel()            // a feature card's second line (what it is: "Webcam", "Hut"...)
-    private let toolStack = UIStackView()      // features' own buttons, under Back (addToolButton)
+    private let toolStack = UIStackView()      // features' own buttons, top right across from Back (addToolButton)
     // The native 3D features (NativeLayers.swift), each with its own sources and layers; 3D only.
     private lazy var features: [NativeLayer] = threeD ? NativeLayers.all.map { $0() } : []
 
@@ -226,7 +226,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         [cardSwatch, cardText, details, shut].forEach { card.addSubview($0) }
         view.addSubview(card)
         toolStack.axis = .vertical
-        toolStack.alignment = .leading
+        toolStack.alignment = .trailing
         toolStack.spacing = 8
         toolStack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(toolStack)
@@ -253,8 +253,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             cardText.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
             cardText.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14),
             details.leadingAnchor.constraint(greaterThanOrEqualTo: cardText.trailingAnchor, constant: 8),
-            toolStack.leadingAnchor.constraint(equalTo: back.leadingAnchor),
-            toolStack.topAnchor.constraint(equalTo: back.bottomAnchor, constant: 10),
+            toolStack.trailingAnchor.constraint(equalTo: g.trailingAnchor, constant: -12),
+            toolStack.topAnchor.constraint(equalTo: back.topAnchor),
             details.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             shut.leadingAnchor.constraint(equalTo: details.trailingAnchor, constant: 4),
             shut.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -8),
@@ -468,7 +468,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         cardSwatch.backgroundColor = TrailMapScreen.color(colour) ?? .gray
         card.isHidden = false
     }
-    // A feature's own button, in a column under Back (3D only); added once, kept across style changes.
+    // A feature's own button, top right across from Back (3D only; the weather captions sit under Back); added once, kept across style changes.
     func addToolButton(_ title: String, handler: @escaping () -> Void) {
         let b = pill(title, #selector(noop))
         b.removeTarget(self, action: #selector(noop), for: .touchUpInside)
