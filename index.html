@@ -48,6 +48,9 @@ if (typeof Object.hasOwn !== "function") addEventListener("DOMContentLoaded", ()
 <script src="line-icons.js?v=__V__"></script>
 <!-- Unofficial trails are for alex and friends only (friends.js): everyone else gets the public map, class tf-pub. -->
 <script>try { if (localStorage.getItem("tf-friend") !== "1") document.documentElement.classList.add("tf-pub"); } catch (e) { document.documentElement.classList.add("tf-pub"); }</script>
+<!-- Photo find (photo-find.js) is for alex and friends only until it works better (alex, 2026-11-20): the same friends list
+     as unofficial trails. THE ONE SWITCH: set PF_PUBLIC to true to give photo find back to everyone. Class tf-nopf hides it. -->
+<script>(function () { var PF_PUBLIC = false, f = false; try { f = localStorage.getItem("tf-friend") === "1"; } catch (e) {} window.tfPhotoFindOn = PF_PUBLIC || f; if (!window.tfPhotoFindOn) document.documentElement.classList.add("tf-nopf"); })();</script>
 <style>/* Netlify host badge (free plan, can't be removed): keep it off the tab bar, small, left edge, and BEHIND every app card/sheet/bar (z 999 < 1000) */#nl-badge-frame{z-index:999!important;top:40%!important;bottom:auto!important;right:auto!important;left:0!important;transform:scale(.5);transform-origin:0 0}</style>
 </head>
 <body>
@@ -1340,6 +1343,9 @@ body.sport-alt #rideMapBtn { display: none !important; }
 /* One home per tool on phones (alex, 2026-10-24): 📷 Which trail is this? sits next to Search trails on the map and
    in the Find page's list; Offline maps sits in the Ride tab. Computers keep them by Search and in Layers. */
 @media (max-width: 760px) { #photoFindBtn, #offlineBtn { display: none !important; } }
+/* Photo find hidden from the public for now (see PF_PUBLIC at the top): every way in, and the Find page's tiles go to 3. */
+.tf-nopf :is(#photoFindBtn, #peekPhoto, .hub-tile[data-hub="photo"], .about-pf) { display: none !important; }
+.tf-nopf .hub-tiles { grid-template-columns: repeat(3, 1fr); }
 /* alex 2026-10-31: "how do I save a region offline without planning a route?" The Track tab's card was too hidden, so
    on phones Offline maps is also the first row of Layers, in every sport, 2D and 3D. Computers keep it in Tools. */
 .lm-offline { display: none; }
@@ -1601,7 +1607,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
       <li><b>▶ Ride this trail</b> (in a trail's details) guides you to it and buzzes if you leave it.</li>
       <li><b>✎ Plan a route</b> (Ride tab): tap the trails you want in order, then ▶ Ride it. ⋯ More has Shuttle, GPX and Save.</li>
       <li><b>☀ Where to ride today</b> (Find) shows the best spots now, with ready-made loops from a parking lot.</li>
-      <li><b>📷 Which trail is this?</b> (next to Search) names the trail in a photo, screenshot or short video.</li>
+      <li class="about-pf"><b>📷 Which trail is this?</b> (next to Search) names the trail in a photo, screenshot or short video.</li>
       <li><b>💬 Ask in plain words</b> (Find): type what you want, like “easy loop near Squamish”.</li>
       <li><b>Colours</b>: green, blue, black, red (double black), orange (pro line). Dashed = estimated level, dotted = unofficial.</li>
     </ul>
@@ -5967,7 +5973,7 @@ out body;`;
       <div class="hub-seg" role="group" aria-label="Language" translate="no">${[["en", "English"], ["fr", "Français"]].map(([l, n]) => `<button type="button" data-lang="${l}" aria-pressed="${(window.tfLang ? window.tfLang.lang : "en") === l}">${n}</button>`).join("")}</div>
       ${window.tfAiConsent ? `<div class="hub-sec">Google's AI</div>
       <div class="hub-seg" role="group" aria-label="Google's AI">${[[true, "Use it"], [false, "Don't use it"]].map(([v, n]) => `<button type="button" data-ai="${v}" aria-pressed="${window.tfAiConsent.state() === v}">${n}</button>`).join("")}</div>
-      <p class="hub-hint">For photo find, Ask in plain words and fish ID. 18 or older.</p>${window.tfAiConsent.state() == null ? `<p class="hub-hint">Not chosen yet. You'll be asked the first time it's needed.</p>` : ""}` : ""}
+      <p class="hub-hint">${window.tfPhotoFindOn === false ? "For Ask in plain words and fish ID. 18 or older." : "For photo find, Ask in plain words and fish ID. 18 or older."}</p>${window.tfAiConsent.state() == null ? `<p class="hub-hint">Not chosen yet. You'll be asked the first time it's needed.</p>` : ""}` : ""}
       ${window.tfUsage ? `<div class="hub-sec">How the app is used</div>
       <div class="hub-seg" role="group" aria-label="How the app is used">${[[true, "Share"], [false, "Don't share"]].map(([v, n]) => `<button type="button" data-usage="${v}" aria-pressed="${window.tfUsage.on() === v}">${n}</button>`).join("")}</div>
       <p class="hub-hint">Screens, taps, searches and errors, with no name, email or location, to fix bugs. <a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>` : ""}

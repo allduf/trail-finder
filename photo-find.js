@@ -180,6 +180,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   let ai = null, aiKey = "", aiOff = false, aiSlow = 0;   // the AI's answer for this picture; aiOff: the function isn't set up
   let cmp = null, cmpKey = "";                            // the online check's answer for this picture and list
   function open() {
+    // Hidden from the public for now (PF_PUBLIC in index.html): only alex and friends, and the accuracy test, can open it.
+    if (window.tfPhotoFindOn === false && !TEST) return;
     box.hidden = false;
     $("pfPaste").hidden = !(navigator.clipboard && navigator.clipboard.read);
     setTimeout(() => $("pfPick").focus(), 0);
