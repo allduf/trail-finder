@@ -7,7 +7,8 @@ description: Use when making any user-facing change to the Trail Finder app and 
 
 1. Pull main first. Work on your own branch.
 2. Make the change phone-first (iPhone size, 430x932). Each sport keeps its own features; nothing MTB-only in other
-   sports (see `new-sport-feature`).
+   sports (see `new-sport-feature`). Every change reaches every device: website, iPhone (incl. native 3D) and
+   Android (see `all-devices`).
 3. Wording is liability-safe: never promise safety, accuracy, access, legality or conditions. State facts and their
    source, and say "estimate" where it is one. No travel advice, no terrain traps, runouts or "what is above you".
    No emoji in the interface (line icons in `line-icons.js`). Never mention Trailforks.
@@ -24,5 +25,6 @@ description: Use when making any user-facing change to the Trail Finder app and 
 10. Open the pull request. The required check is "phone". Merge only with alex's yes, one auto-merge at a time.
     Pull before pushing (the "Fix PR conflicts" workflow merges main into open pull requests). Pull requests that only
     touch `data/`, `ios-app/`, `supabase/` or `.md` skip "phone": with alex's yes run "Phone test" on the branch, or
-    alex merges by hand. Tell alex before merging anything under `ios-app/` or `android-app/` (needs a new app build).
+    alex merges by hand. Tell alex before opening or merging anything under `ios-app/` or `android-app/`; after merge,
+   start the iPhone and Android builds together.
 11. Never do anything that makes the app officially public (store submit, public TestFlight, removing `noindex`).
