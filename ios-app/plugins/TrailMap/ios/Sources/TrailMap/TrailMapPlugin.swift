@@ -54,11 +54,27 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
                 self?.notifyListeners(name, data: data)
                 if name == "closed" { self?.screen = nil }
             }
+            // The page under the map: hidden while the map covers it all (nothing drawn twice, as when this screen was
+            // a full-screen modal), shown while a tool's own bar from the page is open above or below the map. Its
+            // scroll view (what draws the page), not the web view: in Capacitor the host's view IS the web view, and
+            // this screen sits inside it.
+            s.showWeb = { [weak self] on in self?.bridge?.webView?.scrollView.isHidden = !on }
             s.setData(lines: lines, dots: dots, dashes: dashes)
             extra.forEach { s.setLayer($0.key, $0.value) }
-            s.modalPresentationStyle = .fullScreen
             self.screen = s
-            (host.presentedViewController ?? host).present(s, animated: true) { call.resolve() }
+            // Over the page as a child screen, not a modal (native 3D parity step 4, alex 2026-11-20): a tool's bar from
+            // the page (Plan a route, Record, Compass, Measure) shows and takes taps above or below the map, where the
+            // screen lets touches through (TrailMapScreen.setToolInsets).
+            host.addChild(s)
+            s.view.frame = host.view.bounds
+            s.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            s.view.alpha = 0
+            host.view.addSubview(s.view)
+            s.didMove(toParent: host)
+            UIView.animate(withDuration: 0.25, animations: { s.view.alpha = 1 }) { _ in
+                if s.parent != nil && !s.left && !s.toolOpen && !s.aside { s.showWeb?(false) }
+                call.resolve()
+            }
         }
     }
 
@@ -86,8 +102,27 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
+// The screen's own view lets touches through where nothing of it is (a tool's bar from the page shows there).
+private final class PassView: UIView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let v = super.hitTest(point, with: event)
+        return v === self ? nil : v
+    }
+}
+
 final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecognizerDelegate {
     var onEvent: ((String, [String: Any]) -> Void)?
+    var showWeb: ((Bool) -> Void)?
+    // Room left for a tool's bar from the page (points from the top and the bottom of the screen); the map and its
+    // buttons fit between (setToolInsets).
+    private(set) var toolOpen = false
+    private var mapTop: NSLayoutConstraint?
+    private var mapBottom: NSLayoutConstraint?
+    private var areaTop: NSLayoutConstraint?
+    private var areaBottom: NSLayoutConstraint?
+    private let area = UILayoutGuide()          // where the map's own buttons go: the map, inside the safe area
+    private var insetTop: CGFloat = 0
+    private var insetBottom: CGFloat = 0
 
     // The map styles, in the order the style button goes through them. Raster ones are the web map's own pictures;
     // "vector" is OpenFreeMap's outdoor map, drawn by the phone (sharp at every zoom).
@@ -123,7 +158,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private var picked = -1                    // the card's trail: its i on the page, and where it was tapped
     private var pickedAt = CLLocationCoordinate2D()
     private var pickedFeature: String?         // the card's feature key (NativeLayers.swift), nil for a trail
-    private var left = false
+    private(set) var left = false
 
     private let styleBtn = UIButton(type: .system)
     private let card = UIView()
@@ -148,12 +183,14 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
+    override func loadView() { view = PassView() }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = TrailMapScreen.paper
         // Winter waits for its lists of photo squares (a moment, once a session): Satellite until then.
         map = MLNMapView(frame: view.bounds, styleURL: styleURL(base == "winter" && !WinterTiles.shared.ready ? "sat" : base))
-        map.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        map.translatesAutoresizingMaskIntoConstraints = false
         map.delegate = self
         map.isPitchEnabled = threeD
         if threeD {
@@ -166,6 +203,18 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         map.setCenter(start, zoomLevel: startZoom, direction: startBearing, animated: false)
         map.showsUserLocation = true
         view.addSubview(map)
+        view.addLayoutGuide(area)
+        let mt = map.topAnchor.constraint(equalTo: view.topAnchor), mb = map.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        let at = area.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
+        let ab = area.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        mapTop = mt; mapBottom = mb; areaTop = at; areaBottom = ab
+        NSLayoutConstraint.activate([
+            mt, mb, at, ab,
+            map.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            map.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            area.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            area.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
+        ])
         if base == "winter" && !WinterTiles.shared.ready { showStyle() }
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
@@ -231,7 +280,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         toolStack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(toolStack)
 
-        let g = view.safeAreaLayoutGuide
+        let g = area
         NSLayoutConstraint.activate([
             back.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 12),
             back.topAnchor.constraint(equalTo: g.topAnchor, constant: 8),
@@ -329,8 +378,65 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         if let k = pickedFeature, e["details"] as? Bool == true { e["feature"] = k }
         onEvent?("closed", e)
         map.delegate = nil
-        dismiss(animated: true)
+        showWeb?(true)
+        UIView.animate(withDuration: 0.2, animations: { self.view.alpha = 0 }) { _ in
+            self.willMove(toParent: nil)
+            self.view.removeFromSuperview()
+            self.removeFromParent()
+        }
     }
+
+    // ---------- a tool's bar from the page (NativeTools.swift) ----------
+    // top / bottom: how much of the screen, in points from its top and bottom edges, the page's bar takes (0: none).
+    // The map shrinks to the space between, its buttons with it, and the page shows and takes taps there.
+    func setToolInsets(top: CGFloat, bottom: CGFloat) {
+        let h = view.bounds.height
+        let t = max(0, min(top, h * 0.6)), b = max(0, min(bottom, h * 0.75))
+        if t + b > h - 160 { return }        // no room left for a map: keep it as it is
+        if abs(t - insetTop) < 1 && abs(b - insetBottom) < 1 { return }
+        insetTop = t; insetBottom = b
+        toolOpen = t > 0 || b > 0
+        if toolOpen { showWeb?(true) }
+        view.backgroundColor = toolOpen ? .clear : TrailMapScreen.paper
+        layoutArea()
+        UIView.animate(withDuration: 0.2, animations: { self.view.layoutIfNeeded() }) { _ in
+            if !self.toolOpen && !self.left && !self.aside { self.showWeb?(false) }
+        }
+    }
+    // A dialog of the page's over everything (the trip terms before a first plan, a Save box): this screen hides and
+    // lets every touch through until it's answered, then comes back as it was.
+    func stepAside(_ on: Bool) {
+        if aside == on { return }
+        aside = on
+        if on { showWeb?(true) }
+        UIView.animate(withDuration: 0.2, animations: { self.view.alpha = on ? 0 : 1 }) { _ in
+            self.view.isHidden = self.aside
+            if !self.aside && !self.toolOpen && !self.left { self.showWeb?(false) }
+        }
+        if !on { view.isHidden = false }
+    }
+    private(set) var aside = false
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        layoutArea()
+    }
+    private func layoutArea() {
+        let s = view.safeAreaInsets
+        mapTop?.constant = insetTop
+        mapBottom?.constant = -insetBottom
+        areaTop?.constant = max(0, insetTop - s.top)
+        areaBottom?.constant = -max(0, insetBottom - s.bottom)
+    }
+    // How the map follows you: "follow" (centred on you), "heading" (also turned the way the phone points, Compass)
+    // or "none".
+    func followUser(_ how: String) {
+        switch how {
+        case "heading": map.setUserTrackingMode(.followWithHeading, animated: true, completionHandler: nil)
+        case "follow": map.setUserTrackingMode(.follow, animated: true, completionHandler: nil)
+        default: if map.userTrackingMode != .none { map.userTrackingMode = .none }
+        }
+    }
+    func hideCard() { showCard(nil) }
 
     private func camera() -> [String: Any] {
         let c = map.centerCoordinate
@@ -523,6 +629,12 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let p = g.location(in: map)
         let box = CGRect(x: p.x - 22, y: p.y - 22, width: 44, height: 44)
         pickedAt = map.convert(p, toCoordinateFrom: map)
+        // A tool that's on (planning, measuring, the compass's target) takes the tap first, with the trail under it.
+        if features.contains(where: { $0.wantsTaps }) {
+            let trails = Set(["tf-line"] + dashLayers)
+            let trail = map.visibleFeatures(in: box, styleLayerIdentifiers: trails).compactMap { ($0.attribute(forKey: "i") as? NSNumber)?.intValue }.first ?? -1
+            for f in features where f.wantsTaps { if f.mapTapped(pickedAt, trail: trail, screen: self) { return } }
+        }
         // A feature's own layers first (icons sit over the trails).
         for f in features where !f.tapLayers.isEmpty {
             if let hit = map.visibleFeatures(in: box, styleLayerIdentifiers: Set(f.tapLayers)).first, f.tapped(hit, screen: self) { return }

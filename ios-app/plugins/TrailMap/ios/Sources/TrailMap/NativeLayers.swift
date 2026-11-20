@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 import MapLibre
 
@@ -9,7 +10,10 @@ import MapLibre
 //   - the page sends the feature's data as text under its key, at open and whenever it changes (TrailMap.layer({ key,
 //     data })), and setData(_:style:) gets it, with the style when one is showing;
 //   - tapLayers are the feature's layer ids a tap looks at; tapped(_:screen:) is asked first for a feature found there
-//     and returns true when it showed its own card.
+//     and returns true when it showed its own card;
+//   - a feature with wantsTaps true (a tool that's on: planning, measuring) is asked before all that with
+//     mapTapped(_:trail:screen:): where the map was tapped and the trail there (its i on the page, -1 for none); true
+//     when it took the tap.
 // Rules for every feature (CLAUDE.md): nothing slower than the build before (check-lag), nothing drawn while switched
 // off, avalanche only exactly as Avalanche Canada gives it (avalanche-rules), and each sport's own wording.
 protocol NativeLayer: AnyObject {
@@ -18,11 +22,15 @@ protocol NativeLayer: AnyObject {
     func setData(_ json: String, style: MLNStyle?)
     var tapLayers: [String] { get }
     func tapped(_ feature: MLNFeature, screen: TrailMapScreen) -> Bool
+    var wantsTaps: Bool { get }
+    func mapTapped(_ at: CLLocationCoordinate2D, trail: Int, screen: TrailMapScreen) -> Bool
 }
 
 extension NativeLayer {
     var tapLayers: [String] { [] }
     func tapped(_ feature: MLNFeature, screen: TrailMapScreen) -> Bool { false }
+    var wantsTaps: Bool { false }
+    func mapTapped(_ at: CLLocationCoordinate2D, trail: Int, screen: TrailMapScreen) -> Bool { false }
 }
 
 enum NativeLayers {
@@ -30,5 +38,6 @@ enum NativeLayers {
     static let all: [() -> NativeLayer] = [
         { NativePins() },
         { NativeSearch() },
+        { NativeTools() },
     ]
 }

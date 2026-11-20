@@ -1390,6 +1390,7 @@ out center tags qt;`;
   map.createPane("hikePlan").style.zIndex = 460;
   const planRend = L.canvas({ pane: "hikePlan", padding: 0.3 });
   const planLayer = L.layerGroup();
+  (window.tfToolLayers = window.tfToolLayers || {}).hikePlan = [planLayer];   // native 3D draws it itself (native-tools.js)
   const decode6 = (str) => {
     let i = 0, lat = 0, lon = 0; const out = [];
     while (i < str.length) {
