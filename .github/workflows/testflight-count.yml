@@ -1,0 +1,33 @@
+name: TestFlight testers count
+
+# Each day: how many testers are in the TestFlight group "Friends" (public link, 250 limit), numbers only, written on
+# the GitHub issue "TestFlight testers" for the project's daily warning and Monday report. See scripts/testflight-count.mjs.
+# Uses the same App Store Connect key secrets as ios-app.yml. On a pull request that changes it: count only, no issue.
+on:
+  schedule:
+    - cron: "23 14 * * *"   # 14:23 UTC, early morning in BC
+  pull_request:
+    paths: ["scripts/testflight-count.mjs", ".github/workflows/testflight-count.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write   # the "TestFlight testers" issue
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Count the testers
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
+        run: node scripts/testflight-count.mjs
