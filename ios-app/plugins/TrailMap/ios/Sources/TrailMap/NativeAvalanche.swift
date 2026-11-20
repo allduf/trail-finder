@@ -5,7 +5,8 @@ import UIKit
 // The avalanche card in native 3D (step 8 of the native 3D plan, alex 2026-11-20; avalanche-rules). The slope colours
 // themselves come through NativeGround (the page's own paint(), lossless). This card goes with them: it shows, word for
 // word, what the page's own avalanche card says (native-avalanche.js reads it), so it can never say anything else:
-//   { on, title, warn: [..], bands: [{ r: rating, n: band, c: colour, t: text colour }], line, notes: [..] }
+//   { on, title, day, warn: [..], bands: [{ r: rating, n: band, c: colour, t: text colour }], line, notes: [..],
+//     words: { avy, more, tap } (the card's own words in the page's language) }
 // Warnings (example, expired, an old copy, no forecast) always show in full, in red, above the ratings. The notes (what
 // the colours and the darker shade mean, the treeline estimate) show when the card is tapped open, with "Full forecast",
 // which goes back to the page's card. Nothing shows while the page sends on: false.
@@ -16,6 +17,11 @@ final class NativeAvalanche: NativeLayer {
     private var open = false
     private let box = UIView()
     private let stack = UIStackView()
+    private var underKeys = false            // placed under the ground keys (NativeGround), once they're on the screen
+    private func word(_ k: String, _ english: String) -> String {
+        let w = (info["words"] as? [String: String])?[k] ?? ""
+        return w.isEmpty ? english : w
+    }
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
         self.screen = screen
@@ -62,17 +68,25 @@ final class NativeAvalanche: NativeLayer {
                 box.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 12),
                 box.widthAnchor.constraint(lessThanOrEqualToConstant: 300),
                 box.trailingAnchor.constraint(lessThanOrEqualTo: g.trailingAnchor, constant: -12),
-                // Under the radar and smoke captions (NativeWeather.swift rows 0-1). The ground keys share this spot, but
-                // the page turns the other ground layers off while avalanche is on (winter.js oneGround).
-                box.topAnchor.constraint(equalTo: g.topAnchor, constant: 148)
+                // Under the radar and smoke captions (NativeWeather.swift rows 0-1), and under the ground keys (sun and
+                // shade can stay on with avalanche), never over them.
+                box.topAnchor.constraint(greaterThanOrEqualTo: g.topAnchor, constant: 148)
             ])
+            let pin = box.topAnchor.constraint(equalTo: g.topAnchor, constant: 148)
+            pin.priority = .defaultLow
+            pin.isActive = true
+        }
+        if !underKeys, let keys = NativeGround.current?.keyBox, keys.superview === screen.view {
+            underKeys = true
+            box.topAnchor.constraint(greaterThanOrEqualTo: keys.bottomAnchor, constant: 6).isActive = true
         }
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         guard (info["on"] as? Bool) == true else { box.isHidden = true; return }
         box.isHidden = false
         let ink = UIColor(red: 0.11, green: 0.14, blue: 0.2, alpha: 1)
-        let title = (info["title"] as? String) ?? ""
-        stack.addArrangedSubview(label(title.isEmpty ? "Avalanche" : "Avalanche · " + title, size: 13, weight: .bold, colour: ink))
+        let title = (info["title"] as? String) ?? "", day = (info["day"] as? String) ?? ""
+        let head = [word("avy", "Avalanche"), title, day].filter { !$0.isEmpty }.joined(separator: " · ")
+        stack.addArrangedSubview(label(head, size: 13, weight: .bold, colour: ink))
         for w in (info["warn"] as? [String]) ?? [] where !w.isEmpty {
             let l = label(w, size: 11.5, weight: .semibold, colour: UIColor(red: 0.69, green: 0.07, blue: 0.1, alpha: 1))
             stack.addArrangedSubview(l)
@@ -111,13 +125,13 @@ final class NativeAvalanche: NativeLayer {
                 stack.addArrangedSubview(label(n, size: 10.5, weight: .regular, colour: UIColor(red: 0.36, green: 0.4, blue: 0.46, alpha: 1)))
             }
             let more = UIButton(type: .system)
-            more.setTitle("Full forecast ›", for: .normal)
+            more.setTitle(word("more", "Full forecast") + " ›", for: .normal)
             more.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
             more.contentHorizontalAlignment = .leading
             more.addTarget(self, action: #selector(full), for: .touchUpInside)
             stack.addArrangedSubview(more)
         } else if !((info["notes"] as? [String]) ?? []).isEmpty {
-            stack.addArrangedSubview(label("Tap for what the colours mean", size: 10.5, weight: .medium, colour: UIColor(red: 0.12, green: 0.37, blue: 0.88, alpha: 1)))
+            stack.addArrangedSubview(label(word("tap", "Tap for what the colours mean"), size: 10.5, weight: .medium, colour: UIColor(red: 0.12, green: 0.37, blue: 0.88, alpha: 1)))
         }
     }
 

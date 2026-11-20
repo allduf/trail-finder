@@ -24,12 +24,14 @@ final class NativeGround: NativeLayer {
     private var onMap: [String: String] = [:]   // source id -> its tile address, on the style now
     private var keys: [(title: String, colours: [String], labels: [String])] = []
     private weak var screen: TrailMapScreen?
-    private let keyBox = UIStackView()
+    let keyBox = UIStackView()               // the avalanche card (NativeAvalanche.swift) sits under it
+    static weak var current: NativeGround?
 
     init() { GroundTiles.shared.start() }
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
         self.screen = screen
+        NativeGround.current = self
         GroundTiles.shared.screen = screen
         onMap = [:]   // a new style has none of them
         apply(style)
