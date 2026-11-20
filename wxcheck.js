@@ -181,7 +181,7 @@
     blendTiles.set(key, { at: Date.now(), p });
     return p;
   };
-  // "20261120T00Z" -> ms. A file from a run more than 36 h old (the daily job failed) is not used.
+  // "20261120T00Z" -> ms. A file from a run more than 48 h old (the daily job failed twice) is not used.
   const runMs = (r) => { const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})Z$/.exec(String(r || "")); return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4]) : NaN; };
   // Each model's day numbers at one place: [{ date, p: [mm by model], hi: [C], lo: [C] }], temperatures moved to the
   // place's height (6.5 C per km, like Open-Meteo) from each model's own ground height in that cell.
