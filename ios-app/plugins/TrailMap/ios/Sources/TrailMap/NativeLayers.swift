@@ -32,6 +32,7 @@ enum NativeLayers {
         { NativeFishCreeks() },     // NativeFishing.swift: creeks from further away
         { NativeFishDepth() },      // NativeFishing.swift: lake depth lines
         { NativeGround() },
+        { NativeHunting() },
         { NativeMoto() },
         { NativeOffline() },
         { NativeOverlay(key: "radar", row: 0) },   // NativeWeather.swift: rain and snow radar and forecast

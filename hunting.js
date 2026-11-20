@@ -1659,6 +1659,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const lonAt = (gx) => (gx / n) * 360 - 180, latAt = (gy) => Math.atan(Math.sinh(Math.PI * (1 - (2 * gy) / n))) / rad;
     if (glass) URL.revokeObjectURL(glass.url);
     glass = { at: `${lat},${lon}`, url: URL.createObjectURL(blob), box: [lonAt(left), latAt(top + W), lonAt(left + W), latAt(top)] };
+    const mine = glass, fr = new FileReader();   // the same picture as text, for the iPhone's native 3D map (nativeHunt below)
+    fr.onload = () => { if (glass === mine) { mine.png = String(fr.result).split(",")[1] || ""; nativeSend(); } };
+    fr.readAsDataURL(blob);
     const [w, s, e, nn] = glass.box;
     glassLayer.clearLayers();
     glassLayer.addLayer(L.imageOverlay(glass.url, [[s, w], [nn, e]], { pane: "huntTiles", interactive: false }));
@@ -1934,6 +1937,69 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }, true);
   }
 
+  // ---------- native 3D on the iPhone (native-map.js window.tfNative, ios-app/.../NativeHunting.swift) ----------
+  // The same additions as the web 3D map below (fills, zone names, scent cone fill, spot pin, glassing view) plus the
+  // range rings and the glassing circle (the web 3D map copies circles itself; the native one doesn't), sent as text
+  // under "hunt", only in Hunting and only near the view (2 screens each way like the trails from zoom 11, 1 zoomed
+  // further out, where that already reaches far), again as it changes. The glassing picture goes only when it's new.
+  const r5 = (v) => Math.round(v * 1e5) / 1e5;
+  const fc = (features) => ({ type: "FeatureCollection", features });
+  const circle = (lat, lon, m, k) => {
+    const pts = [], kx = 111320 * Math.cos(lat * rad);
+    for (let i = 0; i <= 64; i++) { const a = (i / 64) * 2 * Math.PI; pts.push([r5(lon + (m * Math.sin(a)) / kx), r5(lat + (m * Math.cos(a)) / 111320)]); }
+    return { type: "Feature", properties: { k }, geometry: { type: "LineString", coordinates: pts } };
+  };
+  let glassSent = "";   // the glassing view the native map has (its "at")
+  function nativeHunt() {
+    if (!isHunt()) return null;
+    const want = (k) => shown.has(k), b = map.getBounds().pad(map.getZoom() < 11 ? 1 : 2);
+    const s = b.getSouth(), w = b.getWest(), n = b.getNorth(), e = b.getEast();
+    // Outlines thinned to about two pixels of the flat map (the 3D view is no sharper), so a move sends tens of KB, not MB.
+    const px = 720 / (256 * 2 ** map.getZoom()), thin = (r) => {
+      const out = [];
+      for (let i = 0; i < r.length; i += 2) {
+        const x = r5(r[i + 1]), y = r5(r[i]), q = out[out.length - 1];
+        if (!q || Math.abs(x - q[0]) > px || Math.abs(y - q[1]) > px) out.push([x, y]);
+      }
+      if (out.length > 1) out.push(out[0]);
+      return out;
+    };
+    const fills = !want("rules") ? [] : A().filter((a) => AREA_KINDS[a.k] && !AREA_KINDS[a.k].line && boxHits(a.b, s, w, n, e) && (a.b[2] - a.b[0] > px || a.b[3] - a.b[1] > px)).map((a) => {
+      const k = AREA_KINDS[a.k];
+      return { type: "Feature", properties: { c: k.color, o: Math.min(0.35, fillOp(a.k, k) * 2.5), h: hatched(k) ? 1 : 0 },
+        geometry: { type: "Polygon", coordinates: a.g.map(thin).filter((r, i) => i === 0 || r.length >= 4) } };
+    }).filter((f) => f.geometry.coordinates[0].length >= 4);   // an outer ring thinned away: the area goes (never its holes filled)
+    const labels = !want("zones") ? [] : Z().filter((u) => labelled(u) && u.c[0] >= s && u.c[0] <= n && u.c[1] >= w && u.c[1] <= e).map((u) => {
+      const t = zoneName(u), sub = zoneSub(u);
+      return { type: "Feature", geometry: { type: "Point", coordinates: [r5(u.c[1]), r5(u.c[0])] }, properties: { t, tl: sub ? `${t}\n${sub}` : t } };
+    });
+    const cone = windLayer.getLayers().find((l) => l instanceof L.Polygon), cp = cone && want("wind") ? cone.getLatLngs()[0].map((p) => [r5(p.lng), r5(p.lat)]) : [];
+    const rings = [];
+    if (want("rings") && spot) for (const m of RINGS) rings.push(circle(spot.lat, spot.lon, m, "w"), circle(spot.lat, spot.lon, m, "d"));
+    const g = glass && glass.png ? glass : null;
+    if (g) { const [lat, lon] = g.at.split(",").map(Number); rings.push(circle(lat, lon, GLASS_M, "g")); }
+    return JSON.stringify({
+      fills: fc(fills), labels: fc(labels), rings: fc(rings),
+      cone: fc(cp.length ? [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [cp.concat([cp[0]])] } }] : []),
+      spot: fc(spot && spot.how !== "centre" ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [r5(spot.lon), r5(spot.lat)] } }] : []),
+      glass: g ? { at: g.at, box: g.box, ...(glassSent === g.at ? {} : { png: g.png }) } : null,
+    });
+  }
+  let nativeTimer = 0, nativeLast = null, nativeNext = null;
+  const nativeSent = (d) => { nativeLast = d; glassSent = glass && glass.png ? glass.at : ""; return d; };
+  function nativeSend() {
+    if (!window.tfNative || !window.tfNative.isOpen || !window.tfNative.isOpen()) return;
+    clearTimeout(nativeTimer);
+    nativeTimer = setTimeout(() => {   // a move, a zone file and the cone often come together; nothing new, nothing sent
+      const d = nativeHunt();
+      if (d === nativeLast) return;
+      nativeNext = d;
+      try { window.tfNative.send("hunt"); } finally { nativeNext = null; }
+    }, 250);
+  }
+  // At opening (a new native screen, nothing on it yet) everything goes, the glassing picture too.
+  if (window.tfNative && window.tfNative.addLayer) window.tfNative.addLayer("hunt", () => nativeSent(nativeNext != null ? nativeNext : (glassSent = "", nativeHunt())));
+
   // ---------- 3D map (map3d.js) ----------
   // map3d.js copies every line on the flat map (zone, park and closure outlines, the scent cone's edge), but not
   // fills, labels, pins or picture layers, so those are added here: the picture layers draped on the terrain, the
@@ -1949,6 +2015,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   let gl3 = null, proto3 = false, fillsSet = false, labelsSet = false, spot3 = null, glass3 = "";
   let applyWait = false;
   function sync3d() {
+    nativeSend();
     const gl = gl3;
     if (!gl || !window.maplibregl) return;
     if (!proto3) {
@@ -2066,6 +2133,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
 
   // For ski-points.js: the hunting zone at a point, for the harvest log.
   window.tfHunt = {
+    // native-map.js: with any of these on, the 3D button opens the web 3D map (NativeHunting.swift doesn't draw them).
+    webOnly3d: ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"],
     spot(lat, lon) { setSpot(lat, lon, "tap"); showSpot(lat, lon); },   // a shared spot (ski-points.js #pin=)
     // moto.js (Can I ride here): the parks, reserves, closures and other land at a point or in a box, the same
     // outlines as the Hunting rules layer ({ k, n, p, b, g } with g as flat [lat, lon, ...] rings).
@@ -2150,7 +2219,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   let moveTimer = 0;
   map.on("moveend", () => {
     if (!isHunt()) return;
-    drawLabels(); syncTiles(); renderLayers();
+    drawLabels(); syncTiles(); renderLayers(); nativeSend();
     clearTimeout(moveTimer);
     moveTimer = setTimeout(() => { if (!spot || spot.how === "centre") { const c = map.getCenter(); setSpot(c.lat, c.lng, "centre"); } if (!offBusy) renderOffline(); }, 600);
   });
