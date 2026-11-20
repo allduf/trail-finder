@@ -372,12 +372,15 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             // Trail and route names along their lines, in the line's colour (the web 3D map's trail-names), from the
             // same zoom; MapLibre leaves out names that would overlap.
             let label = MLNSymbolStyleLayer(identifier: "tf-names", source: lines)
-            label.predicate = NSPredicate(format: "n != nil AND n != ''")
+            // lb: the line's own label only (native-map.js), never a tooltip like "Unnamed trail".
+            label.predicate = NSPredicate(format: "lb != nil AND lb != ''")
             label.minimumZoomLevel = 12
-            label.text = NSExpression(forKeyPath: "n")
+            label.text = NSExpression(forKeyPath: "lb")
+            label.textOpacity = NSExpression(forKeyPath: "o")
             label.textFontNames = NSExpression(forConstantValue: ["Noto Sans Bold"])
             label.symbolPlacement = NSExpression(forConstantValue: "line")
-            label.textFontSize = NSExpression(forConstantValue: 12.5)
+            label.textFontSize = NSExpression(format: "mgl_interpolate:withCurveType:parameters:stops:($zoomLevel, 'linear', nil, %@)",
+                                              [12: 11.5, 15: 13.5])
             label.textColor = NSExpression(forKeyPath: "c")
             label.textHaloColor = NSExpression(forConstantValue: UIColor.white)
             label.textHaloWidth = NSExpression(forConstantValue: 1.8)

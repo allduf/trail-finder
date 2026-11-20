@@ -74,6 +74,13 @@
     if (n.length === 2 && n[0] <= 1) return "0," + Math.max(0.1, (n[0] + n[1]) / Math.max(w, 1)).toFixed(2);
     return n.map((x) => Math.max(0.1, x / Math.max(w, 1)).toFixed(2)).join(",");
   };
+  // The name written along a line in native 3D (lb): only a line's own label, as on the web 3D map (map3d.js), and MTB
+  // trail names stay off it in the other sports (alex 2026-11-02: bike trail names over Whistler read as clutter).
+  const label = (l) => {
+    const o = l.options, pane = o.renderer && o.renderer.options.pane;
+    if (!o.label || (document.body.classList.contains("sport-alt") && /^(allTrails|boxTrails|newTrails)$/.test(pane || ""))) return "";
+    return String(o.label);
+  };
   const nameOf = (l) => {
     if (l.options.label) return String(l.options.label);
     const t = l.getTooltip && l.getTooltip();
@@ -116,7 +123,7 @@
       const d = o.dashArray ? dashKey(o.dashArray, o.weight) : "";
       if (d) dashes.add(d);
       lines.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: parts },
-        properties: { ...props, c: o.color, w: o.weight || 3, o: o.opacity, d } });
+        properties: { ...props, c: o.color, w: o.weight || 3, o: o.opacity, d, ...(label(l) ? { lb: label(l) } : {}) } });
     });
     return {
       lines: JSON.stringify({ type: "FeatureCollection", features: lines }),

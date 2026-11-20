@@ -33,7 +33,31 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
     var ready: Bool { lock.lock(); defer { lock.unlock() }; return loaded }
 
     // MapLibre's address rewriter: set once a 3D screen opens (the late-summer mountains need it too, no lists).
-    func install() { if MLNOfflineStorage.shared.delegate !== self { MLNOfflineStorage.shared.delegate = self } }
+    func install() {
+        if MLNOfflineStorage.shared.delegate !== self { MLNOfflineStorage.shared.delegate = self }
+        loadSummer()
+    }
+
+    // summer.json, the late-summer squares (zoom 11), so tiles elsewhere in the box aren't asked for (as map3d.js).
+    // Until it's in (or if it can't come), the site is asked and answers "not found" outside its squares.
+    private var summer: Set<Int>?
+    private var summerAsked = false
+    private func loadSummer() {
+        lock.lock()
+        if summerAsked { lock.unlock(); return }
+        summerAsked = true
+        lock.unlock()
+        guard let u = URL(string: "https://trailfinder-summer.pages.dev/trail-finder-summer/summer.json") else { return }
+        URLSession.shared.dataTask(with: u) { data, resp, _ in
+            guard let data = data, (resp as? HTTPURLResponse)?.statusCode == 200,
+                  let list = (try? JSONSerialization.jsonObject(with: data)) as? [[Int]] else {
+                self.lock.lock(); self.summerAsked = false; self.lock.unlock()   // asked again next time a 3D screen opens
+                return
+            }
+            let set = Set(list.filter { $0.count == 2 }.map { $0[0] * 4096 + $0[1] })
+            self.lock.lock(); self.summer = set; self.lock.unlock()
+        }.resume()
+    }
 
     // The late-summer mountains over Esri's photo in the Sea to Sky (map3d.js SUMMER, SUMMER15, SUMMER_REV, SUMMER_BOUNDS):
     // zooms 11-14 on one site, 15 on another. Outside its squares a tile is just "not found".
@@ -149,6 +173,10 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
             return URL(string: "https://\(site).pages.dev/trail-finder-winter2/\(z)/\(x)/\(y).webp\(Self.sharpRev)")
         case "sum":
             guard z >= 11 && z <= 15 else { return nil }
+            lock.lock()
+            let known = summer
+            lock.unlock()
+            if let known = known, !known.contains(sq) { return nil }
             let site = z == 15 ? "trailfinder-summer-15" : "trailfinder-summer"
             return URL(string: "https://\(site).pages.dev/trail-finder-summer/\(z)/\(x)/\(y).webp\(Self.summerRev)")
         default: return nil
