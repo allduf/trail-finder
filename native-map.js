@@ -66,7 +66,14 @@
       if (d != null) TrailMap.layer({ key: String(key), data: String(d) }).catch(() => {});
     },
     isOpen: () => open && open3d,
+    // has(key): this app build draws that feature itself (TrailMap.features; older builds have no such call).
+    has: (key) => !!nativeKeys && nativeKeys.has(String(key)),
+    // moveWait(ms): how long the page waits after the native map moves before sending the trails again (500 ms); a
+    // Flyover moves it every second, so it waits longer meanwhile. Nothing: back to 500.
+    moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
   };
+  let nativeKeys = null, moveWait = 500;
+  try { Promise.resolve(TrailMap.features()).then((r) => { nativeKeys = new Set((r && r.keys) || []); }, () => { nativeKeys = new Set(); }); } catch { nativeKeys = new Set(); }
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
   // In 3D, lines are a little bolder than on the flat map and dots closer together, as on the web 3D map (map3d.js
@@ -142,9 +149,9 @@
 
   // MapLibre's zoom is one less than Leaflet's (512 px tiles against 256).
   const follow = (e) => map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false });
-  TrailMap.addListener("moved", (e) => { if (!open) return; follow(e); later(500); });
+  TrailMap.addListener("moved", (e) => { if (!open) return; follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
-    open = false; clearTimeout(pending);
+    open = false; clearTimeout(pending); moveWait = 500;
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
@@ -163,8 +170,8 @@
     const winter = threeD && document.body.classList.contains("sport-ski");
     // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
-    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snapshot() })
-      .catch(() => { open = false; });
+    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snapshot() })
+      .then(() => true, () => { open = false; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -180,13 +187,13 @@
     return Array.isArray(shown) && shown.some((k) => GROUND.includes(k));
   };
   // Another script showing something in 3D (a ski tour's Flyover, native-flyover.js) asks here first: native 3D opens
-  // at { lat, lon, zoom } (MapLibre's zoom) where the 3D button would open it, and the answer is true; false means the
-  // web 3D map is the one (not alex, a web-only layer on, already in 3D).
+  // at { lat, lon, zoom } (MapLibre's zoom) where the 3D button would open it, and the answer is a promise of true once
+  // it's open; false (now, or if it couldn't open) means the web 3D map is the one (not alex, a web-only layer on,
+  // already in 3D).
   window.tfNative.view = (at) => {
-    if (open || !adminNow() || map.getContainer().classList.contains("is3d") || webOnly()) return false;
+    if (open || !adminNow() || map.getContainer().classList.contains("is3d") || webOnly()) return Promise.resolve(false);
     if (at && isFinite(at.lat) && isFinite(at.lon)) map.setView([at.lat, at.lon], Math.round((at.zoom || 13) + 1), { animate: false });
-    openNative(true);
-    return true;
+    return openNative(true);
   };
   const map3d = document.getElementById("btn3d");
   if (map3d) map3d.addEventListener("click", (e) => {

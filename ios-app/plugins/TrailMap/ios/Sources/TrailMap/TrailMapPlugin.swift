@@ -34,7 +34,8 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "update", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "layer", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "features", returnType: CAPPluginReturnPromise)
     ]
 
     private var screen: TrailMapScreen?
@@ -77,6 +78,12 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             self.screen?.setLayer(key, data)
             call.resolve()
         }
+    }
+
+    // The native 3D features this app build has (NativeLayers.all keys): the page asks before relying on one that does
+    // something by itself (a Flyover), since an older build quietly ignores keys it doesn't know.
+    @objc func features(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { call.resolve(["keys": NativeLayers.all.map { $0().key }]) }
     }
 
     @objc func close(_ call: CAPPluginCall) {

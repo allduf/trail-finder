@@ -14,6 +14,7 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
     private weak var screen: TrailMapScreen?
     private var pending: (pts: [CLLocationCoordinate2D], title: String, stop: String)?
     private var flying = false
+    private var waiting = false               // a flight waiting for the screen's tilt-in
     private var pts: [CLLocationCoordinate2D] = []
     private var along: [Double] = []
     private var leg = 0, legs = 0
@@ -25,8 +26,17 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
         self.screen = screen
-        // The screen tilts in for 1.2 s when it first opens (TrailMapPlugin.swift): the flight starts after that.
-        if pending != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.start() } }
+        // The screen tilts in for 1.2 s when it first opens (TrailMapPlugin.swift): the flight starts after that,
+        // unless the map was touched meanwhile (then it doesn't start at all).
+        if pending != nil && !waiting {
+            waiting = true
+            if touch == nil { listenForTouch(screen.mapLibreView) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in
+                guard let self = self, self.waiting else { return }
+                self.waiting = false
+                self.start()
+            }
+        }
     }
 
     func setData(_ json: String, style: MLNStyle?) {
@@ -51,7 +61,7 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         let dur = max(15, min(50, total / 1000 * 5))      // seconds, as on the web
         legs = max(1, Int(dur.rounded()))
         leg = 0
-        heading = NativeFlyover.bearing(at(0), at(NativeFlyover.ahead))
+        heading = NativeFlyover.turn(0, toward: NativeFlyover.bearing(at(0), at(NativeFlyover.ahead)), by: 1)
         let map = screen.mapLibreView
         map.userTrackingMode = .none
         // Zoom 13 at this tilt: the camera's height there, kept for the whole flight.
@@ -73,10 +83,12 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         if leg >= legs { stop(); return }
         leg += 1
         let total = along.last ?? 0, m = total * Double(leg) / Double(legs), here = at(m)
-        // Look 400 m ahead, and turn smoothly so a zigzag skin track doesn't swing the camera.
-        let want = NativeFlyover.bearing(here, at(m + NativeFlyover.ahead))
-        let diff = (want - heading + 540).truncatingRemainder(dividingBy: 360) - 180
-        heading += diff * 0.6
+        // Look 400 m ahead, and turn smoothly so a zigzag skin track doesn't swing the camera. Near the end there's
+        // nothing ahead to look at: the heading stays.
+        let look = at(m + NativeFlyover.ahead)
+        if NativeFlyover.metres(here, look) > 20 {
+            heading = NativeFlyover.turn(heading, toward: NativeFlyover.bearing(here, look), by: 0.6)
+        }
         let cam = MLNMapCamera(lookingAtCenter: here, altitude: altitude, pitch: NativeFlyover.pitch, heading: heading)
         map.setCamera(cam, withDuration: 1.0, animationTimingFunction: CAMediaTimingFunction(name: .linear)) { [weak self] in
             self?.next()
@@ -84,7 +96,7 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
     }
 
     private func stop() {
-        guard flying || pill != nil else { return }
+        guard flying || pill != nil || touch != nil else { return }
         flying = false
         pill?.removeFromSuperview()
         pill = nil
@@ -105,6 +117,12 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
     private static func metres(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
         CLLocation(latitude: a.latitude, longitude: a.longitude).distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
     }
+    // From a heading part of the way to another, the short way round; the answer is kept within 0 to 360.
+    static func turn(_ from: Double, toward to: Double, by f: Double) -> Double {
+        let pos = { (x: Double) -> Double in let r = x.truncatingRemainder(dividingBy: 360); return r < 0 ? r + 360 : r }
+        let diff = pos(to - from + 180) - 180
+        return pos(from + diff * f)
+    }
     private static func bearing(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
         atan2((b.longitude - a.longitude) * cos(a.latitude * .pi / 180), b.latitude - a.latitude) * 180 / .pi
     }
@@ -120,6 +138,7 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
     }
     @objc private func touched(_ g: UIGestureRecognizer) {
         guard g.state == .began else { return }
+        if waiting { waiting = false; pending = nil }
         stopTapped()
     }
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
