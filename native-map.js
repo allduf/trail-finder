@@ -44,6 +44,29 @@
   document.head.append(css);
 
   let open = false, hits = [], pending = 0;
+  // ---------- native 3D features, one file each (ios-app/.../NativeLayers.swift) ----------
+  // A feature's page side (its own native-xxx.js) registers what it sends: window.tfNative.addLayer(key, get), where
+  // get() returns its data as text (or null for nothing); it's sent with the 3D screen's opening, and again with
+  // window.tfNative.send(key) whenever it changes while the screen is open. Load those files after this one, and guard
+  // the call (window.tfNative && window.tfNative.addLayer) so an older cached copy of this file can't break them.
+  const feats = new Map();
+  let open3d = false;
+  const featureData = (threeD) => {
+    const out = {};
+    if (!threeD) return out;
+    for (const [k, get] of feats) { try { const d = get(); if (d != null) out[k] = String(d); } catch {} }
+    return out;
+  };
+  window.tfNative = {
+    addLayer(key, get) { if (typeof get === "function") feats.set(String(key), get); },
+    send(key) {
+      const get = feats.get(String(key));
+      if (!open || !open3d || !get || !TrailMap.layer) return;
+      let d = null; try { d = get(); } catch {}
+      if (d != null) TrailMap.layer({ key: String(key), data: String(d) }).catch(() => {});
+    },
+    isOpen: () => open && open3d,
+  };
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
   const dashKey = (d, w) => {
@@ -125,10 +148,10 @@
     const close = document.getElementById("lmClose");
     if (close) close.click();
     const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm", base = sel === "advtopo" ? "vector" : sel;   // the native map has no ADV topo: its closest
-    open = true;
+    open = true; open3d = threeD;
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
     const winter = threeD && document.body.classList.contains("sport-ski");
-    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, ...snapshot() })
+    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), ...snapshot() })
       .catch(() => { open = false; });
   }
   btn.addEventListener("click", () => openNative(false));
