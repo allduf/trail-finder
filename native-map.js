@@ -161,8 +161,15 @@
   const tf = (k, d) => { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const pressed = (id) => { const b = document.getElementById(id); return !!b && !b.hidden && b.getAttribute("aria-pressed") === "true"; };
   const GROUND = ["avy", "slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND
+  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // hunting.js LAYERS
   const webOnly = () => {
     if (tf("avy", false) === true || ["avyBtn", "contourBtn", "shadeBtn"].some(pressed)) return true;
+    // Hunting: its picture layers and slope angle / aspect are drawn only by the web 3D map (NativeHunting.swift draws
+    // the rest). Not stored yet = Hunting's first-time set (zones, parks, scent cone): all native.
+    if (document.body.classList.contains("sport-hunt")) {
+      const hunt = tf("huntLayers2", null);
+      if (Array.isArray(hunt) && hunt.some((k) => HUNT_WEB.includes(k))) return true;
+    }
     if (!document.body.classList.contains("sport-ski")) return false;
     const shown = tf("skiLayers2", null);
     return Array.isArray(shown) && shown.some((k) => GROUND.includes(k));

@@ -103,6 +103,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // here) and only some places deeper; a missing deeper tile would leave a hole, so the map stops asking at 12.
     private static let demTiles = "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp"
     private static let demCredit = "© Mapterhorn"
+    // Letters for names a feature writes on the map (Noto Sans, as the web 3D map and OpenFreeMap's own style).
+    private static let glyphs = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf"
     private static let tilt: CGFloat = 65        // the web 3D map eases to 70
     private static let ink = UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 1)
     private static let paper = UIColor(red: 0.95, green: 0.94, blue: 0.91, alpha: 1)
@@ -335,6 +337,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         }
         let style: [String: Any] = [
             "version": 8,
+            "glyphs": TrailMapScreen.glyphs,
             "sources": sources,
             "layers": [["id": "background", "type": "background", "paint": ["background-color": "#f2efe7"]],
                        ["id": "base", "type": "raster", "source": "base"]]
@@ -364,7 +367,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         ]
         let layers: [[String: Any]] = [["id": "background", "type": "background", "paint": ["background-color": "#e8ebee"]]]
             + ["esri", "wide", "winter", "sharp"].map { ["id": $0, "type": "raster", "source": $0] as [String: Any] }
-        return ["version": 8, "sources": sources, "layers": layers]
+        return ["version": 8, "glyphs": TrailMapScreen.glyphs, "sources": sources, "layers": layers]
     }
 
     // A new style has no trails: they're added again on top of it.
