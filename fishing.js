@@ -2530,8 +2530,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // through its WMS with our colour in the request, so it needs no repainting on the phone (the web map repaints it).
   const FC = (features) => JSON.stringify({ type: "FeatureCollection", features });
   const nat = { creeks: [null, ""], depth: [-1, ""] };
+  // Outside Fishing: nothing to draw (empty, so a native 3D map left open clears what it had).
+  const NONE = { creeks: FC([]), depth: FC([]), main: JSON.stringify({ fills: JSON.parse(FC([])), names: JSON.parse(FC([])), pin: JSON.parse(FC([])), water: {}, crown: [], depth: null }) };
   window.tfFish.native3d = (part) => {
-    if (!isFish()) return null;
+    if (!isFish()) return NONE[part] || NONE.main;
     if (part === "creeks") {
       const f = shown.has("creeks") ? farFeats : [];
       if (nat.creeks[0] !== f) nat.creeks = [f, FC(f)];
@@ -2547,6 +2549,8 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const box = (b) => [b[1], b[0], b[3], b[2]];   // [s, w, n, e] -> [w, s, e, n]
     const crown = shown.has("crown") && T ? T.SRC.map((q) => {
       const [[s0, w0], [n0, e0]] = T.bounds(q);
+      // PATP_prov_WMS's WMS has the public land as layer "0" (the REST layer 1): checked 2026-11-20, "1" draws nothing
+      // there, and the SLD colour is taken.
       const tiles = q.tint
         ? `${q.svc.replace("/rest/services/", "/services/")}/WMSServer?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=0&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(
           `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>0</Name><UserStyle><FeatureTypeStyle><Rule><PolygonSymbolizer><Fill><CssParameter name="fill">${T.COL[q.kind]}</CssParameter></Fill></PolygonSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`)}&BBOX={bbox-epsg-3857}`

@@ -31,12 +31,17 @@ enum FishStyle {
         return NSValue(mlnCoordinateBounds: MLNCoordinateBounds(sw: CLLocationCoordinate2D(latitude: b[1], longitude: b[0]),
                                                                 ne: CLLocationCoordinate2D(latitude: b[3], longitude: b[2])))
     }
-    // Under the trails, or under a given layer when it's there.
-    static func insert(_ l: MLNStyleLayer, _ style: MLNStyle, screen: TrailMapScreen?, below id: String? = nil) {
-        if let id = id, let b = style.layer(withIdentifier: id) { style.insertLayer(l, below: b) }
+    // Under the trails, and under the lowest layer whose id starts with one of `above` (the parts that go over it, so the
+    // order stays the web's whichever of the three parts arrives or is rebuilt first).
+    static func insert(_ l: MLNStyleLayer, _ style: MLNStyle, screen: TrailMapScreen?, above: [String] = []) {
+        if !above.isEmpty, let b = style.layers.first(where: { s in above.contains { s.identifier.hasPrefix($0) } }) { style.insertLayer(l, below: b) }
         else if let b = screen?.trailsBottomLayer() { style.insertLayer(l, below: b) }
         else { style.addLayer(l) }
     }
+    // Bottom to top: water colours, far creeks, depth lines, BC depth pictures, Crown land, fills.
+    static let overWater = ["fs-creek-far", "fs-mb-line", "fs-q-line", "fs-q-pt", "fs-bcd", "fs-cl-", "fs-fill"]
+    static let overCreeks = ["fs-lake", "fs-sea", "fs-mb-line", "fs-q-line", "fs-q-pt", "fs-bcd", "fs-cl-", "fs-fill"]
+    static let overDepth = ["fs-bcd", "fs-cl-", "fs-fill"]
     static func remove(_ layers: [String], _ sources: [String], _ style: MLNStyle) {
         for id in layers { if let l = style.layer(withIdentifier: id) { style.removeLayer(l) } }
         for id in sources { if let s = style.source(withIdentifier: id) { style.removeSource(s) } }
@@ -92,7 +97,7 @@ final class NativeFishing: NativeLayer {
         layers = []; sources = []
         guard !data.isEmpty else { built = ""; return }
         built = setup()
-        let under = { (l: MLNStyleLayer) in FishStyle.insert(l, style, screen: self.screen); self.layers.append(l.identifier) }
+        let under = { (l: MLNStyleLayer, above: [String]) in FishStyle.insert(l, style, screen: self.screen, above: above); self.layers.append(l.identifier) }
         let top = { (l: MLNStyleLayer) in style.addLayer(l); self.layers.append(l.identifier) }
         let add = { (s: MLNSource) in style.addSource(s); self.sources.append(s.identifier) }
 
@@ -107,7 +112,7 @@ final class NativeFishing: NativeLayer {
                 l.predicate = NSPredicate(mglJSONObject: filter)
                 l.fillColor = FishStyle.json(colour)
                 l.fillOpacity = NSExpression(forConstantValue: opacity)
-                under(l)
+                under(l, FishStyle.overWater)
             }
             let line = { (id: String, layer: String, filter: [Any], colour: String, width: Any, dash: [Double]?) -> MLNLineStyleLayer in
                 let l = MLNLineStyleLayer(identifier: id, source: w)
@@ -118,7 +123,7 @@ final class NativeFishing: NativeLayer {
                 l.lineCap = NSExpression(forConstantValue: "round")
                 l.lineJoin = NSExpression(forConstantValue: "round")
                 if let dash = dash { l.lineDashPattern = NSExpression(forConstantValue: dash) }
-                under(l)
+                under(l, FishStyle.overWater)
                 return l
             }
             if water["rivers"] == true {
@@ -155,7 +160,7 @@ final class NativeFishing: NativeLayer {
                 l.lineWidth = NSExpression(forConstantValue: 1.1)
                 l.lineOpacity = NSExpression(forConstantValue: 0.85)
                 l.minimumZoomLevel = 10
-                under(l)
+                under(l, ["fs-q-line", "fs-q-pt", "fs-bcd", "fs-cl-", "fs-fill"])
                 let t = FishStyle.label("fs-mb-label", s)
                 t.sourceLayerIdentifier = "Contours/label"
                 t.predicate = NSPredicate(mglJSONObject: ["==", ["geometry-type"], "Point"])
@@ -175,7 +180,7 @@ final class NativeFishing: NativeLayer {
                 let l = MLNRasterStyleLayer(identifier: "fs-bcd", source: s)
                 l.rasterOpacity = NSExpression(forConstantValue: 0.85)
                 l.minimumZoomLevel = 11
-                under(l)
+                under(l, ["fs-cl-", "fs-fill"])
             }
         }
 
@@ -190,7 +195,7 @@ final class NativeFishing: NativeLayer {
             let l = MLNRasterStyleLayer(identifier: "fs-cl-" + id, source: s)
             l.rasterOpacity = NSExpression(forConstantValue: (c["o"] as? NSNumber)?.doubleValue ?? 0.26)
             l.minimumZoomLevel = min
-            under(l)
+            under(l, ["fs-fill"])
         }
 
         // Zone, park and boating-zone fills.
@@ -199,7 +204,7 @@ final class NativeFishing: NativeLayer {
         let f = MLNFillStyleLayer(identifier: "fs-fill", source: fills)
         f.fillColor = NSExpression(forKeyPath: "c")
         f.fillOpacity = NSExpression(forKeyPath: "o")
-        under(f)
+        under(f, [])
 
         // On top: depth numbers, zone names, the picked spot.
         if let t = mbLabel { top(t) }
@@ -270,8 +275,7 @@ final class NativeFishCreeks: NativeLayer {
             l.lineJoin = NSExpression(forConstantValue: "round")
             if dashed { l.lineDashPattern = NSExpression(forConstantValue: [2, 1.5]) }
             l.maximumZoomLevel = 13
-            // with the other water colours, under the lakes when they're on
-            FishStyle.insert(l, style, screen: screen, below: style.layer(withIdentifier: "fs-lake") != nil ? "fs-lake" : "fs-fill")
+            FishStyle.insert(l, style, screen: screen, above: FishStyle.overCreeks)
         }
     }
 }
@@ -308,8 +312,6 @@ final class NativeFishDepth: NativeLayer {
         let src = MLNShapeSource(identifier: "fs-q", shape: shape, options: nil)
         style.addSource(src)
         let isLine: [Any] = ["==", ["geometry-type"], "LineString"], isPoint: [Any] = ["==", ["geometry-type"], "Point"]
-        // under Crown land and the fills, over the water colours (as on the web)
-        let below = style.layer(withIdentifier: "fs-bcd") != nil ? "fs-bcd" : "fs-fill"
         let l = MLNLineStyleLayer(identifier: "fs-q-line", source: src)
         l.predicate = NSPredicate(mglJSONObject: isLine)
         l.lineColor = FishStyle.json(Self.colour)
@@ -318,13 +320,13 @@ final class NativeFishDepth: NativeLayer {
         l.lineCap = NSExpression(forConstantValue: "round")
         l.lineJoin = NSExpression(forConstantValue: "round")
         l.minimumZoomLevel = 10
-        FishStyle.insert(l, style, screen: screen, below: below)
+        FishStyle.insert(l, style, screen: screen, above: FishStyle.overDepth)
         let p = MLNCircleStyleLayer(identifier: "fs-q-pt", source: src)
         p.predicate = NSPredicate(mglJSONObject: isPoint)
         p.circleRadius = NSExpression(forConstantValue: 1.6)
         p.circleColor = FishStyle.json(Self.colour)
         p.minimumZoomLevel = 13
-        FishStyle.insert(p, style, screen: screen, below: below)
+        FishStyle.insert(p, style, screen: screen, above: FishStyle.overDepth)
         let dark = FishStyle.json("#173a8a")
         let t = FishStyle.label("fs-q-label", src)
         t.predicate = NSPredicate(mglJSONObject: ["all", isLine, [">", ["get", "d"], 0]])
