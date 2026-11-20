@@ -22,6 +22,7 @@ import UIKit
 // open, for what only the web map draws (avalanche, slopes, planning...): "native for viewing, web for tools" (alex
 // 2026-11-20).
 // layer({ key, data }): one feature's data (NativeLayers.swift; open may carry them too as layers: { key: data }).
+// offline({ areas }): the iPhone's own copies of the saved offline areas (NativeOffline.swift).
 // Events back to the page: "moved" { lat, lon, zoom, bearing } after each move (the page loads the trails there and
 // sends them with update), and "closed" { lat, lon, zoom, bearing, details, open, tapLat, tapLon } when it's left:
 // details is true when "Details" was pressed on a trail's card, open is that trail's i (-1 when it has none) and
@@ -34,6 +35,7 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "update", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "layer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "offline", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "features", returnType: CAPPluginReturnPromise)
     ]
@@ -84,6 +86,17 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
     // something by itself (a Flyover), since an older build quietly ignores keys it doesn't know.
     @objc func features(_ call: CAPPluginCall) {
         DispatchQueue.main.async { call.resolve(["keys": NativeLayers.all.map { $0().key }]) }
+    }
+
+    // offline({ areas: [{ id, box, boxes, ski }] }): the saved areas the iPhone keeps its own copy of for native 3D
+    // (NativeOffline.swift); answers { areas: { id: { pct, saved, active, bytes } } }, and "offlinePacks" with the same
+    // as the copies download.
+    @objc func offline(_ call: CAPPluginCall) {
+        let areas: [[String: Any]] = (call.getArray("areas") ?? []).compactMap { $0 as? [String: Any] }
+        DispatchQueue.main.async {
+            OfflinePacks.shared.onChange = { [weak self] s in self?.notifyListeners("offlinePacks", data: s) }
+            OfflinePacks.shared.sync(areas) { call.resolve($0) }
+        }
     }
 
     @objc func close(_ call: CAPPluginCall) {
