@@ -79,7 +79,7 @@ final class NativeGround: NativeLayer {
         }
     }
 
-    // ---------- the colour keys, top left (as on the web map) ----------
+    // ---------- the colour keys, top left (as on the web map), under the weather captions ----------
     private func showKeys() {
         guard let screen = screen, screen.isViewLoaded else { return }
         if keyBox.superview == nil {
@@ -92,7 +92,7 @@ final class NativeGround: NativeLayer {
             let g = screen.view.safeAreaLayoutGuide
             NSLayoutConstraint.activate([
                 keyBox.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 12),
-                keyBox.topAnchor.constraint(equalTo: g.topAnchor, constant: 58),
+                keyBox.topAnchor.constraint(equalTo: g.topAnchor, constant: 148),   // under the radar and smoke captions (NativeWeather.swift rows 0-1)
                 keyBox.widthAnchor.constraint(lessThanOrEqualToConstant: 230)
             ])
         }
