@@ -86,6 +86,11 @@ def messages(data):
             break
         n = int.from_bytes(data[i + 8:i + 16], "big")   # GRIB2 total length
         g = eccodes.codes_new_from_message(data[i:i + n])
+        # Steps in hours always: GFS labels its long totals in days ("0-5 day acc"), which would read as hour 5.
+        try:
+            eccodes.codes_set(g, "stepUnits", "h")
+        except Exception:
+            pass
         info = {k: eccodes.codes_get(g, k) for k in ("shortName", "stepRange", "units", "gridType")}
         info["handle"] = g
         v = eccodes.codes_get_values(g).astype(np.float64)

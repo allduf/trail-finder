@@ -281,7 +281,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     if (!a) return;
     if (b.dataset.show) map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]);
     else if (b.dataset.finish) { map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]); saveArea(a.box, a.name, a.id, a.boxes); }
-    else if (!busy && confirm(`Delete the saved map of ${a.name}?`)) { b.disabled = true; await remove(a, areas); renderList(); estimate(); }
+    else if (!busy && confirm(`Delete the saved map of ${a.name}?`)) { b.disabled = true; await remove(a, areas); renderList(); estimate(); tell(a.name); }   // tell: native-offline.js drops its copy too
   });
 
   // ---------- saving ----------

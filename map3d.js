@@ -1013,6 +1013,8 @@
   // (grep ESRI_KEY). The keyless server.arcgisonline.com is not licensed for apps.
   const ESRI_KEY = "AAPTaKR9-TZuN1eH02ABP_Bc5vw..xMXwwXkMDQjjAb6upb_kd_5vMlcLigPBWjvps-PK5ZIG3OO6KcxIe0Uf1nDiRYPXn8aWbYeu8vclWxP8ixOamgo8knt9spJ68YrIkl4_uYxkwhVBe2q2UmbwGV6TrGGUC6f--1S-Wl8amiPutWrCbgXFAEMKU67Z9HBb9W96-91gD8yhmr3GJCovCz1FDIwo5HRYbf35VT1pNMNH_UqJ9On9HCax9F82Nwfnb7eB-z8geDk1CqAXsRzoT6FIHJaKAT1_xZvTNIpw";
   const ESRI_NOW = "https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + ESRI_KEY;
+  // The iPhone's native 3D map (native-map.js) asks for the same keyed address: the keyless one isn't licensed for apps.
+  window.tfEsriPhoto = () => ESRI_NOW;
   let summerTiles = ESRI_NOW;   // Esri's newest photos, or an older summer one here (summerHere below)
   const ESRI = (z, x, y) => summerTiles.replace("{z}", z).replace("{y}", y).replace("{x}", x);
   const LIVE_DAY = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);   // NASA posts with a delay

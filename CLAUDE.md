@@ -72,6 +72,23 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - Every feature is designed and tested at iPhone size first. Check it at phone size before calling it done.
 - No emoji in the interface: use the line icons (`line-icons.js`).
 
+## Every change reaches every device
+- Every change must reach every device: the website, the iPhone app (including native 3D) and the Android app.
+  The end goal is every web feature working the same on phones, in native 3D, as smooth as possible.
+- Before opening a pull request, decide where the change runs (web only, iPhone native, Android native, or several)
+  and list it in the pull request text: Website / iPhone / Android = included, needs a build, or not needed (and why).
+- A web-only change reaches the apps with the next website publish: no app build is needed.
+- A change to native code (`ios-app/`, `android-app/`, plugins, push, deep links, native 3D) starts a new iPhone
+  build ("iPhone app" workflow) and a new Android build ("Android app" workflow) in the same round, so both apps get
+  it together. Tell alex before opening the pull request, then tell alex both build numbers.
+- New native 3D features follow the split from PR #847: one `NativeXxx.swift` file (a `NativeLayer`, one line in
+  `NativeLayers.all`, alphabetical) and one `native-xxx.js` page side (`window.tfNative.addLayer`, guarded). Until a
+  layer is drawn natively, add it to `webOnly()` in `native-map.js` so turning it on opens the full web 3D and nothing
+  goes missing.
+- Native 3D must never be slower than the build before (`/check-lag`), draws nothing while switched off, and shows
+  avalanche only exactly as Avalanche Canada gives it.
+- Never leave a feature on one device only without telling alex and writing down the plan to bring it to the others.
+
 ## Never mention Trailforks
 - Do not name Trailforks anywhere in the app.
 
@@ -95,10 +112,15 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 ## Pull requests and merging
 - The required check on main is "phone" (`.github/workflows/phone-test.yml`: wording check, then every sport
   at iPhone size).
-- Merge only with alex's yes. Turn on auto-merge for one pull request at a time.
-- Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check. With alex's
-  yes, start it by hand (run "Phone test" on the branch) so the merge can go through, or alex merges by hand.
-- Changes under `ios-app/` or `android-app/` need a new app build: tell alex before merging.
+- Every pull request merges on its own once it is ready and its checks pass (alex, 2026-11-20: "i want all of them
+  merge when they are ready"). Turn on auto-merge for one pull request at a time, and tell alex after it goes live.
+  This never covers going public (see "Do not go public").
+- Before a pull request merges on its own, its thread runs an independent code review (`/code-review`) and fixes
+  what it finds.
+- Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check. Then
+  start it by hand (run "Phone test" on the branch) so the merge can go through.
+- Changes under `ios-app/` or `android-app/` need new iPhone and Android builds: start both after merging and tell
+  alex the build numbers.
 - The "Fix PR conflicts" workflow (`.github/workflows/pr-fix.yml`) merges main into open pull requests, and moves
   older ones over to `__V__`, `changelog.d` and French files. Pull before pushing to a pull request branch.
 - If a phone check was cancelled after a merge update, run it again.
