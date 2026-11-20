@@ -32,6 +32,61 @@ final class WinterTiles: NSObject {
 
     var ready: Bool { lock.lock(); defer { lock.unlock() }; return loaded }
 
+    // MapLibre's address rewriter (TileRewriter, shared with Moto's dirt roads): set once a 3D screen opens (the
+    // late-summer mountains need it too, no lists).
+    private var installed = false
+    func install() {
+        lock.lock()
+        let first = !installed
+        installed = true
+        lock.unlock()
+        if first { TileRewriter.add(host: Self.host) { [unowned self] in self.rewrite($0) } }
+        loadSummer()
+    }
+
+    // summer.json, the late-summer squares (zoom 11), so tiles elsewhere in the box aren't asked for (as map3d.js).
+    // Until it's in (or if it can't come), the site is asked and answers "not found" outside its squares.
+    private var summer: Set<Int>?
+    private var summerAsked = false
+    private func loadSummer() {
+        lock.lock()
+        if summerAsked { lock.unlock(); return }
+        summerAsked = true
+        lock.unlock()
+        guard let u = URL(string: "https://trailfinder-summer.pages.dev/trail-finder-summer/summer.json") else { return }
+        URLSession.shared.dataTask(with: u) { data, resp, _ in
+            guard let data = data, (resp as? HTTPURLResponse)?.statusCode == 200,
+                  let list = (try? JSONSerialization.jsonObject(with: data)) as? [[Int]] else {
+                self.lock.lock(); self.summerAsked = false; self.lock.unlock()   // asked again next time a 3D screen opens
+                return
+            }
+            let set = Set(list.filter { $0.count == 2 }.map { $0[0] * 4096 + $0[1] })
+            self.lock.lock(); self.summer = set; self.lock.unlock()
+        }.resume()
+    }
+
+    // The late-summer mountains over Esri's photo in the Sea to Sky (map3d.js SUMMER, SUMMER15, SUMMER_REV, SUMMER_BOUNDS):
+    // zooms 11-14 on one site, 15 on another. Outside its squares a tile is just "not found".
+    static let summerBounds = [-123.58, 49.6, -122.17, 50.74]
+    private static let summerRev = "?r=1"
+
+    // The Winter style's sources and layers (NativeBaseStyles.swift adds the heights, roads and names): bottom to top,
+    // Esri's photo far out only (where there's no winter photo, outside Canada), last winter's far-view photos of
+    // Canada, the 10 m Winter photos, the sharpened ones.
+    static func style(esri: String, credit: String) -> (sources: [String: Any], layers: [[String: Any]]) {
+        let at = { (kind: String) -> [String] in ["https://\(host)/\(kind)/{z}/{x}/{y}"] }
+        let canada = [-141.1, 41.6, -52, 70]
+        let sources: [String: Any] = [
+            "esri": ["type": "raster", "tileSize": 256, "maxzoom": 12, "attribution": credit, "tiles": [esri]],
+            "wide": ["type": "raster", "tileSize": 256, "minzoom": 3, "maxzoom": 10, "bounds": canada, "tiles": at("wide"), "attribution": WinterTiles.credit],
+            "winter": ["type": "raster", "tileSize": 256, "minzoom": 6, "maxzoom": 14, "bounds": [-141, 24, 146.5, 70], "tiles": at("w")],
+            "sharp": ["type": "raster", "tileSize": 256, "minzoom": 11, "maxzoom": 15, "bounds": canada, "tiles": at("s")]
+        ]
+        let layers: [[String: Any]] = [["id": "background", "type": "background", "paint": ["background-color": "#e8ebee"]]]
+            + ["esri", "wide", "winter", "sharp"].map { ["id": $0, "type": "raster", "source": $0] as [String: Any] }
+        return (sources, layers)
+    }
+
     // done(true) once the lists are in (on the main thread); done(false) when they couldn't come (offline).
     func load(_ done: @escaping (Bool) -> Void) {
         lock.lock()
@@ -40,7 +95,7 @@ final class WinterTiles: NSObject {
         let first = waiting.count == 1
         lock.unlock()
         if !first { return }
-        TileRewriter.add(host: Self.host) { [unowned self] in self.rewrite($0) }
+        install()
         var got = [[[Int]]?](repeating: nil, count: Self.lists.count)
         let gotLock = NSLock(), group = DispatchGroup()
         for (i, s) in Self.lists.enumerated() {
@@ -121,6 +176,14 @@ final class WinterTiles: NSObject {
             else if sharpWest.contains(sq) { site = "trailfinder-sharp-\((bx * 31 + by) % 10)" }
             else { return nil }
             return URL(string: "https://\(site).pages.dev/trail-finder-winter2/\(z)/\(x)/\(y).webp\(Self.sharpRev)")
+        case "sum":
+            guard z >= 11 && z <= 15 else { return nil }
+            lock.lock()
+            let known = summer
+            lock.unlock()
+            if let known = known, !known.contains(sq) { return nil }
+            let site = z == 15 ? "trailfinder-summer-15" : "trailfinder-summer"
+            return URL(string: "https://\(site).pages.dev/trail-finder-summer/\(z)/\(x)/\(y).webp\(Self.summerRev)")
         default: return nil
         }
     }

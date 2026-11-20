@@ -14,8 +14,8 @@ import UIKit
 //   dashes: the dash keys in use, joined by "|", each a dash pattern in line widths ("2.00,1.20"; "0,2.2" is dots).
 // threeD: true opens it in 3D instead (alex 2026-11-16, "Small native 3D trial"): satellite photos draped over the
 // mountains (Mapterhorn heights), tilted, with the same trails, to feel whether a 3D map drawn by the iPhone turns and
-// tilts smoother than the web one. Photos and trails only: none of the web 3D map's own layers (avalanche, slopes,
-// names...).
+// tilts smoother than the web one. Since 2026-11-20 it's on its way to being the main 3D on phones (alex): base maps and
+// names in NativeBaseStyles.swift, each further feature in its own file (NativeLayers.swift).
 // winter: true (Skiing only) adds Skiing's Winter map to 3D, first in the list (WinterTiles below), and opens on it when
 // the page's map is on Winter.
 // In 3D a "Layers" button closes it with layers: true in "closed": the page opens its own 3D map there, with its Layers
@@ -43,13 +43,14 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
         let center = CLLocationCoordinate2D(latitude: call.getDouble("lat") ?? 50.1, longitude: call.getDouble("lon") ?? -122.95)
         let zoom = call.getDouble("zoom") ?? 12, bearing = call.getDouble("bearing") ?? 0
         let base = call.getString("base") ?? "osm", threeD = call.getBool("threeD") ?? false, winter = call.getBool("winter") ?? false
+        let esri = call.getString("esri"), fr = call.getString("lang") == "fr"
         let lines = call.getString("lines") ?? "", dots = call.getString("dots") ?? "", dashes = call.getString("dashes") ?? ""
         var extra: [String: String] = [:]
         for (k, v) in call.getObject("layers") ?? [:] { if let t = v as? String { extra[k] = t } }
         DispatchQueue.main.async {
             if let s = self.screen { s.setData(lines: lines, dots: dots, dashes: dashes); extra.forEach { s.setLayer($0.key, $0.value) }; call.resolve(); return }
             guard let host = self.bridge?.viewController else { call.reject("No screen to show the map on"); return }
-            let s = TrailMapScreen(center: center, zoom: zoom, bearing: bearing, base: base, threeD: threeD, winter: winter)
+            let s = TrailMapScreen(center: center, zoom: zoom, bearing: bearing, base: base, threeD: threeD, winter: winter, esri: esri, fr: fr)
             s.onEvent = { [weak self] name, data in
                 self?.notifyListeners(name, data: data)
                 if name == "closed" { self?.screen = nil }
@@ -99,10 +100,6 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let own: [(key: String, name: String)] = winter ? [(key: "winter", name: "Winter")] : []
         return threeD ? own + TrailMapScreen.styles3D : TrailMapScreen.flatStyles
     }
-    // Heights: Mapterhorn (free, open), Terrarium-coded 512 px tiles. It has every spot down to zoom 12 (~12 m a pixel
-    // here) and only some places deeper; a missing deeper tile would leave a hole, so the map stops asking at 12.
-    private static let demTiles = "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp"
-    private static let demCredit = "© Mapterhorn"
     private static let tilt: CGFloat = 65        // the web 3D map eases to 70
     private static let ink = UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 1)
     private static let paper = UIColor(red: 0.95, green: 0.94, blue: 0.91, alpha: 1)
@@ -112,6 +109,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private let startBearing: Double
     private let threeD: Bool
     private let winter: Bool
+    private let esri: String?      // the page's Esri photo address (the app's own key), for the 3D photos
+    private let fr: Bool           // names in French
     private var tilted = false
     private var base: String
     private var map: MLNMapView!
@@ -131,8 +130,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // The native 3D features (NativeLayers.swift), each with its own sources and layers; 3D only.
     private lazy var features: [NativeLayer] = threeD ? NativeLayers.all.map { $0() } : []
 
-    init(center: CLLocationCoordinate2D, zoom: Double, bearing: Double, base: String, threeD: Bool = false, winter: Bool = false) {
+    init(center: CLLocationCoordinate2D, zoom: Double, bearing: Double, base: String, threeD: Bool = false, winter: Bool = false, esri: String? = nil, fr: Bool = false) {
         start = center; startZoom = zoom; startBearing = bearing
+        self.esri = esri.flatMap { $0.contains("{z}") && $0.hasPrefix("https://") ? $0 : nil }
+        self.fr = fr
         self.threeD = threeD
         let ski = threeD && winter
         self.winter = ski
@@ -140,6 +141,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let list = threeD ? TrailMapScreen.styles3D : TrailMapScreen.flatStyles
         self.base = threeD ? (ski && b == "winter" ? "winter" : "sat") : (list.contains { $0.key == b } ? b : "osm")
         super.init(nibName: nil, bundle: nil)
+        if threeD { WinterTiles.shared.install() }   // the photo address rewriter (Winter photos, late-summer mountains)
         if ski { WinterTiles.shared.load { _ in } }   // the lists of photo squares, ready by the time Winter is picked
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
@@ -319,27 +321,23 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // ---------- the map styles ----------
     private func styleURL(_ key: String) -> URL? {
         if key == "vector" { return URL(string: "https://tiles.openfreemap.org/styles/liberty") }
-        if key == "winter" { return save(winterStyle(), "winter-3d") }
+        if threeD { return save(TrailMapScreen.style3D(key, esri: esri, fr: fr), key + "-3d") }
         let osm = "© OpenStreetMap contributors"
         let (tiles, maxzoom, credit): ([String], Int, String) = {
             switch key {
             case "topo": return (["a", "b", "c"].map { "https://\($0).tile.opentopomap.org/{z}/{x}/{y}.png" }, 17, osm + ", SRTM | © OpenTopoMap")
-            case "sat": return (["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], 19, "Esri, Maxar, Earthstar Geographics")
+            case "sat": return ([esri ?? TrailMapScreen.keylessEsri], 19, TrailMapScreen.esriCredit)
             default: return (["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], 19, osm)
             }
         }()
-        var sources: [String: Any] = ["base": ["type": "raster", "tiles": tiles, "tileSize": 256, "maxzoom": maxzoom, "attribution": credit]]
-        if threeD {
-            sources["dem"] = ["type": "raster-dem", "encoding": "terrarium", "tiles": [TrailMapScreen.demTiles], "tileSize": 512,
-                              "maxzoom": 12, "attribution": TrailMapScreen.demCredit]
-        }
+        let sources: [String: Any] = ["base": ["type": "raster", "tiles": tiles, "tileSize": 256, "maxzoom": maxzoom, "attribution": credit]]
         let style: [String: Any] = [
             "version": 8,
             "sources": sources,
             "layers": [["id": "background", "type": "background", "paint": ["background-color": "#f2efe7"]],
                        ["id": "base", "type": "raster", "source": "base"]]
         ]
-        return save(style, key + (threeD ? "-3d" : ""))
+        return save(style, key)
     }
     private func save(_ style: [String: Any], _ name: String) -> URL? {
         guard let data = try? JSONSerialization.data(withJSONObject: style) else { return nil }
@@ -347,26 +345,6 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         do { try data.write(to: file, options: .atomic) } catch { return nil }
         return file
     }
-    // Skiing's Winter map (WinterTiles): bottom to top, Esri's photo far out only (where there's no winter photo, outside
-    // Canada), last winter's far-view photos of Canada, the 10 m Winter photos, the sharpened ones; the same heights.
-    private func winterStyle() -> [String: Any] {
-        let at = { (kind: String) -> [String] in ["https://\(WinterTiles.host)/\(kind)/{z}/{x}/{y}"] }
-        let canada = [-141.1, 41.6, -52, 70]
-        let sources: [String: Any] = [
-            "esri": ["type": "raster", "tileSize": 256, "maxzoom": 12, "attribution": "Esri, Maxar, Earthstar Geographics",
-                     "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"]],
-            "wide": ["type": "raster", "tileSize": 256, "minzoom": 3, "maxzoom": 10, "bounds": canada, "tiles": at("wide"),
-                     "attribution": WinterTiles.credit],
-            "winter": ["type": "raster", "tileSize": 256, "minzoom": 6, "maxzoom": 14, "bounds": [-141, 24, 146.5, 70], "tiles": at("w")],
-            "sharp": ["type": "raster", "tileSize": 256, "minzoom": 11, "maxzoom": 15, "bounds": canada, "tiles": at("s")],
-            "dem": ["type": "raster-dem", "encoding": "terrarium", "tiles": [TrailMapScreen.demTiles], "tileSize": 512,
-                    "maxzoom": 12, "attribution": TrailMapScreen.demCredit]
-        ]
-        let layers: [[String: Any]] = [["id": "background", "type": "background", "paint": ["background-color": "#e8ebee"]]]
-            + ["esri", "wide", "winter", "sharp"].map { ["id": $0, "type": "raster", "source": $0] as [String: Any] }
-        return ["version": 8, "sources": sources, "layers": layers]
-    }
-
     // A new style has no trails: they're added again on top of it.
     func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
         dashLayers = []
@@ -379,14 +357,35 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             style.terrainSourceIdentifier = "dem"
             style.terrainExaggeration = 1.15
         }
-        style.addLayer(lineLayer(id: "tf-line", source: lines, dash: ""))
+        // In 3D the trails go just under the place names (NativeBaseStyles.swift), so names stay readable over them.
+        let names = style.layer(withIdentifier: TrailMapScreen.firstNameLayer)
+        let put = { (l: MLNStyleLayer) in if let n = names { style.insertLayer(l, below: n) } else { style.addLayer(l) } }
+        put(lineLayer(id: "tf-line", source: lines, dash: ""))
         let dot = MLNCircleStyleLayer(identifier: "tf-dots", source: dots)
         dot.circleRadius = NSExpression(forKeyPath: "r")
         dot.circleColor = NSExpression(forKeyPath: "f")
         dot.circleOpacity = NSExpression(forKeyPath: "fo")
         dot.circleStrokeColor = NSExpression(forKeyPath: "c")
         dot.circleStrokeWidth = NSExpression(forKeyPath: "w")
-        style.addLayer(dot)
+        put(dot)
+        if threeD {
+            // Trail and route names along their lines, in the line's colour (the web 3D map's trail-names), from the
+            // same zoom; MapLibre leaves out names that would overlap.
+            let label = MLNSymbolStyleLayer(identifier: "tf-names", source: lines)
+            // lb: the line's own label only (native-map.js), never a tooltip like "Unnamed trail".
+            label.predicate = NSPredicate(format: "lb != nil AND lb != ''")
+            label.minimumZoomLevel = 12
+            label.text = NSExpression(forKeyPath: "lb")
+            label.textOpacity = NSExpression(forKeyPath: "o")
+            label.textFontNames = NSExpression(forConstantValue: ["Noto Sans Bold"])
+            label.symbolPlacement = NSExpression(forConstantValue: "line")
+            label.textFontSize = NSExpression(format: "mgl_interpolate:withCurveType:parameters:stops:($zoomLevel, 'linear', nil, %@)",
+                                              [12: 11.5, 15: 13.5])
+            label.textColor = NSExpression(forKeyPath: "c")
+            label.textHaloColor = NSExpression(forConstantValue: UIColor.white)
+            label.textHaloWidth = NSExpression(forConstantValue: 1.8)
+            put(label)
+        }
         addDashLayers()
         features.forEach { $0.added(to: style, screen: self) }
         // 3D opens flat where the flat map was, then tilts in (as the web 3D map does).
