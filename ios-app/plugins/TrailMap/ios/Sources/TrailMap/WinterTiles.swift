@@ -32,6 +32,31 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
 
     var ready: Bool { lock.lock(); defer { lock.unlock() }; return loaded }
 
+    // MapLibre's address rewriter: set once a 3D screen opens (the late-summer mountains need it too, no lists).
+    func install() { if MLNOfflineStorage.shared.delegate !== self { MLNOfflineStorage.shared.delegate = self } }
+
+    // The late-summer mountains over Esri's photo in the Sea to Sky (map3d.js SUMMER, SUMMER15, SUMMER_REV, SUMMER_BOUNDS):
+    // zooms 11-14 on one site, 15 on another. Outside its squares a tile is just "not found".
+    static let summerBounds = [-123.58, 49.6, -122.17, 50.74]
+    private static let summerRev = "?r=1"
+
+    // The Winter style's sources and layers (NativeBaseStyles.swift adds the heights, roads and names): bottom to top,
+    // Esri's photo far out only (where there's no winter photo, outside Canada), last winter's far-view photos of
+    // Canada, the 10 m Winter photos, the sharpened ones.
+    static func style(esri: String, credit: String) -> (sources: [String: Any], layers: [[String: Any]]) {
+        let at = { (kind: String) -> [String] in ["https://\(host)/\(kind)/{z}/{x}/{y}"] }
+        let canada = [-141.1, 41.6, -52, 70]
+        let sources: [String: Any] = [
+            "esri": ["type": "raster", "tileSize": 256, "maxzoom": 12, "attribution": credit, "tiles": [esri]],
+            "wide": ["type": "raster", "tileSize": 256, "minzoom": 3, "maxzoom": 10, "bounds": canada, "tiles": at("wide"), "attribution": WinterTiles.credit],
+            "winter": ["type": "raster", "tileSize": 256, "minzoom": 6, "maxzoom": 14, "bounds": [-141, 24, 146.5, 70], "tiles": at("w")],
+            "sharp": ["type": "raster", "tileSize": 256, "minzoom": 11, "maxzoom": 15, "bounds": canada, "tiles": at("s")]
+        ]
+        let layers: [[String: Any]] = [["id": "background", "type": "background", "paint": ["background-color": "#e8ebee"]]]
+            + ["esri", "wide", "winter", "sharp"].map { ["id": $0, "type": "raster", "source": $0] as [String: Any] }
+        return (sources, layers)
+    }
+
     // done(true) once the lists are in (on the main thread); done(false) when they couldn't come (offline).
     func load(_ done: @escaping (Bool) -> Void) {
         lock.lock()
@@ -40,7 +65,7 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
         let first = waiting.count == 1
         lock.unlock()
         if !first { return }
-        MLNOfflineStorage.shared.delegate = self
+        install()
         var got = [[[Int]]?](repeating: nil, count: Self.lists.count)
         let gotLock = NSLock(), group = DispatchGroup()
         for (i, s) in Self.lists.enumerated() {
@@ -122,6 +147,10 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
             else if sharpWest.contains(sq) { site = "trailfinder-sharp-\((bx * 31 + by) % 10)" }
             else { return nil }
             return URL(string: "https://\(site).pages.dev/trail-finder-winter2/\(z)/\(x)/\(y).webp\(Self.sharpRev)")
+        case "sum":
+            guard z >= 11 && z <= 15 else { return nil }
+            let site = z == 15 ? "trailfinder-summer-15" : "trailfinder-summer"
+            return URL(string: "https://\(site).pages.dev/trail-finder-summer/\(z)/\(x)/\(y).webp\(Self.summerRev)")
         default: return nil
         }
     }
