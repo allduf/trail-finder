@@ -41,7 +41,7 @@ final class NativeMoto: NativeLayer {
                   let k = p[2] as? String, let c = p[3] as? String else { continue }
             let f = MLNPointFeature()
             f.coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lon)
-            f.attributes = ["k": k, "c": c, "n": (p[4] as? String) ?? "", "s": Self.order.firstIndex(of: k) ?? 9]
+            f.attributes = ["k": k, "c": c, "n": (p[4] as? String) ?? "", "s": Self.order.firstIndex(of: k) ?? 9, "la": lat, "lo": lon]
             colours[k] = c
             feats.append(f)
         }
@@ -51,7 +51,10 @@ final class NativeMoto: NativeLayer {
 
     func tapped(_ feature: MLNFeature, screen: TrailMapScreen) -> Bool {
         guard let name = feature.attribute(forKey: "n") as? String, !name.isEmpty else { return false }
-        screen.showFeatureCard(name: name, colour: feature.attribute(forKey: "c") as? String, open: -1, at: feature.coordinate)
+        // The stop's own spot (a tapped feature's coordinate is rounded to its tile): the page finds the stop by it.
+        let la = (feature.attribute(forKey: "la") as? NSNumber)?.doubleValue, lo = (feature.attribute(forKey: "lo") as? NSNumber)?.doubleValue
+        let at = la != nil && lo != nil ? CLLocationCoordinate2D(latitude: la!, longitude: lo!) : feature.coordinate
+        screen.showFeatureCard(name: name, colour: feature.attribute(forKey: "c") as? String, open: -1, at: at)
         return true
     }
 
@@ -114,7 +117,7 @@ final class NativeMoto: NativeLayer {
         let dirt = MLNVectorTileSource(identifier: "mt-dirt", tileURLTemplates: ["https://\(Self.dirtHost)/{z}/{x}/{y}"],
                                        options: [.minimumZoomLevel: 7, .maximumZoomLevel: 11])
         style.addSource(dirt)
-        let farColour = json(["case", ["==", ["get", "c"], "t"], roads.track, roads.road])
+        let farColour = json(["case", ["==", ["get", "c"], "t"], ["to-color", roads.track], ["to-color", roads.road]])
         let farWidth = json(["interpolate", ["linear"], ["zoom"], 7, 0.6, 10, 1.1, 12.9, 2.5])
         let farCase = MLNLineStyleLayer(identifier: "mt-far-case", source: dirt)
         farCase.sourceLayerIdentifier = "dirt"

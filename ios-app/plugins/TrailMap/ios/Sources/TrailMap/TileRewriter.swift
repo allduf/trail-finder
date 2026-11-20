@@ -14,7 +14,7 @@ final class TileRewriter: NSObject, MLNOfflineStorageDelegate {
         shared.hosts[host] = rewrite
         shared.lock.unlock()
         if Thread.isMainThread { MLNOfflineStorage.shared.delegate = shared }
-        else { DispatchQueue.main.sync { MLNOfflineStorage.shared.delegate = shared } }
+        else { DispatchQueue.main.async { MLNOfflineStorage.shared.delegate = shared } }
     }
 
     func offlineStorage(_ storage: MLNOfflineStorage, urlForResourceOf kind: MLNResourceKind, with url: URL) -> URL {

@@ -745,7 +745,14 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   const allMoto = [ptLayer, rangeLayer, routeLayer, wpLayer, rulesLayer, spotLayer];
   const pinIcon = (k) => L.divIcon({ className: "", html: `<div class="mt-pin" style="background:${PT[k].c}">${PT[k].t}</div>`, iconSize: [0, 0] });
   const ICONS = Object.fromEntries(Object.keys(PT).map((k) => [k, pinIcon(k)]));
-  let pts3d = [];
+  let pts3d = [], sentPts = [], nativeWait = 0;
+  // The iPhone's native 3D map (native-moto.js) gets the stops again whenever they change while it's open.
+  const toNative = () => {
+    const N = window.tfNative;
+    if (!N || !N.isOpen || !N.send || !N.isOpen()) return;
+    clearTimeout(nativeWait);
+    nativeWait = setTimeout(() => N.send("moto"), 300);
+  };
   function drawPoints() {
     ptLayer.clearLayers(); pts3d = [];
     if (!isMoto()) { sync3d(); return; }
@@ -772,6 +779,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     }
     if (shown.has("camp") && z >= 8) for (const p of recList()) put("rec", p);
     sync3d();
+    toNative();
   }
   // A tap on a dot: its card. On a phone the sheet comes up to half if it was down, with the card at its top, so the
   // tap visibly does something (it only filled a card under the closed sheet before).
@@ -2894,11 +2902,12 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       if (!isMoto()) return null;
       const cap = capOf(cur()), on = shown.has("roads");
       return { roads: on, road: FIT[fitOf(2, cap)][1], track: FIT[fitOf(3, cap)][1], ften: on ? ftenTiles(ftenSld()) : "",
-        pts: pts3d.map((x) => [x.p[0], x.p[1], x.k, PT[x.k].c, x.p[2] || PT[x.k].name]) };
+        pts: (sentPts = pts3d.slice()).map((x) => [x.p[0], x.p[1], x.k, PT[x.k].c, x.p[2] || PT[x.k].name]) };
     },
     // "Details" on a stop's card there: that stop's card here (true when one is at that spot).
     openPointAt: (lat, lon) => {
-      const x = pts3d.find((o) => Math.abs(o.p[0] - lat) < 2e-5 && Math.abs(o.p[1] - lon) < 2e-5);
+      // The stops last sent there (the page's own list follows its smaller view): the card's spot is the stop's own.
+      const x = sentPts.concat(pts3d).find((o) => Math.abs(o.p[0] - lat) < 1e-6 && Math.abs(o.p[1] - lon) < 1e-6);
       if (x) openPoint(x.k, x.p);
       return !!x;
     },
