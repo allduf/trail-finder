@@ -3,7 +3,9 @@
 //    new trails first (first mapped in the last 6 months), then nearest. It ranks; it never hides anything else.
 //  - Riding areas near you: loam now (how many trails are prime, or the day they turn prime), rider reports from the
 //    last 7 days (trees down called out), and wildfires or evacuation areas close by. Each area: Trails here, Save offline.
-//  - Snow: trails still under snow (Open-Meteo snow depth, tfSnowAt) never count as prime, and an area says so.
+//  - Snow: trails still under snow (tfSnowAt: Environment Canada's snow analysis where it has one, else Open-Meteo snow
+//    depth) never count as prime, and an area says so, with the source.
+//  - Icy: trails where the ground froze overnight and is thawing now (tfFrostAt, soil temperature estimate) may be icy.
 //  - Closures and warnings close by (closures.js: Alberta Parks trail reports, BC Parks advisories, Parks Canada).
 //  - 🔁 Loops: ready-made loops for the area, with distance, climb and ride time (loops.js), opened in Plan a route.
 // Reads the same things as the rest of the app: tfZoneTrails (index.html, the All trails list), tfLoamAt / tfLoamSoon
@@ -41,7 +43,8 @@ dialog.today .td-area header { display: flex; justify-content: space-between; al
 dialog.today .td-area p { margin: 4px 0 0; font-size: .88rem; }
 dialog.today .td-warn { color: #b45309; }
 dialog.today .td-snow { color: #3f6ea8; }
-dialog.today .td-frozen { color: #6a58a8; }
+dialog.today .td-frozen, dialog.today .td-icy { color: #6a58a8; }
+dialog.today .td-snow svg { vertical-align: -2px; }
 dialog.today .td-act { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 dialog.today .td-act button { font: inherit; font-size: .82rem; font-weight: 600; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; }
 dialog.today .td-wait { color: var(--muted); font-size: .9rem; }
@@ -129,13 +132,16 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const [vals, soon, snow, frozen] = await Promise.all([window.tfLoamAt ? window.tfLoamAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
       window.tfLoamSoon ? window.tfLoamSoon(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
       window.tfSnowAt ? window.tfSnowAt(pts).catch(() => pts.map(() => null)) : pts.map(() => null),
-      window.tfFrozenAt ? window.tfFrozenAt(pts).catch(() => pts.map(() => false)) : pts.map(() => false)]);
+      window.tfFrostAt ? window.tfFrostAt(pts).catch(() => pts.map(() => null))
+        : window.tfFrozenAt ? window.tfFrozenAt(pts).then((a) => a.map((x) => (x ? 2 : 0))).catch(() => pts.map(() => null)) : pts.map(() => null)]);
     if (my !== token) return;
     // Snow on the ground (5 cm or more): not prime loam, whatever the soil under it reads.
     // Frozen ground (soil surface at or below 0°C, an estimate): not prime loam either.
-    trails.forEach((t, i) => { t.snow = snow[i] >= (window.tfSnowCm || 5) ? snow[i] : 0; t.frozen = !t.snow && !!frozen[i]; t.v = vals[i]; t.prime = isPrime(t.v) && !t.snow && !t.frozen; t.soon = t.prime ? null : soon[i]; });
+    trails.forEach((t, i) => { t.snow = snow[i] >= (window.tfSnowCm || 5) ? snow[i] : 0; t.frozen = !t.snow && frozen[i] === 2; t.icy = !t.snow && frozen[i] === 1; t.v = vals[i]; t.prime = isPrime(t.v) && !t.snow && !t.frozen; t.soon = t.prime ? null : soon[i]; });
     const newSince = Date.now() - NEW_DAYS * 864e5;
     trails.forEach((t) => { const ts = born ? t.ids.map((id) => born.get(id)).filter(Boolean) : []; t.born = ts.length === t.ids.length && ts.length ? Math.min(...ts) : null; t.isNew = !!t.born && t.born >= newSince; });
+    const src = window.tfSnowSrcAt ? window.tfSnowSrcAt(pts) : pts.map(() => "om");
+    trails.forEach((t, i) => { t.snowSrc = src[i]; });
     renderGo(trails);
     areas.filter((a) => a.el).forEach(fillLoam);
   }
@@ -164,7 +170,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const shown = areas.filter((a) => a.trails.length);
     $("tdAreas").innerHTML = !shown.length ? `<li class="td-wait">No riding areas within ${lastKm} km.</li>` : shown.map((a, i) => {
       return `<li class="td-area" data-a="${i}"><header><b>${esc(a.name)}</b><small>${Math.round(a.km)} km</small></header>
-        <p class="td-loam">${dot(null)}<small>Checking the loam…</small></p><p class="td-close"></p><p class="td-snow" hidden></p><p class="td-frozen" hidden></p><p class="td-rep"><small>Checking rider reports…</small></p><p class="td-fire"></p>
+        <p class="td-loam">${dot(null)}<small>Checking the loam…</small></p><p class="td-close"></p><p class="td-snow" hidden></p><p class="td-frozen" hidden></p><p class="td-icy" hidden></p><p class="td-rep"><small>Checking rider reports…</small></p><p class="td-fire"></p>
         <div class="td-act"><button type="button" data-go>Trails here</button>${window.tfLoops ? `<button type="button" data-loops aria-expanded="false">🔁 Loops</button>` : ""}${window.tfOffline ? `<button type="button" data-off>⤓ Save offline</button>` : ""}</div><div class="td-loops" hidden></div></li>`;
     }).join("");
     $("tdAreas").querySelectorAll("[data-a]").forEach((li) => {
@@ -196,9 +202,16 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       : `${level(mid)[1]} · Loam ${mid}${soonDay ? ` · <b>prime ${esc(soonDay.day)}</b>` : ""}`;
     const n = a.trails.length, s = n > 1 ? "s" : "";
     a.el.querySelector(".td-loam").innerHTML = `${dot(prime.length ? prime[0].v : mid)}${loam}`;
-    const sn = a.el.querySelector(".td-snow"), fr = a.el.querySelector(".td-frozen");
+    const sn = a.el.querySelector(".td-snow"), fr = a.el.querySelector(".td-frozen"), icy = a.el.querySelector(".td-icy"), icyN = a.trails.filter((t) => t.icy).length;
     sn.hidden = !snowed.length;
-    if (snowed.length) sn.textContent = `❄ ${snowed.length === n ? "All" : `${snowed.length} of ${n}`} trail${s} likely under snow (${Math.max(...snowed.map((t) => t.snow))} cm at the most)`;
+    // The snowflake as a line drawing (line-icons.js), and where the number comes from.
+    if (snowed.length) sn.innerHTML = `${window.tfLineName ? window.tfLineName("snow", 14) : ""} ${snowed.length === n ? "All" : `${snowed.length} of ${n}`} trail${s} likely under snow (up to about ${Math.max(...snowed.map((t) => t.snow))} cm, ${snowed.every((t) => t.snowSrc === "ec") ? "Environment Canada snow analysis" : "Open-Meteo snow depth"}, an estimate)`;
+    // Froze overnight, above 0°C now: roots, rocks and wet spots may be icy (alex 2026-11-20, Whistler: "no snow on the
+    // ground but it might be icy").
+    if (icy) {
+      icy.hidden = !icyN;
+      if (icyN) icy.textContent = `${icyN === n ? "All" : `${icyN} of ${n}`} trail${s}: ground likely froze overnight, so it may be icy in spots (soil temperature estimate)`;
+    }
     fr.hidden = !frozen.length;
     if (frozen.length) fr.textContent = `${frozen.length === n ? "All" : `${frozen.length} of ${n}`} trail${s}: ground likely frozen now (soil temperature estimate)`;
   }

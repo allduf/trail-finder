@@ -311,6 +311,11 @@
     [/^(7 am|1 pm) (?:about ([\d,]+) m|(down to the valley)|(none below 3,000 m))$/, function (m, h, n, v, x) { return (h === "7 am" ? "7 h" : "13 h") + " " + (n ? "environ " + n.replace(/,/g, " ") + " m" : v ? "jusqu'au fond de la vallée" : "aucun sous 3 000 m"); }],
     [/^Freeze line: the height where the soil reaches 0°C, the middle of 3 weather models \((.+)\)\. An estimate: shade, sun and snow change it on the ground\.$/, function (m, l) { return "Limite de gel : la hauteur où le sol atteint 0 °C, la valeur du milieu de 3 modèles météo (" + l.replace(/(\d),(\d)/g, "$1 $2").replace(/over /g, "plus de ") + "). Une estimation : l'ombre, le soleil et la neige la changent sur le terrain."; }],
     [/^(All|\d+ of \d+) trails?: ground likely frozen now \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : sol probablement gelé maintenant (estimation de la température du sol)"; }],
+    // Snow checked against Environment Canada, and trails that may be icy (status.js), 2026-11-20
+    [/^(All|\d+ of \d+) trails? likely under snow \(up to about (\d+) cm, (Environment Canada snow analysis|Open-Meteo snow depth), an estimate\)$/, function (m, n, c, f) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " probablement sous la neige (jusqu'à environ " + c + " cm, " + (f === "Open-Meteo snow depth" ? "épaisseur de neige Open-Meteo" : "analyse de neige d'Environnement Canada") + ", une estimation)"; }],
+    [/^(All|\d+ of \d+) trails?: ground likely froze overnight, so it may be icy in spots \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : le sol a probablement gelé pendant la nuit, il peut donc être glacé par endroits (estimation de la température du sol)"; }],
+    [/^here, about (\d+) cm \(estimate\)$/, "ici, environ $1 cm (estimation)"],
+    [/^Snow \((\d+) cm or more, estimate\)$/, "Neige ($1 cm ou plus, estimation)"],
     // The Today card in every sport (today.js), 2026-11-19
     [/^In season today \(from (.+)\): (.+)$/, function (m, f, l) { return "En saison aujourd'hui (selon " + f + ") : " + tl(l); }],
     [/^Nothing in season today \(from (.+)\)$/, "Rien en saison aujourd'hui (selon $1)"],

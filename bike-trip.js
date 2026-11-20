@@ -296,13 +296,15 @@ body.sport-alt #bkTripBtn { display: none; }`;
       try { soil[k] = await getJ(`https://api.open-meteo.com/v1/forecast?${qs}`); } catch {}
     }
     if (!Object.keys(got).length) return { err: err || "no signal" };
+    // Snow is checked against Environment Canada's snow analysis where it has one (index.html snowAt): read it first.
+    if (Lm && Lm.snowReady) await Lm.snowReady(locs.map((l) => Lm.cell(l.ll[0], l.ll[1])));
     let end = "";
     const rows = dates.map((date, j) => {
       const l = locs[j], k = kOf(l.ll), w = got[k], s = soil[k], row = { date, tag: j === 0 ? "first" : j === t.nights ? "last" : "", at: l.name };
       const dd = w && w.daily;
       if (s && s.hourly && Lm) {
         const i = s.hourly.time.indexOf(`${date}T13:00`), key = Lm.cell(l.ll[0], l.ll[1]);
-        if (i >= 0) { row.lmi = Lm.at(s.hourly, i, key); const sn = Lm.snow(s.hourly, i); if (Lm.isSnowy(sn)) row.snowCm = sn; if (Lm.frost) row.frost = Lm.frost(s.hourly, i); }
+        if (i >= 0) { row.lmi = Lm.at(s.hourly, i, key); const sn = Lm.snow(s.hourly, i, key, Math.min(s.hourly.time.length - 1, new Date().getHours())); if (Lm.isSnowy(sn)) row.snowCm = sn; if (Lm.frost) row.frost = Lm.frost(s.hourly, i); }
       }
       if (!dd) return row;
       if (!end || dd.time.at(-1) < end) end = dd.time.at(-1);
