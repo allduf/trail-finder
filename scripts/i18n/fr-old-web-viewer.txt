@@ -1,0 +1,3 @@
+This phone's web viewer is out of date, so the map may not show or may stop working. ||| Le navigateur intégré de ce téléphone n'est pas à jour, donc la carte pourrait ne pas s'afficher ou cesser de fonctionner.
+On Android, updating Android System WebView and Chrome in Google Play may fix it. On iPhone, updating iOS may fix it. ||| Sur Android, mettre à jour Android System WebView et Chrome dans Google Play pourrait régler le problème. Sur iPhone, mettre iOS à jour pourrait le régler.
+Phones with a very out-of-date web viewer now get a short note on how to update it, since the map may not work there. ||| Les téléphones dont le navigateur intégré est très ancien affichent maintenant une courte note pour le mettre à jour, car la carte pourrait ne pas y fonctionner.
