@@ -22,11 +22,13 @@ final class NativeHunting: NativeLayer {
     private static let shapes = ["fills", "labels", "cone", "rings", "spot"]
 
     private var parsed: [String: MLNShape] = [:]
-    private var glass: (image: UIImage, quad: MLNCoordinateQuad)?
+    private var glass: (at: String, image: UIImage, quad: MLNCoordinateQuad)?
+    private var glassShown: String?   // the glassing view on the current style (its "at"), so a move doesn't reload it
     private var round = 0
     private weak var screen: TrailMapScreen?   // its style is the one showing now (a new base map brings a new one)
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
+        glassShown = nil   // a new style has no glassing view yet
         style.setImage(NativeHunting.hatch(), forName: "hn-hatch")
         for k in NativeHunting.shapes where style.source(withIdentifier: "hn-" + k) == nil {
             style.addSource(MLNShapeSource(identifier: "hn-" + k, shape: parsed[k], options: nil))
@@ -99,11 +101,12 @@ final class NativeHunting: NativeLayer {
         showGlass(style)
     }
 
-    // The page's text: { fills, labels, cone, rings, spot } as GeoJSON, glass: { png (base64), box: [w, s, e, n] } or null.
+    // The page's text: { fills, labels, cone, rings, spot } as GeoJSON, glass: { at, box: [w, s, e, n], png (base64) } or
+    // null. The page sends the picture only when it's new: without png, the same "at" keeps the one there.
     // Read off the main thread (a zone-dense view can be a few hundred KB), newest wins.
     func setData(_ json: String, style: MLNStyle?) {
         round += 1
-        let mine = round
+        let mine = round, prior = glass
         DispatchQueue.global(qos: .userInitiated).async {
             guard let d = json.data(using: .utf8), let o = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] else { return }
             var shapes: [String: MLNShape] = [:]
@@ -111,11 +114,13 @@ final class NativeHunting: NativeLayer {
                 if let fc = o[k], let data = try? JSONSerialization.data(withJSONObject: fc),
                    let s = try? MLNShape(data: data, encoding: String.Encoding.utf8.rawValue) { shapes[k] = s }
             }
-            var glass: (image: UIImage, quad: MLNCoordinateQuad)?
-            if let g = o["glass"] as? [String: Any], let b64 = g["png"] as? String, let box = g["box"] as? [Double], box.count == 4,
-               let bytes = Data(base64Encoded: b64), let img = UIImage(data: bytes) {
+            let g = o["glass"] as? [String: Any], at = (g?["at"] as? String) ?? ""
+            var img: UIImage?
+            if let b64 = g?["png"] as? String, let bytes = Data(base64Encoded: b64) { img = UIImage(data: bytes) }
+            var glass: (at: String, image: UIImage, quad: MLNCoordinateQuad)?
+            if let box = g?["box"] as? [Double], box.count == 4, let image = img ?? (prior?.at == at ? prior?.image : nil) {
                 let (w, s, e, n) = (box[0], box[1], box[2], box[3])
-                glass = (img, MLNCoordinateQuad(topLeft: CLLocationCoordinate2D(latitude: n, longitude: w),
+                glass = (at, image, MLNCoordinateQuad(topLeft: CLLocationCoordinate2D(latitude: n, longitude: w),
                                                  bottomLeft: CLLocationCoordinate2D(latitude: s, longitude: w),
                                                  bottomRight: CLLocationCoordinate2D(latitude: s, longitude: e),
                                                  topRight: CLLocationCoordinate2D(latitude: n, longitude: e)))
@@ -124,7 +129,8 @@ final class NativeHunting: NativeLayer {
                 guard mine == self.round else { return }
                 self.parsed = shapes
                 self.glass = glass
-                guard let style = self.screen?.mapLibreView.style ?? style else { return }
+                // Only a style this feature has set up (added(to:) runs again for a new one, with what's here now).
+                guard let style = self.screen?.mapLibreView.style ?? style, style.layer(withIdentifier: "hn-fill") != nil else { return }
                 for k in NativeHunting.shapes { (style.source(withIdentifier: "hn-" + k) as? MLNShapeSource)?.shape = shapes[k] }
                 self.showGlass(style)
             }
@@ -137,13 +143,18 @@ final class NativeHunting: NativeLayer {
         guard let g = glass else {
             if let l = style.layer(withIdentifier: "hn-glass") { style.removeLayer(l) }
             if let s = src { style.removeSource(s) }
+            glassShown = nil
             return
         }
         if let s = src {
-            s.image = g.image
-            s.coordinates = g.quad
+            if glassShown != g.at {
+                s.image = g.image
+                s.coordinates = g.quad
+                glassShown = g.at
+            }
             return
         }
+        glassShown = g.at
         let s = MLNImageSource(identifier: "hn-glass", coordinateQuad: g.quad, image: g.image)
         style.addSource(s)
         let l = MLNRasterStyleLayer(identifier: "hn-glass", source: s)
