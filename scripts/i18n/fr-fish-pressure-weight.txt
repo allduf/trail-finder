@@ -1,0 +1,1 @@
+Fishing: air pressure now counts half as much in the bite estimate, since studies find it matters less than wind, cloud and water temperature. ||| Pêche : la pression de l'air compte maintenant moitié moins dans l'activité estimée, car les études montrent qu'elle compte moins que le vent, les nuages et la température de l'eau.
