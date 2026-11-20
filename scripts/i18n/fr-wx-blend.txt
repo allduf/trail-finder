@@ -1,0 +1,5 @@
+Environment Canada (HRDPS 2.5 km and GDPS) ||| Environnement Canada (HRDPS 2,5 km et GDPS)
+ECMWF (9 km) ||| ECMWF (Europe, 9 km)
+DWD (ICON) ||| DWD (ICON, Allemagne)
+through Open-Meteo ||| par Open-Meteo
+Weather in BC: daily rain and snow amounts, highs and lows now come from the middle of 4 weather models read directly from Environment Canada (HRDPS 2.5 km), ECMWF (9 km), NOAA and DWD, with the days they disagree on. Forecasts stay estimates. ||| Météo en C.-B. : les quantités de pluie et de neige, maximums et minimums du jour viennent maintenant de la valeur du milieu de 4 modèles météo lus directement chez Environnement Canada (HRDPS 2,5 km), ECMWF (9 km), NOAA et DWD, avec les jours où ils ne s'entendent pas. Les prévisions restent des estimations.
