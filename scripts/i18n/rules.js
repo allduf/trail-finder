@@ -80,8 +80,11 @@
     [/^Trip started\. Tap a route below, then \+ Add to moto trip\.$/, "Voyage commencé. Touchez un itinéraire plus bas, puis + Ajouter au voyage moto."],
     // Weather checked across models (wxcheck.js)
     [/^Middle value of (\d+) weather models checked against each other:?$/, function (m, n) { return "Valeur du milieu de " + n + " modèles météo comparés entre eux :"; }],
+    [/^Daily rain and snow \(as water\), highs and lows: middle value of (\d+) weather models read directly from their makers:?$/, function (m, n) { return "Pluie et neige du jour (en eau), maximums et minimums : valeur du milieu de " + n + " modèles météo lus directement chez leurs producteurs :"; }],
+    [/^((?:Environment Canada \(HRDPS 2\.5 km and GDPS\)|ECMWF \(9 km\)|NOAA \(GFS\)|DWD \(ICON\))(?:, (?:Environment Canada \(HRDPS 2\.5 km and GDPS\)|ECMWF \(9 km\)|NOAA \(GFS\)|DWD \(ICON\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
+    [/^Hours and wind: middle of (\d+) models$/, "Heures et vent : milieu de $1 modèles"],
     [/^((?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\))(?:, (?:Environment Canada \(GEM\)|ECMWF \(Europe\)|NOAA \(GFS\)))*)$/, function (m, l) { return l.split(", ").map(tw).join(", "); }],
-    [/^(Wind|High|Low|Snow|Rain or snow \(water\)): ((?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat))*) \(([\d.]+) to ([\d.]+) (mm|cm|°C|km\/h)\)$/, function (m, w, ds, a, b, u) {
+    [/^(Wind|High|Low|Snow|Rain or snow \(water\)): ((?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Today|Sun|Mon|Tue|Wed|Thu|Fri|Sat))*) \((-?[\d.]+) to (-?[\d.]+) (mm|cm|°C|km\/h)\)$/, function (m, w, ds, a, b, u) {
       var DJ = { Today: "aujourd'hui", Sun: "dim.", Mon: "lun.", Tue: "mar.", Wed: "mer.", Thu: "jeu.", Fri: "ven.", Sat: "sam." };
       var WW = { Wind: "Vent", High: "Max.", Low: "Min.", Snow: "Neige", "Rain or snow (water)": "Pluie ou neige (eau)" };
       return WW[w] + " : " + ds.split(", ").map(function (d) { return DJ[d]; }).join(", ") + " (" + a.replace(".", ",") + " à " + b.replace(".", ",") + " " + u + ")"; }],

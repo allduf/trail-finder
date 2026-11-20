@@ -103,3 +103,15 @@ are written `__V__` and set to one new number each time the site is published (`
   edit of `data/changelog.json`;
 - French: a new file `scripts/i18n/fr-<short-name>.txt` named after the change, not the next number. `i18n-fr.js` is
   no longer in git: `node scripts/i18n/build.mjs` makes it locally, the publish and the phone test make it too.
+
+## Weather model blend (BC)
+Every day at 10:25 UTC, `.github/workflows/wx-blend.yml` runs `scripts/wx-blend/build.py`. It reads four free forecast
+models straight from their makers' open-data servers: Environment Canada GEM (HRDPS 2.5 km for 48 h, then GDPS),
+ECMWF IFS 9 km, NOAA GFS (AWS open data) and DWD ICON. Each model's daily water (rain + melted snow), high and low go on
+one 0.1 degree grid over BC, one file per 1 degree square in `data/wx/blend/` (days 1 am to 1 am Pacific standard
+time). `wxcheck.js` reads the square for a place on Pacific time and puts the middle of the models into the weather
+card's daily numbers, scaling the hours to the same day total; hours and wind stay Open-Meteo's middle of 3 models.
+All four sources allow commercial use with credit (see `credits.html` and `data/wx/blend/index.json`).
+The same job keeps each model's 12 UTC to 12 UTC amounts and scores them against Environment Canada's precipitation
+analysis (HRDPA 2.5 km, from gauges and radar) once it is out: `data/wx/blend/score.json` (`summary` = mean error per
+model and region, smallest first).

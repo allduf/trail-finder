@@ -1,0 +1,51 @@
+name: Weather model blend
+
+# Once a day, after the 00 UTC model runs (ECMWF's 9 km open data comes 2 h late, about 09 UTC), read four free
+# forecast models straight from their makers (Environment Canada GEM HRDPS/GDPS, ECMWF IFS 9 km, NOAA GFS, DWD ICON),
+# put each model's daily water, high and low on one 0.1 degree grid over BC and save them to data/wx/blend/
+# (scripts/wx-blend/build.py). The same run scores each model's earlier forecast against Environment Canada's
+# measured precipitation analysis (HRDPA) -> data/wx/blend/score.json.
+# All four allow commercial use with a credit line (see data/wx/blend/index.json), unlike Open-Meteo's free API.
+# On a pull request that changes the script it only does a quick test run, without saving anything.
+on:
+  schedule:
+    - cron: "25 10 * * *"   # daily 10:25 UTC (2:25 am Pacific standard time)
+  workflow_dispatch:        # "Run workflow" button on the Actions tab
+  pull_request:
+    paths:
+      - scripts/wx-blend/**
+      - .github/workflows/wx-blend.yml
+
+permissions:
+  contents: write   # save the data files (site-data branch)
+  actions: write    # start "Publish website" afterwards
+
+concurrency:
+  group: wx-blend-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get the data files (from the site-data branch, see scripts/site-data.sh)
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the GRIB reader
+        run: pip install eccodes numpy scipy
+      - name: Read and blend the models
+        env:
+          QUICK: ${{ github.event_name == 'pull_request' && '1' || '' }}
+        run: python3 scripts/wx-blend/build.py
+      - name: Save the new data
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        run: bash scripts/site-data.sh save "Weather model blend" "data/wx/blend"
+      - name: Publish the website
+        if: github.event_name != 'pull_request' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main || echo "The website will publish with the next data job."
