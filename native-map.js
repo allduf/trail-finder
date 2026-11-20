@@ -9,7 +9,15 @@
 // "Native 3D (test)" next to it (alex 2026-11-16, "Small native 3D trial") opens the same screen in 3D: satellite photos
 // over the mountains, tilted, with the same trails, to feel whether a 3D map drawn by the iPhone turns smoother than the
 // web one. Photos and trails only, in every sport, also alex only. Needs an app build with the 3D engine (TrailMap's
-// MapLibre with terrain); in older builds it opens flat.
+// MapLibre with terrain); in older builds it opens flat. In Skiing it also has the Winter map (last winter's photos),
+// first in its list, and opens on it when the page's map is on Winter (alex 2026-11-20: "can we have the Winter map like
+// that?"); app builds before that show Satellite.
+// "Native for viewing, web for tools" (alex 2026-11-20): on alex's iPhone, tapping the map's 3D button opens this native
+// 3D for looking around, unless a layer only the web 3D map draws is on (avalanche, slope angles and the other ground
+// layers, elevation lines, sun and shade): then the web 3D map opens as before, so avalanche ratings are only ever
+// drawn by one piece of code (avalanche-exact). The native screen's "Layers" button goes to the web 3D map at the same
+// spot with its Layers open, for turning those on. Other ways into 3D (a tour, a plan, the app reopening in 3D) keep
+// opening the web 3D map. Only alex for now; the "(test)" label goes once friends have tried it.
 (() => {
   "use strict";
   const C = window.Capacitor, map = window.tfLeaflet, L = window.L;
@@ -118,9 +126,36 @@
     if (close) close.click();
     const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm", base = sel === "advtopo" ? "vector" : sel;   // the native map has no ADV topo: its closest
     open = true;
-    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, ...snapshot() })
+    // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
+    const winter = threeD && document.body.classList.contains("sport-ski");
+    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, ...snapshot() })
       .catch(() => { open = false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
+
+  // ---------- the map's 3D button opens native 3D (alex only, see the top) ----------
+  const tf = (k, d) => { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
+  const pressed = (id) => { const b = document.getElementById(id); return !!b && !b.hidden && b.getAttribute("aria-pressed") === "true"; };
+  const GROUND = ["avy", "slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND
+  const webOnly = () => {
+    if (tf("avy", false) === true || ["avyBtn", "contourBtn", "shadeBtn"].some(pressed)) return true;
+    if (!document.body.classList.contains("sport-ski")) return false;
+    const shown = tf("skiLayers2", null);
+    return Array.isArray(shown) && shown.some((k) => GROUND.includes(k));
+  };
+  const map3d = document.getElementById("btn3d");
+  if (map3d) map3d.addEventListener("click", (e) => {
+    // Only a real tap, going from the flat map into 3D: other scripts click this button to open the web 3D map.
+    if (!e.isTrusted || open || !adminNow() || map.getContainer().classList.contains("is3d") || webOnly()) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    openNative(true);
+  }, true);
+  // "Layers" on the native 3D screen: the web 3D map here, with its Layers open.
+  TrailMap.addListener("closed", (e) => {
+    if (!e.layers || !map3d) return;
+    if (!map.getContainer().classList.contains("is3d")) map3d.click();
+    const layers = document.getElementById("layersBtn");
+    if (layers) setTimeout(() => layers.click(), 600);
+  });
 })();
