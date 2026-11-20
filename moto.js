@@ -612,6 +612,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const rule = (min, max, w, o) => `<Rule>${min ? `<MinScaleDenominator>${min}</MinScaleDenominator>` : ""}${max ? `<MaxScaleDenominator>${max}</MaxScaleDenominator>` : ""}<LineSymbolizer><Stroke><CssParameter name="stroke">${c}</CssParameter><CssParameter name="stroke-width">${w}</CssParameter><CssParameter name="stroke-opacity">${o}</CssParameter></Stroke></LineSymbolizer></Rule>`;
     return `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>${FTEN}</Name><UserStyle><FeatureTypeStyle>${rule(200000, 0, 0.7, 0.45)}${rule(100000, 200000, 1.2, 0.65)}${rule(0, 100000, 2, 0.8)}</FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
   };
+  // The same forest roads as map images for a 3D map (map3d.js here, and the iPhone's native 3D through native-moto.js).
+  const ftenTiles = (sld) => `https://openmaps.gov.bc.ca/geo/pub/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(FTEN)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(sld)}&BBOX={bbox-epsg-3857}`;
   const ftenLayer = L.tileLayer.wms("https://openmaps.gov.bc.ca/geo/pub/wms", { layers: FTEN, styles: "", format: "image/png", transparent: true, SLD_BODY: ftenSld(), minZoom: 9, maxZoom: 19, pane: "motoGL", bounds: L.latLngBounds([48.2, -139.1], [60, -114]), attribution: "DataBC" });
   function paintRoads() {
     if (ftenLayer._map) ftenLayer.setParams({ SLD_BODY: ftenSld() });
@@ -743,7 +745,14 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   const allMoto = [ptLayer, rangeLayer, routeLayer, wpLayer, rulesLayer, spotLayer];
   const pinIcon = (k) => L.divIcon({ className: "", html: `<div class="mt-pin" style="background:${PT[k].c}">${PT[k].t}</div>`, iconSize: [0, 0] });
   const ICONS = Object.fromEntries(Object.keys(PT).map((k) => [k, pinIcon(k)]));
-  let pts3d = [];
+  let pts3d = [], sentPts = [], nativeWait = 0;
+  // The iPhone's native 3D map (native-moto.js) gets the stops again whenever they change while it's open.
+  const toNative = () => {
+    const N = window.tfNative;
+    if (!N || !N.isOpen || !N.send || !N.isOpen()) return;
+    clearTimeout(nativeWait);
+    nativeWait = setTimeout(() => N.send("moto"), 300);
+  };
   function drawPoints() {
     ptLayer.clearLayers(); pts3d = [];
     if (!isMoto()) { sync3d(); return; }
@@ -770,6 +779,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     }
     if (shown.has("camp") && z >= 8) for (const p of recList()) put("rec", p);
     sync3d();
+    toNative();
   }
   // A tap on a dot: its card. On a phone the sheet comes up to half if it was down, with the card at its top, so the
   // tap visibly does something (it only filled a card under the closed sheet before).
@@ -2240,8 +2250,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       if (g.getSource("mt-ften") && g.__mtSld !== sld) { if (g.getLayer("mt-ften")) g.removeLayer("mt-ften"); g.removeSource("mt-ften"); }
       if (!g.getSource("mt-ften")) {
         g.__mtSld = sld;
-        g.addSource("mt-ften", { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 17, bounds: [-139.1, 48.2, -114, 60],
-          tiles: [`https://openmaps.gov.bc.ca/geo/pub/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(FTEN)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(sld)}&BBOX={bbox-epsg-3857}`] });
+        g.addSource("mt-ften", { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 17, bounds: [-139.1, 48.2, -114, 60], tiles: [ftenTiles(sld)] });
         g.addLayer({ id: "mt-ften", type: "raster", source: "mt-ften", minzoom: 8, paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 11, 0.8, 13, 0.95] } });
       }
       g.setLayoutProperty("mt-ften", "visibility", on && shown.has("roads") ? "visible" : "none");
@@ -2886,6 +2895,22 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     openSpot: (lat, lon) => { map.setView([lat, lon], Math.max(map.getZoom(), 12)); setSpot(lat, lon, "tap"); toPanel(); },
     cellNear: async (lat, lon) => { const c = await loadCell(); return c ? cellNear(lat, lon) : null; },
     showCard, toPanel, hint, getJ, postJ, OVERPASS,
+    // The iPhone's native 3D map (native-moto.js): what web 3D draws for Moto (sync3d), as plain data. roads: the dirt
+    // roads layer is on; road and track: their colours for your bike (the far tiles use the same two); ften: BC's forest
+    // roads as a map image address; pts: the stops around the view, [lat, lon, kind, colour, name]. null outside Moto.
+    native3d: () => {
+      if (!isMoto()) return null;
+      const cap = capOf(cur()), on = shown.has("roads");
+      return { roads: on, road: FIT[fitOf(2, cap)][1], track: FIT[fitOf(3, cap)][1], ften: on ? ftenTiles(ftenSld()) : "",
+        pts: (sentPts = pts3d.slice()).map((x) => [x.p[0], x.p[1], x.k, PT[x.k].c, x.p[2] || PT[x.k].name]) };
+    },
+    // "Details" on a stop's card there: that stop's card here (true when one is at that spot).
+    openPointAt: (lat, lon) => {
+      // The stops last sent there (the page's own list follows its smaller view): the card's spot is the stop's own.
+      const x = sentPts.concat(pts3d).find((o) => Math.abs(o.p[0] - lat) < 1e-6 && Math.abs(o.p[1] - lon) < 1e-6);
+      if (x) openPoint(x.k, x.p);
+      return !!x;
+    },
   };
   // Offline maps (offline.js) saved in Moto keep the gas, camping and hot spring lists too.
   window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json", "data/moto-models.json"] : []);
