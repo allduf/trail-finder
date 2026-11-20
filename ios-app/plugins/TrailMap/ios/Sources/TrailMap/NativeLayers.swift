@@ -28,5 +28,6 @@ extension NativeLayer {
 enum NativeLayers {
     // One line per feature (keep in alphabetical order: parallel pull requests then add different lines).
     static let all: [() -> NativeLayer] = [
+        { NativeMoto() },
     ]
 }

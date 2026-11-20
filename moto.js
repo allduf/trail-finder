@@ -612,6 +612,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const rule = (min, max, w, o) => `<Rule>${min ? `<MinScaleDenominator>${min}</MinScaleDenominator>` : ""}${max ? `<MaxScaleDenominator>${max}</MaxScaleDenominator>` : ""}<LineSymbolizer><Stroke><CssParameter name="stroke">${c}</CssParameter><CssParameter name="stroke-width">${w}</CssParameter><CssParameter name="stroke-opacity">${o}</CssParameter></Stroke></LineSymbolizer></Rule>`;
     return `<StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld"><NamedLayer><Name>${FTEN}</Name><UserStyle><FeatureTypeStyle>${rule(200000, 0, 0.7, 0.45)}${rule(100000, 200000, 1.2, 0.65)}${rule(0, 100000, 2, 0.8)}</FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>`;
   };
+  // The same forest roads as map images for a 3D map (map3d.js here, and the iPhone's native 3D through native-moto.js).
+  const ftenTiles = (sld) => `https://openmaps.gov.bc.ca/geo/pub/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(FTEN)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(sld)}&BBOX={bbox-epsg-3857}`;
   const ftenLayer = L.tileLayer.wms("https://openmaps.gov.bc.ca/geo/pub/wms", { layers: FTEN, styles: "", format: "image/png", transparent: true, SLD_BODY: ftenSld(), minZoom: 9, maxZoom: 19, pane: "motoGL", bounds: L.latLngBounds([48.2, -139.1], [60, -114]), attribution: "DataBC" });
   function paintRoads() {
     if (ftenLayer._map) ftenLayer.setParams({ SLD_BODY: ftenSld() });
@@ -2240,8 +2242,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       if (g.getSource("mt-ften") && g.__mtSld !== sld) { if (g.getLayer("mt-ften")) g.removeLayer("mt-ften"); g.removeSource("mt-ften"); }
       if (!g.getSource("mt-ften")) {
         g.__mtSld = sld;
-        g.addSource("mt-ften", { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 17, bounds: [-139.1, 48.2, -114, 60],
-          tiles: [`https://openmaps.gov.bc.ca/geo/pub/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${encodeURIComponent(FTEN)}&STYLES=&FORMAT=image%2Fpng&TRANSPARENT=true&SRS=EPSG%3A3857&WIDTH=256&HEIGHT=256&SLD_BODY=${encodeURIComponent(sld)}&BBOX={bbox-epsg-3857}`] });
+        g.addSource("mt-ften", { type: "raster", tileSize: 256, minzoom: 8, maxzoom: 17, bounds: [-139.1, 48.2, -114, 60], tiles: [ftenTiles(sld)] });
         g.addLayer({ id: "mt-ften", type: "raster", source: "mt-ften", minzoom: 8, paint: { "raster-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 11, 0.8, 13, 0.95] } });
       }
       g.setLayoutProperty("mt-ften", "visibility", on && shown.has("roads") ? "visible" : "none");
@@ -2886,6 +2887,21 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     openSpot: (lat, lon) => { map.setView([lat, lon], Math.max(map.getZoom(), 12)); setSpot(lat, lon, "tap"); toPanel(); },
     cellNear: async (lat, lon) => { const c = await loadCell(); return c ? cellNear(lat, lon) : null; },
     showCard, toPanel, hint, getJ, postJ, OVERPASS,
+    // The iPhone's native 3D map (native-moto.js): what web 3D draws for Moto (sync3d), as plain data. roads: the dirt
+    // roads layer is on; road and track: their colours for your bike (the far tiles use the same two); ften: BC's forest
+    // roads as a map image address; pts: the stops around the view, [lat, lon, kind, colour, name]. null outside Moto.
+    native3d: () => {
+      if (!isMoto()) return null;
+      const cap = capOf(cur()), on = shown.has("roads");
+      return { roads: on, road: FIT[fitOf(2, cap)][1], track: FIT[fitOf(3, cap)][1], ften: on ? ftenTiles(ftenSld()) : "",
+        pts: pts3d.map((x) => [x.p[0], x.p[1], x.k, PT[x.k].c, x.p[2] || PT[x.k].name]) };
+    },
+    // "Details" on a stop's card there: that stop's card here (true when one is at that spot).
+    openPointAt: (lat, lon) => {
+      const x = pts3d.find((o) => Math.abs(o.p[0] - lat) < 2e-5 && Math.abs(o.p[1] - lon) < 2e-5);
+      if (x) openPoint(x.k, x.p);
+      return !!x;
+    },
   };
   // Offline maps (offline.js) saved in Moto keep the gas, camping and hot spring lists too.
   window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json", "data/moto-models.json"] : []);

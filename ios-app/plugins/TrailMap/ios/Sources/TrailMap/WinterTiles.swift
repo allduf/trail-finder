@@ -10,7 +10,7 @@ import MapLibre
 // is worked out from the square (as tfWinterShard and sharpBase in map3d.js). MapLibre can only fill {z}/{x}/{y} into
 // one address, so the style asks a made-up address (Self.host) and this object, as MapLibre's URL rewriter, turns it
 // into the real one. Lists of squares (~55 KB) are loaded once, before the Winter style is shown.
-final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
+final class WinterTiles: NSObject {
     static let shared = WinterTiles()
     static let host = "winter.trailfinder.invalid"
     static let credit = "Winter: Copernicus Sentinel-2 data 2025-2026 (ESA), via AWS Open Data"
@@ -40,7 +40,7 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
         let first = waiting.count == 1
         lock.unlock()
         if !first { return }
-        MLNOfflineStorage.shared.delegate = self
+        TileRewriter.add(host: Self.host) { [unowned self] in self.rewrite($0) }
         var got = [[[Int]]?](repeating: nil, count: Self.lists.count)
         let gotLock = NSLock(), group = DispatchGroup()
         for (i, s) in Self.lists.enumerated() {
@@ -84,9 +84,8 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
         }
     }
 
-    // MapLibre's URL rewriter (called off the main thread, for every download): only our made-up address is changed.
-    func offlineStorage(_ storage: MLNOfflineStorage, urlForResourceOf kind: MLNResourceKind, with url: URL) -> URL {
-        guard url.host == Self.host else { return url }
+    // MapLibre's URL rewriter (TileRewriter, called off the main thread, for every download) for our made-up address.
+    private func rewrite(_ url: URL) -> URL {
         let p = url.path.split(separator: "/").map(String.init)
         guard p.count == 4, let z = Int(p[1]), let x = Int(p[2]), let y = Int(p[3]) else { return Self.none }
         return real(p[0], z, x, y) ?? Self.none
