@@ -9,7 +9,9 @@
 // "Native 3D (test)" next to it (alex 2026-11-16, "Small native 3D trial") opens the same screen in 3D: satellite photos
 // over the mountains, tilted, with the same trails, to feel whether a 3D map drawn by the iPhone turns smoother than the
 // web one. Photos and trails only, in every sport, also alex only. Needs an app build with the 3D engine (TrailMap's
-// MapLibre with terrain); in older builds it opens flat.
+// MapLibre with terrain); in older builds it opens flat. In Skiing it also has the Winter map (last winter's photos),
+// first in its list, and opens on it when the page's map is on Winter (alex 2026-11-20: "can we have the Winter map like
+// that?"); app builds before that show Satellite.
 (() => {
   "use strict";
   const C = window.Capacitor, map = window.tfLeaflet, L = window.L;
@@ -118,7 +120,9 @@
     if (close) close.click();
     const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm", base = sel === "advtopo" ? "vector" : sel;   // the native map has no ADV topo: its closest
     open = true;
-    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, ...snapshot() })
+    // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
+    const winter = threeD && document.body.classList.contains("sport-ski");
+    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, ...snapshot() })
       .catch(() => { open = false; });
   }
   btn.addEventListener("click", () => openNative(false));
