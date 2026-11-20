@@ -1,0 +1,12 @@
+iPhone 3D drawn by the phone (test): webcams, huts, parking, saved spots and other map pins can be tapped there, and a place can be searched. ||| 3D de l'iPhone dessinée par le téléphone (essai) : on peut y toucher les webcams, refuges, stationnements, endroits enregistrés et autres épingles de la carte, et chercher un endroit.
+Searched place ||| Endroit cherché
+Saved spot ||| Endroit enregistré
+Hut or cabin ||| Refuge ou cabane
+Webcam ||| Webcam
+Highway camera ||| Caméra routière
+Search a place ||| Chercher un endroit
+A town, mountain, lake or region, or a GPS point ||| Une ville, une montagne, un lac ou une région, ou un point GPS
+Place name ||| Nom de l'endroit
+The search needs a connection. ||| La recherche a besoin d'une connexion.
+No place found. ||| Aucun endroit trouvé.
+Place ||| Endroit

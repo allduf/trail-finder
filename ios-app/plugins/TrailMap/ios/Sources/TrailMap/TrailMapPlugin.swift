@@ -122,12 +122,15 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private var parseRound = 0                 // newest data wins when two arrive close together
     private var picked = -1                    // the card's trail: its i on the page, and where it was tapped
     private var pickedAt = CLLocationCoordinate2D()
+    private var pickedFeature: String?         // the card's feature key (NativeLayers.swift), nil for a trail
     private var left = false
 
     private let styleBtn = UIButton(type: .system)
     private let card = UIView()
     private let cardName = UILabel()
     private let cardSwatch = UIView()
+    private let cardSub = UILabel()            // a feature card's second line (what it is: "Webcam", "Hut"...)
+    private let toolStack = UIStackView()      // features' own buttons, under Back (addToolButton)
     // The native 3D features (NativeLayers.swift), each with its own sources and layers; 3D only.
     private lazy var features: [NativeLayer] = threeD ? NativeLayers.all.map { $0() } : []
 
@@ -203,7 +206,14 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         cardName.font = .systemFont(ofSize: 17, weight: .bold)
         cardName.textColor = TrailMapScreen.ink
         cardName.numberOfLines = 2
-        cardName.translatesAutoresizingMaskIntoConstraints = false
+        cardSub.font = .systemFont(ofSize: 13, weight: .semibold)
+        cardSub.textColor = .darkGray
+        cardSub.numberOfLines = 1
+        cardSub.isHidden = true
+        let cardText = UIStackView(arrangedSubviews: [cardName, cardSub])
+        cardText.axis = .vertical
+        cardText.spacing = 2
+        cardText.translatesAutoresizingMaskIntoConstraints = false
         let details = pill("Details ›", #selector(detailsTapped))
         let shut = UIButton(type: .system)
         shut.setTitle("✕", for: .normal)
@@ -211,8 +221,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         shut.tintColor = TrailMapScreen.ink
         shut.addTarget(self, action: #selector(cardClose), for: .touchUpInside)
         shut.translatesAutoresizingMaskIntoConstraints = false
-        [cardSwatch, cardName, details, shut].forEach { card.addSubview($0) }
+        [cardSwatch, cardText, details, shut].forEach { card.addSubview($0) }
         view.addSubview(card)
+        toolStack.axis = .vertical
+        toolStack.alignment = .leading
+        toolStack.spacing = 8
+        toolStack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(toolStack)
 
         let g = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
@@ -232,10 +247,12 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             cardSwatch.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             cardSwatch.widthAnchor.constraint(equalToConstant: 8),
             cardSwatch.heightAnchor.constraint(equalToConstant: 34),
-            cardName.leadingAnchor.constraint(equalTo: cardSwatch.trailingAnchor, constant: 10),
-            cardName.topAnchor.constraint(equalTo: card.topAnchor, constant: 16),
-            cardName.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-            details.leadingAnchor.constraint(greaterThanOrEqualTo: cardName.trailingAnchor, constant: 8),
+            cardText.leadingAnchor.constraint(equalTo: cardSwatch.trailingAnchor, constant: 10),
+            cardText.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
+            cardText.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -14),
+            details.leadingAnchor.constraint(greaterThanOrEqualTo: cardText.trailingAnchor, constant: 8),
+            toolStack.leadingAnchor.constraint(equalTo: back.leadingAnchor),
+            toolStack.topAnchor.constraint(equalTo: back.bottomAnchor, constant: 10),
             details.centerYAnchor.constraint(equalTo: card.centerYAnchor),
             shut.leadingAnchor.constraint(equalTo: details.trailingAnchor, constant: 4),
             shut.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -8),
@@ -244,6 +261,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         ])
         details.setContentCompressionResistancePriority(.required, for: .horizontal)
         cardName.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        cardText.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     }
 
     // ---------- buttons ----------
@@ -306,6 +324,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         e["open"] = picked
         e["tapLat"] = pickedAt.latitude
         e["tapLon"] = pickedAt.longitude
+        if let k = pickedFeature, e["details"] as? Bool == true { e["feature"] = k }
         onEvent?("closed", e)
         map.delegate = nil
         dismiss(animated: true)
@@ -432,13 +451,37 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // The lowest trail layer: a feature drawn under the trails inserts its layers below this one.
     func trailsBottomLayer() -> MLNStyleLayer? { map.style?.layer(withIdentifier: "tf-line") }
     var mapLibreView: MLNMapView { map }
-    // A feature's own card: the same card as a trail's (name and colour), with Details coming back to the page.
-    func showFeatureCard(name: String, colour: String?, open: Int, at: CLLocationCoordinate2D) {
+    // A feature's own card: the same card as a trail's (name, colour, and a second line saying what it is), with Details
+    // coming back to the page: "closed" then carries feature: key and open: the feature's own number, and the feature's
+    // page side opens it there (window.tfNative.addLayer's onDetails).
+    func showFeatureCard(name: String, sub: String? = nil, colour: String?, open: Int, at: CLLocationCoordinate2D, key: String? = nil) {
         picked = open
         pickedAt = at
+        pickedFeature = key
         cardName.text = name
+        cardSub.text = sub
+        cardSub.isHidden = (sub ?? "").isEmpty
         cardSwatch.backgroundColor = TrailMapScreen.color(colour) ?? .gray
         card.isHidden = false
+    }
+    // A feature's own button, in a column under Back (3D only); added once, kept across style changes.
+    func addToolButton(_ title: String, handler: @escaping () -> Void) {
+        let b = pill(title, #selector(noop))
+        b.removeTarget(self, action: #selector(noop), for: .touchUpInside)
+        b.addAction(UIAction { _ in handler() }, for: .touchUpInside)
+        toolStack.addArrangedSubview(b)
+    }
+    @objc private func noop() {}
+    // Events from a feature to the page (its native-xxx.js listens with TrailMap.addListener).
+    func send(_ name: String, _ data: [String: Any]) { if !left { onEvent?(name, data) } }
+    // The camera flies to a box (a searched place), as the web 3D map looks at a search: a little less tilted.
+    func fly(to sw: CLLocationCoordinate2D, _ ne: CLLocationCoordinate2D) {
+        let bounds = MLNCoordinateBounds(sw: sw, ne: ne)
+        let pad = UIEdgeInsets(top: 90, left: 30, bottom: 110, right: 30)
+        let cam = map.cameraThatFitsCoordinateBounds(bounds, edgePadding: pad)
+        if threeD { cam.pitch = 55 }
+        map.userTrackingMode = .none
+        map.fly(to: cam, withDuration: 1.6, completionHandler: nil)
     }
 
     // ---------- the trails ----------
@@ -486,6 +529,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         showCard(found.first { $0 is MLNPointFeature } ?? found.first { $0.attribute(forKey: "i") != nil } ?? found.first)
     }
     private func showCard(_ f: MLNFeature?) {
+        pickedFeature = nil
+        cardSub.isHidden = true
         guard let f = f else {
             picked = -1
             card.isHidden = true

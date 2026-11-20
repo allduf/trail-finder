@@ -49,7 +49,10 @@
   // get() returns its data as text (or null for nothing); it's sent with the 3D screen's opening, and again with
   // window.tfNative.send(key) whenever it changes while the screen is open. Load those files after this one, and guard
   // the call (window.tfNative && window.tfNative.addLayer) so an older cached copy of this file can't break them.
-  const feats = new Map();
+  // A feature's card (showFeatureCard in Swift) with Details pressed comes back as "closed" with feature: key and
+  // open: the feature's own number; addLayer's third argument, onDetails(n, latlng), opens it here. tfNative.on(name, fn)
+  // listens to a feature's own events from the native screen.
+  const feats = new Map(), details = new Map();
   let open3d = false;
   const featureData = (threeD) => {
     const out = {};
@@ -58,7 +61,11 @@
     return out;
   };
   window.tfNative = {
-    addLayer(key, get) { if (typeof get === "function") feats.set(String(key), get); },
+    addLayer(key, get, onDetails) {
+      if (typeof get === "function") feats.set(String(key), get);
+      if (typeof onDetails === "function") details.set(String(key), onDetails);
+    },
+    on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { if (open && open3d) { try { fn(e || {}); } catch {} } }); },
     send(key) {
       const get = feats.get(String(key));
       if (!open || !open3d || !get || !TrailMap.layer) return;
@@ -138,6 +145,11 @@
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
+    if (e.feature) {   // a feature's own card: that feature opens it (native-xxx.js)
+      const f = details.get(String(e.feature));
+      if (f) try { f(e.open, L.latLng(e.tapLat, e.tapLon)); } catch {}
+      return;
+    }
     // "Details" on a trail's card: the trail opens as if tapped there (most trails are found by the map's own tap).
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
