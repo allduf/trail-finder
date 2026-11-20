@@ -69,9 +69,12 @@
   };
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
+  // In 3D, lines are a little bolder than on the flat map and dots closer together, as on the web 3D map (map3d.js
+  // LINE_SCALE, DOT_STEP), so they read against the photos; the iPhone draws the dots bigger, on a dark band.
+  const LINE_SCALE = 1.15, DOT_STEP = 2.2;
   const dashKey = (d, w) => {
     const n = String(d).trim().split(/[\s,]+/).map(Number);
-    if (n.length === 2 && n[0] <= 1) return "0," + Math.max(0.1, (n[0] + n[1]) / Math.max(w, 1)).toFixed(2);
+    if (n.length === 2 && n[0] <= 1) return "0," + (open3d ? DOT_STEP : Math.max(0.1, (n[0] + n[1]) / Math.max(w, 1))).toFixed(2);
     return n.map((x) => Math.max(0.1, x / Math.max(w, 1)).toFixed(2)).join(",");
   };
   // The name written along a line in native 3D (lb): only a line's own label, as on the web 3D map (map3d.js), and MTB
@@ -123,7 +126,7 @@
       const d = o.dashArray ? dashKey(o.dashArray, o.weight) : "";
       if (d) dashes.add(d);
       lines.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: parts },
-        properties: { ...props, c: o.color, w: o.weight || 3, o: o.opacity, d, ...(label(l) ? { lb: label(l) } : {}) } });
+        properties: { ...props, c: o.color, w: (o.weight || 3) * (open3d ? LINE_SCALE : 1), o: o.opacity, d, ...(label(l) ? { lb: label(l) } : {}) } });
     });
     return {
       lines: JSON.stringify({ type: "FeatureCollection", features: lines }),
@@ -175,6 +178,15 @@
     if (!document.body.classList.contains("sport-ski")) return false;
     const shown = tf("skiLayers2", null);
     return Array.isArray(shown) && shown.some((k) => GROUND.includes(k));
+  };
+  // Another script showing something in 3D (a ski tour's Flyover, native-flyover.js) asks here first: native 3D opens
+  // at { lat, lon, zoom } (MapLibre's zoom) where the 3D button would open it, and the answer is true; false means the
+  // web 3D map is the one (not alex, a web-only layer on, already in 3D).
+  window.tfNative.view = (at) => {
+    if (open || !adminNow() || map.getContainer().classList.contains("is3d") || webOnly()) return false;
+    if (at && isFinite(at.lat) && isFinite(at.lon)) map.setView([at.lat, at.lon], Math.round((at.zoom || 13) + 1), { animate: false });
+    openNative(true);
+    return true;
   };
   const map3d = document.getElementById("btn3d");
   if (map3d) map3d.addEventListener("click", (e) => {
