@@ -2124,7 +2124,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const p0 = h.pressure_msl[idx[0] - 6] ?? h.pressure_msl[idx[0]], p1 = h.pressure_msl[idx[idx.length - 1]], dp = p1 - p0, tmax = Math.max(...idx.map((i) => h.temperature_2m[i]));
     const ph = moonPhase(new Date(date + "T12:00:00Z")).phase, moonNear = Math.min(Math.abs(ph - 0), Math.abs(ph - 0.5), Math.abs(ph - 1)) < 0.06;
     let s = 2.5; const why = [];   // an ordinary day is a 3; it takes several good signs to make a 5
-    if (dp <= -1.5) { s += 1; why.push("pressure falling"); } else if (dp >= 3) { s -= 1; why.push("pressure rising fast"); } else if (Math.abs(dp) < 1) why.push("steady pressure");
+    // Pressure counts half as much as it used to (alex 2026-11-20, after the Today card research: studies find a weak or
+    // no link between air pressure and feeding; it mostly stands in for the weather that comes with it, which the
+    // wind, cloud and rain below already count).
+    if (dp <= -1.5) { s += 0.5; why.push("pressure falling"); } else if (dp >= 3) { s -= 0.5; why.push("pressure rising fast"); } else if (Math.abs(dp) < 1) why.push("steady pressure");
     if (wind >= 6 && wind <= 18) { s += 0.5; why.push("light chop"); } else if (wind > 28 || gust > 50) { s -= 1.5; why.push("windy"); } else if (wind < 4) why.push("calm (spooky fish)");
     if (cloud > 60) { s += 0.5; why.push("cloudy"); } else if (cloud < 20) { s -= 0.25; why.push("bright sun"); }
     if (rain > 12) { s -= 0.75; why.push("heavy rain"); } else if (rain > 0.5) why.push("some rain");
