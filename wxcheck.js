@@ -171,7 +171,7 @@
   const BLEND_NAMES = { gem: "Environment Canada (HRDPS 2.5 km and GDPS)", ecmwf: "ECMWF (9 km)", gfs: "NOAA (GFS)", icon: "DWD (ICON)" };
   const BOX = [48, -139, 60, -114], LAPSE = 0.0065;
   const blendTiles = new Map();   // key -> { at, p }
-  const TILE_KEEP_MS = 3 * 3600000, RUN_MAX_AGE_MS = 36 * 3600000;
+  const TILE_KEEP_MS = 3 * 3600000, RUN_MAX_AGE_MS = 48 * 3600000;
   const blendTile = (lat, lon) => {
     if (!(lat >= BOX[0] && lat < BOX[2] && lon >= BOX[1] && lon < BOX[3])) return Promise.resolve(null);
     const key = `${Math.floor(lat)}_${Math.floor(lon)}`, c = blendTiles.get(key);
@@ -185,11 +185,16 @@
   const runMs = (r) => { const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})Z$/.exec(String(r || "")); return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4]) : NaN; };
   // Each model's day numbers at one place: [{ date, p: [mm by model], hi: [C], lo: [C] }], temperatures moved to the
   // place's height (6.5 C per km, like Open-Meteo) from each model's own ground height in that cell.
-  async function blendAt(lat, lon, elev) {
+  async function blendAt(lat, lon, elev, again) {
     const t = await blendTile(lat, lon);
     if (!t || !Array.isArray(t.days) || !Array.isArray(t.models)) return null;
     const run = runMs(t.run);
-    if (!(Date.now() - run < RUN_MAX_AGE_MS)) return null;
+    if (!(Date.now() - run < RUN_MAX_AGE_MS)) {
+      // A newer file may have come out since this square was read: read it once more (at most every 10 minutes).
+      const key = `${Math.floor(lat)}_${Math.floor(lon)}`, c = blendTiles.get(key);
+      if (!again && c && Date.now() - c.at > 10 * 60000) { blendTiles.delete(key); return blendAt(lat, lon, elev, true); }
+      return null;
+    }
     const per = Math.round(1 / t.step);   // cells per degree; integer maths so 49.3 lands in row 3, not 2
     const i = Math.min(9, Math.max(0, Math.floor((lat - t.lat0) * per + 1e-6))), j = Math.min(9, Math.max(0, Math.floor((lon - t.lon0) * per + 1e-6)));
     const c = i * 10 + j;
@@ -205,6 +210,7 @@
       })),
     };
   }
+  const BLEND_ZONES = new Set(["America/Vancouver", "America/Edmonton", "America/Creston", "America/Dawson_Creek", "America/Fort_Nelson", "America/Whitehorse"]);
   const round1 = (v) => Math.round(v * 10) / 10;
   const r2 = (v) => Math.round(v * 100) / 100;
   // Where the models' water has no rain/snow split from Open-Meteo (it had none that day): by the day's blended mean
@@ -241,7 +247,7 @@
       // into rain and snow as above.
       if (H && Array.isArray(H.time) && Array.isArray(H.precipitation)) {
         const idx = H.time.map((t, k) => (String(t).slice(0, 10) === day.date ? k : -1)).filter((k) => k >= 0);
-        if (idx.length) {
+        if (idx.length >= 24) {   // only a whole day of hours is scaled to a whole day's total
           const sum = idx.reduce((s, k) => s + (H.precipitation[k] || 0), 0);
           if (sum > 0.05) {
             const f = m / sum;
@@ -252,6 +258,7 @@
               H.precipitation[k] = r2(each);
               if (Array.isArray(H.rain)) H.rain[k] = r2(each * (1 - share));
               if (Array.isArray(H.snowfall)) H.snowfall[k] = r2(each * share * CM_PER_MM);
+              if (Array.isArray(H.showers)) H.showers[k] = 0;
             });
           }
           wrote = true;
@@ -269,29 +276,33 @@
         D.precipitation_sum[di] = m;
         // The day's icon follows the amount: rain or snow where it had none, no rain or snow where the models have
         // almost none (overcast, the nearest code that claims nothing falls).
+        // Left as it is where the day's chance of rain or snow says otherwise.
         if (Array.isArray(D.weather_code) && typeof D.weather_code[di] === "number") {
-          const c = D.weather_code[di], wet = c >= 51;
-          if (!wet && m >= 1) D.weather_code[di] = share > 0.5 ? (m >= 10 ? 75 : m >= 3 ? 73 : 71) : (m >= 10 ? 65 : m >= 3 ? 63 : 61);
-          else if (wet && m < 0.1) D.weather_code[di] = 3;
+          const c = D.weather_code[di], wet = c >= 51, pr = Array.isArray(D.precipitation_probability_max) ? D.precipitation_probability_max[di] : null;
+          if (!wet && m >= 1 && (pr == null || pr >= 30)) D.weather_code[di] = share > 0.5 ? (m >= 10 ? 75 : m >= 3 ? 73 : 71) : (m >= 10 ? 65 : m >= 3 ? 63 : 61);
+          else if (wet && m < 0.1 && (pr == null || pr < 50)) D.weather_code[di] = 3;
         }
         wrote = true;
       }
       if (!wrote) continue;
       mark(day.date, "rain");
+      mark(day.date, "snow");   // snow amounts now follow the models' water: Open-Meteo's snow range no longer applies
       const lo = Math.min(...P), hi = Math.max(...P);
       if (hi - lo >= SPLIT.rain.gap && hi >= SPLIT.rain.ratio * lo) splitsB.push({ date: day.date, key: "rain", what: SPLIT.rain.word, lo, hi, unit: "mm" });
     }
     if (!done.size) return w;
-    const names = b.models.map((m) => BLEND_NAMES[m] || m);
+    const names = b.models.map((m) => BLEND_NAMES[m] || m), kinds = new Set();
+    done.forEach((k) => k.forEach((x) => kinds.add(x)));
     w.check = { ...w.check, splits: w.check.splits.filter((s) => !(done.has(s.date) && done.get(s.date).has(s.key))).concat(splitsB),
-      blend: names, hourModels: w.check.models };
+      blend: names, blendKinds: { water: kinds.has("rain"), temp: kinds.has("hi") || kinds.has("lo") }, hourModels: w.check.models };
     return w;
   }
   async function withBlend(w) {
     try {
-      // Any place inside the grid (BC and the Rockies' west edge): days run 1 am to 1 am Pacific standard time, an
-      // hour or two off midnight for places on Mountain time, fine for a daily estimate.
-      if (!w || typeof w !== "object" || !w.check || typeof w.latitude !== "number") return w;
+      // Places inside the grid whose answer is in local time on Pacific or Mountain time (BC and the Rockies' west
+      // edge): days run 1 am to 1 am Pacific standard time, an hour or two off midnight on Mountain time, fine for a
+      // daily estimate. Answers in UTC (timezone GMT) are left alone: their days don't line up.
+      if (!w || typeof w !== "object" || !w.check || typeof w.latitude !== "number" || !BLEND_ZONES.has(w.timezone)) return w;
       const b = await blendAt(w.latitude, w.longitude, w.elevation);
       return applyBlend(w, b);
     } catch { return w; }
@@ -338,7 +349,9 @@
     if (!c) return "";
     const cls = opts.cls || "wx-check";
     if (c.blend && c.blend.length) {
-      const h = `<p class="${cls}"><span>Daily rain and snow (as water), highs and lows: middle value of ${c.blend.length} weather models read directly from their makers:</span> <span>${c.blend.map(esc).join(", ")}</span><span>.</span>`
+      const k = c.blendKinds || { water: true, temp: true };
+      const what = k.water && k.temp ? "Daily rain and snow (as water), highs and lows:" : k.water ? "Daily rain and snow (as water):" : "Daily highs and lows:";
+      const h = `<p class="${cls}"><span>${what}</span> <span>middle value of ${c.blend.length} weather models read directly from their makers:</span> <span>${c.blend.map(esc).join(", ")}</span><span>.</span>`
         + (c.hourModels && c.hourModels.length ? ` <span>Hours and wind: middle of ${c.hourModels.length} models</span> <span>through Open-Meteo.</span>` : "")
         + ` <span>Still an estimate.</span></p>`;
       return h + splitList(c, cls);
