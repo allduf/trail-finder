@@ -267,12 +267,18 @@ onmessage = async (e) => {
     try { apply(); } catch { gl.once("style.load", () => { try { apply(); } catch {} }); }
   }
   window.addEventListener("tf:map3d", () => setTimeout(sync3d, 0));
+  // The iPhone's own 3D map asks for the same pictures (native-ground.js); on top of the other ground layers.
+  (window.tfGround = window.tfGround || {}).contours = {
+    paint: (z, x, y, signal) => render(z, x, y, "3d", 256, signal).then((r) => r.bmp || null),
+    on: () => on, ver: () => "1", min: MIN_ZOOM + 1, max: 16, opacity: 1, z: 400, credit: ATTR.replace(/<[^>]+>/g, ""), keep: true,
+  };
 
   // ---------- the button ----------
   let on = store.get("contours", false);
   function refresh() {
     if (on) { if (!map.hasLayer(layer)) layer.addTo(map); } else if (map.hasLayer(layer)) map.removeLayer(layer);
     sync3d();
+    window.dispatchEvent(new Event("tf:ground"));
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", String(on));
   }
