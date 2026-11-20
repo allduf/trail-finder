@@ -8,7 +8,7 @@
 //   - "ground" (window.tfNative.addLayer): which layers are on, with their zooms, versions and credits, and the colour
 //     keys shown on the map. Sent at opening, and again when a layer goes on or off or is drawn again ("tf:ground").
 //   - "groundTile" { r, id, z, x, y } from the native map: the picture comes back as "T|r|<base64 PNG>" ("" = nothing
-//     there); "groundStop" { r } when the map no longer needs it.
+//     there, "!" = it couldn't be painted now); "groundStop" { r } when the map no longer needs it.
 // Avalanche is never sent here: it stays in the web 3D map only, until its own step (avalanche-exact).
 // On the website, and in app builds without native 3D, this file does nothing.
 (() => {
@@ -95,7 +95,7 @@
     const g = reg()[e.id], ac = new AbortController();
     jobs.set(e.r, ac);
     let data = "";
-    try { if (g && isOn(g)) data = await png(await g.paint(+e.z, +e.x, +e.y, ac.signal)); } catch { data = ""; }
+    try { if (g && isOn(g)) data = await png(await g.paint(+e.z, +e.x, +e.y, ac.signal)); } catch { data = "!"; }   // failed (no signal...): asked again later
     jobs.delete(e.r);
     if (!ac.signal.aborted) N.post("ground", `T|${e.r}|${data}`);
   });

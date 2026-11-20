@@ -1,1 +1,2 @@
 iPhone native 3D (test): elevation lines, sun and shade, slope angle, slope direction, flats, elevation bands and the snow layers now show there too, with the same colours as the regular 3D map. ||| 3D native sur iPhone (test) : les courbes de niveau, le soleil et l'ombre, l'angle de pente, l'orientation des pentes, les replats, les bandes d'altitude et les couches de neige s'y affichent aussi, avec les mêmes couleurs que la carte 3D habituelle.
+Elevation bands (estimate) ||| Étages d'altitude (estimation)

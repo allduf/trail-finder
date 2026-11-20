@@ -4887,7 +4887,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   const flatsLayer = paintedLayer("skiflats", paintFlats, { z: 354, minZoom: 11, attribution: 'Flats: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
   let elevVer = 0;
-  const elevLayer = paintedLayer("skielev", paintElev, { z: 353, minZoom: 9, ver: () => elevVer, attribution: 'Elevation bands: Avalanche Canada areas, <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
+  const elevLayer = paintedLayer("skielev", paintElev, { z: 353, minZoom: 9, ver: () => elevVer, attribution3d: "Elevation bands (estimate): Avalanche Canada areas, Mapzen Terrain Tiles", attribution: 'Elevation bands: Avalanche Canada areas, <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
 
   // ---------- snow on the map: new snow and the snow forecast (FATMAP's Live snow) ----------
   // Open-Meteo's weather model (free, no key) on a grid of points, a tenth of a degree apart close up (coarser zoomed
@@ -5212,7 +5212,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (shown.has("slope")) out.push(bar(slopePal === "fatmap" ? "Slope angle (FATMAP)" : "Slope angle", SLOPE.map((s) => [s[2], s[3]])));
       if (shown.has("aspect")) out.push(bar("Slope direction, 25°+", ASPECTS.map((s, i) => [ASPECT_COLORS[i], s.toUpperCase()])));
       if (shown.has("flats")) out.push(bar(map.getZoom() < 11 ? "Flats: zoom in" : "Flats", [[`rgba(${FLAT_RGB.join(",")},.6)`, `under ${FLAT_DEG}°`]]));
-      if (shown.has("elev")) out.push(bar("Elevation bands", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
+      if (shown.has("elev")) out.push(bar("Elevation bands (estimate)", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
       const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
       const mm = [[LOW, "<1"], [MIX, "mix"], ...RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)])];
       if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm), bar("Rain instead, last 24 h (mm)", mm));

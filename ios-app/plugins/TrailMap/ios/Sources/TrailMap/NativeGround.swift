@@ -9,7 +9,8 @@ import UIKit
 // The page sends under "ground":
 //   - JSON { layers: [{ id, v, min, max, op, z, credit, keep }], keys: [{ t, c: [colours], l: [labels] }] }: the layers
 //     that are on (drawn under the trails, lowest z first) and their colour keys;
-//   - "T|<request>|<base64 PNG>": a picture asked for ("" when there's nothing there).
+//   - "T|<request>|<base64 PNG>": a picture asked for ("" when there's nothing there, "!" when it couldn't be painted
+//     now, for example with no signal: MapLibre then asks again later).
 // MapLibre loads a layer's tiles from a made-up address (GroundTiles.host); GroundTileProtocol answers those requests by
 // asking the page ("groundTile" { r, id, z, x, y }) and handing back what it paints. Avalanche is never one of these.
 final class NativeGround: NativeLayer {
@@ -170,12 +171,17 @@ final class GroundTiles: NSObject, MLNNetworkConfigurationDelegate {
 
     private let lock = NSLock()
     private var nextRequest = 0
-    private var waiting: [Int: (Data?) -> Void] = [:]
-    private lazy var urlSession: URLSession = {
+    private var waiting: [Int: (Answer) -> Void] = [:]
+    // Made once, before MapLibre can ask for it from its download threads.
+    private let urlSession: URLSession
+    enum Answer { case picture(Data), nothing, failed }
+
+    private override init() {
         let c = (MLNNetworkConfiguration.sharedManager.sessionConfiguration.copy() as? URLSessionConfiguration) ?? .default
         c.protocolClasses = [GroundTileProtocol.self] + (c.protocolClasses ?? [])
-        return URLSession(configuration: c)
-    }()
+        urlSession = URLSession(configuration: c)
+        super.init()
+    }
 
     func start() {
         let net = MLNNetworkConfiguration.sharedManager
@@ -185,18 +191,18 @@ final class GroundTiles: NSObject, MLNNetworkConfigurationDelegate {
     @objc(sessionForNetworkConfiguration:)
     func session(for configuration: MLNNetworkConfiguration) -> URLSession { urlSession }
 
-    // A picture asked for: the page paints it; done(nil) when there's none, no page, or no answer in 30 s.
-    func ask(_ id: String, _ z: Int, _ x: Int, _ y: Int, done: @escaping (Data?) -> Void) -> Int {
+    // A picture asked for: the page paints it. Failed when there's no page or no answer in 30 s (asked again later).
+    func ask(_ id: String, _ z: Int, _ x: Int, _ y: Int, done: @escaping (Answer) -> Void) -> Int {
         lock.lock()
         nextRequest += 1
         let r = nextRequest
         waiting[r] = done
         lock.unlock()
         DispatchQueue.main.async {
-            guard let send = self.screen?.onEvent else { self.finish(r, nil); return }
+            guard let send = self.screen?.onEvent else { self.finish(r, .failed); return }
             send("groundTile", ["r": r, "id": id, "z": z, "x": x, "y": y])
         }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 30) { self.finish(r, nil) }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 30) { self.finish(r, .failed) }
         return r
     }
     // MapLibre no longer needs it (it scrolled away, or the map closed).
@@ -211,14 +217,17 @@ final class GroundTiles: NSObject, MLNNetworkConfigurationDelegate {
         DispatchQueue.global(qos: .userInitiated).async {
             let parts = text.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
             guard parts.count == 3, let r = Int(parts[1]) else { return }
-            self.finish(r, parts[2].isEmpty ? nil : Data(base64Encoded: String(parts[2])))
+            let body = String(parts[2])
+            if body.isEmpty { self.finish(r, .nothing); return }
+            guard body != "!", let d = Data(base64Encoded: body) else { self.finish(r, .failed); return }
+            self.finish(r, .picture(d))
         }
     }
-    private func finish(_ r: Int, _ data: Data?) {
+    private func finish(_ r: Int, _ a: Answer) {
         lock.lock()
         let done = waiting.removeValue(forKey: r)
         lock.unlock()
-        done?(data)
+        done?(a)
     }
 }
 
@@ -237,10 +246,10 @@ final class GroundTileProtocol: URLProtocol {
         if let m = RunLoop.current.currentMode { modes = [m.rawValue] }
         let p = (request.url?.path ?? "").split(separator: "/").map(String.init)
         guard p.count == 4, let z = Int(p[1]), let x = Int(p[2]), let y = Int(p[3].replacingOccurrences(of: ".png", with: "")) else {
-            reply(nil)
+            reply(.nothing)
             return
         }
-        asked = GroundTiles.shared.ask(p[0], z, x, y) { [weak self] data in self?.reply(data) }
+        asked = GroundTiles.shared.ask(p[0], z, x, y) { [weak self] a in self?.reply(a) }
     }
     override func stopLoading() {
         stopped = true
@@ -248,15 +257,27 @@ final class GroundTileProtocol: URLProtocol {
     }
 
     // Back on the thread that asked, as URLProtocol needs.
-    private func reply(_ data: Data?) {
+    private func reply(_ a: GroundTiles.Answer) {
         guard let t = thread else { return }
-        perform(#selector(deliver(_:)), on: t, with: data.map { $0 as NSData }, waitUntilDone: false, modes: modes)
+        let arg: Any
+        switch a {
+        case .picture(let d): arg = d as NSData
+        case .nothing: arg = NSNull()
+        case .failed: arg = NSNumber(value: 0)
+        }
+        perform(#selector(deliver(_:)), on: t, with: arg, waitUntilDone: false, modes: modes)
     }
-    @objc private func deliver(_ data: NSData?) {
+    @objc private func deliver(_ arg: Any?) {
         guard !stopped, let url = request.url else { return }
-        let keep = url.query?.contains("k=1") == true
+        // Couldn't be painted now (no signal, no answer): an error, so MapLibre asks again later.
+        if arg is NSNumber {
+            client?.urlProtocol(self, didFailWithError: URLError(.cannotLoadFromNetwork))
+            return
+        }
+        let data = arg as? NSData
         // A picture: kept a day when it only depends on the terrain; nothing there: a real "not found" (MapLibre doesn't
-        // retry that, and the map shows the ground under it).
+        // retry that, and the map shows the ground under it), never kept.
+        let keep = data != nil && url.query?.contains("k=1") == true
         let headers = ["Content-Type": "image/png", "Cache-Control": keep ? "max-age=86400" : "no-cache"]
         let res = HTTPURLResponse(url: url, statusCode: data == nil ? 404 : 200, httpVersion: "HTTP/1.1", headerFields: headers)!
         client?.urlProtocol(self, didReceive: res, cacheStoragePolicy: .notAllowed)
