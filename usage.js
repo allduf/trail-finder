@@ -199,6 +199,10 @@
     add("speed", "page", Math.round(performance.now()));
     const n = performance.getEntriesByType && performance.getEntriesByType("navigation")[0];
     if (n && n.responseEnd > 0) add("speed", "html", Math.round(n.responseEnd));
+    // Where the page's own wait went: the saved-copy helper (sw.js) starting, then the page's first bytes (the iPhone
+    // app's page took 3-4 s on alex's phone, 2026-11-21, with scripts only ~0.4 s after it).
+    if (n && n.workerStart > 0) add("speed", "sw", Math.round(n.workerStart));
+    if (n && n.responseStart > 0) add("speed", "first", Math.round(n.responseStart));
     if (n && n.domContentLoadedEventEnd > 0) add("speed", "dcl", Math.round(n.domContentLoadedEventEnd));
   };
   if (document.readyState === "complete") timePage(); else addEventListener("load", timePage);

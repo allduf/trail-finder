@@ -1268,7 +1268,7 @@
   let dataKey = "", replanTimer = 0;
   setInterval(() => {
     if (!planning) return;
-    const k = nav.ways().length + ":" + (nav.roads ? nav.roads().length : 0);
+    const k = (nav.wayCount ? nav.wayCount() : nav.ways().length) + ":" + (nav.roadCount ? nav.roadCount() : nav.roads ? nav.roads().length : 0);
     if (k === dataKey) return;
     dataKey = k;
     clearTimeout(replanTimer);
