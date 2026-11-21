@@ -6,9 +6,10 @@
 //      on phones), and every other shader is left alone;
 //   2. the hook itself, on a stand-in compiler: the changed text goes in; MapLibre's own goes in again when the changed
 //      text fails or only warns; a real failure still reports its error; every library is released exactly once;
-//   3. with a Metal device: MapLibre's whole name and dot shaders compile changed with no warning, and small kernels
-//      made of MapLibre's own lines give the right sizes, through the hook too. Without one, the whole shaders are
-//      compiled with Xcode's Metal compiler when it's there (warnings count as failures, as in MapLibre).
+//   3. with a Metal device: MapLibre's whole name and dot shaders compile changed with no warning (with their paint
+//      properties as uniforms and without, as MapLibre compiles them), and small kernels made of MapLibre's own lines
+//      give the right sizes, through the hook too. Without one, the whole shaders are compiled with Xcode's Metal
+//      compiler when it's there (warnings count as failures, as in MapLibre).
 // swiftc NativeNearNames.swift checks/near-names/main.swift -o near-names && ./near-names <MapLibre binary>
 import Foundation
 import Metal
@@ -142,26 +143,53 @@ for (mode, text, calls, library, what) in [
 
 // 3. Compiling: MapLibre's whole shaders, then the sizes ------------------------------------------------------------
 let wholes = nameShaders.map { ("name", $0) } + dotShaders.map { ("dot", $0) }
+// MapLibre makes a paint property that is the same for every feature a uniform, with a define (HAS_UNIFORM_u_...,
+// mtl/shader_group.hpp), so each whole shader is compiled with none of them and with all of them. Where MapLibre's
+// own text doesn't compile one way (its name-and-icon shader needs them all), that way isn't judged.
+func uniforms(_ text: String) -> [String] {
+    let re = try! NSRegularExpression(pattern: #"\bHAS_UNIFORM_u_\w+"#), ns = text as NSString
+    return Set(re.matches(in: text, range: NSRange(location: 0, length: ns.length)).map { ns.substring(with: $0.range) }).sorted()
+}
+let ways = { (whole: String) -> [(String, [String])] in
+    let all = uniforms(whole)
+    return all.isEmpty ? [("", [])] : [("", []), (" with its paint as uniforms", all)]
+}
+func notJudged(_ kind: String, _ n: Int, _ said: String) {
+    print("::warning title=Native 3D names check::MapLibre's own \(kind) shader \(n + 1) doesn't compile cleanly here either way, so its changed one can't be judged: \(said.prefix(500))")
+}
 let device = MTLCreateSystemDefaultDevice() ?? MTLCopyAllDevices().first
 if let device = device, let nameLine = nameLine, let dotLine = dotLine, let queue = device.makeCommandQueue() {
     print("Metal device: \(device.name)")
-    let options = MTLCompileOptions()          // as MapLibre (mtl/context.cpp), with the defines every shader gets
-    options.languageVersion = .version2_4
-    if #available(macOS 15.0, *) { options.mathMode = .fast } else { options.fastMathEnabled = true }
-    options.preprocessorMacros = ["DEVICE_PIXEL_RATIO": "3.0" as NSString]
+    // As MapLibre (mtl/context.cpp): its defines (every shader gets DEVICE_PIXEL_RATIO), fast math, Metal 2.4.
+    func compileOptions(_ defines: [String]) -> MTLCompileOptions {
+        let options = MTLCompileOptions()
+        options.languageVersion = .version2_4
+        if #available(macOS 15.0, *) { options.mathMode = .fast } else { options.fastMathEnabled = true }
+        var macros: [String: NSObject] = ["DEVICE_PIXEL_RATIO": "3.0" as NSString]
+        for name in defines { macros[name] = "" as NSString }
+        options.preprocessorMacros = macros
+        return options
+    }
+    let options = compileOptions([])
     // Not through the hook yet: a warning shows here as it would to MapLibre.
     for (n, (kind, whole)) in wholes.enumerated() {
-        autoreleasepool {
-            let own = compile(device, whole, options)
-            if let lib = own.lib { Unmanaged<AnyObject>.fromOpaque(lib).release() }
-            guard own.lib != nil && own.error == nil else {
-                print("::warning title=Native 3D names check::MapLibre's own \(kind) shader \(n + 1) doesn't compile cleanly on this Mac, so its changed one can't be judged: \(own.error ?? "")")
-                return
+        var judged = 0, said = ""
+        for (how, defines) in ways(whole) {
+            autoreleasepool {
+                let own = compile(device, whole, compileOptions(defines))
+                if let lib = own.lib { Unmanaged<AnyObject>.fromOpaque(lib).release() }
+                guard own.lib != nil && own.error == nil else {
+                    print("        MapLibre's own \(kind) shader \(n + 1)\(how) doesn't compile on this Mac, not judged that way")
+                    said = own.error ?? ""
+                    return
+                }
+                judged += 1
+                let changed = compile(device, NativeNearNames.changed(whole as NSString) ?? whole, compileOptions(defines))
+                if let lib = changed.lib { Unmanaged<AnyObject>.fromOpaque(lib).release() }
+                check(changed.lib != nil && changed.error == nil, "MapLibre's whole \(kind) shader \(n + 1)\(how), changed, compiles with no warning \(changed.error ?? "")")
             }
-            let changed = compile(device, NativeNearNames.changed(whole as NSString) ?? whole, options)
-            if let lib = changed.lib { Unmanaged<AnyObject>.fromOpaque(lib).release() }
-            check(changed.lib != nil && changed.error == nil, "MapLibre's whole \(kind) shader \(n + 1), changed, compiles with no warning \(changed.error ?? "")")
         }
+        if judged == 0 { notJudged(kind, n, said) }
     }
     // MapLibre's names for what its lines use; the rest is only what the check needs.
     let sizes = { (plane: String) in """
@@ -264,13 +292,13 @@ if let device = device, let nameLine = nameLine, let dotLine = dotLine, let queu
     check(broken, "through the hook, a text that fails either way still reports its error")
 } else {
     // No Metal device (Intel Macs in the cloud): Xcode's Metal compiler, if this Xcode has it, with warnings as errors.
-    func metal(_ text: String) -> (ok: Bool, said: String) {
+    func metal(_ text: String, _ defines: [String] = []) -> (ok: Bool, said: String) {
         let src = FileManager.default.temporaryDirectory.appendingPathComponent("near-names-\(UUID().uuidString).metal")
         do { try text.write(to: src, atomically: true, encoding: .utf8) } catch { return (false, "\(error)") }
         let p = Process(), pipe = Pipe()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-        p.arguments = ["-sdk", "iphoneos", "metal", "-std=ios-metal2.4", "-ffast-math", "-DDEVICE_PIXEL_RATIO=3.0", "-Werror",
-                       "-c", src.path, "-o", src.path + ".air"]
+        p.arguments = ["-sdk", "iphoneos", "metal", "-std=ios-metal2.4", "-ffast-math", "-DDEVICE_PIXEL_RATIO=3.0", "-Werror"] +
+            defines.map { "-D\($0)=" } + ["-c", src.path, "-o", src.path + ".air"]
         p.standardOutput = pipe
         p.standardError = pipe
         do { try p.run() } catch { return (false, "\(error)") }
@@ -282,13 +310,19 @@ if let device = device, let nameLine = nameLine, let dotLine = dotLine, let queu
     if trial.ok {
         print("No Metal device: compiling with Xcode's Metal compiler instead")
         for (n, (kind, whole)) in wholes.enumerated() {
-            let own = metal(whole)
-            guard own.ok else {
-                print("::warning title=Native 3D names check::MapLibre's own \(kind) shader \(n + 1) doesn't compile cleanly here, so its changed one can't be judged: \(own.said.prefix(500))")
-                continue
+            var judged = 0, said = ""
+            for (how, defines) in ways(whole) {
+                let own = metal(whole, defines)
+                guard own.ok else {
+                    print("        MapLibre's own \(kind) shader \(n + 1)\(how) doesn't compile here, not judged that way")
+                    said = own.said
+                    continue
+                }
+                judged += 1
+                let changed = metal(NativeNearNames.changed(whole as NSString) ?? whole, defines)
+                check(changed.ok, "MapLibre's whole \(kind) shader \(n + 1)\(how), changed, compiles with no warning \(changed.said.prefix(500))")
             }
-            let changed = metal(NativeNearNames.changed(whole as NSString) ?? whole)
-            check(changed.ok, "MapLibre's whole \(kind) shader \(n + 1), changed, compiles with no warning \(changed.said.prefix(500))")
+            if judged == 0 { notJudged(kind, n, said) }
         }
     } else {
         print("::notice title=Native 3D names check::No Metal device and no Metal compiler on this Mac, so the compile and size part was skipped: \(trial.said.prefix(300))")
