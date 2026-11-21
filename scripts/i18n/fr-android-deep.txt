@@ -1,0 +1,5 @@
+Phone 3D copy saved ||| Copie 3D sur le téléphone enregistrée
+Phone 3D copy: not finished, it carries on with signal ||| Copie 3D sur le téléphone : pas finie, elle continue avec du réseau
+Phone 3D copy: saving ||| Copie 3D sur le téléphone : enregistrement
+It sends while Trail Finder is open on your screen. In the iPhone and Android apps it keeps sending with the phone locked. ||| Elle envoie tant que Trail Finder est ouvert à l’écran. Dans les applications iPhone et Android, elle continue d’envoyer avec le téléphone verrouillé.
+Android app: the Back button now closes the page open from the bottom bar, goes back from the Help, Terms and Privacy pages, and cancels the trip note. ||| Application Android : le bouton Retour ferme maintenant la page ouverte depuis la barre du bas, revient des pages Aide, Conditions et Confidentialité, et annule la note de sortie.

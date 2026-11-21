@@ -237,7 +237,7 @@ dialog.live .lv-pin { flex: none; }
         <p>Send this link to the people who should see you:</p>
         <div class="lv-row"><button type="button" class="lv-btn" data-a="send">↗ Send the link</button><button type="button" class="lv-btn" data-a="copy">Copy</button></div>
         <p class="lv-link">${esc(linkOf(me.grp))}</p>
-        <p class="lv-note">${NATIVE ? "It keeps sending with the phone locked." : "It sends while Trail Finder is open on your screen. In the iPhone app it keeps sending with the phone locked."}</p>
+        <p class="lv-note">${NATIVE ? "It keeps sending with the phone locked." : "It sends while Trail Finder is open on your screen. In the iPhone and Android apps it keeps sending with the phone locked."}</p>
         ${peopleHtml()}
         <button type="button" class="lv-btn lv-stop" data-a="stop">Stop sharing</button>`;
     } else {

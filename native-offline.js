@@ -52,8 +52,15 @@
   // Its line under each area in Offline maps (offline.js redraws the list; this adds to each row).
   const fr = () => !!(window.tfLang && window.tfLang.lang === "fr");
   const mb = (b) => (b < 1e6 ? t("under 1 MB") : b < 1e9 ? Math.round(b / 1e6) + (fr() ? " Mo" : " MB") : (b / 1e9).toFixed(1).replace(".", fr() ? "," : ".") + (fr() ? " Go" : " GB"));
+  // The phone's own word: this line shows in the Android app too (its native 3D keeps the same copies).
+  const android = !!(C.getPlatform && C.getPlatform() === "android");
   function line(p) {
     if (!p) return "";
+    if (android) {
+      if (p.saved) return "✓ " + t("Phone 3D copy saved") + ` (${mb(p.bytes || 0)})`;
+      if (!navigator.onLine) return t("Phone 3D copy: not finished, it carries on with signal");
+      return t("Phone 3D copy: saving") + ` ${p.pct || 0}%`;
+    }
     if (p.saved) return "✓ " + t("iPhone 3D copy saved") + ` (${mb(p.bytes || 0)})`;
     if (!navigator.onLine) return t("iPhone 3D copy: not finished, it carries on with signal");
     return t("iPhone 3D copy: saving") + ` ${p.pct || 0}%`;

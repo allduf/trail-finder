@@ -121,7 +121,10 @@
         '<p class="rk-b">Trail Finder and the people who make it are not responsible for your decisions or for anything that happens on your trip.</p>' +
         '<p>Check conditions yourself, stay within your skills, and call 911 in an emergency. <a href="terms.html">Terms of use</a></p>' +
         '<div class="rk-btns"><button type="button" data-rk="no">Cancel</button><button type="button" class="rk-ok" data-rk="ok">I understand and accept</button></div></div>';
-      function close(ok) { el.remove(); open = null; if (ok) remember(kind); done(ok); }
+      // Escape on a computer, the phone's Back button in the Android app (native.js sends Escape): Cancel.
+      function esc(e) { if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); close(false); } }
+      function close(ok) { document.removeEventListener("keydown", esc, true); el.remove(); open = null; if (ok) remember(kind); done(ok); }
+      document.addEventListener("keydown", esc, true);
       el.addEventListener("click", function (e) {
         var b = e.target.closest("[data-rk]");
         if (b) close(b.dataset.rk === "ok");
@@ -165,6 +168,8 @@
       '<a class="tt-read" href="terms.html">Read the Terms of use</a>' +
       '<p class="tt-note">By tapping I agree you accept the Terms of use. Under the age of majority? A parent or guardian agrees for you.</p>';
     d.addEventListener("cancel", function (e) { e.preventDefault(); });   // Escape or back doesn't agree for you
+    // Some browsers close a dialog on a second Escape anyway (Chrome): it comes back until I agree is tapped.
+    d.addEventListener("close", function () { setTimeout(function () { if (terms.pending && d.isConnected && !d.open) { if (d.showModal) d.showModal(); else d.setAttribute("open", ""); } }, 0); });
     d.addEventListener("click", function (e) {
       if (!e.target.closest("[data-terms=ok]")) return;
       termsMem = true; terms.pending = false;

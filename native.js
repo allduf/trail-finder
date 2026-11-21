@@ -70,15 +70,33 @@
     // What's open on the page, roughly: whatever Escape closes changes one of these.
     const shape = () => [document.querySelectorAll("[hidden]").length, document.querySelectorAll("dialog[open], [aria-expanded=\"true\"]").length,
       document.documentElement.className, document.body.className, location.hash].join("|");
+    const steady = () => [document.querySelectorAll("dialog[open], [aria-expanded=\"true\"], #tfRisk").length,
+      document.documentElement.className, document.body.className, location.hash].join("|");
     if (App && App.addListener) App.addListener("backButton", (e) => {
       const dlg = [...document.querySelectorAll("dialog[open]")].pop();
-      if (dlg) { dlg.dispatchEvent(new Event("cancel", { cancelable: true })); if (dlg.open) dlg.close(); return; }
+      if (dlg) {
+        // Like Escape: a dialog closes unless it keeps itself open on purpose. The terms (risk.js) do: Back doesn't
+        // agree for you, so it puts the app away instead, as on the map.
+        const ev = new Event("cancel", { cancelable: true });
+        dlg.dispatchEvent(ev);
+        if (!ev.defaultPrevented && dlg.open) dlg.close();
+        else if (dlg.open && dlg.matches(".tf-terms") && App.minimizeApp) App.minimizeApp().catch(() => {});
+        return;
+      }
       const a = document.activeElement;
       if (a && a.matches && a.matches("input, textarea, select")) { a.blur(); return; }
-      const before = shape();
-      (document.body || document).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+      const before = shape(), steady0 = steady();
+      const esc = new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true });
+      // A handler that took the key (preventDefault, like risk.js's trip note) or closed something right away: done.
+      if (!(document.body || document).dispatchEvent(esc) || shape() !== before) return;
+      // The map page's own steps back (a tab's sheet, a page in it, a trail's card) are a history entry it holds
+      // (index.html tfNavHeld): Back takes it at once, like the back gesture in a browser. Before, Back on the map page
+      // put the app away with Find, Saved or More open; with a live map (3D, radar) a later look saw the map's own
+      // changes as "something closed" and Back did nothing (deep Android test 2026-11-21).
+      if (window.tfNavHeld && window.tfNavHeld()) { history.back(); return; }
+      // Later closers (a timer, a frame) are looked for once more, without the noisy [hidden] count.
       setTimeout(() => {
-        if (shape() !== before) return;
+        if (steady() !== steady0) return;
         if (e && e.canGoBack && history.length > 1 && !/\/(index\.html)?$/.test(location.pathname)) history.back();
         else if (App.minimizeApp) App.minimizeApp().catch(() => {});
       }, 60);
