@@ -14,8 +14,9 @@ import UIKit
 // days: [{ t, on }] are the page card's own day buttons: pressing one here sends "avyDay" { i } and the page presses its
 // own button, so the colours, this card and the slope card change exactly as on the page.
 // spot: a slope tapped beside every trail and pin (emptyTap sends "avyTap" { lat, lon }): the page's own This spot top
-// and Avalanche danger part, row by row (native-avalanche.js spotRows), in a card at the bottom that scrolls. ✕ or any
-// other tap closes it ("avySpot" { close }); "More about this spot" goes back to the page's This spot card there.
+// and Avalanche danger part, row by row (native-avalanche.js spotRows), in a card at the bottom that scrolls. ✕ closes
+// it and any other tap replaces it, as This spot on the web map ("avySpot" { close }); "More about this spot" goes back
+// to the page's This spot card there.
 final class NativeAvalanche: NativeLayer {
     let key = "avy"
     private weak var screen: TrailMapScreen?
@@ -57,11 +58,21 @@ final class NativeAvalanche: NativeLayer {
         sheet.isHidden = true
         screen.send("avySpot", ["close": true])
     }
+    // The map's tap also hears both taps of a double tap (zoom): as on the web map (260 ms), the card is asked for only
+    // once no second tap came; a second one within that time is the zoom, and no card opens.
+    private var waiting: DispatchWorkItem?
     func emptyTap(_ at: CLLocationCoordinate2D, screen: TrailMapScreen) -> Bool {
         guard (info["on"] as? Bool) == true else { return false }
-        taps += 1
-        asked = taps
-        screen.send("avyTap", ["lat": at.latitude, "lon": at.longitude, "n": asked])
+        if let w = waiting, !w.isCancelled { w.cancel(); waiting = nil; return true }
+        let w = DispatchWorkItem { [weak self, weak screen] in
+            guard let self = self, let screen = screen else { return }
+            self.waiting = nil
+            self.taps += 1
+            self.asked = self.taps
+            screen.send("avyTap", ["lat": at.latitude, "lon": at.longitude, "n": self.asked])
+        }
+        waiting = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28, execute: w)
         return true
     }
 

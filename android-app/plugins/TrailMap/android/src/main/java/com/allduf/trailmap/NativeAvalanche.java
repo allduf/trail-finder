@@ -35,8 +35,9 @@ import org.maplibre.android.maps.Style;
 // days: [{ t, on }] are the page card's own day buttons: pressing one here sends "avyDay" { i } and the page presses its
 // own button, so the colours, this card and the slope card change exactly as on the page.
 // spot: a slope tapped beside every trail and pin (emptyTap sends "avyTap" { lat, lon }): the page's own This spot top
-// and Avalanche danger part, row by row (native-avalanche.js spotRows), in a card at the bottom that scrolls. ✕ or any
-// other tap closes it ("avySpot" { close }); "More about this spot" goes back to the page's This spot card there.
+// and Avalanche danger part, row by row (native-avalanche.js spotRows), in a card at the bottom that scrolls. ✕ closes
+// it and any other tap replaces it, as This spot on the web map ("avySpot" { close }); "More about this spot" goes back
+// to the page's This spot card there. (MapLibre Android's map click is a single tap only: a double tap zooms.)
 final class NativeAvalanche implements NativeLayer {
     private static final int INK = Color.rgb(28, 36, 51), GREY = Color.rgb(92, 102, 117);
     private TrailMapScreen screen;

@@ -74,6 +74,7 @@
         if (a && txt(a) === txt(el)) add({ k: "link", t: txt(a), u: a.href });
         else if (ch) add({ k: "chip", t: txt(el), c: styleOf(ch, "background-color"), f: styleOf(ch, "color") });
         else add({ k: cl.contains("sk-note") ? "note" : "p", t: txt(el) });
+        if (a && txt(a) !== txt(el)) add({ k: "link", t: txt(a), u: a.href });   // a link inside a sentence: its own row too
       } else add({ k: "p", t: txt(el) });
     }
     return rows;
@@ -81,17 +82,17 @@
   // Writes the slope card for the day shown now; then() once its rows are read (after the French pass).
   function spotFill(then) {
     const A = window.tfSkiAvySpot;
-    if (!spot || !spot.s || !A || !A.html) { if (then) then(); return; }
+    if (!spot || !spot.s) { if (then) then(); return; }
     const seq = spotSeq;
-    let h;
-    try { h = A.html(spot.lat, spot.lon, spot.s); } catch { if (then) then(); return; }
+    let h = null;
+    try { h = A && A.html ? A.html(spot.lat, spot.lon, spot.s) : null; } catch {}
+    if (!h) { spot.rows = [{ k: "note", t: T("Couldn't read the terrain here (no connection?).") }]; if (then) then(); return; }
     if (!host) { host = document.createElement("div"); host.hidden = true; host.id = "tfNativeSpot"; document.body.append(host); }
     host.innerHTML = `<div>${h.ground}</div><div>${h.avy}</div>`;
     setTimeout(() => {   // the page's French pass runs on new text first (i18n)
-      if (seq !== spotSeq || !spot) return;
-      spot.rows = [...host.children].flatMap(spotRows);
+      if (seq === spotSeq && spot) spot.rows = [...host.children].flatMap(spotRows);
       host.innerHTML = "";
-      if (then) then();
+      if (then) then();   // always: the card and the colours go together even when the slope card closed meanwhile
     }, 0);
   }
   const sendNow = () => { if (!N.isOpen()) return; const s = state(); if (s !== sent) { sent = s; N.send("avy"); } };
