@@ -8,7 +8,9 @@ name: Phone test
 # are fetched (see scripts/phone-test.mjs): no resort or club sites, no weather, no Supabase.
 on:
   pull_request:
-    paths-ignore: ["data/**", "ios-app/**", "supabase/**", "**.md"]
+    # ios-app/ runs it too since 2026-11-21: the "App builds" checks read the iPhone's native 3D keys (NativeLayers.swift),
+    # and a pull request that drops one must fail before its build reaches phones.
+    paths-ignore: ["data/**", "supabase/**", "**.md"]
   workflow_dispatch:
 
 permissions:

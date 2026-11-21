@@ -9,7 +9,7 @@ allowed-tools: Bash(git status:*), Bash(git log:*), Bash(git fetch:*), Bash(git 
 Read only: change nothing, merge nothing.
 
 1. **Open pull requests** on allduf/trail-finder: number, title, age, and its "phone" check (passed, failed, running,
-   or skipped because it only touches `data/`, `ios-app/`, `supabase/` or `.md`). Note any with a merge conflict:
+   or skipped because it only touches `data/`, `supabase/` or `.md`). Note any with a merge conflict:
    GitHub runs no checks on those until main is merged in.
 2. **Needs alex:** which pull requests wait on alex's yes, which change `ios-app/` or `android-app/` (new app build),
    and which skip the phone check (alex merges by hand or runs "Phone test" on the branch).

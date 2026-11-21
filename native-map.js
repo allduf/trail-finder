@@ -319,7 +319,7 @@
   // "Layers" on the native 3D screen (builds from 2026-11-21): the page's own Layers over it; the native screen steps
   // aside while Layers is open (native-tools.js "cover") and comes back as it was, with the map style picked there. If
   // something now on can only be drawn by the web 3D map, the web 3D map takes over (nothing goes missing).
-  let toWeb = false, layersWatch = null;
+  let toWeb = false, layersWatch = null, layersPick = null;
   const lmenu = document.getElementById("layersMenu");
   TrailMap.addListener("layers", () => {
     const lb = document.getElementById("layersBtn");
@@ -328,16 +328,25 @@
     if (!open || !open3d || !lb || !lmenu || !feats.has("tools")) return;
     TrailMap.layer({ key: "layers", data: "ok" }).catch(() => {});   // answered: the screen waits for the step aside
     const base0 = (document.getElementById("basemap") || {}).value;
+    // A style tapped in Layers goes to the native map even when the flat map was on it already: Skiing's native 3D shows
+    // Winter over a Satellite flat map, and Satellite tapped there must show Satellite.
+    const tiles = document.getElementById("lmTiles");
+    let picked = null;
+    if (tiles && layersPick) tiles.removeEventListener("click", layersPick);
+    layersPick = (e) => { const b = e.target.closest("[data-base]"); if (b) picked = b.dataset.base; };
+    if (tiles) tiles.addEventListener("click", layersPick);
     if (lmenu.hidden) lb.click();
     window.tfNative.send("tools");   // steps aside now, not at the next look
     if (layersWatch) layersWatch.disconnect();
     layersWatch = new MutationObserver(() => {
       if (!lmenu.hidden) return;
       layersWatch.disconnect(); layersWatch = null;
+      if (tiles) tiles.removeEventListener("click", layersPick);
+      layersPick = null;
       if (!open) return;
       if (webOnly()) { toWeb = true; TrailMap.close().catch(() => { toWeb = false; }); return; }
       const base = (document.getElementById("basemap") || {}).value;
-      if (base && base !== base0) TrailMap.layer({ key: "base", data: base }).catch(() => {});
+      if (base && (picked || base !== base0)) TrailMap.layer({ key: "base", data: base }).catch(() => {});
     });
     layersWatch.observe(lmenu, { attributes: true, attributeFilter: ["hidden"] });
   });

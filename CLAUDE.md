@@ -94,7 +94,8 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   `NativeLayers.all`. A new native feature shows from the build that has it.
 - Skiing always opens on the Winter map (alex 2026-11-21: "winter should always be by default in skiing"): the flat
   map, the web 3D map and native 3D, on the website, iPhone and Android, whatever style was picked there before. A
-  style picked in Skiing lasts until another sport is picked or the app is closed.
+  style picked in Skiing lasts until another sport is picked or the app is closed (in 3D, Satellite and Sat + names
+  show Winter, as Skiing's 3D always has; Satellite tapped in Layers while native 3D is open shows Satellite there).
 - The phone test's "App builds" checks (`scripts/phone-test.mjs`) fail if either rule above breaks. Keep them passing.
 - Native 3D must never be slower than the build before (`/check-lag`), draws nothing while switched off, and shows
   avalanche only exactly as Avalanche Canada gives it.
@@ -128,8 +129,9 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   This never covers going public (see "Do not go public").
 - Before a pull request merges on its own, its thread runs an independent code review (`/code-review`) and fixes
   what it finds.
-- Pull requests that only touch `data/`, `ios-app/`, `supabase/` or `.md` files skip the phone check. Then
-  start it by hand (run "Phone test" on the branch) so the merge can go through.
+- Pull requests that only touch `data/`, `supabase/` or `.md` files skip the phone check. Then start it by hand
+  (run "Phone test" on the branch) so the merge can go through. `ios-app/` pull requests run it (its "App builds"
+  checks read the iPhone's native 3D keys).
 - Changes under `ios-app/` or `android-app/` need new iPhone and Android builds: start both after merging and tell
   alex the build numbers.
 - The "Fix PR conflicts" workflow (`.github/workflows/pr-fix.yml`) merges main into open pull requests, and moves
