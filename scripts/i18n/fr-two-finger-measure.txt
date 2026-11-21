@@ -1,0 +1,2 @@
+straight line ||| en ligne droite
+Hold two fingers still on the map to see the straight-line distance between them, on the flat and 3D maps. ||| Gardez deux doigts immobiles sur la carte pour voir la distance en ligne droite entre eux, sur les cartes à plat et en 3D.

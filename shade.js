@@ -393,8 +393,11 @@ onmessage = async (e) => {
     labels();
     if (raf) return;
     // While the finger is on the slider: the flat map at most every 300 ms, 3D once a second.
-    raf = setTimeout(() => { raf = 0; draw2d(); later3d(); }, fast ? 300 : 0);
+    raf = setTimeout(() => { raf = 0; draw2d(); later3d(); native(); }, fast ? 300 : 0);
   }
+  // The iPhone's own 3D map (native-ground.js) draws this moment too: told at most once a second while the slider
+  // moves (the same pace as the web 3D map), since each new moment loads every shade tile again.
+  const native = () => { if (on) window.dispatchEvent(new CustomEvent("tf:ground", { detail: { fast: true } })); };
   range.addEventListener("input", () => { mins = +range.value; changed(true); });
   range.addEventListener("change", () => { mins = +range.value; changed(false); });
   dateIn.addEventListener("change", () => {

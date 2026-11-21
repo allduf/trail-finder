@@ -32,6 +32,9 @@
     { k: "compass", on: () => body.contains("cp-on"), taps: true, follow: () => ($('.cp-card [data-c="lock"][aria-pressed="true"]') ? "none" : "heading") },
     { k: "plan", on: () => body.contains("planning") || body.contains("mt-planning") || body.contains("hk-planning") || map.getContainer().classList.contains("sk-planning"), taps: true, follow: "none" },
     { k: "ride", on: () => !!$(".app.riding"), taps: false, follow: "follow" },
+    // Sun and shade's time bar (shade.js) works over native 3D the same way: the map shrinks under it, the slider moves
+    // the moment, and native-ground.js sends the new shade. It takes no taps and leaves how the map follows you alone.
+    { k: "sun", on: () => !!(window.tfSunShade && window.tfSunShade.isOn()) && !!$("#sunBar:not([hidden])"), taps: false },
   ];
   const current = () => TOOLS.find((x) => { try { return x.on(); } catch { return false; } }) || null;
 
@@ -80,9 +83,20 @@
   const r5 = (v) => Math.round(v * 1e5) / 1e5;
   const textOf = (h) => { const d = document.createElement("div"); d.innerHTML = String(h || ""); return d.textContent.replace(/\s+/g, " ").trim(); };
   const colourIn = (h) => { const m = /(?:color|fill|background(?:-color)?)\s*[:=]\s*"?(#[0-9a-f]{6}|#[0-9a-f]{3})\b/i.exec(h); return m ? m[1] : null; };
-  const SKIP_ICON = /\b(?:nav-you|oneway-arrow|plan-arrow|cp-you)\b/;   // you (the native map shows you itself) and direction arrows
+  const SKIP_ICON = /\b(?:nav-you|cp-you)\b/;   // you: the native map shows you itself
+  // Direction arrows along a planned route or the route being followed (planner.js "plan-arrow": turned by its compass
+  // bearing; navigate.js "oneway-arrow": by its angle on the flat map's screen, 0 = east): sent with their bearing from
+  // north and their colour, and drawn flat on the ground, turning with the map.
+  const ARROW = /\b(plan-arrow|oneway-arrow)\b/;
+  const arrowOf = (cls, html) => {
+    const m = /rotate\((-?[\d.]+)deg\)/.exec(html);
+    if (!m) return null;
+    const plan = cls === "plan-arrow", fill = /fill="(#[0-9a-f]{3,6})"/i.exec(html);
+    const b = ((+m[1] + (plan ? 0 : 90)) % 360 + 360) % 360;
+    return { b: Math.round(b), c: plan ? "#ffffff" : fill ? fill[1] : "#4b0fb0", e: plan ? "#4b1aa0" : "#ffffff" };
+  };
   function shapes() {
-    const lines = [], dots = [], labels = [];
+    const lines = [], dots = [], labels = [], arrows = [];
     for (const l of leaves()) {
       const o = l.options || {};
       if (l instanceof L.CircleMarker) {
@@ -102,6 +116,12 @@
       } else if (l instanceof L.Marker && o.icon) {
         const io = o.icon.options || {}, h = io.html, html = (io.className || "") + " " + (h && h.outerHTML != null ? h.outerHTML : String(h || ""));
         if (SKIP_ICON.test(html)) continue;
+        const arrow = ARROW.exec(html);
+        if (arrow) {
+          const a = arrowOf(arrow[1], html), q = l.getLatLng();
+          if (a) arrows.push({ type: "Feature", geometry: { type: "Point", coordinates: [r5(q.lng), r5(q.lat)] }, properties: { ...a, img: `tfta:${a.c}:${a.e}` } });
+          continue;
+        }
         const p = l.getLatLng(), at = [r5(p.lng), r5(p.lat)], c = colourIn(html), txt = textOf(h && h.outerHTML != null ? h.outerHTML : h).slice(0, 24);
         if (txt) {
           const col = c || "#14211a";
@@ -110,7 +130,7 @@
       }
     }
     const fc = (f) => ({ type: "FeatureCollection", features: f });
-    return JSON.stringify({ lines: fc(lines), dots: fc(dots), labels: fc(labels) });
+    return JSON.stringify({ lines: fc(lines), dots: fc(dots), labels: fc(labels), arrows: fc(arrows) });
   }
   // A cheap fingerprint of what the tools draw: the shapes are only rebuilt and sent when it changes.
   function sig() {
