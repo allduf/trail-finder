@@ -164,7 +164,7 @@ final class NativeTools: NativeLayer {
                 self.labelTexts = texts
                 self.arrowShape = ar
                 self.arrowInks = inks
-                guard let st = self.screen?.mapLibreView.style else { return }
+                guard let st = self.screen?.readyStyle else { return }
                 self.addPictures(st)
                 (st.source(withIdentifier: NativeTools.lines) as? MLNShapeSource)?.shape = l
                 (st.source(withIdentifier: NativeTools.dots) as? MLNShapeSource)?.shape = p

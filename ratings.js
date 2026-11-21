@@ -295,6 +295,13 @@
     { name: "Too Tight", c: [50.096, -122.954], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
     { name: "Top of the World", c: [50.073, -122.966], r: 1500, d: "black", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
     { name: "Fantastic", c: [50.101, -122.95], r: 1500, d: "blue", src: "the Whistler Mountain Bike Park map (2026)", url: "https://cdn.whistler.com/s3/pdf/maps/whistler-mountain-bike-park-trail-map-2026.pdf" },
+    // Whistler valley trails WORCA (the club that builds and signs them) re-rated in 2026 under Recreation Sites and Trails
+    // BC's newer rating standard (checked 2026-11-21); the Resort Municipality's open data and OpenStreetMap still say blue.
+    { name: "A Cut Above", c: [50.1234, -122.9897], r: 1500, d: "black", src: "WORCA (trails update, July 24, 2026)", url: "https://www.worca.com/news/july24/26" },
+    { name: "Danimal Middle", c: [50.0994, -123.008], r: 1500, d: "black", src: "WORCA (trails update, July 24, 2026)", url: "https://www.worca.com/news/july24/26" },   // WORCA's Mid-Danimal
+    // ... and two it kept blue with 2026 reroutes (OpenStreetMap has no level for them)
+    { name: "99er", c: [50.1066, -123.001], r: 1500, d: "blue", src: "WORCA (trails update, May 15, 2026)", url: "https://www.worca.com/news/may15/2026" },
+    { name: "Cherry On Top", c: [50.1049, -123.0055], r: 1500, d: "blue", src: "WORCA (trails update, May 29, 2026)", url: "https://www.worca.com/news/may29/2026" },
     // RED Mountain (its map ranks Red Riding Hood with the beginner trails; OpenStreetMap says blue)
     { name: "Red Riding Hood", c: [49.099, -117.823], r: 1500, d: "green", src: "RED Mountain Resort, bike park trail map", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
     // Riding hubs and MTB centres: levels from the club's, town's or park's own trail list or map (checked 2026-10-22),
@@ -474,7 +481,6 @@
     { name: "Mach Chicken", c: [49.4475, -123.603], r: 1500, d: "black", src: "MTB Project, Roberts Creek trails (rated Difficult)", url: "https://www.mtbproject.com/directory/8020882/roberts-creek-gibson" },
     // Sea to Sky check against club and guide maps, 2026-11-04: trails with only a slope estimate
     { name: "Green Lake Loop", c: [50.147, -122.93], r: 2500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/trail/7014305" },
-    { name: "Cherry On Top", c: [50.105, -123.005], r: 1500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/trail/7069611" },
     { name: "Train Wreck Trail", c: [50.08, -123.057], r: 1500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/directory/8011397/whistler" },
     // weekly audit, 2026-10-24: levels from tourism, club and town pages
     { name: "Rock & Roll", c: [50.088, -120.852], r: 2000, d: "black", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },

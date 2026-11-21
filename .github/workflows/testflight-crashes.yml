@@ -1,0 +1,28 @@
+name: TestFlight crashes
+
+# The newest TestFlight crash reports (what testers share from iOS's "Trail Finder Crashed" box): build, exception and
+# the crashed thread only, never names or emails. See scripts/testflight-crashes.mjs. Same App Store Connect key as
+# ios-app.yml. Run it by hand, or on a pull request that changes it.
+on:
+  pull_request:
+    paths: ["scripts/testflight-crashes.mjs", ".github/workflows/testflight-crashes.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  crashes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Read the crash reports
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: node scripts/testflight-crashes.mjs
