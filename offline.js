@@ -590,6 +590,18 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   const LN = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (!CAP.isPluginAvailable || CAP.isPluginAvailable("LocalNotifications"))
     ? (CAP.registerPlugin ? CAP.registerPlugin("LocalNotifications") : (CAP.Plugins || {}).LocalNotifications) : null;
   const LEFT_ID = 734115;
+  // Keeps the save going while you switch to another app: Android shows a "Saving offline map" notification meanwhile,
+  // iPhone gives the extra time it allows a finishing task (TrailGps.keepGoing, app builds from 2026-11-21; older ones
+  // say no and nothing changes).
+  const GPS = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (!CAP.isPluginAvailable || CAP.isPluginAvailable("TrailGps"))
+    ? (CAP.registerPlugin ? CAP.registerPlugin("TrailGps") : (CAP.Plugins || {}).TrailGps) : null;
+  let keptPct = -1;
+  function keepGoing(on, name, pct) {
+    if (!GPS || !GPS.keepGoing) return;
+    if (on && keptPct >= 0 && pct - keptPct < 5 && pct < 100) return;   // the notification moves in 5% steps
+    keptPct = on ? pct : -1;
+    try { GPS.keepGoing({ on, title: tr("Saving offline map"), text: `${name}: ${pct}%` }).catch(() => {}); } catch {}
+  }
   const tr = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   function leftNotice(on) {
     if (!LN) return;
@@ -652,11 +664,13 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       let done = 0, shown = 0;
       busy.left = total;
       record(true);
+      keepGoing(true, name, 0);
       const tick = () => {
         done++; busy.left = total - done; busy.pct = Math.floor((100 * done) / total);
         if (done % 250 === 0) record(true);
         if (busy.pct === shown && done < total) return;
         shown = busy.pct;
+        keepGoing(true, name, busy.pct);
         showState("", `Saving ${name}… ${busy.pct}%`, `${done.toLocaleString()} of ${total.toLocaleString()} files. Keep the app open until it says Saved.`, busy.pct, stop);
       };
       for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles], [ext.tiles]]) {   // a zone may not have every kind of file
@@ -687,6 +701,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     if (busy.replace && id) for (;;) { const areas = load(), o = areas.find((x) => x.name === name && x.id !== id); if (!o) break; await remove(o, areas).catch(() => {}); if (load().includes(o) || load().some((x) => x.id === o.id)) break; }
     if (lock) lock.release().catch(() => {});
     leftNotice(false);
+    keepGoing(false);
     busy = null; savingName = null;
     if (drawn) setDrawn(null);   // the square is in the list now (Try again uses its own box)
     tell(name);

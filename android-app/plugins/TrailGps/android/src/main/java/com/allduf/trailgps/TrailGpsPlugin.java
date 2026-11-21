@@ -96,6 +96,19 @@ public class TrailGpsPlugin extends Plugin {
         call.resolve(r);
     }
 
+    // keepGoing({ on, title, text }): an offline map is saving (offline.js), so the app keeps working when you switch to
+    // another one (SaveService and its notification). Called again with new text as the save goes; on: false ends it.
+    @PluginMethod
+    public void keepGoing(PluginCall call) {
+        boolean go = Boolean.TRUE.equals(call.getBoolean("on", false));
+        if (call.getString("title") != null) SaveService.title = call.getString("title");
+        if (call.getString("text") != null) SaveService.text = call.getString("text");
+        if (!go) SaveService.stop(getContext());
+        else if (!SaveService.on) SaveService.start(getContext());
+        else SaveService.refresh(getContext());
+        call.resolve();
+    }
+
     @PluginMethod
     public void stop(PluginCall call) {
         engine.stopRecording();

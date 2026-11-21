@@ -1,1 +1,1 @@
-{"date": "2026-11-21", "text": "Offline maps: a save cut short by leaving or closing the app now stays in the list and finishes by itself next time the app opens, and the screen stays on while saving."}
+{"date": "2026-11-21", "text": "Offline maps: a save keeps going when you switch apps (Android shows a notification; iPhone allows a short time), and a save cut short now finishes by itself the next time the app opens."}
