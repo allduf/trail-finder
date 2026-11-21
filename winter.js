@@ -4066,10 +4066,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const flat = g.slope < 5;
     const shb = el.querySelector(".tf-share");   // the shared text says how high and which way it faces
     if (shb) shb.dataset.about = `${fmtM(g.e)}, ${flat ? "flat" : `faces ${ASPECTS[g.asp].toUpperCase()}, ${Math.round(g.slope)}°`}`;
-    fill("skSpotGround", `<div class="sk-stats sk-spotg"><div class="sk-spotslope" style="--c:${slopeCol(g.slope)}"><b>${Math.round(g.slope)}°</b><span>slope</span></div>
-        <div><b>${flat ? "flat" : ASPECTS[g.asp].toUpperCase()}</b><span>faces</span></div><div><b>${fmtM(g.e)}</b><span>height</span></div>
-        <div class="sk-spotates" style="--c:${cls.color}" title="Estimated from the terrain map (ATES-style), not an official rating"><b>${cls.label}</b><span>terrain estimate</span></div></div>
-      <ul class="sk-signs">${cls.why.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>`);
+    fill("skSpotGround", spotGroundHtml(g, cls));
     fillSpotAvy();
     const near = () => { if (!live()) return; fill("skSpotNear", spotNearHtml(lat, lon)); bindSpotNear(); };
     near();
@@ -4085,6 +4082,21 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       spotLayerNote(lat, lon, w, g).then((t) => { if (t) fill("skSpotLayer", t); }, () => {});
     }, (e) => fill("skSpotSnow", `<p class="sk-note">Couldn't load the weather here: ${esc(e.message)}.</p>`));
   }
+  // The spot's slope, aspect, height and terrain estimate, with what they mean (the top of This spot).
+  function spotGroundHtml(g, cls) {
+    const flat = g.slope < 5;
+    return `<div class="sk-stats sk-spotg"><div class="sk-spotslope" style="--c:${slopeCol(g.slope)}"><b>${Math.round(g.slope)}°</b><span>slope</span></div>
+        <div><b>${flat ? "flat" : ASPECTS[g.asp].toUpperCase()}</b><span>faces</span></div><div><b>${fmtM(g.e)}</b><span>height</span></div>
+        <div class="sk-spotates" style="--c:${cls.color}" title="Estimated from the terrain map (ATES-style), not an official rating"><b>${cls.label}</b><span>terrain estimate</span></div></div>
+      <ul class="sk-signs">${cls.why.map(([c, t]) => `<li class="${c}">${esc(t)}</li>`).join("")}</ul>`;
+  }
+  // A slope tapped in native 3D (native-avalanche.js): the same top and Avalanche danger part as This spot here, from
+  // the same functions, so the native card can never say anything else. ground(lat, lon) reads the terrain once;
+  // html(lat, lon, s) writes the parts for the day shown now (again after a new day is picked).
+  window.tfSkiAvySpot = {
+    ground: (lat, lon) => spotGround(lat, lon).then((g) => ({ g, cls: spotTerrain(g) })),
+    html: (lat, lon, s) => ({ ground: spotGroundHtml(s.g, s.cls), avy: spotAvyHtml(lat, lon, s.g, s.cls) }),
+  };
   function fillSpotAvy() {
     if (!spot || !spot.g || $("skSpot").hidden) return;
     $("skSpotAvy").innerHTML = spotAvyHtml(spot.lat, spot.lon, spot.g, spot.cls);

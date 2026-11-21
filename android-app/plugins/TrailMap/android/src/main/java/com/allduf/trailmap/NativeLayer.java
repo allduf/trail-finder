@@ -15,7 +15,10 @@ import org.maplibre.geojson.Feature;
 //     gets it, with the style when one is showing (null otherwise);
 //   - tapLayers() are the feature's layer ids a tap looks at; tapped(feature, screen) is asked first for a feature found
 //     there and returns true when it showed its own card;
-//   - a feature with wantsTaps() true (a tool that's on) is asked before all that with mapTapped(at, trail, screen).
+//   - a feature with wantsTaps() true (a tool that's on) is asked before all that with mapTapped(at, trail, screen);
+//   - tapBegan(screen) hears every tap on the map first (a feature's own card that a new tap should close), and
+//     emptyTap(at, screen) is asked for a tap that found no trail, dot or feature: true when it showed its own card there
+//     (NativeAvalanche: that slope's avalanche card).
 // Rules for every feature (CLAUDE.md): nothing slower than the build before, nothing drawn while switched off, avalanche
 // only exactly as Avalanche Canada gives it, and each sport's own wording.
 interface NativeLayer {
@@ -26,4 +29,6 @@ interface NativeLayer {
     default boolean tapped(Feature f, TrailMapScreen screen) { return false; }
     default boolean wantsTaps() { return false; }
     default boolean mapTapped(LatLng at, int trail, TrailMapScreen screen) { return false; }
+    default void tapBegan(TrailMapScreen screen) {}
+    default boolean emptyTap(LatLng at, TrailMapScreen screen) { return false; }
 }

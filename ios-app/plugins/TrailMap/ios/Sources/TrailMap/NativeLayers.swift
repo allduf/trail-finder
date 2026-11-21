@@ -13,7 +13,10 @@ import MapLibre
 //     and returns true when it showed its own card;
 //   - a feature with wantsTaps true (a tool that's on: planning, measuring) is asked before all that with
 //     mapTapped(_:trail:screen:): where the map was tapped and the trail there (its i on the page, -1 for none); true
-//     when it took the tap.
+//     when it took the tap;
+//   - tapBegan(screen:) hears every tap on the map first (a feature's own card that a new tap should close), and
+//     emptyTap(_:screen:) is asked for a tap that found no trail, dot or feature: true when it showed its own card there
+//     (NativeAvalanche: that slope's avalanche card).
 // Rules for every feature (CLAUDE.md): nothing slower than the build before (check-lag), nothing drawn while switched
 // off, avalanche only exactly as Avalanche Canada gives it (avalanche-rules), and each sport's own wording.
 protocol NativeLayer: AnyObject {
@@ -24,6 +27,8 @@ protocol NativeLayer: AnyObject {
     func tapped(_ feature: MLNFeature, screen: TrailMapScreen) -> Bool
     var wantsTaps: Bool { get }
     func mapTapped(_ at: CLLocationCoordinate2D, trail: Int, screen: TrailMapScreen) -> Bool
+    func tapBegan(screen: TrailMapScreen)
+    func emptyTap(_ at: CLLocationCoordinate2D, screen: TrailMapScreen) -> Bool
 }
 
 extension NativeLayer {
@@ -31,6 +36,8 @@ extension NativeLayer {
     func tapped(_ feature: MLNFeature, screen: TrailMapScreen) -> Bool { false }
     var wantsTaps: Bool { false }
     func mapTapped(_ at: CLLocationCoordinate2D, trail: Int, screen: TrailMapScreen) -> Bool { false }
+    func tapBegan(screen: TrailMapScreen) {}
+    func emptyTap(_ at: CLLocationCoordinate2D, screen: TrailMapScreen) -> Bool { false }
 }
 
 enum NativeLayers {

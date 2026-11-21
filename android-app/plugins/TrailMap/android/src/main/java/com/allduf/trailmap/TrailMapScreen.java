@@ -536,6 +536,7 @@ final class TrailMapScreen extends FrameLayout {
         float r = dp(22);
         RectF box = new RectF(p.x - r, p.y - r, p.x + r, p.y + r);
         pickedAt = point;
+        for (NativeLayer f : features) f.tapBegan(this);
         List<String> trailIds = new ArrayList<>();
         trailIds.add("tf-line");
         trailIds.addAll(dashLayers);
@@ -563,6 +564,8 @@ final class TrailMapScreen extends FrameLayout {
             if (numbered == null && num(f, "i") >= 0) numbered = f;
             if (any == null) any = f;
         }
+        // Beside every trail and dot: a feature's own card for that spot (a slope's avalanche card, NativeAvalanche).
+        if (any == null) for (NativeLayer f : features) if (f.emptyTap(point, this)) { showCard(null); return true; }
         showCard(dot != null ? dot : numbered != null ? numbered : any);
         return true;
     }
