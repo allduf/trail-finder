@@ -600,6 +600,16 @@
    "date": "2026-11-14",
    "who": "Claude (weekly audit)",
    "note": "Horseshoe Loop (all three spellings) added as a blue bike trail from The Banff Blog. Cougar Peak and Grotto West Ridge are scrambles, Horseshoe Slabs is a climbing approach; River, Benchlands, Horse Meadows and Horseshoe Loop connectors have no open source."
+  },
+  "network:kam:Saskatoon Tr": {
+   "date": "2026-11-21",
+   "who": "Claude (weekly audit)",
+   "note": "Kenna Cartwright Park: the City of Kamloops says the park's trails are for hiking or cycling, but this one is a wide gravel path (Saskatoon Braid settled the same way), and no open source calls it a mountain bike trail."
+  },
+  "network:kam:Reservoir Tr": {
+   "date": "2026-11-21",
+   "who": "Claude (weekly audit)",
+   "note": "Kenna Cartwright Park: the City of Kamloops says the park's trails are for hiking or cycling, but this one is a wide compacted path (Saskatoon Braid settled the same way), and no open source calls it a mountain bike trail."
   }
  }
 }
