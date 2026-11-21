@@ -1824,7 +1824,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     let html = `<h4>Avalanche${f ? `: ${esc(f.title || area.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
     else html += staleWarn(f);
-    if (!f || !d) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
+    if (!f || (!d && !isEarly(f))) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
     else {
       const expired = fcExpired(f);
       const on = info ? bandKm(info, area.bands) : null;
@@ -3395,7 +3395,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // no forecast area covers the spot, "noday" a forecast without the day shown on the map (another area's day
     // picked), "norating" a forecast with no danger rating today, "none" none published today.
     if (!d || !(d.alp || d.tln || d.btl)) {
-      const why = !avy && !example ? "net" : !a ? "off" : f && (f.early || /early.?season/i.test(f.title || "")) ? "early" : live && !d ? "noday" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
+      const why = !avy && !example ? "net" : !a ? "off" : isEarly(f) ? "early" : live && !d ? "noday" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
       const area = (f && f.title) || (a && a.name) || "";
       return { r: {}, mask: {}, bands, none: true, why, area: area.length <= 40 ? area : "", date: dayDate };
     }
@@ -3903,6 +3903,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const expired = fcExpired(f);
     if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. ${site.season} ${link}</p>`;
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
+    // A bulletin without the day shown on the map (it starts on another day): said, never another day's rating.
+    if (!d) html += `<p>This bulletin has no rating for ${esc(weekday(dayDate))}.</p>`;
     if (r && g.slope >= 25) {
       // The map colour is the band's own rating from Avalanche Canada, never moved up or down by the app (alex
       // 2026-11-09: "no mistakes are allowed"); the darker shade only says the slope faces a direction in today's problems.
@@ -4346,7 +4348,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (trimmedFor !== localDay()) newDay();
     if (Date.now() - avyAt > 10 * 60000 && !avyLoading) {
       avyLoading = fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-        .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); }, () => {})
+        .then((d) => {
+          // A bulletin already here stays when it was issued at the same time or later than the saved copy's (that copy
+          // can be the phone's older one with no signal): never back to an older bulletin, and its live read time kept.
+          const had = new Map((avy?.areas || []).map((a) => [a.id, a.forecast]));
+          for (const a of d.areas || []) {
+            const o = had.get(a.id), n = a.forecast;
+            if (o && o.issued && (!n || !n.issued || Date.parse(o.issued) >= Date.parse(n.issued))) a.forecast = o;
+          }
+          avy = prepAreas(d); avyAt = Date.now(); refreshAvy();
+        }, () => {})
         .then(() => avyLive()).catch(() => {})
         .finally(() => { avyLoading = null; });
     }
@@ -4455,6 +4466,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!data) return dayDate;
     if (pickDate && pickDate < localDay()) pickDate = "";
     if (pickDate) return (dayDate = pickDate);
+    // A less exposed way on the map keeps the day it was found for: moving the map to a forecast that starts on another
+    // day doesn't find it again (a long search nobody asked for). A day picked on the card still does. A tour hidden
+    // from the map (or not shown since the app opened) leaves the day alone.
+    const sp = sport === "ski" && (plan.show || plan.on) ? safePath() : null, spDay = sp && sp.av && sp.av.date;
+    if (spDay && spDay >= localDay()) return (dayDate = spDay);
     const c = map.getCenter(), at = areaAt(c.lat, c.lng), f = at && at.forecast && at.forecast.days && at.forecast.days.length ? at.forecast : !example && nearestArea(c.lat, c.lng)?.a.forecast;
     // No forecast near (far from every area): the day already shown, or today.
     if (!f) return (dayDate = dayDate && dayDate >= localDay() ? dayDate : localDay());
@@ -4468,7 +4484,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (dayDate && f.days.every((x) => x.date)) return f.days.find((x) => x.date === dayDate) || null;
     return f.days[Math.min(day, f.days.length - 1)] || null;
   };
-  const hasForecasts = () => (avy?.areas || []).some((a) => a.forecast && a.forecast.days?.length);
+  // Avalanche Canada's early season bulletin (no danger ratings): readable on the cards even when its days are past.
+  const isEarly = (f) => !!f && !!(f.early || /early.?season/i.test(f.title || ""));
+  const hasForecasts = () => (avy?.areas || []).some((a) => a.forecast && (a.forecast.days?.length || isEarly(a.forecast)));
 
   // A made-up forecast to try the shading out of season, clearly marked as an example.
   let exampleCache = null;
@@ -4557,10 +4575,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       return short("", msg);
     }
     // Avalanche Canada's early season bulletin stays readable when its days are past (it's valid for weeks).
-    const early = !!f && (f.early || /early.?season/i.test(f.title || ""));
+    const early = isEarly(f);
     if (!f || (!f.days?.length && !early)) return short(esc(area.name), "No forecast for this area right now.");
     const d = dayOf(f), expired = fcExpired(f);
-    const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
+    const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || (f.days || []).some((x) => x.alp || x.tln || x.btl);
     const band = (b, n) => { const r = d[b] || 0, x = DANGER[r]; return `<div class="av-band" style="--c:${x.color};--t:${r >= 4 ? "#fff" : "#1a1a1a"}"><b>${esc(x.label.replace(/^\d /, ""))}</b><span>${n}</span></div>`; };
     // The day is always named (one day too: the native 3D card shows it), pressed when it's the one shown.
     card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast.</div>` : ""}
@@ -4594,9 +4612,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!b) return;
     const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || ""]);
     const line = card.querySelector(".av-line"), exp = card.querySelector(".av-expired");
+    // The ratings' day, named when it isn't today (a day picked, a tour asked for tomorrow, an evening bulletin).
+    const on = card.querySelector('.av-days button[aria-pressed="true"]'), dayT = on && dayDate && dayDate !== localDay() ? on.textContent.trim() : "";
     // An expired bulletin's ratings are on the card under its warning, never on this line as if current.
     const html = card.hidden ? "" : exp ? `<span>⚠ <b>Avalanche:</b> ${esc(exp.textContent.split(/\s?:\s/)[0].trim())}</span>`
-      : bands.length ? `<span>⚠ <b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
+      : bands.length ? `${dayT ? `<span>⚠ <b>${esc(dayT)}</b></span><span>` : "<span>⚠ "}<b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
       : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.split(/\.\s/)[0].replace(/\.$/, ""))}</span>` : "";   // first sentence: the card under it has the rest
     if (b.innerHTML !== html) b.innerHTML = html;
     b.hidden = !html;
@@ -5442,8 +5462,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function refreshAvy() {
     syncDay();   // the day to show (the map may have moved to a forecast starting on another day)
     clockWas = avyClock();
-    // A less exposed way found for another day than the one now shown: found again for this day.
-    if (sport === "ski" && plan.safe && plan.path && plan.path.key === planKey() && plan.path.av && plan.path.av.date != null && plan.path.av.date !== dayDate && !plan.wait && !plan.fail) { plan.path = null; planChanged(); }
+    // A less exposed way on the map found for another day than the one now shown (a day picked): found again for it.
+    if (sport === "ski" && (plan.show || plan.on) && plan.safe && plan.path && plan.path.key === planKey() && plan.path.av && plan.path.av.date != null && plan.path.av.date !== dayDate && !plan.wait && !plan.fail) { plan.path = null; planChanged(); }
     ver++;
     const want = sport === "ski" && avyOn;
     if (want && !avy && !example) loadAvy();
