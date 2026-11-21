@@ -4502,6 +4502,11 @@ out body;`;
           const wxUrl = `${WX_API}?latitude=${mid[0]}&longitude=${mid[1]}&timezone=auto&forecast_days=4` +
             "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,is_day" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max";
+          // A second soil model as a check on the Loam (alex picked 2026-11-21: keep one model for the Loam, show
+          // another beside it): Environment Canada's GEM, top 10 cm of soil, on the same soil scale but without the
+          // rider-report tuning. Only here on the trail card (one small request), never in lists, map or alerts.
+          const gemP = fetch(`${WX_API}?latitude=${mid[0]}&longitude=${mid[1]}&timezone=auto&forecast_days=1&models=gem_seamless&hourly=soil_moisture_0_to_10cm`)
+            .then((r) => (r.ok ? r.json() : null)).catch(() => null);
           const checkedP = window.tfWx && window.tfWx.getChecked ? window.tfWx.getChecked(wxUrl).catch(() => null) : Promise.resolve(null);
           const res = await fetch(url);
           if (!res.ok) throw await meteoErr(res);
@@ -4516,6 +4521,11 @@ out body;`;
             });
             json.check = chk.check;
           } else json.check = { models: [], splits: [] };
+          const gem = await gemP, gh = gem && gem.hourly;
+          if (gh && Array.isArray(gh.time)) {
+            const f = gh.time.findIndex((x) => x > json.current.time), v = gh.soil_moisture_0_to_10cm && gh.soil_moisture_0_to_10cm[f === -1 ? gh.time.length - 1 : Math.max(0, f - 1)];
+            if (v != null) json.gemLmi = Math.round(Math.max(0, Math.min(100, soilScale(v, soilAt(cellOf(t))))));
+          }
           await loamTuneReady;
           await Promise.all([loadFreeze([cellOf(t)]).catch(() => {}), loadEcSnow([cellOf(t)]).catch(() => {})]);
           t.wx = { at: Date.now(), json };
@@ -4581,6 +4591,10 @@ out body;`;
       ${lmiKey(frozen ? null : lvl)}
       ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
         : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
+      ${lmi != null && w.gemLmi != null && !isSnowy(snow) && !frozen ? (() => {
+        const g = lmiLevel(w.gemLmi), same = g === lvl;
+        return `<p class="muted lmi-check"><span>Check: Environment Canada's GEM model reads ${esc(g[1])} here (${w.gemLmi}, top 10 cm of soil, not tuned by rider reports). An estimate.</span>${same ? "" : ` <span>The two models disagree, so this Loam reading is less certain.</span>`}</p>`;
+      })() : ""}
       ${snowNote}${frostNote}${fzHtml}
       ${lmi != null && (!isPrimeLoam(lmi) || isSnowy(snow) || frozen) && soonD ? `<p class="lmi-soon">${lmiDot(soonD[1])}Prime loam ${esc(dayName(soonD[0], today))} (${soonD[1]})</p>` : ""}
       <table class="etable wx-days"><thead><tr><th>Day</th><th>Sky</th><th>High / low</th><th title="Rain, and the chance of rain">Rain</th><th title="Loam moisture index at 1 pm">Loam</th></tr></thead><tbody>${days}</tbody></table>
