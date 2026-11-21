@@ -257,12 +257,14 @@
   // tilt, a tour or route that wants 3D opens native 3D instead; the 3D a sport opens on by itself (Skiing, or the app
   // reopening in 3D) stays on the flat map, one tap away (native 3D covers the whole screen). While this build's keys
   // aren't known yet (a moment after the app opens), the 3D a sport opens on waits for them: retry() asks again.
+  let bypass = false;
   window.tfNative3d = {
     claim(auto, retry) {
-      if (!ios) return false;
+      if (!ios || bypass) return false;
       if (!nativeKeys) { if (typeof retry === "function") keysWait.push(retry); return true; }
-      if (!fullNative()) return false;
-      if (!auto && !open) openNative(true);
+      if (!fullNative() || webOnly()) return false;
+      // The native screen couldn't open (no app screen to show it on): the web 3D map this once, never nothing.
+      if (!auto && !open) openNative(true).then((ok) => { if (ok || typeof retry !== "function") return; bypass = true; try { retry(); } finally { bypass = false; } });
       return true;
     },
   };
@@ -302,6 +304,7 @@
   TrailMap.addListener("closed", (e) => {
     if (toWeb) { toWeb = false; if (map3d && !map.getContainer().classList.contains("is3d")) map3d.click(); return; }
     if (!e.layers || !map3d) return;
+    if (fullNative()) { const lb = document.getElementById("layersBtn"); if (lb && lmenu && lmenu.hidden) lb.click(); return; }   // no web 3D here
     if (!map.getContainer().classList.contains("is3d")) map3d.click();
     const layers = document.getElementById("layersBtn");
     if (layers) setTimeout(() => { if (!lmenu || lmenu.hidden) layers.click(); }, 600);

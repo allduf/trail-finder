@@ -2474,6 +2474,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     // An iPhone with native 3D (native-flyover.js): it flies the route there.
     if (!map.getContainer().classList.contains("is3d") && window.tfNativeFly && window.tfNative && window.tfNative.full && window.tfNative.full()
       && (await window.tfNativeFly(r.line.map(([lat, lon]) => ({ lat, lon, e: 0 })), r.name || ""))) return;
+    if (window.tfNative && window.tfNative.full && window.tfNative.full()) { hint("The 3D map isn't available here."); return; }   // no web 3D map on this iPhone
     if (!map.getContainer().classList.contains("is3d")) { const b = $("btn3d"); if (b) b.click(); }
     const ready = () => { try { return gl3 && gl3.getStyle() && map.getContainer().classList.contains("is3d"); } catch { return false; } };
     for (let i = 0; i < 80 && !ready(); i++) await new Promise((ok) => setTimeout(ok, 250));

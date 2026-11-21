@@ -72,7 +72,7 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             host.addChild(s)
             s.view.frame = host.view.bounds
             s.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            s.view.alpha = 0
+            s.view.alpha = 0.011   // not seen, but it takes the touches (alpha 0 lets them through to the flat map)
             host.view.addSubview(s.view)
             s.didMove(toParent: host)
             // Seamless from the flat map (alex 2026-11-21: "tilt from the 2d directly and it transition seamless to 3d"):
@@ -80,8 +80,9 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             // style, then shows in a quick fade and (3D) tilts up from flat. At most 2.5 s (no signal, slow tiles).
             var shown = false
             let show = { [weak s] in
-                guard let s = s, !shown else { return }
+                if shown { return }
                 shown = true
+                guard let s = s, !s.left else { call.resolve(); return }
                 s.onReady = nil
                 UIView.animate(withDuration: 0.18, animations: { s.view.alpha = 1 }) { _ in
                     if s.parent != nil && !s.left && !s.toolOpen && !s.aside { s.showWeb?(false) }
@@ -421,7 +422,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         showStyle()
     }
     private func showStyle() {
-        guard base == "winter", !WinterTiles.shared.ready else { styleReady = false; map.styleURL = styleURL(base); return }
+        guard base == "winter", !WinterTiles.shared.ready else { if base == "winter" { waitWinter = false }; styleReady = false; map.styleURL = styleURL(base); return }
         WinterTiles.shared.load { [weak self] ok in
             guard let self = self, !self.left, self.base == "winter" else { return }
             self.waitWinter = false
