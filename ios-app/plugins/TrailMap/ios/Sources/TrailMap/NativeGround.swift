@@ -158,7 +158,7 @@ final class NativeGround: NativeLayer {
             guard h.count == 6, let n = UInt32(h, radix: 16) else { return nil }
             return UIColor(red: CGFloat((n >> 16) & 255) / 255, green: CGFloat((n >> 8) & 255) / 255, blue: CGFloat(n & 255) / 255, alpha: 1)
         }
-        guard v.hasPrefix("rgb"), let a = v.firstIndex(of: "("), let b = v.firstIndex(of: ")") else { return nil }
+        guard v.hasPrefix("rgb"), let a = v.firstIndex(of: "("), let b = v.lastIndex(of: ")"), a < b else { return nil }
         let p = v[v.index(after: a)..<b].split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
         guard p.count >= 3 else { return nil }
         return UIColor(red: p[0] / 255, green: p[1] / 255, blue: p[2] / 255, alpha: p.count > 3 ? p[3] : 1)
@@ -272,9 +272,11 @@ final class GroundTileProtocol: URLProtocol {
     }
     @objc private func deliver(_ arg: Any?) {
         guard !stopped, let url = request.url else { return }
-        // Couldn't be painted now (no signal, no answer): an error, so MapLibre asks again later.
+        // Couldn't be painted now (no signal, no answer): an error MapLibre counts as a connection problem, so it asks
+        // again later (a second, then longer waits, and right away when the signal comes back). Other errors are never
+        // asked again: the picture stayed blank until that part of the map was loaded anew.
         if arg is NSNumber {
-            client?.urlProtocol(self, didFailWithError: URLError(.cannotLoadFromNetwork))
+            client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
             return
         }
         let data = arg as? NSData

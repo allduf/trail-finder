@@ -17,7 +17,8 @@
   if (!TrailMap) return;
   const t = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   const load = () => { try { return JSON.parse(localStorage.getItem("tf-offline-areas")) || []; } catch { return []; } };
-  const admin = () => { try { return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
+  // alex's devices, or every iPhone whose app build has native 3D for everything (native-map.js tfNative.full).
+  const admin = () => { try { if (window.tfNative && window.tfNative.full && window.tfNative.full()) return true; return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
 
   // ---------- what native 3D draws ----------
   const drawData = () => JSON.stringify({
