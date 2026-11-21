@@ -89,14 +89,14 @@
       const esc = new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true });
       // A handler that took the key (preventDefault, like risk.js's trip note) or closed something right away: done.
       if (!(document.body || document).dispatchEvent(esc) || shape() !== before) return;
-      // Later closers (a timer, a frame) are looked for once more, without the [hidden] count: a live map (3D, radar)
-      // keeps changing that, and was taken for "something closed", so Back did nothing (deep Android test 2026-11-21).
+      // The map page's own steps back (a tab's sheet, a page in it, a trail's card) are a history entry it holds
+      // (index.html tfNavHeld): Back takes it at once, like the back gesture in a browser. Before, Back on the map page
+      // put the app away with Find, Saved or More open; with a live map (3D, radar) a later look saw the map's own
+      // changes as "something closed" and Back did nothing (deep Android test 2026-11-21).
+      if (window.tfNavHeld && window.tfNavHeld()) { history.back(); return; }
+      // Later closers (a timer, a frame) are looked for once more, without the noisy [hidden] count.
       setTimeout(() => {
         if (steady() !== steady0) return;
-        // The map page's own steps back (a tab's sheet, a page in it, a trail's card) are a history entry it holds
-        // (index.html tfNavHeld): Back takes it, like the back gesture in a browser. Before, Back on the map page put
-        // the app away with Find, Saved or More open.
-        if (window.tfNavHeld && window.tfNavHeld()) { history.back(); return; }
         if (e && e.canGoBack && history.length > 1 && !/\/(index\.html)?$/.test(location.pathname)) history.back();
         else if (App.minimizeApp) App.minimizeApp().catch(() => {});
       }, 60);
