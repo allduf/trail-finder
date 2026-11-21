@@ -91,7 +91,7 @@
   const arrowOf = (cls, html) => {
     const m = /rotate\((-?[\d.]+)deg\)/.exec(html);
     if (!m) return null;
-    const plan = cls === "plan-arrow", fill = /fill="(#[0-9a-f]{3,6})"/i.exec(html);
+    const plan = cls === "plan-arrow", fill = /fill="(#(?:[0-9a-f]{6}|[0-9a-f]{3}))"/i.exec(html);
     const b = ((+m[1] + (plan ? 0 : 90)) % 360 + 360) % 360;
     return { b: Math.round(b), c: plan ? "#ffffff" : fill ? fill[1] : "#4b0fb0", e: plan ? "#4b1aa0" : "#ffffff" };
   };

@@ -132,7 +132,7 @@ final class NativeTools: NativeLayer {
         let followNow = f != follow ? f : ""
         follow = f
         if let s = screen {
-            if !tool.isEmpty && tool != was { s.hideCard() }
+            if !tool.isEmpty && tool != was && tool != "sun" { s.hideCard() }   // the sun's time bar takes no taps
             apply(s)
             if !followNow.isEmpty { s.followUser(followNow) }
         }

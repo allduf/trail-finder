@@ -49,6 +49,8 @@ final class NativeFingers: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         g.minimumPressDuration = 0.45
         g.allowableMovement = 12      // fingers that move are a pinch, a twist or a tilt: the map's own
         g.delegate = self
+        g.cancelsTouchesInView = false   // the map's own gestures end normally; they're switched off while measuring
+        g.delaysTouchesEnded = false
         m.addGestureRecognizer(g)
         press = g
     }
@@ -104,8 +106,14 @@ final class NativeFingers: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         stroke.path = path.cgPath
         CATransaction.commit()
         let ca = m.convert(a, toCoordinateFrom: m), cb = m.convert(b, toCoordinateFrom: m)
-        // A finger on the sky (far tilted views) has no ground under it: the line shows, with no distance.
-        guard CLLocationCoordinate2DIsValid(ca), CLLocationCoordinate2DIsValid(cb) else { label.isHidden = true; return }
+        // A finger on the sky (far tilted views) has no ground under it: the line shows, with no distance. A point on
+        // the sky comes back as the horizon, so only a spot that lands back under the finger counts as ground.
+        let onGround = { (p: CGPoint, c: CLLocationCoordinate2D) -> Bool in
+            guard CLLocationCoordinate2DIsValid(c) else { return false }
+            let q = m.convert(c, toPointTo: m)
+            return hypot(q.x - p.x, q.y - p.y) <= 12
+        }
+        guard onGround(a, ca), onGround(b, cb) else { label.isHidden = true; return }
         let metres = CLLocation(latitude: ca.latitude, longitude: ca.longitude).distance(from: CLLocation(latitude: cb.latitude, longitude: cb.longitude))
         label.text = "  \(NativeFingers.format(metres)) \(line)  "
         label.isHidden = false
