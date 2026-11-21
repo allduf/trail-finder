@@ -53,5 +53,5 @@ jobs:
       - name: Open the app again and again, with and without Offline maps saved
         run: node scripts/start-speed.mjs
         env:
-          ROOTS: "main=base,this change=.,put later=v-putlater,no page download=v-nonet,whole page first=v-blob"
+          ROOTS: "main=base,this change=.,put later=../v-putlater,no page download=../v-nonet,whole page first=../v-blob"
           DATA: data

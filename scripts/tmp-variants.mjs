@@ -12,7 +12,7 @@ const V = {
 for (const [k, f] of Object.entries(V)) {
   const out = f(base);
   if (out === base) throw new Error("variant " + k + " did not apply");
-  cpSync(".", "v-" + k, { recursive: true, filter: (p) => !/(^|\/)(\.git|base|data|v-[a-z]+|node_modules)(\/|$)/.test(p) || p === "." });
-  writeFileSync(`v-${k}/sw.js`, out);
+  cpSync(".", "../v-" + k, { recursive: true, filter: (p) => !/(^|\/)(\.git|base|data|v-[a-z]+|node_modules)(\/|$)/.test(p) || p === "." });
+  writeFileSync(`../v-${k}/sw.js`, out);
 }
 console.log("made", Object.keys(V).join(", "));
