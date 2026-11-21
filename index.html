@@ -6107,7 +6107,7 @@ out body;`;
       ${acct ? card("account", "👤", signedIn ? "Account" : "Sign in", signedIn ? "Your saves follow you to every device" : "Keep your saves on every device") : ""}
       ${window.tfFriends && window.tfFriends.admin() ? card("friends", "🤝", "Friends", "Who sees unofficial trails") : ""}
       ${window.tfWhatsNew ? card("news", "🆕", "What's new", "The latest changes to the app") : ""}
-      ${window.tfTutorials && window.tfTutorials.list.length ? card("tutorials", "▶", "Tutorials", "Short videos: how to use each feature") : ""}
+      ${window.tfTutorials && (window.tfTutorials.hasFor ? window.tfTutorials.hasFor() : window.tfTutorials.list.length) ? card("tutorials", "▶", "Tutorials", "Short videos: how to use each feature") : ""}
       ${card("about", "?", "How it works", "")}
       ${window.tfFeedback ? card("feedback", "💬", "Send feedback", "Bugs, wrong trails, ideas: straight to us") : ""}
       ${card("support", "✉", "Help and support", "Questions, problems, ideas")}
@@ -6222,6 +6222,14 @@ out body;`;
     const nav = b.dataset.nav;
     if (panelEl.classList.contains("detail-open")) closeDetail();
     if (!$("about").hidden) $("about").hidden = true;
+    // Offline maps (a card over the map, or its square to pick) and an open bike trip close on another tab: they stayed
+    // over Find, Saved and More (deep phone test 2026-11-21). A save in progress goes on; the trip is kept, and Ride ›
+    // Bike trips or Offline maps opens them again.
+    if (nav !== "map") {
+      if (document.querySelector(".offline-card:not([hidden]), .off-frame:not([hidden])")) { const x = document.querySelector(".offline-card [data-x]"); if (x) x.click(); }
+      const bk = $("bkTrip"), T = window.tfTrips && window.tfTrips.bike;
+      if (bk && !bk.hidden && T && T.close) T.close();
+    }
     if (nav === "map") { navStack.length = 0; showNav("peek"); }
     else navTo(ROOTS[nav] || nav, { root: true, snap: nav === "ride" || ROOTS[nav] === "find" && isAlt() ? "half" : "full" });
   });
@@ -8056,7 +8064,10 @@ out tags center qt;`;
       if (!g) {
         const alt = ["mtb:name", "alt_name", "old_name", "official_name", "short_name", "loc_name", "tf:was"]   // tf:was: names the map lost (scripts/keep-names.mjs)
           .flatMap((k) => (i.tags[k] || "").split(";")).map(norm).filter(Boolean);
-        g = { name, texts: [norm(name), ...alt], items: [], type: i.t, tags: i.tags, part };
+        // A name like "A/B" is both names: each one matches whole, so the long trail comes before a 58 m piece
+        // named only "A" (deep phone test 2026-11-21).
+        const parts = name.split("/").map(norm).filter((x) => x.length > 2);
+        g = { name, texts: [norm(name), ...alt, ...(parts.length > 1 ? parts : [])], items: [], type: i.t, tags: i.tags, part };
         same.push(g); byKey.set(key, same); groups.push(g);
       }
       g.items.push(i);
@@ -8102,7 +8113,8 @@ out tags center qt;`;
       let s = 0; for (const t of g.texts) s = Math.max(s, matchScore(q, qWords, t));
       return { g, s: s + (g.mtb ? 0.02 : 0) };
     }).filter((h) => h.s >= 0.6).map((h) => ((h.d = here.distanceTo(h.g.center)), h))
-      .sort((a, b) => b.s - a.s || a.d - b.d);
+      // as good a match and close together (a trail and a short piece of it named alone): the longer one first
+      .sort((a, b) => b.s - a.s || (a.g.center.distanceTo(b.g.center) < 5000 ? b.g.items.length - a.g.items.length : 0) || a.d - b.d);
     return joinPieces(hits.slice(0, 20)).slice(0, 10);
   }
 
