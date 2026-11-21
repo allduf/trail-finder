@@ -186,6 +186,7 @@ final class OfflinePacks {
         JSONObject style = style(o.ctx);
         if (style == null) return;
         Runnable go = () -> {
+            if (ours == null || !ours.contains(o)) return;   // deleted meanwhile (Winter's lists take a moment to load)
             putStyle(style, o.region.getDefinition().getStyleURL());
             main.postDelayed(() -> { if (ours != null && ours.contains(o)) o.region.setDownloadState(OfflineRegion.STATE_ACTIVE); }, 500);
         };

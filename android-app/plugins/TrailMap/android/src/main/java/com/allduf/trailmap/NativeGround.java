@@ -230,7 +230,7 @@ final class NativeGround implements NativeLayer {
                 if (h.length() != 6) return fallback;
                 return Color.rgb(Integer.parseInt(h.substring(0, 2), 16), Integer.parseInt(h.substring(2, 4), 16), Integer.parseInt(h.substring(4, 6), 16));
             }
-            int a = v.indexOf('('), b = v.indexOf(')');
+            int a = v.indexOf('('), b = v.lastIndexOf(')');
             if (!v.startsWith("rgb") || a < 0 || b < a) return fallback;
             String[] p = v.substring(a + 1, b).split(",");
             if (p.length < 3) return fallback;
@@ -301,7 +301,9 @@ final class NativeGround implements NativeLayer {
                 waiting.remove(r);
                 throw new IOException("ground picture stopped");
             }
-            if (w.failed || (w.picture == null && !w.nothing)) throw new IOException("ground picture not painted now");
+            // Couldn't be painted now (no signal, no answer): an error MapLibre counts as a connection problem, so it asks
+            // again later (and right away when the signal comes back). Other errors are never asked again.
+            if (w.failed || (w.picture == null && !w.nothing)) throw new java.net.SocketException("ground picture not painted now");
             return reply(chain, w.picture, "1".equals(chain.request().url().queryParameter("k")));
         }
 

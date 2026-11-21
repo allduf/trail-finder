@@ -203,6 +203,7 @@ final class NativeTools implements NativeLayer {
                 if (st == null || !st.isFullyLoaded()) return;
                 addPictures(st);
                 set(st, LINES, fl); set(st, DOTS, fp); set(st, LABELS, fx); set(st, ARROWS, far);
+                prunePictures(st);
             });
         });
     }
@@ -241,6 +242,15 @@ final class NativeTools implements NativeLayer {
             String name = "tfta:" + fe[0] + ":" + fe[1];
             if (made.add(name)) style.addImage(name, arrow(fe[0], fe[1], d));
         }
+    }
+    // Each new label text gets its own picture (a measure's or a moving goal's distance makes one with each new figure):
+    // once there are many, the ones no label shows any more go, so a long walk with a tool open doesn't keep adding memory.
+    private void prunePictures(Style style) {
+        if (made.size() <= 64) return;
+        Set<String> now = new HashSet<>();
+        for (String[] tc : labelTexts) now.add("tftl:" + tc[1] + ":" + tc[0]);
+        for (String[] fe : arrowInks) now.add("tfta:" + fe[0] + ":" + fe[1]);
+        for (String name : new ArrayList<>(made)) if (!now.contains(name)) { style.removeImage(name); made.remove(name); }
     }
     // A direction arrow pointing up (north at bearing 0), its fill with an edge round it, as the flat map draws it.
     private static Bitmap arrow(String fill, String edge, float d) {
