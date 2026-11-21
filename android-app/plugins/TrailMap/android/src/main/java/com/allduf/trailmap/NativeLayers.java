@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 // once its Android side is written.
 final class NativeLayers {
     static final List<Supplier<NativeLayer>> ALL = List.of(
+        NativeFingers::new,                    // NativeFingers.java: two-finger measure
         () -> new NativeOverlay("radar", 0),   // NativeOverlay.java: rain and snow radar and forecast
         () -> new NativeOverlay("smoke", 1),   // NativeOverlay.java: wildfire smoke forecast
         NativePins::new,                // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)

@@ -82,6 +82,9 @@ import org.maplibre.geojson.Point;
 @SuppressLint("ViewConstructor")
 final class TrailMapScreen extends FrameLayout {
     interface Events { void send(String name, JSObject data); }
+    // A feature that watches the fingers on the map (NativeFingers.java); the map still gets every touch.
+    interface TouchWatcher { void onTouch(android.view.MotionEvent e); }
+    private final List<TouchWatcher> watchers = new ArrayList<>();
 
     // The map styles, in the order the style button goes through them (as the iPhone's).
     private static final String[][] FLAT = { { "osm", "Map" }, { "topo", "Topo" }, { "sat", "Satellite" }, { "vector", "Sharp" } };
@@ -153,6 +156,7 @@ final class TrailMapScreen extends FrameLayout {
         mapView.onCreate(null);
         mapView.setOnTouchListener((v, e) -> {
             if (e.getActionMasked() == android.view.MotionEvent.ACTION_UP) { lastTouch = new PointF(e.getX(), e.getY()); lastTouchAt = e.getEventTime(); }
+            for (TouchWatcher w : watchers) { try { w.onTouch(e); } catch (Exception ignored) {} }
             return false;   // the map still gets every touch
         });
         addView(mapView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
@@ -421,6 +425,9 @@ final class TrailMapScreen extends FrameLayout {
     MapLibreMap mapLibre() { return map; }
     // Where a feature's own labels go: the screen inside the phone's bars (its children are laid out by gravity).
     FrameLayout mapArea() { return area; }
+    void watchTouches(TouchWatcher w) { if (!watchers.contains(w)) watchers.add(w); }
+    // A feature's own drawing over the whole map, under the buttons (it lets every touch through).
+    void addOverMap(View v) { addView(v, indexOfChild(area), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)); }
     // A feature's own card: the same card as a trail's, with Details coming back to the page ("closed" then carries
     // feature: key and open: the feature's own number). details: false for a feature with nothing more to open.
     void showFeatureCard(String name, String sub, String colour, int open, LatLng at, String key, boolean details) {
