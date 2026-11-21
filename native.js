@@ -85,11 +85,15 @@
       if (a && a.matches && a.matches("input, textarea, select")) { a.blur(); return; }
       const before = shape();
       (document.body || document).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
-      setTimeout(() => {
-        if (shape() !== before) return;
-        if (e && e.canGoBack && history.length > 1 && !/\/(index\.html)?$/.test(location.pathname)) history.back();
-        else if (App.minimizeApp) App.minimizeApp().catch(() => {});
-      }, 60);
+      // Compared at once: the Escape handlers close things right away, and a live map (3D, radar) keeps changing the
+      // page, which a later look took for "something closed" and Back did nothing (deep Android test 2026-11-21).
+      if (shape() !== before) return;
+      // The page's own steps back (index.html: a tab's sheet, a page in it, a trail's card) are history entries
+      // ({ tfNav }): Back takes one, like the back gesture in a browser. Before, Back on the map page put the app away
+      // with Find, Saved or More open.
+      if (history.state && history.state.tfNav) { history.back(); return; }
+      if (e && e.canGoBack && history.length > 1 && !/\/(index\.html)?$/.test(location.pathname)) history.back();
+      else if (App.minimizeApp) App.minimizeApp().catch(() => {});
     });
     // Status bar and gesture bar icons: dark on the light theme, light on the dark one.
     const bars = () => {
