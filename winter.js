@@ -4492,8 +4492,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${notes.length ? `<h5>Forecaster's notes</h5>${notes.map((s) => `<p>${esc(s)}</p>`).join("")}` : ""}
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
         ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x, i) => `<li><i style="background:${x.color}"></i><i class="av-dk" style="background:${DARK[i + 1]}"></i>${x.label}</li>`).join("")}</ul>
-        <p class="sk-note">Darker shade: the slope faces a direction Avalanche Canada names in today's problems for its band.</p>
-        <p class="sk-note">Slopes of 25° and more, in the colour of Avalanche Canada's rating for their band, never changed by the app. Treeline is about ${area.bands.lo}-${area.bands.hi} m here (an estimate, so check both ratings near a band edge). Where you go is your decision and your risk.</p>` : ""}
+        <p class="sk-note av-native">Darker shade: the slope faces a direction Avalanche Canada names in today's problems for its band.</p>
+        <p class="sk-note av-native">Slopes of 25° and more, in the colour of Avalanche Canada's rating for their band, never changed by the app. Treeline is about ${area.bands.lo}-${area.bands.hi} m here (an estimate, so check both ratings near a band edge). Where you go is your decision and your risk.</p>` : ""}
         ${janNote(f)}<p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
       </details>
       <div class="av-foot">${shade}${example ? `<button type="button" class="av-pill" id="avExOff">Hide example</button>` : rated ? "" : `<button type="button" class="av-pill" id="avEx">Example</button>`}<a class="av-pill" href="${esc(f.url || site.url)}" target="_blank" rel="noopener">${site.host} ↗</a></div>`;
@@ -4618,6 +4618,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     return out;
   }
+
+  // The iPhone's own 3D map (native 3D, step 8; native-ground.js and native-avalanche.js): the very same paint() as the
+  // 2D and web 3D maps, sent as lossless PNGs, so the colours are Avalanche Canada's band ratings exactly, from one piece
+  // of code (avalanche-rules). Only once this phone's app build draws the avalanche card beside it ("tf-native-avy", set
+  // when the native map shows it): an older build would get the colours without the card and its warnings.
+  const nativeAvyOk = () => { try { return localStorage.getItem("tf-native-avy") === "1"; } catch { return false; } };
+  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y), on: () => sport === "ski" && avyOn && nativeAvyOk() && !$("avCard").hidden, ver: () => String(ver), min: 8, max: 14, opacity: 1, z: 360,
+    credit: "Avalanche forecast: Avalanche Canada · Terrain: Mapzen Terrain Tiles", keep: false });
 
   // 2D map layer
   map.createPane("avy").style.zIndex = 360;
@@ -5293,6 +5301,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (want) { if (!map.hasLayer(avyGrid)) avyGrid.addTo(map); else avyGrid.redraw(); }
     else if (map.hasLayer(avyGrid)) map.removeLayer(avyGrid);
     sync3d();
+    groundChanged();   // native 3D asks for the new pictures (a new day, example on or off, the forecast in)
     renderForecast();
     fillSpotAvy();
     if (sport === "ski") renderList();   // the trip planner lights follow the forecast and the day picked

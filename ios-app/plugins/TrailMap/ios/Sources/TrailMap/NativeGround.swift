@@ -12,7 +12,7 @@ import UIKit
 //   - "T|<request>|<base64 PNG>": a picture asked for ("" when there's nothing there, "!" when it couldn't be painted
 //     now, for example with no signal: MapLibre then asks again later).
 // MapLibre loads a layer's tiles from a made-up address (GroundTiles.host); GroundTileProtocol answers those requests by
-// asking the page ("groundTile" { r, id, z, x, y }) and handing back what it paints. Avalanche is never one of these.
+// asking the page ("groundTile" { r, id, z, x, y }) and handing back what it paints. Avalanche comes this way too (step 8), with its card in NativeAvalanche.swift.
 final class NativeGround: NativeLayer {
     let key = "ground"
     private struct Item: Equatable {
@@ -24,12 +24,14 @@ final class NativeGround: NativeLayer {
     private var onMap: [String: String] = [:]   // source id -> its tile address, on the style now
     private var keys: [(title: String, colours: [String], labels: [String])] = []
     private weak var screen: TrailMapScreen?
-    private let keyBox = UIStackView()
+    let keyBox = UIStackView()               // the avalanche card (NativeAvalanche.swift) sits under it
+    static weak var current: NativeGround?
 
     init() { GroundTiles.shared.start() }
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
         self.screen = screen
+        NativeGround.current = self
         GroundTiles.shared.screen = screen
         onMap = [:]   // a new style has none of them
         apply(style)
