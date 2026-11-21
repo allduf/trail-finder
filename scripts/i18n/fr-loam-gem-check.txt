@@ -1,0 +1,2 @@
+Mountain biking: a trail's card now shows a second soil model (Environment Canada's GEM) beside the Loam index, and says when the two disagree. ||| Vélo de montagne : la fiche d'un sentier montre maintenant un deuxième modèle de sol (GEM d'Environnement Canada) à côté de l'indice Loam, et indique quand les deux ne concordent pas.
+The two models disagree, so this Loam reading is less certain. ||| Les deux modèles ne concordent pas, donc cette lecture Loam est moins certaine.
