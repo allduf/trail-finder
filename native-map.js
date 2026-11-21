@@ -141,7 +141,9 @@
       return hidden.get(name);
     };
     map.eachLayer((l) => {
-      if (!(l instanceof L.Path) || paneHidden(l.options) || (skips.length && skipped(l))) return;
+      // tfYou: the flat map's own location dot (index.html). The native map draws yours itself, on the ground and moving
+      // smoothly; a copy here was a second dot left behind, and changed the trails each fix (sent again every second).
+      if (!(l instanceof L.Path) || l.options.tfYou || paneHidden(l.options) || (skips.length && skipped(l))) return;
       const bb = l.getBounds ? l.getBounds() : L.latLngBounds([l.getLatLng()]);
       if (!bb.isValid() || !near.intersects(bb) || l instanceof L.Circle) return;   // circles (radius rings) aren't trails
       const o = l.options, tap = o.interactive !== false && l.listens("click");
@@ -174,8 +176,19 @@
     };
   }
 
-  // Trails come and go on the flat map as it follows (zones loading, names redrawn): sent once it settles.
-  function send() { pending = 0; if (open) TrailMap.update(snapshot()).catch(() => {}); }
+  // Trails come and go on the flat map as it follows (zones loading, names redrawn): sent once it settles. Only when
+  // they changed: the native map redoes its whole trail index for each one sent (on the iPhone's main thread), and most
+  // moves and layer changes leave the trails around the view as they were.
+  let sent = "";
+  const keyOf = (s) => s.lines + "\n" + s.dots + "\n" + s.dashes;
+  function send() {
+    pending = 0;
+    if (!open) return;
+    const s = snapshot(), k = keyOf(s);
+    if (k === sent) return;
+    sent = k;
+    TrailMap.update(s).catch(() => { sent = ""; });
+  }
   const later = (ms) => { if (open) { clearTimeout(pending); pending = setTimeout(send, ms); } };
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path && !(skips.length && skipped(e.layer))) later(400); });
 
@@ -183,7 +196,7 @@
   const follow = (e) => map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false });
   TrailMap.addListener("moved", (e) => { if (!open) return; follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
-    open = false; clearTimeout(pending); moveWait = 500;
+    open = false; clearTimeout(pending); moveWait = 500; sent = "";
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
@@ -208,8 +221,10 @@
     const winter = threeD && document.body.classList.contains("sport-ski");
     // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
-    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snapshot() })
-      .then(() => true, () => { open = false; return false; });
+    const snap = snapshot();
+    sent = keyOf(snap);
+    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snap })
+      .then(() => true, () => { open = false; sent = ""; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
