@@ -21,7 +21,7 @@ on:
     branches: [main]
     paths: ["android-app/**", ".github/workflows/android-app.yml"]
   pull_request:
-    paths: ["android-app/**", ".github/workflows/android-app.yml", "native.js", "native-gps.js", "app-update.js", "notify.js", "usage.js"]
+    paths: ["android-app/**", ".github/workflows/android-app.yml", "native.js", "native-gps.js", "native-map.js", "app-update.js", "notify.js", "usage.js"]
   workflow_dispatch:
 
 permissions:

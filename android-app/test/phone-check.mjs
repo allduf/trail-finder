@@ -1,7 +1,8 @@
 // The Android app on a phone simulator (android-app.yml, pull requests): opens the test build, which loads this
 // pull request's own website from the runner (http://10.0.2.2:8080), and checks the app's own parts work:
 // the plugins are there, native.js ran, a ride records (also with the app in the background, where the notification
-// keeps it going), the ride shows in the notification, Back puts the app away without closing it.
+// keeps it going), the ride shows in the notification, the native 3D map opens and Back closes it, Back puts the app
+// away without closing it.
 // Run by test/phone-check.sh with the simulator up and the app open. Talks to the page through Chrome's DevTools.
 import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -123,6 +124,27 @@ const front = () => /mResumedActivity|topResumedActivity/.test(adb("shell dumpsy
   await sleep(1500);
   f = await native("fixes", { after: 0 });
   ok((f.fixes || []).length === 0 && !/RideService/.test(adb(`shell dumpsys activity services ${APP}`).replace(/No services/, "")), "stopping ends the ride and its notification");
+
+  // The map drawn by the phone itself (TrailMap, alex only on the page): the iPhone's calls, opens in 3D over the page
+  // with a trail, and the phone's Back button closes it (back to the page, the app stays open).
+  const tm = await js(`((Capacitor.PluginHeaders || []).find((h) => h.name === "TrailMap") || { methods: [] }).methods.map((m) => m.name)`);
+  ok(["open", "update", "layer", "close", "features"].every((m) => tm.includes(m)), "TrailMap has the iPhone's map calls", tm.join(", "));
+  const keys = await js(`Capacitor.nativePromise("TrailMap", "features", {}).then((r) => Array.isArray(r.keys))`).catch(() => false);
+  ok(keys, "TrailMap lists the native 3D features it draws");
+  const line = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "MultiLineString", coordinates: [[[-122.96, 50.105], [-122.95, 50.11], [-122.94, 50.112]]] }, properties: { c: "#d33", w: 4, o: 1, d: "", n: "Test trail", lb: "Test trail", i: 0 } }] });
+  const empty = JSON.stringify({ type: "FeatureCollection", features: [] });
+  await js(`(() => { window.__tmClosed = []; Capacitor.registerPlugin("TrailMap").addListener("closed", (e) => window.__tmClosed.push(e)); })()`);
+  const opened = await js(`Capacitor.nativePromise("TrailMap", "open", ${JSON.stringify({ lat: 50.11, lon: -122.95, zoom: 13, bearing: 20, base: "sat", threeD: true, winter: false, lang: "en", layers: {}, lines: line, dots: empty, dashes: "" })}).then(() => true, (e) => String(e && e.message || e))`);
+  ok(opened === true, "the native 3D map opens", opened === true ? "" : opened);
+  await sleep(12000);
+  shot("5-native-3d");
+  ok(front(), "…and the app stays open with it");
+  adb("shell input keyevent KEYCODE_BACK");
+  await sleep(1500);
+  const closed = await js(`window.__tmClosed`);
+  ok(Array.isArray(closed) && closed.length === 1 && closed[0].details === false && isFinite(closed[0].lat) && isFinite(closed[0].zoom), "Back closes the native map and tells the page where it was", JSON.stringify(closed));
+  ok(front(), "…and the app stays open");
+  shot("6-native-closed");
 
   // Back button: a menu open closes first; with nothing open it puts the app away (still running)
   await js(`document.querySelectorAll("dialog[open]").forEach((d) => d.close())`);
