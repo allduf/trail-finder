@@ -1,0 +1,6 @@
+Signed in once is enough: saving maps for no signal no longer asks you to sign in again, and the password box has an eye button to show what you type. ||| Une seule connexion suffit : enregistrer des cartes pour l'utilisation sans réseau ne vous demande plus de vous reconnecter, et la case du mot de passe a un bouton en forme d'œil pour voir ce que vous tapez.
+Show password ||| Afficher le mot de passe
+Hide password ||| Masquer le mot de passe
+Checking your sign-in… ||| Vérification de votre connexion…
+You're signed in on this device, but your account can't be reached right now (no signal?). Everything saved here keeps working. Try again with signal. ||| Vous êtes connecté sur cet appareil, mais votre compte est injoignable pour le moment (pas de réseau ?). Tout ce qui est enregistré ici continue de fonctionner. Réessayez avec du réseau.
+Signed in ||| Connecté
