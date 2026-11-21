@@ -5,7 +5,7 @@ name: Opening speed
 # Runs on a pull request that changes the test, or by hand.
 on:
   pull_request:
-    paths: ["scripts/start-speed.mjs", ".github/workflows/start-speed.yml", "sw.js"]
+    paths: ["scripts/start-speed.mjs", ".github/workflows/start-speed.yml", "sw.js", "offline-store.js"]
   workflow_dispatch:
 
 permissions:

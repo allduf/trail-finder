@@ -8,6 +8,12 @@
   const map = window.tfLeaflet, btn = document.getElementById("offlineBtn");
   if (!map || !btn || !window.L || !("caches" in window)) { if (btn) btn.hidden = true; return; }
   const CACHE = "tf-offline-1", KEY = "tf-offline-areas";
+  // Where the saved files go: IndexedDB (offline-store.js, faster app start), or the old cache on a page whose copy of
+  // that file is missing (an older saved copy).
+  const store = () => (window.tfFiles ? Promise.resolve(window.tfFiles.offline) : caches.open(CACHE));
+  const storeClear = () => (window.tfFiles ? window.tfFiles.offline.clear() : caches.delete(CACHE));
+  // Saves made before 2026-11-21 move to IndexedDB once the app has settled (offline-store.js).
+  setTimeout(() => { if (window.tfFiles) window.tfFiles.migrate(); }, 15000);
   const STYLE = "https://tiles.openfreemap.org/styles/liberty";
   const MAX_Z = 14;            // OpenFreeMap's deepest tiles; closer zooms are drawn from them
   const MAX_TILES = 6000;      // about 150 MB: a big valley, not the whole Sea to Sky
@@ -634,7 +640,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   // outside servers). Areas saved before keep only the old copies, so the new ones are added once, quietly, with signal.
   const libsTopUp = async () => {
     if (!load().length || !navigator.onLine || !window.caches) return;
-    try { const cache = await caches.open(CACHE); for (const u of LIBS) if (!(await cache.match(u))) { const r = await fetch(u); if (r.ok) await cache.put(u, r); } } catch {}
+    try { const cache = await store(); for (const u of LIBS) if (!(await cache.match(u))) { const r = await fetch(u); if (r.ok) await cache.put(u, r); } } catch {}
   };
   setTimeout(libsTopUp, 25000);
   window.addEventListener("online", () => setTimeout(libsTopUp, 5000));
@@ -727,7 +733,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     };
     let ok = false;
     try {
-      const cache = await caches.open(CACHE);
+      const cache = await store();
       const parts = await styleParts(cache);
       sources = parts.sources;
       const tiles = sources.flatMap((s) => [...tileUrls(s, box, boxes)]);
@@ -853,9 +859,9 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     save(rest);
     if (window.tfLoadSport) await window.tfLoadSport("hunt").catch(() => {});
     const hunts = window.tfHuntOfflineUrls ? window.tfHuntOfflineUrls() : [];   // Hunting's own saved layers share the cache
-    if (!rest.length && !hunts.length) { await caches.delete(CACHE); return; }
+    if (!rest.length && !hunts.length) { await storeClear(); return; }
     const keep = new Set([...(await Promise.all(rest.map(urlsOf))).flat(), ...hunts]);
-    const cache = await caches.open(CACHE);
+    const cache = await store();
     const drop = (await urlsOf(a)).filter((u) => !keep.has(u));
     for (let i = 0; i < drop.length; i += 50) await Promise.all(drop.slice(i, i + 50).map((u) => cache.delete(u)));
   }

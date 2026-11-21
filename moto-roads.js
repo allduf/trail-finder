@@ -169,7 +169,7 @@
     const key = tiles.map((t) => t.url).sort().join("|");
     if (last && last.key === key) return last.net;
     last = null;
-    const cache = await caches.open(CACHE);
+    const cache = window.tfFiles ? window.tfFiles.offline : await caches.open(CACHE);   // offline-store.js since 2026-11-21
     // Points: one per distinct global pixel; ids in a Map only while building.
     const ids = new Map(), X = [], Y = [], ea = [], eb = [], ec = [], names = new Map();
     const node = (gx, gy) => { gx = Math.round(gx); gy = Math.round(gy); const k = gx * 67108864 + gy; let id = ids.get(k); if (id === undefined) { id = X.length; ids.set(k, id); X.push(gx); Y.push(gy); } return id; };

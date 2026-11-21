@@ -5,9 +5,15 @@
 // Offline maps (offline.js), which are served from the OFFLINE cache when there's no connection, and the Hunting
 // picture layers and terrain tiles saved by hunting.js ("Hunting maps offline"), which are served from it first.
 const VERSION = "tf-__V__";   // set at publish by scripts/stamp.mjs (one number for the whole site, ?v= too): never edit
-const OFFLINE = "tf-offline-1";   // filled and emptied by offline.js; kept across new versions of the site
+const OFFLINE = "tf-offline-1";   // before 2026-11-21: Offline maps' files; now moved to IndexedDB (offline-store.js)
+// Offline maps' saved files and the map pictures kept after they're seen live in IndexedDB (offline-store.js): any
+// file in the browser's caches slowed the iPhone app's start (2026-11-21, scripts/start-speed.mjs).
+try { importScripts("offline-store.js?v=__V__"); } catch {}
+const F = self.tfFiles || null;
+// A saved Offline maps file: IndexedDB (and the old cache until it's moved), else nothing.
+const offMatch = async (url) => (F ? F.offline.match(url) : (await caches.open(OFFLINE)).match(url, { ignoreVary: true }));
 const SHELL = [
-  "./", "index.html", "ride.html", "theme.css?v=__V__", "account.js?v=__V__", "friends.js?v=__V__", "moderation.js?v=__V__", "reports.js?v=__V__", "grades.js?v=__V__", "trail-photos.js?v=__V__", "status.js?v=__V__", "today.js?v=__V__", "ask.js?v=__V__", "visitors.js?v=__V__", "usage.js?v=__V__", "map3d.js?v=__V__", "ski-terrain.js?v=__V__", "winter.js?v=__V__", "place-search.js?v=__V__", "clouds.js?v=__V__", "wxcheck.js?v=__V__", "point-info.js?v=__V__", "smoke.js?v=__V__", "radar.js?v=__V__", "live.js?v=__V__", "ski-points.js?v=__V__", "hunts.js?v=__V__", "webcams.js?v=__V__", "lifts.js?v=__V__", "ski-areas.js?v=__V__", "helicat.js?v=__V__", "trip-core.js?v=__V__", "cabin-trip.js?v=__V__", "camper.js?v=__V__", "japanese.js?v=__V__", "japan-snow.js?v=__V__", "jp-resorts.js?v=__V__", "rogers.js?v=__V__", "slackcountry.js?v=__V__", "freeride.js?v=__V__", "crownland.js?v=__V__", "hunting.js?v=__V__", "fish-bait.js?v=__V__", "fish-route.js?v=__V__", "ski-route.js?v=__V__", "fishing.js?v=__V__", "moto.js?v=__V__", "moto-roads.js?v=__V__", "hike.js?v=__V__", "hike-trip.js?v=__V__", "bike-trip.js?v=__V__", "moto-trip.js?v=__V__", "moto-day.js?v=__V__", "hunting-trip.js?v=__V__", "fishing-trip.js?v=__V__", "compass.js?v=__V__", "offline.js?v=__V__", "native-gps.js?v=__V__", "native.js?v=__V__", "native-map.js?v=__V__", "native-ground.js?v=__V__", "native-fishing.js?v=__V__", "native-flyover.js?v=__V__", "native-moto.js?v=__V__", "native-offline.js?v=__V__", "native-pins.js?v=__V__", "native-search.js?v=__V__", "native-tools.js?v=__V__", "native-fingers.js?v=__V__", "keyboard.js?v=__V__", "navigate.js?v=__V__", "go-there.js?v=__V__", "ride-stats.js?v=__V__", "ride-finds.js?v=__V__", "rides.js?v=__V__", "planner.js?v=__V__", "rotate.js?v=__V__", "skyline.js?v=__V__", "photo-find.js?v=__V__", "ebike.js?v=__V__", "closures.js?v=__V__", "loops.js?v=__V__", "strava.js?v=__V__", "share.js?v=__V__", "community.js?v=__V__", "ride-files.js?v=__V__", "rider-trails.js?v=__V__", "alpine.js?v=__V__", "areas.js?v=__V__", "bikeparks.js?v=__V__", "contours.js?v=__V__", "shade.js?v=__V__", "finger-measure.js?v=__V__", "directions.js?v=__V__", "notify.js?v=__V__", "official.js?v=__V__", "photo-slider.js?v=__V__", "ratings.js?v=__V__", "whats-new.js?v=__V__", "season.js?v=__V__", "tutorials.js?v=__V__", "app-update.js?v=__V__", "rate.js?v=__V__", "hidden-places.js?v=__V__", "noback.js?v=__V__", "risk.js?v=__V__", "welcome.js?v=__V__", "feedback.js?v=__V__", "i18n.js?v=__V__", "line-icons.js?v=__V__", "i18n-fr.js?v=__V__", "adv-map.js?v=__V__", "manifest.webmanifest",
+  "./", "index.html", "ride.html", "theme.css?v=__V__", "account.js?v=__V__", "friends.js?v=__V__", "moderation.js?v=__V__", "reports.js?v=__V__", "grades.js?v=__V__", "trail-photos.js?v=__V__", "status.js?v=__V__", "today.js?v=__V__", "ask.js?v=__V__", "visitors.js?v=__V__", "usage.js?v=__V__", "map3d.js?v=__V__", "ski-terrain.js?v=__V__", "winter.js?v=__V__", "place-search.js?v=__V__", "clouds.js?v=__V__", "wxcheck.js?v=__V__", "point-info.js?v=__V__", "smoke.js?v=__V__", "radar.js?v=__V__", "live.js?v=__V__", "ski-points.js?v=__V__", "hunts.js?v=__V__", "webcams.js?v=__V__", "lifts.js?v=__V__", "ski-areas.js?v=__V__", "helicat.js?v=__V__", "trip-core.js?v=__V__", "cabin-trip.js?v=__V__", "camper.js?v=__V__", "japanese.js?v=__V__", "japan-snow.js?v=__V__", "jp-resorts.js?v=__V__", "rogers.js?v=__V__", "slackcountry.js?v=__V__", "freeride.js?v=__V__", "crownland.js?v=__V__", "hunting.js?v=__V__", "fish-bait.js?v=__V__", "fish-route.js?v=__V__", "ski-route.js?v=__V__", "fishing.js?v=__V__", "moto.js?v=__V__", "moto-roads.js?v=__V__", "hike.js?v=__V__", "hike-trip.js?v=__V__", "bike-trip.js?v=__V__", "moto-trip.js?v=__V__", "moto-day.js?v=__V__", "hunting-trip.js?v=__V__", "fishing-trip.js?v=__V__", "compass.js?v=__V__", "offline.js?v=__V__", "native-gps.js?v=__V__", "native.js?v=__V__", "native-map.js?v=__V__", "native-ground.js?v=__V__", "native-fishing.js?v=__V__", "native-flyover.js?v=__V__", "native-moto.js?v=__V__", "native-offline.js?v=__V__", "native-pins.js?v=__V__", "native-search.js?v=__V__", "native-tools.js?v=__V__", "native-fingers.js?v=__V__", "keyboard.js?v=__V__", "navigate.js?v=__V__", "go-there.js?v=__V__", "ride-stats.js?v=__V__", "ride-finds.js?v=__V__", "rides.js?v=__V__", "planner.js?v=__V__", "rotate.js?v=__V__", "skyline.js?v=__V__", "photo-find.js?v=__V__", "ebike.js?v=__V__", "closures.js?v=__V__", "loops.js?v=__V__", "strava.js?v=__V__", "share.js?v=__V__", "community.js?v=__V__", "ride-files.js?v=__V__", "rider-trails.js?v=__V__", "alpine.js?v=__V__", "areas.js?v=__V__", "bikeparks.js?v=__V__", "contours.js?v=__V__", "shade.js?v=__V__", "finger-measure.js?v=__V__", "directions.js?v=__V__", "notify.js?v=__V__", "official.js?v=__V__", "photo-slider.js?v=__V__", "ratings.js?v=__V__", "whats-new.js?v=__V__", "season.js?v=__V__", "tutorials.js?v=__V__", "app-update.js?v=__V__", "rate.js?v=__V__", "hidden-places.js?v=__V__", "noback.js?v=__V__", "risk.js?v=__V__", "welcome.js?v=__V__", "feedback.js?v=__V__", "i18n.js?v=__V__", "line-icons.js?v=__V__", "offline-store.js?v=__V__", "i18n-fr.js?v=__V__", "adv-map.js?v=__V__", "manifest.webmanifest",
   "privacy.html", "support.html", "join.html", "terms.html", "credits.html",
   "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.svg",
   "vendor/leaflet-1.9.4.js",
@@ -27,7 +33,7 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((keys) => {
     const num = (k) => (/^tf-\d+$/.test(k) ? +k.slice(3) : -1), mine = num(VERSION);
     const prev = Math.max(-1, ...keys.map(num).filter((n) => n < mine));
-    return Promise.all(keys.filter((k) => k !== VERSION && k !== OFFLINE && !TILES.some((t) => t.name === k) && !(prev >= 0 && num(k) === prev)).map((k) => caches.delete(k)));
+    return Promise.all(keys.filter((k) => k !== VERSION && k !== OFFLINE && !(TILES.some((t) => t.name === k) && !F) && !(prev >= 0 && num(k) === prev)).map((k) => caches.delete(k)));
   }).then(() => self.clients.claim()));
 });
 
@@ -59,7 +65,7 @@ async function ownHit(req, offline) {
   const hit = await (await caches.open(VERSION)).match(req);
   if (hit) return hit;
   // A data file saved with an area (Offline maps keeps it as fresh as the last visit) before an older version's copy.
-  if (offline) { const h = await (await caches.open(OFFLINE)).match(req); if (h) return h; }
+  if (offline) { const h = await offMatch(req.url); if (h) return h; }
   const older = (await caches.keys()).filter((k) => /^tf-\d+$/.test(k) && k !== VERSION).reverse();
   for (const k of older) { const h = await (await caches.open(k)).match(req); if (h) return h; }
   return null;
@@ -78,6 +84,7 @@ async function networkFirst(req, e) {
           // JSON files only: Offline maps saves no pages or scripts, and opening its big cache for each of them on
           // every page open slowed the start (see ownHit).
           if (!/\.json$/.test(new URL(req.url).pathname)) return;
+          if (F) { if (await F.offline.has(req.url)) await F.offline.put(req.url, await cache.match(req)); return; }
           const off = await caches.open(OFFLINE);
           if (await off.match(req)) await off.put(req, await cache.match(req));
         })().catch(() => null));
@@ -99,7 +106,7 @@ async function networkFirst(req, e) {
     }
     return await plain(await net);
   } catch (err) {
-    const hit = await caches.match(req, { ignoreSearch: req.mode === "navigate" });
+    const hit = await caches.match(req, { ignoreSearch: req.mode === "navigate" }) || (req.mode === "navigate" || !F ? null : await F.offline.match(req.url));
     if (hit) return plain(hit);
     if (req.mode === "navigate") { const home = await cache.match("index.html"); if (home) return plain(home); }
     throw err;
@@ -115,7 +122,7 @@ async function cacheFirst(req) {
   if (usable(hit)) return hit;
   // Not in the app's own caches: the network, and every cache (Offline maps' 3D files) only with no network.
   let res;
-  try { res = await fetch(req); } catch (err) { const any = await caches.match(req); if (usable(any)) return any; throw err; }
+  try { res = await fetch(req); } catch (err) { const any = await caches.match(req) || (F ? await F.offline.match(req.url) : null); if (usable(any)) return any; throw err; }
   if (res.ok || res.type === "opaque") (await caches.open(VERSION)).put(req, res.clone());
   return res;
 }
@@ -124,8 +131,7 @@ async function cacheFirst(req) {
 // change (each weekly map build has a new tile address), so they come from the network, or the saved copy when
 // that fails or takes over 4 s. Nothing is saved here: offline.js decides what's kept.
 async function openFreeMap(req) {
-  const off = await caches.open(OFFLINE);
-  const hit = await off.match(req.url, { ignoreVary: true });
+  const hit = await offMatch(req.url);
   if (!hit) return fetch(req);
   if (/\.(pbf|png|json)$/.test(new URL(req.url).pathname) && !/\/styles\//.test(req.url)) return hit;
   try {
@@ -138,7 +144,7 @@ async function openFreeMap(req) {
 // photos are never put in the site's own cache (they used to be, as any same-site file: thousands of them).
 const HUNT_HOSTS = ["openmaps.gov.bc.ca", "geospatial.alberta.ca", "s3.amazonaws.com", "tiles.mapterhorn.com"];
 async function savedFirst(req) {
-  const hit = await (await caches.open(OFFLINE)).match(req.url, { ignoreVary: true });
+  const hit = await offMatch(req.url);
   return hit || fetch(req);
 }
 // Their lists of squares (blocks.json, sharp.json) change when the photos are rebuilt: the network first, and the copy
@@ -147,7 +153,7 @@ async function savedFirst(req) {
 async function savedIfNoNet(req) {
   // A weak signal can hang instead of failing: the saved copy after 4 s.
   try { return await Promise.race([fetch(req), new Promise((_, no) => setTimeout(() => no(new Error("slow")), 4000))]); }
-  catch (err) { const hit = await (await caches.open(OFFLINE)).match(req.url, { ignoreVary: true }); if (hit) return hit; throw err; }
+  catch (err) { const hit = await offMatch(req.url); if (hit) return hit; throw err; }
 }
 
 // Map pictures kept on the phone after they're seen, so the map is there at once when the app opens again and the 3D
@@ -167,19 +173,22 @@ const TILES = [
 const DAY_MS = 864e5;
 const puts = {};
 async function keepTile(kind, url, res) {
+  const body = await res.blob();
+  if (F) return F.tilePut(kind.name, url, body, res.headers.get("content-type"), kind.max);
   const c = await caches.open(kind.name);
   // When it was saved, for days/fresh above (the server's own date header can't be read on every answer).
-  const body = await res.blob();
   await c.put(url, new Response(body, { status: 200, headers: { "content-type": res.headers.get("content-type") || "", "x-tf-saved": String(Date.now()) } }));
   if ((puts[kind.name] = (puts[kind.name] || 0) + 1) % 100) return;
   const keys = await c.keys();   // oldest first
   await Promise.all(keys.slice(0, Math.max(0, keys.length - kind.max)).map((k) => c.delete(k)));
 }
 async function tileFirst(req, kind, e) {
-  const url = req.url, off = await (await caches.open(OFFLINE)).match(url, { ignoreVary: true });
+  const url = req.url, off = await offMatch(url);
   if (off) return off;
-  const hit = await (await caches.open(kind.name)).match(url);
-  const age = hit ? Date.now() - Number(hit.headers.get("x-tf-saved") || 0) : Infinity;
+  let hit, saved = 0;
+  if (F) { const rec = await F.tileGet(url); if (rec && rec.b) { hit = F.response(rec); saved = rec.at || 0; } }
+  else { hit = await (await caches.open(kind.name)).match(url); saved = hit ? Number(hit.headers.get("x-tf-saved") || 0) : 0; }
+  const age = hit ? Date.now() - saved : Infinity;
   // Asked again as a normal download (with CORS), not the picture's own no-cors one: a no-cors answer can't be read,
   // and browsers count each one as megabytes of storage.
   const get = () => fetch(url, { mode: "cors", credentials: "omit", signal: hit ? undefined : req.signal }).then((res) => {
