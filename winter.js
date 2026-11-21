@@ -2455,7 +2455,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const dg = fIdx >= 0 ? dangerAt(info.top.lat, info.top.lon, info.min, info.max, fIdx) : null;
     if (!avy && !example && !avyErr) avTile = tile("skAvy", CGREY, "Avalanche", "Loading…", []);
     else if (!dg || !dg.r) {
-      const none = !dgList.length || (condDay === 0 && fIdx < 0 && D.date < (dgList[0].date || "")) ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : fcExpired(fc) ? "Forecast expired" : "No rating yet";
+      const none = !dgList.length ? "No forecast here today" : fcExpired(fc) ? "Forecast expired" : condDay === 0 && fIdx < 0 && D.date < (dgList[0].date || "") ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : "No rating yet";
       const site = avySite(info.top.lat, info.top.lon);
       avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? site.season : `Check ${site.host} before you go.` }]);
     } else {
@@ -3395,9 +3395,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!d || !(d.alp || d.tln || d.btl)) {
       const why = !avy && !example ? "net" : !a ? "off" : f && (f.early || /early.?season/i.test(f.title || "")) ? "early" : live && !d ? "noday" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
       const area = (f && f.title) || (a && a.name) || "";
-      return { r: {}, mask: {}, bands, none: true, why, area: area.length <= 40 ? area : "" };
+      return { r: {}, mask: {}, bands, none: true, why, area: area.length <= 40 ? area : "", date: dayDate };
     }
-    return { r: { alp: d.alp || 0, tln: d.tln || 0, btl: d.btl || 0 }, mask: { ...a.mask }, bands, title: f.title || a.name || "", day: d.label || d.date || "", example: !!example,
+    // date: the day it's for (a way found for another day than the one shown is found again, refreshAvy).
+    return { r: { alp: d.alp || 0, tln: d.tln || 0, btl: d.btl || 0 }, mask: { ...a.mask }, bands, title: f.title || a.name || "", day: d.label || d.date || "", date: d.date || dayDate, example: !!example,
       probs: (f.problems || []).map((p) => ({ type: p.type || "", aspects: p.aspects || [], elevations: p.elevations || [] })) };
   }
   // Why a way has no forecast in it (avyFor's why), in plain words.
@@ -3408,7 +3409,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       off: "No avalanche forecast area covers this spot.",
       early: "Avalanche Canada has only its early season bulletin here, which gives no danger ratings. Their daily forecasts start about late November.",
       norating: `${who}'s forecast${av.area ? ` for ${av.area}` : ""} gives no danger rating today.`,
-      noday: `${who}'s forecast${av.area ? ` for ${av.area}` : ""} has no rating for the day shown on the map.`,
+      noday: `${who}'s forecast${av.area ? ` for ${av.area}` : ""} has no rating for ${weekday(av.date)}, the day shown on the map.`,
       none: `${who} hasn't published a forecast${av.area ? ` for ${av.area}` : " for this area"} today.${off}` }[av.why] || "There's no avalanche forecast here today.";
   }
   // Today's weather signs for the safest way (ski-route.js wxF): Open-Meteo at the alpine height (the forecast's alpine
@@ -3910,7 +3911,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const edge = r && (band === "btl" ? [["lo", "tln"]] : band === "alp" ? [["hi", "tln"]] : [["lo", "btl"], ["hi", "alp"]]).find(([k]) => Math.abs(g.e - bands[k]) < 150);
     if (edge) {
       const nb = edge[1], nr = (d && d[nb]) || 0;
-      if (nr && nr !== r) html += `<div class="sk-warn"><b>⚠ Near a band edge:</b> ${BANDS.find((x) => x[0] === band)[1].toLowerCase()} and ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} meet at about ${fmtM(bands[edge[0]])} here. That height is an estimate, so this spot may be in either band. The ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} rating today is ${esc(DANGER[nr].label)}.</div>`;
+      const when = d.date && d.date !== localDay() ? `on ${d.label || d.date}` : "today";   // the day shown may be tomorrow
+      if (nr && nr !== r) html += `<div class="sk-warn"><b>⚠ Near a band edge:</b> ${BANDS.find((x) => x[0] === band)[1].toLowerCase()} and ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} meet at about ${fmtM(bands[edge[0]])} here. That height is an estimate, so this spot may be in either band. The ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} rating ${esc(when)} is ${esc(DANGER[nr].label)}.</div>`;
     }
     if (li >= 0) {
       const L0 = T.LIGHTS[li];
@@ -4349,13 +4351,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   });
   // Left open on the map (a phone on the dash, a laptop all day): the same at midnight, and Avalanche Canada read again
   // every 30 minutes while its forecast is on screen in Skiing, so an updated bulletin shows without leaving the app.
-  let avyTry = 0;
+  // What the clock alone changes (a bulletin expiring, a copy getting old) is drawn again when it does: an expired
+  // bulletin's colours go, and its card says so, even with no signal.
+  const avyClock = () => (avy?.areas || []).map((a) => (a.forecast ? (fcExpired(a.forecast) ? "x" : "") + (avyStale(a.forecast) ? "s" : "") : "")).join(",");
+  let avyTry = 0, avyBg = null, clockWas = "";
   setInterval(() => {
     if (!avy || document.visibilityState !== "visible") return;
     if (trimmedFor !== localDay()) newDay();
-    if (sport === "ski" && !example && !avyLoading && (avyOn || !$("avCard").hidden) && Date.now() - Math.max(avyAt, avyTry) > 30 * 60000) {
+    else if (avyClock() !== clockWas) refreshAvy();
+    // Its own read, apart from avyLoading: a way being found doesn't wait for it (the forecast is already in).
+    if (sport === "ski" && !example && !avyLoading && !avyBg && (avyOn || !$("avCard").hidden) && Date.now() - Math.max(avyAt, avyTry) > 30 * 60000) {
       avyTry = Date.now();
-      avyLoading = avyLive(true).catch(() => {}).finally(() => { avyLoading = null; });
+      avyBg = avyLive(true).catch(() => {}).finally(() => { avyBg = null; });
     }
   }, 60000);
   // Stale = a bulletin last read over 12 hours ago: not read live from Avalanche Canada (no signal, or not in its live
@@ -4364,11 +4371,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const avyAge = (f) => (f ? f.liveAt : avy && avy.liveAt) || Date.parse((avy && avy.builtAt) || "") || 0;
   const avyStale = (f) => !example && !!avy && avyAge(f) > 0 && Date.now() - avyAge(f) > 12 * 3600e3;
   const whenFmt = (t, o) => new Date(t).toLocaleString(window.tfLang && window.tfLang.lang === "fr" ? "fr-CA" : "en-CA", o);
+  const weekday = (date) => (/^\d{4}-\d\d-\d\d$/.test(date || "") ? whenFmt(date + "T12:00", { weekday: "long" }) : "that day");   // in the page's language
   const staleWarn = (f) => avyStale(f) ? `<div class="av-warn">Saved copy from ${esc(whenFmt(avyAge(f), { weekday: "short", hour: "numeric", minute: "2-digit" }))}: a newer forecast may be out. Check avalanche.ca before you go.</div>` : "";
   // An expired bulletin (past Avalanche Canada's "valid until": no signal for a while, or not updated): still readable
   // on the cards, said plainly with that time, and no slope colours from it (alex 2026-11-21).
   const fcExpired = (f) => !example && !!f && !!f.validUntil && new Date(f.validUntil) < new Date();
-  const expiredWarn = (f, site) => `<div class="av-warn">This forecast expired ${esc(whenFmt(f.validUntil, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}: the slopes are no longer coloured. Check ${site.host} for the latest.</div>`;
+  const expiredWarn = (f, site) => `<div class="av-warn av-expired">This forecast expired ${esc(whenFmt(f.validUntil, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}: the slopes are no longer coloured. Check ${site.host} for the latest.</div>`;
   // Only today and later: Avalanche Canada's bulletins list a few days from the day they were issued, so the first
   // day can be yesterday (alex 2026-11-09: "no mistakes are allowed"). Each day's "date" is its local date; a day
   // without a date (none so far) is kept. Run again when the app comes back after midnight.
@@ -4376,7 +4384,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let trimmedFor = "";
   function trimDays(d) {
     const today = localDay();
-    trimmedFor = today;
+    if (!d.example) trimmedFor = today;   // the real forecast's (the example has its own days)
     (d.areas || []).forEach((a) => {
       const f = a.forecast;
       if (!f || !f.days) return;
@@ -4446,7 +4454,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (pickDate && pickDate < localDay()) pickDate = "";
     if (pickDate) return (dayDate = pickDate);
     const c = map.getCenter(), at = areaAt(c.lat, c.lng), f = at && at.forecast && at.forecast.days && at.forecast.days.length ? at.forecast : !example && nearestArea(c.lat, c.lng)?.a.forecast;
-    const x = f && f.days[Math.min(day, f.days.length - 1)];
+    // No forecast near (far from every area): the day already shown, or today.
+    if (!f) return (dayDate = dayDate && dayDate >= localDay() ? dayDate : localDay());
+    // The day shown stays while the forecast in the middle has it (fewer changes going back and forth over a line).
+    if (dayDate && f.days.some((x) => x.date === dayDate)) return dayDate;
+    const x = f.days[Math.min(day, f.days.length - 1)];
     return (dayDate = (x && x.date) || "");
   }
   const dayOf = (f) => {
@@ -4553,7 +4565,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${expired ? expiredWarn(f, site) : staleWarn(f)}
       ${top(esc(f.title || area.name))}
       ${rated ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>
-      ${d ? `<div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>` : `<p class="av-line">This bulletin has no rating for that day.</p>`}`
+      ${d ? `<div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>` : `<p class="av-line">This bulletin has no rating for ${esc(weekday(dayDate))}.</p>`}`
         : `<p class="av-line">No danger ratings yet: it's early season.</p>`}
       <div id="avWx">${cardWeather(c, area.bands.hi)}</div>
       <details id="avMore"${avMore ? " open" : ""}><summary>${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</summary>
@@ -4579,8 +4591,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const card = $("avCard"), b = $("skNow");
     if (!b) return;
     const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || ""]);
-    const line = card.querySelector(".av-line");
-    const html = card.hidden ? "" : bands.length ? `<span>⚠ <b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
+    const line = card.querySelector(".av-line"), exp = card.querySelector(".av-expired");
+    // An expired bulletin's ratings are on the card under its warning, never on this line as if current.
+    const html = card.hidden ? "" : exp ? `<span>⚠ <b>Avalanche:</b> ${esc(exp.textContent.split(/\s?:\s/)[0].trim())}</span>`
+      : bands.length ? `<span>⚠ <b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
       : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.split(/\.\s/)[0].replace(/\.$/, ""))}</span>` : "";   // first sentence: the card under it has the rest
     if (b.innerHTML !== html) b.innerHTML = html;
     b.hidden = !html;
@@ -4644,10 +4658,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // are the web's exactly): window.tfGround[id] = { paint(z, x, y) -> picture, on(), ver(), min, max, opacity, z, credit,
   // keep }, and "tf:ground" when one goes on or off or is drawn again.
   const groundAdd = (id, g) => { (window.tfGround = window.tfGround || {})[id] = g; };
+  // The iPhone's own 3D map keeps the pictures on the phone between app opens, by their address (with the version), and
+  // shows a kept one before asking again, or instead with no signal. Versions here that count from 0 at each page load
+  // (the avalanche forecast, new snow, the snow forecast) carry this page load's own mark, so an address can never
+  // bring back an earlier day's picture.
+  const LOAD = Date.now().toString(36);
   const groundChanged = () => window.dispatchEvent(new Event("tf:ground"));
-  // Web Mercator: where a longitude and a latitude are in tiles (fractions) at zoom z.
-  const lonTile = (lon, z) => ((lon + 180) / 360) * 2 ** z;
-  const latTile = (lat, z) => { const r = (lat * Math.PI) / 180; return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z; };
   async function paint(z, x, y) {
     const data = example ? exampleData() : avy;
     const out = new ImageData(256, 256);
@@ -4666,53 +4682,51 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       near.push({ a, d: fcExpired(a.forecast) ? null : dayOf(a.forecast), rings });
     }
     if (!near.some((n) => n.d)) return out;
-    const inRing = (lat, lon, r) => {   // inPoly() on the kept edges, the very same sums
-      let inside = false;
-      for (let i = 0; i < r.length; i += 4) { const ay = r[i], ax = r[i + 1], by = r[i + 2], bx = r[i + 3]; if ((ay > lat) !== (by > lat) && lon < ((bx - ax) * (lat - ay)) / (by - ay) + ax) inside = !inside; }
-      return inside;
-    };
-    const areaOf = (lat, lon) => { for (const n of near) if (lat >= n.a.box[0] && lat <= n.a.box[2] && lon >= n.a.box[1] && lon <= n.a.box[3] && n.rings.some((r) => inRing(lat, lon, r))) return n; return null; };
-    // Each 16 px block takes the area of its middle, unless an outline crosses it: there each pixel finds its own
-    // (a block's middle used to colour up to 16 px past the line with the neighbour's rating). Points along every
-    // edge, at most 6 px apart and straight in latitude and longitude as inPoly() takes them, mark the blocks within
-    // 4 px of them.
-    const B = 16, MIX = 1, cells = new Array(B * B).fill(null), cross = new Uint8Array(B * B);
-    for (const n of near) for (const r of n.rings) for (let i = 0; i < r.length; i += 4) {
-      const ay = r[i], ax = r[i + 1], by = r[i + 2], bx = r[i + 3];
-      if (Math.max(ax, bx) < tW || Math.min(ax, bx) > tE) continue;
-      const steps = Math.ceil(Math.hypot(lonTile(bx, z) - lonTile(ax, z), latTile(by, z) - latTile(ay, z)) * 256 / 6) + 1;
-      for (let t = 0; t <= steps; t++) {
-        const px = (lonTile(ax + ((bx - ax) * t) / steps, z) - x) * 256, py = (latTile(ay + ((by - ay) * t) / steps, z) - y) * 256;
-        if (px < -4 || px > 260 || py < -4 || py > 260) continue;
-        for (const qy of [py - 4, py + 4]) for (const qx of [px - 4, px + 4]) {
-          const cx = Math.floor(qx / (256 / B)), cy = Math.floor(qy / (256 / B));
-          if (cx >= 0 && cx < B && cy >= 0 && cy < B) cross[cy * B + cx] = 1;
+    // Each pixel's area, exactly areaAt()'s for its middle (a 16 px block's middle used to colour up to 16 px past a
+    // region line with the neighbour's rating): per pixel row, where each outline crosses that latitude (inPoly()'s
+    // very sums), then a pixel is inside where an odd number of crossings lie east of it. 0 = no area with a day here.
+    const cell = new Uint16Array(65536), lats = new Float64Array(256);
+    let any = false;
+    for (let py = 0; py < 256; py++) {
+      const lat = (lats[py] = tileLat(y + (py + 0.5) / 256, z));
+      const xs = near.map((n) => n.rings.map((r) => {
+        const c = [];
+        for (let i = 0; i < r.length; i += 4) { const ay = r[i], ax = r[i + 1], by = r[i + 2], bx = r[i + 3]; if ((ay > lat) !== (by > lat)) c.push(((bx - ax) * (lat - ay)) / (by - ay) + ax); }
+        return c.sort((p, q) => p - q);
+      }));
+      const west = xs.map((n) => n.map(() => 0));   // per outline: how many of its crossings are at or west of the pixel
+      for (let px = 0; px < 256; px++) {
+        const lon = tileLon(x + (px + 0.5) / 256, z);
+        for (let q = 0; q < near.length; q++) {
+          let inside = false;
+          for (let j = 0; j < xs[q].length; j++) {
+            const c = xs[q][j];
+            let w = west[q][j];
+            while (w < c.length && c[w] <= lon) w++;
+            west[q][j] = w;
+            if ((c.length - w) & 1) inside = true;
+          }
+          if (!inside) continue;
+          if (near[q].d) { cell[py * 256 + px] = q + 1; any = true; }
+          break;   // the first area holding it, as areaAt()
         }
       }
-    }
-    let any = false;
-    for (let by = 0; by < B; by++) for (let bx = 0; bx < B; bx++) {
-      const b = by * B + bx;
-      if (cross[b]) { cells[b] = MIX; any = true; continue; }
-      const n = areaOf(tileLat(y + (by + 0.5) / B, z), tileLon(x + (bx + 0.5) / B, z));
-      if (n && n.d) { cells[b] = n; any = true; }
     }
     if (!any) return out;
     const E = await dem(z, x, y), o = out.data, thr = minSlope(E.z), k = 25 / thr;
     for (let py = 0; py < 256; py++) {
-      const lat = tileLat(y + (py + 0.5) / 256, z), m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** z);
+      const lat = lats[py], m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** z);
       const y0 = py > 0 ? py - 1 : py, y1 = py < 255 ? py + 1 : py;
       for (let px = 0; px < 256; px++) {
-        let cell = cells[(py >> 4) * B + (px >> 4)];
-        if (!cell) continue;
+        const n = cell[py * 256 + px];
+        if (!n) continue;
         const i = py * 256 + px, e = E[i];
         if (e < 0) continue;
         const x0 = px > 0 ? px - 1 : px, x1 = px < 255 ? px + 1 : px;
         const dzdx = (E[py * 256 + x1] - E[py * 256 + x0]) / ((x1 - x0) * m), dzdy = (E[y1 * 256 + px] - E[y0 * 256 + px]) / ((y1 - y0) * m);
         const slope = (Math.atan(Math.hypot(dzdx, dzdy)) * 180) / Math.PI * k;
         if (slope < 25) continue;
-        if (cell === MIX && !((cell = areaOf(lat, tileLon(x + (px + 0.5) / 256, z))) && cell.d)) continue;
-        const { a, d } = cell;
+        const { a, d } = near[n - 1];
         const band = e >= a.bands.hi ? "alp" : e >= a.bands.lo ? "tln" : "btl", r = d[band];
         if (!r) continue;
         // Downhill direction: east = -dz/dx, north = +dz/dy (pixel rows run south).
@@ -4735,7 +4749,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // of code (avalanche-rules). Only once this phone's app build draws the avalanche card beside it ("tf-native-avy", set
   // when the native map shows it): an older build would get the colours without the card and its warnings.
   const nativeAvyOk = () => { try { return localStorage.getItem("tf-native-avy") === "1"; } catch { return false; } };
-  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y), on: () => sport === "ski" && avyOn && nativeAvyOk() && !$("avCard").hidden, ver: () => String(ver), min: 8, max: 14, opacity: 1, z: 360,
+  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y), on: () => sport === "ski" && avyOn && nativeAvyOk() && !$("avCard").hidden, ver: () => LOAD + "." + ver, min: 8, max: 14, opacity: 1, z: 360,
     credit: "Avalanche forecast: Avalanche Canada · Terrain: Mapzen Terrain Tiles", keep: false });
 
   // 2D map layer
@@ -4922,7 +4936,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     window.addEventListener("tf:map3d", sync3d);
     // The iPhone's own 3D map asks for the same pictures (native-ground.js).
-    groundAdd(id, { paint: paintFn, on: () => want, ver: () => String(o.ver ? o.ver() : 0), min: o.minZoom, max: o.maxNative || 14, opacity: o.opacity || 1, z: o.z, credit: o.attribution3d || "Terrain: Mapzen Terrain Tiles", keep: !o.ver });
+    groundAdd(id, { paint: paintFn, on: () => want, ver: () => (o.ver ? LOAD + "." + o.ver() : "0"), min: o.minZoom, max: o.maxNative || 14, opacity: o.opacity || 1, z: o.z, credit: o.attribution3d || "Terrain: Mapzen Terrain Tiles", keep: !o.ver });
     const set = (on) => {
       if (want !== on) groundChanged();
       want = on;
@@ -5407,6 +5421,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 
   function refreshAvy() {
     syncDay();   // the day to show (the map may have moved to a forecast starting on another day)
+    clockWas = avyClock();
+    // A less exposed way found for another day than the one now shown: found again for this day.
+    if (sport === "ski" && plan.safe && plan.path && plan.path.key === planKey() && plan.path.av && plan.path.av.date != null && plan.path.av.date !== dayDate && !plan.wait && !plan.fail) { plan.path = null; planChanged(); }
     ver++;
     const want = sport === "ski" && avyOn;
     if (want && !avy && !example) loadAvy();
@@ -5713,8 +5730,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(f),
         bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
     },
-    // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
-    dangerAt: (lat, lon, lo, hi) => { if (!avy && !example) loadAvy(); return dangerAt(lat, lon, lo, hi); },
+    // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded, and
+    // when the bulletin there has no day for today: in the evening it's already on tomorrow).
+    dangerAt: (lat, lon, lo, hi) => {
+      if (!avy && !example) loadAvy();
+      const a = avy || example ? areaAt(lat, lon) : null, i = a && a.forecast && a.forecast.days ? a.forecast.days.findIndex((d) => d.date === localDay()) : -1;
+      return i >= 0 ? dangerAt(lat, lon, lo, hi, i) : null;
+    },
     // freeride.js: every route loaded so far (home region and the Canada squares), loading the squares in bounds;
     // open one route's card.
     routes: () => (ski && ski.routes) || [],
@@ -5797,6 +5819,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       planChanged();
       keepTour(true);   // kept at once, like ✓ Done
       // A tour asked for a day ("tomorrow", ask.js): the forecast of that day, for the less exposed way and the map.
+      // Without one (today), a day picked or asked for before is forgotten: back to the day shown by default.
+      if (!(o && o.date) && pickDate) { pickDate = dayDate = ""; refreshAvy(); }
       if (o && o.date) (avy || example ? Promise.resolve() : loadAvy()).then(() => {
         const ar = areaAt(pts[0][0], pts[0][1]), f = ar && ar.forecast, i = f && f.days ? f.days.findIndex((d) => d.date === o.date) : -1;
         if (i >= 0) { pickDate = o.date; if (o.date !== dayDate) { refreshAvy(); plan.path = null; planChanged(); } }
