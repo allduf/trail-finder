@@ -642,7 +642,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // On iPhone, web pages can't get them: only the site added to the Home Screen can (iOS 16.4 or newer).
   // Inside the iPhone app (ios-app) there's no web push at all: the app's own notifications (PushNotifications plugin)
   // give Apple's device token instead, saved as a subscription whose endpoint is Apple's push address ({ apns }),
-  // and the job sends those through Apple (APNs) with the same messages.
+  // and the job sends those through Apple (APNs) with the same messages. The Android app does the same with a Firebase
+  // token ({ fcm }), sent through Firebase Cloud Messaging.
   const PUSH_TIMES = "about 7 am, 10 am, 1 pm, 4 pm and 7 pm";
   const CAP = window.Capacitor;
   const NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (CAP.PluginHeaders || []).some((h) => h.name === "PushNotifications"));
@@ -653,17 +654,23 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   const tokenWaits = [];
   if (NP) {
     NP.addListener("registration", (t) => tokenWaits.splice(0).forEach((w) => w.ok(t.value)));
-    NP.addListener("registrationError", (e) => tokenWaits.splice(0).forEach((w) => w.no(new Error((e && e.error) || "Apple didn't give a push address"))));
+    NP.addListener("registrationError", (e) => tokenWaits.splice(0).forEach((w) => w.no(new Error((e && e.error) || "the phone didn't give a push address"))));
     NP.addListener("pushNotificationActionPerformed", () => openBox());   // a tapped notification opens the 🔔 box
     NP.checkPermissions().then((p) => { nativePerm = p.receive; }, () => {});
   }
-  // Apple's device token for this phone (asks iOS each time; it's the same unless iOS changed it).
+  // This phone's push token: Apple's in the iPhone app, Firebase's in the Android app (asked each time; it's the same
+  // unless the phone changed it).
   const nativeToken = () => new Promise((ok, no) => {
     tokenWaits.push({ ok, no });
-    setTimeout(() => no(new Error("no answer from Apple")), 20000);
+    setTimeout(() => no(new Error("no answer from the push service")), 20000);
     NP.register().catch(no);
   });
-  const nativeSub = (tok) => ({ endpoint: `https://api.push.apple.com/3/device/${tok}`, toJSON: () => ({ endpoint: `https://api.push.apple.com/3/device/${tok}`, apns: tok }) });
+  // The Android app (android-app, built with the Firebase file) gets a Firebase token instead: saved as { fcm }, and the
+  // job sends those through Firebase Cloud Messaging.
+  const ANDROID = NATIVE && CAP.getPlatform && CAP.getPlatform() === "android";
+  const nativeSub = (tok) => (ANDROID
+    ? { endpoint: `https://fcm.googleapis.com/fcm/send/${tok}`, toJSON: () => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${tok}`, fcm: tok }) }
+    : { endpoint: `https://api.push.apple.com/3/device/${tok}`, toJSON: () => ({ endpoint: `https://api.push.apple.com/3/device/${tok}`, apns: tok }) });
   const iPhone = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
@@ -742,7 +749,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     on.checked = !!pushId() && pushOk && perm() === "granted";
     on.disabled = !pushOk;
     if (!pushOk) return pushMsg(CAP && CAP.isNativePlatform && CAP.isNativePlatform() ? (CAP.getPlatform && CAP.getPlatform() === "android"
-      ? "Phone notifications aren't in the Android app yet. They're coming in a later version." : "Update Trail Finder in TestFlight to get notifications in the app.")
+      ? "Phone notifications aren't in this version of the Android app yet." : "Update Trail Finder in TestFlight to get notifications in the app.")
       : iPhone && !navigator.standalone
       ? "On iPhone, this works from the Home Screen: in Safari tap Share, then Add to Home Screen. Open Trail Finder from that icon and turn this on there."
       : iPhone ? "Phone notifications need iOS 16.4 or newer." : "This browser can't show notifications.");
@@ -758,7 +765,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // address. Used by the 📱 switch and by the ask after a save (below). Throws "blocked", "not allowed" or "setup".
   async function pushTurnOn() {
     if (NATIVE) {
-      // The app: iOS asks once (Allow / Don't Allow), then Apple gives this phone's push address.
+      // The app: the phone asks once (Allow / Don't Allow; Android 13 and newer), then Apple or Firebase gives this phone's push address.
       let p = (await NP.checkPermissions()).receive;
       if (p !== "granted") p = (await NP.requestPermissions()).receive;
       nativePerm = p;

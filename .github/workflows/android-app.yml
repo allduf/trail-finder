@@ -48,9 +48,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install
+        run: npm ci
+      - name: Phone notifications (Firebase)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        # With the GOOGLE_SERVICES_JSON secret (Firebase project, Android app com.allduf.trailfinder) the app gets phone
+        # notifications. Without it the push plugin is left out, so the app never offers notifications (and never
+        # calls Firebase, which would stop the app without that file).
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ] && printf '%s' "$GOOGLE_SERVICES_JSON" | node -e 'const j = JSON.parse(require("fs").readFileSync(0, "utf8")); if (!(j.project_info && j.project_info.project_id && (j.client || []).some((c) => c.client_info && c.client_info.android_client_info && c.client_info.android_client_info.package_name === "com.allduf.trailfinder"))) process.exit(1)'; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "Phone notifications: on (Firebase file written)."
+          else
+            npm uninstall --no-save @capacitor/push-notifications
+            echo "::warning::No GOOGLE_SERVICES_JSON secret (or not valid): this build has no phone notifications."
+          fi
       - name: Test build (opens the website served from this runner)
         run: |
-          npm ci
           node -e '
             const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json"));
             c.server.url = "http://10.0.2.2:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("10.0.2.2");
@@ -112,10 +127,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Prepare
+      - name: Install
+        run: npm ci
+      - name: Phone notifications (Firebase)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        # With the GOOGLE_SERVICES_JSON secret (Firebase project, Android app com.allduf.trailfinder) the app gets phone
+        # notifications. Without it the push plugin is left out, so the app never offers notifications (and never
+        # calls Firebase, which would stop the app without that file).
         run: |
-          npm ci
-          npx cap sync android
+          if [ -n "$GOOGLE_SERVICES_JSON" ] && printf '%s' "$GOOGLE_SERVICES_JSON" | node -e 'const j = JSON.parse(require("fs").readFileSync(0, "utf8")); if (!(j.project_info && j.project_info.project_id && (j.client || []).some((c) => c.client_info && c.client_info.android_client_info && c.client_info.android_client_info.package_name === "com.allduf.trailfinder"))) process.exit(1)'; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "Phone notifications: on (Firebase file written)."
+          else
+            npm uninstall --no-save @capacitor/push-notifications
+            echo "::warning::No GOOGLE_SERVICES_JSON secret (or not valid): this build has no phone notifications."
+          fi
+      - name: Prepare
+        run: npx cap sync android
       - name: Check the upload key
         id: key
         env:

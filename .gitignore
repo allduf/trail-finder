@@ -1,3 +1,5 @@
 out/
 data/winter/
 i18n-fr.js
+# Firebase file for Android notifications: written by android-app.yml from the GOOGLE_SERVICES_JSON secret, never committed
+android-app/android/app/google-services.json
