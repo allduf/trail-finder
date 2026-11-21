@@ -164,12 +164,13 @@ final class NativeTools: NativeLayer {
                 self.labelTexts = texts
                 self.arrowShape = ar
                 self.arrowInks = inks
-                guard let st = self.screen?.mapLibreView.style else { return }
+                guard let st = self.screen?.readyStyle else { return }
                 self.addPictures(st)
                 (st.source(withIdentifier: NativeTools.lines) as? MLNShapeSource)?.shape = l
                 (st.source(withIdentifier: NativeTools.dots) as? MLNShapeSource)?.shape = p
                 (st.source(withIdentifier: NativeTools.labels) as? MLNShapeSource)?.shape = x
                 (st.source(withIdentifier: NativeTools.arrows) as? MLNShapeSource)?.shape = ar
+                self.prunePictures(st)
             }
         }
     }
@@ -197,6 +198,14 @@ final class NativeTools: NativeLayer {
             made.insert(name)
             style.setImage(NativeTools.arrow(fill, edge), forName: name)
         }
+    }
+    // Each new label text gets its own picture (a measure's or a moving goal's distance makes one with each new figure):
+    // once there are many, the ones no label shows any more go, so a long walk with a tool open doesn't keep adding memory.
+    private func prunePictures(_ style: MLNStyle) {
+        guard made.count > 64 else { return }
+        let now = Set(labelTexts.map { "tftl:\($0.1):\($0.0)" } + arrowInks.map { "tfta:\($0.0):\($0.1)" })
+        for name in made.subtracting(now) { style.removeImage(forName: name) }
+        made.formIntersection(now)
     }
     // A direction arrow pointing up (north at bearing 0), its fill with an edge round it, as the flat map draws it.
     private static func arrow(_ fill: String, _ edge: String) -> UIImage {

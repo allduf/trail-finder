@@ -60,7 +60,8 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         CAPPluginMethod(name: "cues", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "live", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "activity", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "turns", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "turns", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "keepGoing", returnType: CAPPluginReturnPromise)
     ]
 
     private static let keepMs: Double = 12 * 3600 * 1000   // older fixes left in the file are from a ride long over
@@ -135,6 +136,25 @@ public class TrailGpsPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
                 call.resolve(["running": true])
             }
         }
+    }
+
+    // keepGoing({ on }): an offline map is saving (offline.js, alex 2026-11-21: "can the app continue to download an
+    // offline map if you quite the app?"). Leaving the app, iOS gives it the extra time it allows a finishing task
+    // (usually under a minute) before pausing it; the area then finishes the next time the app opens.
+    private var saveTask: UIBackgroundTaskIdentifier = .invalid
+    @objc func keepGoing(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            if on && self.saveTask == .invalid {
+                self.saveTask = UIApplication.shared.beginBackgroundTask(withName: "offline-map-save") { [weak self] in self?.endSaveTask() }
+            } else if !on { self.endSaveTask() }
+            call.resolve()
+        }
+    }
+    private func endSaveTask() {
+        guard saveTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(saveTask)
+        saveTask = .invalid
     }
 
     @objc func stop(_ call: CAPPluginCall) {
