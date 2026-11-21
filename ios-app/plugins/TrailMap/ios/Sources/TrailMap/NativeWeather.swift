@@ -117,7 +117,7 @@ final class NativeOverlay: NativeLayer {
             c.isUserInteractionEnabled = false
             c.translatesAutoresizingMaskIntoConstraints = false
             screen.view.addSubview(c)
-            let g = screen.view.safeAreaLayoutGuide
+            let g = screen.mapArea   // inside the map: clear of a tool's bar from the page (NativeTools.swift)
             NSLayoutConstraint.activate([
                 c.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 12),
                 c.trailingAnchor.constraint(lessThanOrEqualTo: g.trailingAnchor, constant: -12),

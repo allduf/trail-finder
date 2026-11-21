@@ -740,6 +740,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   map.createPane("motoLines").style.zIndex = 430;
   map.createPane("motoRules").style.zIndex = 355;
   const ptLayer = L.layerGroup(), rangeLayer = L.layerGroup(), routeLayer = L.layerGroup(), wpLayer = L.layerGroup(), rulesLayer = L.layerGroup(), spotLayer = L.layerGroup();
+  (window.tfToolLayers = window.tfToolLayers || {}).motoPlan = [routeLayer, wpLayer];   // native 3D draws them itself (native-tools.js)
   const lineRenderer = L.canvas({ pane: "motoLines", padding: 0.3, tolerance: L.Browser.touch ? 10 : 5 });
   const rulesRenderer = L.canvas({ pane: "motoRules", padding: 0.3 });
   const allMoto = [ptLayer, rangeLayer, routeLayer, wpLayer, rulesLayer, spotLayer];

@@ -172,7 +172,7 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         box.addSubview(label)
         box.addSubview(b)
         screen.view.addSubview(box)
-        let g = screen.view.safeAreaLayoutGuide
+        let g = screen.mapArea   // inside the map: clear of a tool's bar from the page (NativeTools.swift)
         NSLayoutConstraint.activate([
             box.centerXAnchor.constraint(equalTo: g.centerXAnchor),
             box.leadingAnchor.constraint(greaterThanOrEqualTo: g.leadingAnchor, constant: 12),

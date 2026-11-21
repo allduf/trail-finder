@@ -90,7 +90,7 @@ final class NativeGround: NativeLayer {
             keyBox.isUserInteractionEnabled = false
             keyBox.translatesAutoresizingMaskIntoConstraints = false
             screen.view.addSubview(keyBox)
-            let g = screen.view.safeAreaLayoutGuide
+            let g = screen.mapArea   // inside the map: clear of a tool's bar from the page (NativeTools.swift)
             NSLayoutConstraint.activate([
                 keyBox.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 12),
                 keyBox.topAnchor.constraint(equalTo: g.topAnchor, constant: 148),   // under the radar and smoke captions (NativeWeather.swift rows 0-1)

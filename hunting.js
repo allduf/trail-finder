@@ -510,6 +510,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const renderer = L.canvas({ pane: "hunt", padding: 0.3 });
   const zoneLayer = L.layerGroup(), lehLayer = L.layerGroup(), rulesLayer = L.layerGroup(), labelLayer = L.layerGroup(), windLayer = L.layerGroup(), ringLayer = L.layerGroup();
   const glassLayer = L.layerGroup(), measureLayer = L.layerGroup();
+  (window.tfToolLayers = window.tfToolLayers || {}).measure = [measureLayer];   // native 3D draws it itself (native-tools.js)
   const squareLayer = L.layerGroup();   // the square drawn for Hunting maps offline
   const allHunt = [zoneLayer, lehLayer, rulesLayer, labelLayer, windLayer, ringLayer, glassLayer, measureLayer, squareLayer];
   let zones = null, leh = null, areas = null;

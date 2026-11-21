@@ -682,6 +682,7 @@
   let planning = false, mode = "pick", stops = [], legs = [], elev = null, picks = [], pickStart = null, pickStartName = null, autoLot = null, pickBack = true, pickManual = true, pickHomePedal = false, settingStart = false;
   let busy = 0, joining = 0, gen = 0, rootGen = 0, note = "", noteWarn = true;
   const layer = L.layerGroup();
+  (window.tfToolLayers = window.tfToolLayers || {}).plan = [layer];   // native 3D draws it itself (native-tools.js)
   const pickCase = L.polyline([], { color: "#ffd43b", weight: 13, opacity: 0.85, lineCap: "round", lineJoin: "round", interactive: false });
   const caseLine = L.polyline([], { color: "#fff", weight: 10, opacity: 0.9, lineCap: "round", lineJoin: "round", interactive: false });
   const linkLine = L.polyline([], { color: "#a77bf3", weight: 5, opacity: 0.95, lineCap: "round", lineJoin: "round", interactive: false });

@@ -52,7 +52,10 @@
   // A feature's card (showFeatureCard in Swift) with Details pressed comes back as "closed" with feature: key and
   // open: the feature's own number; addLayer's third argument, onDetails(n, latlng), opens it here. tfNative.on(name, fn)
   // listens to a feature's own events from the native screen.
-  const feats = new Map(), details = new Map();
+  // tfNative.skip(fn): fn(layer) true for a layer a feature sends itself (a tool's route, track or sight line,
+  // native-tools.js): it's left out of the trails here. tfNative.hit(i): the page's trail number i sent last.
+  const feats = new Map(), details = new Map(), skips = [];
+  const skipped = (l) => skips.some((f) => { try { return f(l); } catch { return false; } });
   // A sport whose data lives inside its own file registers from there instead (hunting.js: "hunt").
   let open3d = false;
   const featureData = (threeD) => {
@@ -85,6 +88,8 @@
     // moveWait(ms): how long the page waits after the native map moves before sending the trails again (500 ms); a
     // Flyover moves it every second, so it waits longer meanwhile. Nothing: back to 500.
     moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
+    skip(fn) { if (typeof fn === "function") skips.push(fn); },
+    hit: (i) => hits[i] || null,
   };
   const detailFns = [];
   let nativeKeys = null, moveWait = 500;
@@ -124,7 +129,7 @@
       return hidden.get(name);
     };
     map.eachLayer((l) => {
-      if (!(l instanceof L.Path) || paneHidden(l.options)) return;
+      if (!(l instanceof L.Path) || paneHidden(l.options) || (skips.length && skipped(l))) return;
       const bb = l.getBounds ? l.getBounds() : L.latLngBounds([l.getLatLng()]);
       if (!bb.isValid() || !near.intersects(bb) || l instanceof L.Circle) return;   // circles (radius rings) aren't trails
       const o = l.options, tap = o.interactive !== false && l.listens("click");
@@ -160,7 +165,7 @@
   // Trails come and go on the flat map as it follows (zones loading, names redrawn): sent once it settles.
   function send() { pending = 0; if (open) TrailMap.update(snapshot()).catch(() => {}); }
   const later = (ms) => { if (open) { clearTimeout(pending); pending = setTimeout(send, ms); } };
-  map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path) later(400); });
+  map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path && !(skips.length && skipped(e.layer))) later(400); });
 
   // MapLibre's zoom is one less than Leaflet's (512 px tiles against 256).
   const follow = (e) => map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false });
