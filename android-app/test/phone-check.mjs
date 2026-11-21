@@ -131,15 +131,17 @@ const front = () => /mResumedActivity|topResumedActivity/.test(adb("shell dumpsy
   ok((f.fixes || []).length === 0 && !/RideService/.test(adb(`shell dumpsys activity services ${APP}`).replace(/No services/, "")), "stopping ends the ride and its notification");
 
   // The map drawn by the phone itself (TrailMap, alex only on the page): the iPhone's calls, opens in 3D over the page
-  // with a trail, and the phone's Back button closes it (back to the page, the app stays open).
+  // with a named trail and a dot (so MapLibre's name and dot shaders, which near-names.gradle changes, are compiled:
+  // phone-check.sh fails on a shader that doesn't), and the phone's Back button closes it (back to the page, the app
+  // stays open).
   const tm = await js(`((Capacitor.PluginHeaders || []).find((h) => h.name === "TrailMap") || { methods: [] }).methods.map((m) => m.name)`);
   ok(["open", "update", "layer", "close", "features"].every((m) => tm.includes(m)), "TrailMap has the iPhone's map calls", tm.join(", "));
   const keys = await js(`Capacitor.nativePromise("TrailMap", "features", {}).then((r) => Array.isArray(r.keys))`).catch(() => false);
   ok(keys, "TrailMap lists the native 3D features it draws");
   const line = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "MultiLineString", coordinates: [[[-122.96, 50.105], [-122.95, 50.11], [-122.94, 50.112]]] }, properties: { c: "#d33", w: 4, o: 1, d: "", n: "Test trail", lb: "Test trail", i: 0 } }] });
-  const empty = JSON.stringify({ type: "FeatureCollection", features: [] });
+  const dot = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: [-122.95, 50.11] }, properties: { r: 6, c: "#fff", w: 2, f: "#d33", fo: 1 } }] });
   await js(`(() => { window.__tmClosed = []; const T = Capacitor.registerPlugin ? Capacitor.registerPlugin("TrailMap") : Capacitor.Plugins.TrailMap; T.addListener("closed", (e) => window.__tmClosed.push(e)); })()`);
-  const opened = await js(`Capacitor.nativePromise("TrailMap", "open", ${JSON.stringify({ lat: 50.11, lon: -122.95, zoom: 13, bearing: 20, base: "sat", threeD: true, winter: false, lang: "en", layers: {}, lines: line, dots: empty, dashes: "" })}).then(() => true, (e) => String(e && e.message || e))`);
+  const opened = await js(`Capacitor.nativePromise("TrailMap", "open", ${JSON.stringify({ lat: 50.11, lon: -122.95, zoom: 13, bearing: 20, base: "sat", threeD: true, winter: false, lang: "en", layers: {}, lines: line, dots: dot, dashes: "" })}).then(() => true, (e) => String(e && e.message || e))`);
   ok(opened === true, "the native 3D map opens", opened === true ? "" : opened);
   await sleep(12000);
   shot("5-native-3d");

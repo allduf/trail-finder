@@ -57,6 +57,15 @@ jobs:
             fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
           npx cap sync android
           cd android && ./gradlew assembleDebug --no-daemon -q
+      - name: Check native 3D names near the camera (near-names.gradle)
+        # The test build's own libmaplibre.so: MapLibre's name and dot shaders carry the change and compile as OpenGL
+        # ES 3.0 with Khronos' GLSL compiler (skipped with a notice if the package doesn't install). test/near-names.mjs
+        run: |
+          (timeout 150 sudo apt-get update -q && timeout 150 sudo apt-get install -y -q --no-install-recommends glslang-tools) >/dev/null 2>&1 \
+            || echo "::notice::glslang-tools didn't install, so the shaders are only checked for the change"
+          mkdir -p "$RUNNER_TEMP/apk"
+          unzip -o -q android/app/build/outputs/apk/debug/app-debug.apk 'lib/*/libmaplibre.so' -d "$RUNNER_TEMP/apk"
+          node test/near-names.mjs "$RUNNER_TEMP"/apk/lib/*/libmaplibre.so
       - name: Serve this pull request's website
         working-directory: .
         run: nohup python3 -m http.server 8080 > /tmp/web.log 2>&1 &

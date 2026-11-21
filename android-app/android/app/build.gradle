@@ -59,6 +59,10 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
+// Names and dots near the camera in native 3D stay near their normal size: changes MapLibre's shader text in the
+// app's own copy of its library while the app is built (plugins/TrailMap/android/near-names.gradle).
+apply from: project(':trail-map').file('near-names.gradle')
+
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {
