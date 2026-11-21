@@ -2192,14 +2192,15 @@
   let slept = null, lostSeen = false, wakeWanted = false;
   const QUIET = ["getSource", "getLayer", "addSource", "addLayer", "removeLayer", "removeSource", "setPaintProperty", "setLayoutProperty",
     "setFilter", "moveLayer", "getLayoutProperty", "getPaintProperty", "setTerrain", "getTerrain", "setSky", "hasImage", "addImage", "removeImage",
-    "updateImage", "setFeatureState", "removeFeatureState", "queryRenderedFeatures", "querySourceFeatures", "setLight", "isSourceLoaded"];
+    "updateImage", "setFeatureState", "removeFeatureState", "queryRenderedFeatures", "querySourceFeatures", "setLight", "isSourceLoaded",
+    "getLayersOrder"];   // the sport changed while asleep (Skiing 3D, ADV, then Hiking): ADV topo's layers were looked up on no style
   function quietWhileAsleep() {
     if (gl.tfQuiet) return;
     gl.tfQuiet = true;
     for (const k of QUIET) {
       const f = gl[k];
       if (typeof f !== "function") continue;
-      gl[k] = function () { if (!this.style) return k === "queryRenderedFeatures" || k === "querySourceFeatures" ? [] : k === "hasImage" ? false : undefined; return f.apply(this, arguments); };
+      gl[k] = function () { if (!this.style) return k === "queryRenderedFeatures" || k === "querySourceFeatures" || k === "getLayersOrder" ? [] : k === "hasImage" ? false : undefined; return f.apply(this, arguments); };
     }
     // No drawing while the context is away (a move or a resize then threw "shaderPreludeCode" in the test): the
     // camera still moves, and the first draw after the context comes back shows where it ended up.
@@ -3136,15 +3137,17 @@
     // colours from the sun where the map is, like the flat map.
     let advNight = null;
     const advIds = () => gl.getLayersOrder().filter((id) => id.startsWith("adv-"));
+    // While the 3D map sleeps (no style) both wait: the style MapLibre brings back still has the ADV layers it had, and
+    // the restore hook (pick) then adds or drops them for the sport of the moment.
     const dropAdv = () => {
-      if (advNight === null) return;
+      if (advNight === null || !gl.style) return;
       for (const id of advIds()) gl.removeLayer(id);
       if (gl.getSource("adv-contours")) gl.removeSource("adv-contours");
       advNight = null;
     };
     const addAdv = () => {
       const A = window.tfAdvMap;
-      if (!A || photos !== "adv") return;
+      if (!A || photos !== "adv" || !gl.style) return;
       const c = gl.getCenter(), n = A.night(c.lat, c.lng);
       if (n === advNight) return;
       dropAdv();
@@ -3461,8 +3464,15 @@
     return h;
   };
   let flatSleepT = 0;
-  let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
+  let want3d = null, claimTok = 0;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
   function set3d(want, auto) {
+    // An iPhone app build with native 3D for everything: no web 3D map on it (native-map.js tfNative3d).
+    if (!want) claimTok++;
+    if (want && !on && window.tfNative3d && window.tfNative3d.claim) {
+      // retry: asked again once this build's native features are known, unless 2D or another sport was picked since.
+      const tok = ++claimTok, s0 = sportNow();
+      if (window.tfNative3d.claim(!!auto, () => { if (tok === claimTok && sportNow() === s0) set3d(true, auto); })) { want3d = false; syncBtn(); return; }
+    }
     want3d = want;
     if (want === on) { syncBtn(); return; }
     if (want) warmCentre();
