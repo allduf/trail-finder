@@ -1,0 +1,3 @@
+Phone test fixes: search opens the whole Comfortably Numb, Bike trips and Offline maps close when you change tabs, What's new and Tutorials show your sport, and ADV trips no longer suggest walk-in huts or campsites. ||| Corrections du test sur téléphone : la recherche ouvre tout Comfortably Numb, Voyages vélo et Cartes hors ligne se ferment quand vous changez d'onglet, Quoi de neuf et Tutoriels montrent votre sport, et les voyages ADV ne proposent plus les refuges ni les campings accessibles seulement à pied.
+Show every sport's changes too ||| Voir aussi les changements des autres sports
+Walk-in campsite ||| Camping accessible à pied

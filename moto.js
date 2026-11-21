@@ -655,6 +655,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // One ask for the view (up to about 130 km across, kept by 0.5° cell), to the main Overpass server first and, if it
   // hasn't answered in 2.5 s, the other one too: the first answer wins (same as planner.js).
   let liveBusy = false, liveState = "";   // "", "loading", "fail"
+  // The kind and fee words of a campsite, as scripts/build-moto.mjs writes them ("walkin fee", "hut", "camp free").
+  const campWord = (t) => [t.tourism === "camp_site" ? (t.backcountry === "yes" ? "walkin" : t.camp_site === "basic" ? "basic" : "camp") : t.tourism === "caravan_site" ? "rv" : "hut",
+    t.fee === "no" ? "free" : t.fee === "yes" ? "fee" : ""].filter(Boolean).join(" ");
   async function loadLive() {
     if (!liveMode || liveBusy || !isMoto() || map.getZoom() < 8) return;
     const c = map.getCenter(), b = map.getBounds();
@@ -678,7 +681,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       if (la2 == null) continue;
       const k = t.amenity === "fuel" ? "fuel" : t.tourism ? "camp" : t.natural === "hot_spring" ? "hot" : t.shop ? "shop" : t.amenity === "ferry_terminal" ? "ferry" : null;
       const key = `${Math.floor(la2 * 2) / 2},${Math.floor(lo2 * 2) / 2}`;
-      if (k && kinds.includes(k) && live[k].has(key)) live[k].get(key).push([la2, lo2, realName(t.name) || realName(t.brand) || "", k === "camp" && t.fee === "no" ? "free" : k === "fuel" && t.brand ? t.brand : "", `${el.type[0]}${el.id.toString(36)}`]);
+      if (k && kinds.includes(k) && live[k].has(key)) live[k].get(key).push([la2, lo2, realName(t.name) || realName(t.brand) || "", k === "camp" ? campWord(t) : k === "fuel" && t.brand ? t.brand : "", `${el.type[0]}${el.id.toString(36)}`]);
     }
     zoomNote(); drawPoints(); drawRange(); renderNear();
   }
@@ -705,7 +708,11 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     return out;
   }
   const liveOne = {};   // k -> [cells and points it was made from, list]
-  const campsAll = () => onePerPlace([...listOf("camp"), ...recList()]);   // campsites and BC rec sites, a site in both once
+  // Campsites and BC rec sites, a site in both once, for the places to sleep and loop stops. Alpine and wilderness huts
+  // and backcountry walk-in sites stay on the map but out of these lists: they're reached on foot, not by bike (deep
+  // phone test 2026-11-21: Wedgemount's hut and lake campground were offered for a moto trip).
+  const notHut = (p) => !/^(hut|walkin)\b/.test(String(p[3] || ""));
+  const campsAll = () => onePerPlace([...listOf("camp").filter(notHut), ...recList()]);
   const listOf = (k) => {
     if (!pts[k]) {
       const cells = [...live[k].values()], tag = cells.length + ":" + cells.reduce((n, c) => n + c.length, 0);
@@ -948,7 +955,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     return out.sort((a, b) => a[0] - b[0]).slice(0, n);
   }
   // What a dot is, in words: "Campground · free", "RV park", "Hut or cabin", "Gas station · Shell 24/7"...
-  const CAMP_KIND = { camp: "Campground", basic: "Basic campsite", rv: "RV park", hut: "Hut or cabin" };
+  const CAMP_KIND = { camp: "Campground", basic: "Basic campsite", walkin: "Walk-in campsite", rv: "RV park", hut: "Hut or cabin" };
   function kindLine(k, p) {
     const x = String(p[3] || "");
     if (k === "camp") {
@@ -2872,6 +2879,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     fuelReady: () => listOf("fuel").length > 0,
     fuelPlan: (line) => (line && line.length > 1 ? fuelPlan({ line }) : null),
     // Campsites and BC rec sites near ll (the map's data: all of Canada for campsites, rec sites once the map has been there).
+    sleepable: (p) => notHut(p),   // not a hut or a walk-in site (those are reached on foot)
     campsNear: (ll, km, n = 12) => nearest(campsAll(), ll[0], ll[1], n, km).map(([d, p]) => ({ d, p })),
     kindLine,
     routeItem: () => (route && route.line && route.line.length > 1 ? { name: route.name || "My adventure route", ls: [route.line], km: route.km, time: route.time } : null),
