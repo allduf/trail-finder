@@ -2016,10 +2016,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   }
   let nativeTimer = 0, nativeLast = null, nativeNext = null;
   const nativeSent = (d) => { nativeLast = d; glassSent = glass && glass.png ? glass.at : ""; return d; };
+  let groundOn = "";   // which repainted pictures are on near the view: native-ground.js is told when that changes
   function nativeSend() {
     if (!window.tfNative || !window.tfNative.isOpen || !window.tfNative.isOpen()) return;
     clearTimeout(nativeTimer);
     nativeTimer = setTimeout(() => {   // a move, a zone file and the cone often come together; nothing new, nothing sent
+      const g = PICS.filter((p) => p.recolor && isHunt() && shown.has(p.layer) && picNear(p)).map((p) => p.id).join();
+      if (g !== groundOn) { groundOn = g; window.dispatchEvent(new Event("tf:ground")); }
       const d = nativeHunt();
       if (d === nativeLast) return;
       nativeNext = d;
@@ -2027,6 +2030,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }, 250);
   }
   // At opening (a new native screen, nothing on it yet) everything goes, the glassing picture too.
+  // NativeHunting.swift says "huntPics" when it opens: this build draws the picture layers (native-map.js webOnly).
+  if (window.tfNative && window.tfNative.on) window.tfNative.on("huntPics", () => { try { localStorage.setItem("tf-native-huntpics", "1"); } catch {} });
   if (window.tfNative && window.tfNative.addLayer) window.tfNative.addLayer("hunt", () => nativeSent(nativeNext != null ? nativeNext : (glassSent = "", nativeHunt())));
 
   // ---------- 3D map (map3d.js) ----------
@@ -2034,6 +2039,19 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // fills, labels, pins or picture layers, so those are added here: the picture layers draped on the terrain, the
   // rules areas and scent cone as see-through fills, the zone labels, and the spot pin. A tap on the 3D map picks a
   // spot as on the flat map.
+  // The iPhone's own 3D map asks for the same slope pictures (native-ground.js), so the colours are the same.
+  // The pictures the phone repaints (Alberta forest types, Quebec public land) go the same way: the native map can't
+  // repaint a server's picture, so it asks the page for the finished one (hunting.js nativePics sends the others).
+  for (const p of PICS.filter((q) => q.recolor)) {
+    (window.tfGround = window.tfGround || {})["hn-pic-" + p.id] = { paint: (z, x, y) => recolorTile(p, z, x, y), on: () => isHunt() && shown.has(p.layer) && picNear(p),
+      ver: () => "1", min: Math.max(0, p.min - 1), max: 16, opacity: p.opacity, z: 300, credit: p.attr.replace(/<[^>]+>/g, ""), keep: true };
+  }
+  for (const mode of ["slope", "aspect"]) {
+    (window.tfGround = window.tfGround || {})["hn-" + mode] = { paint: (z, x, y) => paintTerrain(mode, z, x, y), on: () => isHunt() && shown.has(mode),
+      ver: () => "1", min: 8, max: 14, opacity: 1, z: 355, credit: "Terrain: Mapzen Terrain Tiles", keep: true,
+      key: () => { const t = (x) => (window.tfLang && window.tfLang.t ? window.tfLang.t(x) : x);
+        return mode === "slope" ? { t: t("Slope angle"), c: SLOPES.map((q) => q[2]), l: SLOPES.map((q) => t(q[1])) } : { t: t("Slope direction"), c: ASPECT_COLORS, l: DIRS }; } };
+  }
   let gl3 = null, proto3 = false, fillsSet = false, labelsSet = false, spot3 = null, glass3 = "";
   let applyWait = false;
   function sync3d() {
@@ -2157,7 +2175,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   window.tfHunt = {
     // native-map.js: true when the 3D button should open the web 3D map: slope or aspect on, or a picture the phone repaints (Alberta
     // forest types, Quebec public land) is on near the view (the native map can't repaint pictures).
-    web3d: () => isHunt() && (["slope", "aspect"].some((k) => shown.has(k)) || PICS.some((p) => p.recolor && shown.has(p.layer) && picNear(p))),
+    // ground: this phone's build draws native-ground.js's layers (slope, aspect, and the pictures repainted here);
+    // pics: it draws the picture layers (NativeHunting.swift). Older builds: the web 3D map for what they can't draw.
+    web3d: (ground, pics) => isHunt() && ((!ground && ["slope", "aspect"].some((k) => shown.has(k)))
+      || (!pics && PICS.some((p) => shown.has(p.layer)))
+      || (!ground && PICS.some((p) => p.recolor && shown.has(p.layer) && picNear(p)))),
     spot(lat, lon) { setSpot(lat, lon, "tap"); showSpot(lat, lon); },   // a shared spot (ski-points.js #pin=)
     // moto.js (Can I ride here): the parks, reserves, closures and other land at a point or in a box, the same
     // outlines as the Hunting rules layer ({ k, n, p, b, g } with g as flat [lat, lon, ...] rings).

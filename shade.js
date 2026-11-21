@@ -423,9 +423,17 @@ onmessage = async (e) => {
     if (on) labels();
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", String(on));
+    window.dispatchEvent(new Event("tf:ground"));
   }
   btn.title = "Show where the terrain is in shade at a date and time you pick, on the flat and 3D maps";
   btn.addEventListener("click", () => setOn(!on));
   refresh();
+  // The iPhone's own 3D map asks for the same pictures (native-ground.js), at the moment picked here; under the other
+  // ground layers. Its key says the moment, and that it's an estimate.
+  (window.tfGround = window.tfGround || {}).sunshade = {
+    paint: (z, x, y, signal) => render(z, x, y, moment(), signal).then((r) => r.bmp || null),
+    on: () => on, ver: () => String(moment()), min: MIN_ZOOM, max: MAX_NATIVE, opacity: 1, z: 300, credit: ATTR.replace(/<[^>]+>/g, ""), keep: false,
+    key: () => { const t = moment(); return { t: `${T("Sun and shade")}, ${fmtDay(t)} ${fmtTime(t)} ${T("(estimate)")}`, c: ["rgba(24,32,58,.55)"], l: [T("In shade")] }; },
+  };
   window.tfSunShade = { setOn, isOn: () => on, at: (ms) => { day = midnight(new Date(ms)); const d = new Date(ms); mins = d.getHours() * 60 + d.getMinutes(); changed(false); } };
 })();

@@ -44,6 +44,7 @@ final class NativeHunting: NativeLayer {
               let spot = src("spot"), style.layer(withIdentifier: "hn-fill") == nil else { return }
         glassShown = nil   // a new style has no glassing view or pictures yet
         picsShown = [:]
+        screen.onEvent?("huntPics", [:])   // tells the page this build draws the picture layers (native-map.js webOnly)
         let below = screen.trailsBottomLayer()
         let under = { (l: MLNStyleLayer) in if let b = below { style.insertLayer(l, below: b) } else { style.addLayer(l) } }
 
