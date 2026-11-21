@@ -785,8 +785,14 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   // on; they came the days a new Android build went to Google, 13 and 20 Nov 2026, from outside Canada and tapped every
   // button about 10 s apart). Their crashes, errors and slow loads aren't real people's, so they're left out of every
   // count; "Show them" puts them back.
+  // Also Trail Finder's own screenshot and speed runs on the live site before usage.js skipped them (19 Nov 2026):
+  // "Web · Chrome on Linux" at the test window sizes (17 to 19 Nov, about 50 devices, one visit of a few seconds each),
+  // web previews at 600x800 that never tap anything, and the "console check" line.
+  const TEST_SIZES = new Set(["430x932", "390x844", "393x852", "860x1280", "800x1400", "900x1400", "900x1280"]);
+  const isTestRun = (r) => /^Web · console check/.test(r.os || "") || (String(r.at) < "2026-11-20"
+    && ((/^Web · Chrome on Linux$/.test(r.os || "") && TEST_SIZES.has(r.screen)) || (/^Web · /.test(r.os || "") && r.screen === "600x800")));
   let showReview = false;
-  const reviewDevices = () => new Set(rows.filter((r) => /sdk_gphone|emulator/i.test(r.os || "") || r.screen === "435x725").map((r) => r.device));
+  const reviewDevices = () => new Set(rows.filter((r) => /sdk_gphone|emulator/i.test(r.os || "") || r.screen === "435x725" || isTestRun(r)).map((r) => r.device));
   // Taps that save something, and taps that go out with it, in every sport: known button ids, or a button's own words.
   const SAVE = new Set(["#wantBtn", "#savePick", "#ridden", "#spfSave", "#spcSave", "#skSaveBtn", "#rtSave", "#navSave", "#planSave", "#viewSave"]);
   const SAVE_TEXT = /^(💾 )?(save|saved|to ride|log (a |this )?(catch|harvest|hunt)|add (a )?(pin|catch|harvest)|drop (a )?pin)\b/i;
@@ -1064,7 +1070,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const blankN = [...blank].filter((dev) => view === "all" || (view === "me") === meSet.has(dev)).length;
     const blankLine = blankN ? `<p class="muted" id="blankLine">${showBlank ? `Showing ${blankN} blank open${blankN === 1 ? "" : "s"} (one visit under a minute, nothing tapped).` : `${blankN} blank open${blankN === 1 ? "" : "s"} hidden: phones that opened the app once for under a minute and tapped nothing, mostly on days a new TestFlight build went out (likely Apple checking the build).`} <button type="button" class="btn" id="blankBtn">${showBlank ? "Hide them" : "Show them"}</button></p>` : "";
     const reviewN = [...review].filter((dev) => view === "all" || (view === "me") === meSet.has(dev)).length;
-    const reviewText = reviewN ? `${showReview ? `Showing ${reviewN} test and review device${reviewN === 1 ? "" : "s"}.` : `${reviewN} test and review device${reviewN === 1 ? "" : "s"} hidden: the Android emulator of the phone check, and Google Play's review phones (screen 435x725, an old Android web viewer), whose crashes, errors and slow loads aren't real people's.`} <button type="button" class="btn" data-review>${showReview ? "Hide them" : "Show them"}</button>` : "";
+    const reviewText = reviewN ? `${showReview ? `Showing ${reviewN} test and review device${reviewN === 1 ? "" : "s"}.` : `${reviewN} test and review device${reviewN === 1 ? "" : "s"} hidden: the Android emulator of the phone check, Google Play's review phones (screen 435x725, an old Android web viewer) and Trail Finder's own screenshot runs on the website, whose crashes, errors and slow loads aren't real people's.`} <button type="button" class="btn" data-review>${showReview ? "Hide them" : "Show them"}</button>` : "";
     $("reviewLine").innerHTML = reviewText; $("reviewLine").hidden = !reviewText;
     const reviewLine = reviewText ? `<p class="muted">${reviewText}</p>` : "";
     $("people").innerHTML = blankLine + reviewLine + people.map((d) => {
