@@ -13,8 +13,8 @@
 // first in its list, and opens on it when the page's map is on Winter (alex 2026-11-20: "can we have the Winter map like
 // that?"); app builds before that show Satellite.
 // "Native for viewing, web for tools" (alex 2026-11-20): on alex's iPhone, tapping the map's 3D button opens this native
-// 3D for looking around, unless a layer only the web 3D map draws is on (avalanche, slope angles and the other ground
-// layers, elevation lines, sun and shade): then the web 3D map opens as before, so avalanche ratings are only ever
+// 3D for looking around, unless a layer only the web 3D map draws is on (avalanche; before a build with native-ground.js's
+// layers, also slope angles and the other ground layers, elevation lines, sun and shade): then the web 3D map opens as before, so avalanche ratings are only ever
 // drawn by one piece of code (avalanche-exact). The native screen's "Layers" button goes to the web 3D map at the same
 // spot with its Layers open, for turning those on. Other ways into 3D (a tour, a plan, the app reopening in 3D) keep
 // opening the web 3D map. Only alex for now; the "(test)" label goes once friends have tried it.
@@ -56,6 +56,7 @@
   // native-tools.js): it's left out of the trails here. tfNative.hit(i): the page's trail number i sent last.
   const feats = new Map(), details = new Map(), skips = [];
   const skipped = (l) => skips.some((f) => { try { return f(l); } catch { return false; } });
+  // A sport whose data lives inside its own file registers from there instead (hunting.js: "hunt").
   let open3d = false;
   const featureData = (threeD) => {
     const out = {};
@@ -68,7 +69,6 @@
       if (typeof get === "function") feats.set(String(key), get);
       if (typeof onDetails === "function") details.set(String(key), onDetails);
     },
-    on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { if (open && open3d) { try { fn(e || {}); } catch {} } }); },
     send(key) {
       const get = feats.get(String(key));
       if (!open || !open3d || !get || !TrailMap.layer) return;
@@ -76,14 +76,32 @@
       if (d != null) TrailMap.layer({ key: String(key), data: String(d) }).catch(() => {});
     },
     isOpen: () => open && open3d,
+    // For a feature that talks with its native side (native-ground.js): its events from the 3D screen, and data sent
+    // without waiting for its get().
+    on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { try { fn(e || {}); } catch {} }); },
+    post(key, data) { if (open && open3d && TrailMap.layer) TrailMap.layer({ key: String(key), data: String(data) }).catch(() => {}); },
+    // "Details" on a feature's own card (one it showed with open -1, at its own spot): fn({ tapLat, tapLon }) opens
+    // it on the page and returns true; otherwise the page opens what's at that spot, as for a trail.
+    onDetails(fn) { if (typeof fn === "function") detailFns.push(fn); },
+    // has(key): this app build draws that feature itself (TrailMap.features; older builds have no such call).
+    has: (key) => !!nativeKeys && nativeKeys.has(String(key)),
+    // moveWait(ms): how long the page waits after the native map moves before sending the trails again (500 ms); a
+    // Flyover moves it every second, so it waits longer meanwhile. Nothing: back to 500.
+    moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
     skip(fn) { if (typeof fn === "function") skips.push(fn); },
     hit: (i) => hits[i] || null,
   };
+  const detailFns = [];
+  let nativeKeys = null, moveWait = 500;
+  try { Promise.resolve(TrailMap.features()).then((r) => { nativeKeys = new Set((r && r.keys) || []); }, () => { nativeKeys = new Set(); }); } catch { nativeKeys = new Set(); }
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
+  // In 3D, lines are a little bolder than on the flat map and dots closer together, as on the web 3D map (map3d.js
+  // LINE_SCALE, DOT_STEP), so they read against the photos; the iPhone draws the dots bigger, on a dark band.
+  const LINE_SCALE = 1.15, DOT_STEP = 2.2;
   const dashKey = (d, w) => {
     const n = String(d).trim().split(/[\s,]+/).map(Number);
-    if (n.length === 2 && n[0] <= 1) return "0," + Math.max(0.1, (n[0] + n[1]) / Math.max(w, 1)).toFixed(2);
+    if (n.length === 2 && n[0] <= 1) return "0," + (open3d ? DOT_STEP : Math.max(0.1, (n[0] + n[1]) / Math.max(w, 1))).toFixed(2);
     return n.map((x) => Math.max(0.1, x / Math.max(w, 1)).toFixed(2)).join(",");
   };
   // The name written along a line in native 3D (lb): only a line's own label, as on the web 3D map (map3d.js), and MTB
@@ -135,7 +153,7 @@
       const d = o.dashArray ? dashKey(o.dashArray, o.weight) : "";
       if (d) dashes.add(d);
       lines.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: parts },
-        properties: { ...props, c: o.color, w: o.weight || 3, o: o.opacity, d, ...(label(l) ? { lb: label(l) } : {}) } });
+        properties: { ...props, c: o.color, w: (o.weight || 3) * (open3d ? LINE_SCALE : 1), o: o.opacity, d, ...(label(l) ? { lb: label(l) } : {}) } });
     });
     return {
       lines: JSON.stringify({ type: "FeatureCollection", features: lines }),
@@ -151,9 +169,9 @@
 
   // MapLibre's zoom is one less than Leaflet's (512 px tiles against 256).
   const follow = (e) => map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false });
-  TrailMap.addListener("moved", (e) => { if (!open) return; follow(e); later(500); });
+  TrailMap.addListener("moved", (e) => { if (!open) return; follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
-    open = false; clearTimeout(pending);
+    open = false; clearTimeout(pending); moveWait = 500;
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
@@ -162,6 +180,7 @@
       if (f) try { f(e.open, L.latLng(e.tapLat, e.tapLon)); } catch {}
       return;
     }
+    if (!(e.open >= 0)) for (const fn of detailFns) { try { if (fn(e)) return; } catch {} }
     // "Details" on a trail's card: the trail opens as if tapped there (most trails are found by the map's own tap).
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
@@ -177,8 +196,8 @@
     const winter = threeD && document.body.classList.contains("sport-ski");
     // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
-    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snapshot() })
-      .catch(() => { open = false; });
+    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snapshot() })
+      .then(() => true, () => { open = false; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -186,12 +205,38 @@
   // ---------- the map's 3D button opens native 3D (alex only, see the top) ----------
   const tf = (k, d) => { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const pressed = (id) => { const b = document.getElementById(id); return !!b && !b.hidden && b.getAttribute("aria-pressed") === "true"; };
-  const GROUND = ["avy", "slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND
+  const GROUND = ["slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND, but avalanche
+  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // a hunting.js from before tfHunt.web3d
+  // The ground layers (native-ground.js: elevation lines, sun and shade, Skiing's ground colours, Hunting's slope angle and
+  // aspect) open in native 3D once this phone's app build has shown it draws them ("tf-native-ground", set the first
+  // time a native 3D map with them opens); older builds keep the web 3D map for them.
+  const groundNative = () => { try { return localStorage.getItem("tf-native-ground") === "1"; } catch { return false; } };
+  // Hunting's picture layers the same way ("tf-native-huntpics": NativeHunting.swift says "huntPics" in any sport's native 3D).
+  const huntPicsNative = () => { try { return localStorage.getItem("tf-native-huntpics") === "1"; } catch { return false; } };
+  TrailMap.addListener("huntPics", () => { try { localStorage.setItem("tf-native-huntpics", "1"); } catch {} });   // here: hunting.js may not be loaded yet
   const webOnly = () => {
-    if (tf("avy", false) === true || ["avyBtn", "contourBtn", "shadeBtn"].some(pressed)) return true;
-    if (!document.body.classList.contains("sport-ski")) return false;
+    if (tf("avy", false) === true || pressed("avyBtn")) return true;   // avalanche stays in the web 3D map (its own step)
+    const ground = groundNative();
+    if (!ground && ["contourBtn", "shadeBtn"].some(pressed)) return true;
+    // Hunting: what this build can't draw opens the web 3D map (hunting.js tfHunt.web3d; NativeHunting.swift and
+    // native-ground.js draw the rest). Not stored yet = Hunting's first-time set (zones, parks, scent cone): all native.
+    if (document.body.classList.contains("sport-hunt")) {
+      const hunt = tf("huntLayers2", null);
+      if (window.tfHunt && window.tfHunt.web3d) { if (window.tfHunt.web3d(ground, huntPicsNative())) return true; }
+      else if (Array.isArray(hunt) && hunt.some((k) => HUNT_WEB.filter((x) => !ground || (x !== "slope" && x !== "aspect")).includes(k))) return true;
+    }
+    if (ground || !document.body.classList.contains("sport-ski")) return false;
     const shown = tf("skiLayers2", null);
     return Array.isArray(shown) && shown.some((k) => GROUND.includes(k));
+  };
+  // Another script showing something in 3D (a ski tour's Flyover, native-flyover.js) asks here first: native 3D opens
+  // at { lat, lon, zoom } (MapLibre's zoom) where the 3D button would open it, and the answer is a promise of true once
+  // it's open; false (now, or if it couldn't open) means the web 3D map is the one (not alex, a web-only layer on,
+  // already in 3D).
+  window.tfNative.view = (at) => {
+    if (open || !adminNow() || map.getContainer().classList.contains("is3d") || webOnly()) return Promise.resolve(false);
+    if (at && isFinite(at.lat) && isFinite(at.lon)) map.setView([at.lat, at.lon], Math.round((at.zoom || 13) + 1), { animate: false });
+    return openNative(true);
   };
   const map3d = document.getElementById("btn3d");
   if (map3d) map3d.addEventListener("click", (e) => {
