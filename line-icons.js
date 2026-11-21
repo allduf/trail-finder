@@ -52,6 +52,16 @@
     fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M4 10h10"/><path d="M14 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
     drop: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
     map: '<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z M9 4v13.5 M15 6.5V20"/>',
+    // Deep phone test 2026-11-21: emoji still showing in Hunting's Drop a pin (Saline, Cache), Skiing's Heli and cat
+    // skiing, Where to look, the Notifications box, Loops, E-bikes and Closures.
+    salt: '<path d="M8 9h8l1 12H7z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/><path d="M11 4h2"/>',
+    heli: '<path d="M4 4h16M12 4v4"/><path d="M5 12a5 4 0 0 1 5-4h4a4 4 0 0 1 4 4v1a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z"/><path d="M8 19h9M10 16v3M15 16v3M18 12h3"/>',
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>',
+    phone: '<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>',
+    loop: '<path d="M4 12a6 6 0 0 1 6-6h8M15 3l3 3-3 3"/><path d="M20 12a6 6 0 0 1-6 6H6M9 21l-3-3 3-3"/>',
+    battery: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10.5v3M7 10.5v3M10.5 10.5v3"/>',
+    barrier: '<rect x="2.5" y="7" width="19" height="6" rx="1"/><path d="M6 7l-3 6M11 7l-4 6M16 7l-4 6M21 7l-4 6M5 13v8M19 13v8"/>',
+    peak: '<path d="M2 20 9 7l4 6 2.5-3.5L22 20z"/><path d="M7.5 10 9 12l1.5-2"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     snow: '<path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5"/><path d="m9 4 3 2 3-2M9 20l3-2 3 2"/>',
     ticket: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 6v12M12 10h5M12 14h3"/>',
@@ -89,6 +99,8 @@
     "🎒": "pack", "🍲": "pot", "💵": "cash", "💲": "cash", "🛟": "buoy", "📓": "book", "📤": "share", "🔗": "link", "🗑": "trash",
     "⏰": "alarm", "✅": "check", "✏": "pencil", "⬇": "download", "👥": "people", "🚗": "car", "🛏": "bed", "🔥": "fire", "⏱": "timer",
     "🎉": "sparkle", "💬": "chat",
+    "🧂": "salt", "⛺": "tent", "🚁": "heli", "🔍": "search", "🔎": "search", "📱": "phone", "🔁": "loop", "🔋": "battery", "🚧": "barrier",
+    "⛰": "peak", "🏔": "peak",
   };
   const draw = (k, size) => `<svg class="tf-line" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
   const keyOf = (s) => {
@@ -126,7 +138,12 @@
   // lists, desktop panels). Map pins are left alone, and so is anything under data-no-line (a point's kind list, where
   // 🦌 means shed antlers, not Hunting).
   // The sports' own panels (Routes, Hunt, Fish, Roads, Hikes) get every known emoji drawn, like the phone's sheet.
-  const SPORT_E = /^\s*(🚵|🚴|🚲|⛷|🎿|🛷|🚡|🦌|🎣|🐟|🏍|🥾)/u, HAS = /🚵|🚴|🚲|⛷|🎿|🛷|🚡|🦌|🎣|🐟|🏍|🥾/u;
+  // Every colour emoji that has a drawing, too (deep phone test 2026-11-21: 🧂 ⛺ 🔒 ⏰ 📱 in cards and boxes outside
+  // the panels): only those that show in colour on phones (Emoji_Presentation, or a picture past U+1F000 such as 🗺),
+  // so text symbols such as ★ rating stars, ◎, ⚠ or ▶ stay as they are outside the panels.
+  const COLOUR = Object.keys(E).filter((e) => /\p{Emoji_Presentation}/u.test(e) || e.codePointAt(0) >= 0x1f000).map((e) => e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const ALT = ["🚵", "🚴", "🚲", "⛷", "🎿", "🛷", "🚡", "🦌", "🎣", "🐟", "🏍", "🥾", ...COLOUR].filter((e, i, a) => a.indexOf(e) === i).join("|");
+  const SPORT_E = new RegExp(`^\\s*(${ALT})`, "u"), HAS = new RegExp(ALT, "u");
   const PANES = "#skiPane, #huntPane, #fishPane, #motoPane, #hikePane";
   const NOT = ".leaflet-pane, .leaflet-marker-icon, .maplibregl-marker, .maplibregl-canvas-container, [data-no-line], select, textarea, input";
   const sweep = (root) => {
