@@ -12,10 +12,11 @@ final class NativeLayers {
     static final List<Supplier<NativeLayer>> ALL = List.of(
         NativeFingers::new,                    // NativeFingers.java: two-finger measure
         NativeFlyover::new,                    // NativeFlyover.java: a ski tour's Flyover
+        NativeMoto::new,                       // NativeMoto.java: Adventure moto dirt roads and stops
         () -> new NativeOverlay("radar", 0),   // NativeOverlay.java: rain and snow radar and forecast
         () -> new NativeOverlay("smoke", 1),   // NativeOverlay.java: wildfire smoke forecast
-        NativePins::new,                // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)
-        NativeSearch::new               // NativeSearch.java: search a place and fly there
+        NativePins::new,                       // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)
+        NativeSearch::new                      // NativeSearch.java: search a place and fly there
     );
 
     static List<NativeLayer> make() {
