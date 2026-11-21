@@ -30,12 +30,13 @@
   const isFish = () => sportNow() === "fish";
   const COLOR = "#0a7d6e", HUNT_COLOR = "#a34f00", FISH_COLOR = "#0c8599";
   // alex hunts in Quebec and tags in French too: a saline is a salt or mineral lick, a cache is a blind.
-  const HUNT_KINDS = [["cam", "Trail camera", "📷"], ["sign", "Tracks", "🐾"], ["lick", "Saline (salt lick)", "🧂"], ["blind", "Cache (blind)", "⛺"],
-    ["stand", "Tree stand", "🪜"], ["sighting", "Sighting", "👀"], ["rub", "Rub", "🌲"], ["scrape", "Scrape", "🍂"], ["bed", "Bedding area", "🛏"],
-    ["trail", "Game trail", "👣"], ["water", "Water", "💧"], ["food", "Feeding area", "🌾"], ["bait", "Bait site", "🍎"], ["shed", "Shed antlers", "🦌"],
+  // The lines marked emoji-ok: a saved point's kinds, the same emoji as its map pin; map pins keep emoji for now (line-icons.js).
+  const HUNT_KINDS = [["cam", "Trail camera", "📷"], ["sign", "Tracks", "🐾"], ["lick", "Saline (salt lick)", "🧂"], ["blind", "Cache (blind)", "⛺"],   // emoji-ok
+    ["stand", "Tree stand", "🪜"], ["sighting", "Sighting", "👀"], ["rub", "Rub", "🌲"], ["scrape", "Scrape", "🍂"], ["bed", "Bedding area", "🛏"],   // emoji-ok
+    ["trail", "Game trail", "👣"], ["water", "Water", "💧"], ["food", "Feeding area", "🌾"], ["bait", "Bait site", "🍎"], ["shed", "Shed antlers", "🦌"],   // emoji-ok
     ["harvest", "Harvest (kill site)", "🎯"], ["truck", "Truck or parking", "🛻"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];
   const FISH_KINDS = [["catch", "Catch", "🐟"], ["spot", "Fishing spot", "🎣"], ["access", "Way to the water", "🚶"], ["launch", "Boat launch", "🛶"],
-    ["truck", "Truck or parking", "🛻"], ["hatch", "Hatch or bugs", "🦟"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];
+    ["truck", "Truck or parking", "🛻"], ["hatch", "Hatch or bugs", "🦟"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];   // emoji-ok
   const KINDS_OF = { hunt: HUNT_KINDS, fish: FISH_KINDS };
   const hasKinds = (sp) => !!KINDS_OF[sp];
   const kindOf = (p, sp = sportOf(p)) => (KINDS_OF[sp] || []).find((k) => k[0] === p.kind) || null;
