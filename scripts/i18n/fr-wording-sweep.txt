@@ -1,0 +1,7 @@
+Sort: trip planner ⇅ ||| Tri : planificateur ⇅
+Trip planner order: Normal caution first, then Extra caution, then Not recommended, or the terrain class when there's no rating ||| Ordre du planificateur : Prudence normale d'abord, puis Prudence accrue, puis Non recommandé, ou la classe de terrain s'il n'y a pas de cote
+Trip planner order (Normal caution first), then nearest. Tap one for its details. ||| Ordre du planificateur (Prudence normale d'abord), puis les plus proches. Touchez-en un pour ses détails.
+Pick what the bell tells you about ||| Choisissez de quoi la cloche vous avertit
+Lakes near you just stocked, and what else the bell tells you about ||| Les lacs près de vous tout juste ensemencés, et le reste dont la cloche vous avertit
+Parks Canada's avalanche terrain maps ||| Cartes du terrain avalancheux de Parcs Canada
+Weather, moon and the last Layers rows use line icons too, and slackcountry and backcountry route notes now describe the terrain only. ||| La météo, la lune et les dernières lignes des Couches utilisent aussi des icônes au trait, et les notes des lignes hors-piste et des itinéraires de ski de randonnée décrivent maintenant seulement le terrain.

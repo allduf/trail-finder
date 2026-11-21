@@ -1378,9 +1378,13 @@ body.sport-alt #rideMapBtn { display: none !important; }
   body .map-tools #layersBtn svg { width: 20px; height: 20px; }
   body .map-tools #layersBtn .layers-n { position: absolute; top: -5px; right: -5px; font-size: .66rem; }
   body .map-tools #layersBtn .layers-n:empty { display: none; }
-  body .map-tools #btn3d::before { content: "⛰"; font-size: 1.25rem; line-height: 1; }
+  /* The mountain is line-icons.js's line drawing (no colour emoji, CLAUDE.md), as a mask so it takes the text colour. */
+  body .map-tools #btn3d > svg.tf-line { display: none; }
+  body .map-tools #btn3d::before { content: ""; display: block; width: 22px; height: 22px; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 20 9 7.5l4 6.5 3-4.5 6 10.5z'/%3E%3Cpath d='m7 11 2 1.5 2-1.5'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 20 9 7.5l4 6.5 3-4.5 6 10.5z'/%3E%3Cpath d='m7 11 2 1.5 2-1.5'/%3E%3C/svg%3E") center / contain no-repeat; }
   body .map-tools #btn3d::after { content: "3D"; }
-  body .map-tools #btn3d[aria-pressed="true"]::before { content: "▭"; }
+  body .map-tools #btn3d[aria-pressed="true"]::before { content: "▭"; width: auto; height: auto; background: none; -webkit-mask: none; mask: none; font-size: 1.25rem; line-height: 1; }
   body .map-tools #btn3d[aria-pressed="true"]::after { content: "2D map"; }
   body .map-tools #locate { order: 10; margin-left: auto; }
   body .map-tools #locate::before { content: "◎"; font-size: 1.35rem; line-height: 1; }
@@ -1968,7 +1972,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         const num = async (f) => { if (f.inline) return f.v; const v = new DataView(await cogGet(f.at + i * f.size, f.size)); return f.size === 8 ? Number(v.getBigUint64(0, true)) : v.getUint32(0, true); };
         const [o, n] = await Promise.all([num(lv.offs), num(lv.counts)]);
         if (!n) return null;
-        if (!jpegLib) jpegLib = import("https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-module/compression/jpeg.js").catch((e) => { jpegLib = null; throw e; });
+        if (!jpegLib) jpegLib = import("./vendor/geotiff-2.1.3/compression/jpeg.js").catch((e) => { jpegLib = null; throw e; });
         const [lib, bytes] = await Promise.all([jpegLib, cogGet(o, n)]);
         return new Uint8Array(new lib.default({ JPEGTables: lv.tables }).decodeBlock(bytes));
       })().catch((e) => { cogPieces.delete(key); throw e; }));
@@ -2533,8 +2537,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
     return mo < 24 ? mo + " months ago" : Math.round(days / 365) + " years ago";
   }
   function log(line) { state.log.push(line); const pre = $("debugLog"); if (pre) pre.textContent = state.log.join("\n"); }
+  // MTB's trail search lines (renderStatus: "Press Find new trails...", "11 new trails...") are marked, so the other
+  // sports' full map leaves them out but still shows the shared ones (location, place search, wildfires). var: no TDZ.
+  var mtbStatus = false;
   function setStatus(msg, warn, action) {
     const s = $("status"); s.textContent = msg; s.classList.toggle("warn", !!warn);
+    s.dataset.mtb = mtbStatus ? "1" : "";
     if (action) { const b = document.createElement("button"); b.className = "linkish"; b.type = "button"; b.textContent = action.label; b.addEventListener("click", action.fn); s.append(" ", b); }
   }
 
@@ -3845,7 +3853,8 @@ out body;`;
     }).join("") + "</ol>" : "";
   }
 
-  function renderStatus() {
+  function renderStatus() { mtbStatus = true; try { return renderStatusNow(); } finally { mtbStatus = false; } }
+  function renderStatusNow() {
     if (anyMode()) {
       $("resetBtn").hidden = true; $("toggles").hidden = true; $("debug").hidden = !state.error;
       $("findBtn").disabled = false; $("findLabel").textContent = "Find trails";
@@ -6009,13 +6018,13 @@ out body;`;
     ski: { find: "Routes", search: "Search or ask", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for skiing with no signal",
       alerts: ["Avalanche alerts and notifications", "Avalanche danger in your regions and on tours you watch"] },
     hunt: { find: "Hunt", search: "Search or ask", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for hunting with no signal",
-      alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
+      alerts: ["Notifications", "Pick what the bell tells you about"] },
     fish: { find: "Fish", search: "Search or ask", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your track.", offline: "Save an area for fishing with no signal",
-      alerts: ["Stocking alerts and notifications", "Lakes near you just stocked, and what else the 🔔 tells you about"] },
+      alerts: ["Stocking alerts and notifications", "Lakes near you just stocked, and what else the bell tells you about"] },
     moto: { find: "Roads", search: "Search or ask", tab: "Ride", start: "▶ Start riding", note: "Follows you, says the turns of your moto route, records the ride.", offline: "Save an area for riding with no signal (or save a route from its card)",
-      alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
+      alerts: ["Notifications", "Pick what the bell tells you about"] },
     hike: { find: "Hikes", search: "Search hikes, towns, parks", tab: "Record", start: "▶ Start recording", note: "Follows you on the map and records your hike.", offline: "Save an area for hiking with no signal",
-      alerts: ["Notifications", "Pick what the 🔔 tells you about"] },
+      alerts: ["Notifications", "Pick what the bell tells you about"] },
   }[sportOf()]; }
   function syncSportWords() {
     if (typeof syncPeek === "function") try { syncPeek(); } catch {}
@@ -6281,7 +6290,7 @@ out body;`;
     if (v == null) mtbNowHtml = "";
     else {
       const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
-      mtbNowHtml = isSnowy(cell.snow) ? `<span>${snowIc(15)} <b>Snow likely on the trails</b> here, about ${Math.round(cell.snow)} cm (estimate)</span>`
+      mtbNowHtml = isSnowy(cell.snow) ? `<span>${snowIc(15)} <b>Snow likely on the trails</b></span><span>About ${Math.round(cell.snow)} cm here (estimate)</span>`
         : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
         : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v})</span><span>☀ Where to ride today ›</span>`;
       // The freeze line (middle of 3 models) when the ground freezes somewhere below 3,000 m around here.
@@ -7822,8 +7831,11 @@ out body;`;
     if (!map.getBounds().intersects(b)) map.fitBounds(b, { maxZoom: 16, padding: [40, 40] });
   }
   // The search status, shown on the map while the panel is hidden.
-  function syncMapStatus() { $("mapStatus").textContent = isFull() ? $("status").textContent.trim() : ""; }
+  // Not MTB's trail search lines in the other sports (deep phone test 2026-11-21: Skiing's full map said "Press Find new
+  // trails to see trails in Sea to Sky").
+  function syncMapStatus() { const st = $("status"), mtbOnly = st.dataset.mtb === "1" && document.body.classList.contains("sport-alt"); $("mapStatus").textContent = isFull() && !mtbOnly ? st.textContent.trim() : ""; }
   new MutationObserver(syncMapStatus).observe($("status"), { childList: true, characterData: true, subtree: true });
+  window.addEventListener("tf:sport", () => setTimeout(syncMapStatus));
   $("fullBtn").addEventListener("click", () => setFullMap(!isFull()));
   $("fullExit").addEventListener("click", () => setFullMap(false));
   document.addEventListener("fullscreenchange", () => {

@@ -137,7 +137,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   <label class="nt-opt"><input type="checkbox" id="ntLoamArea">Tell me when trails in my regions or on my To ride list are in prime loam</label>
   <label class="nt-opt"><input type="checkbox" id="ntNewOn">Tell me when a new trail is mapped in my regions</label>
   <label class="nt-opt"><input type="checkbox" id="ntAvyOn">⚠ Tell me when the avalanche danger goes up in my regions or on ski tours I watch</label>
-  <label class="nt-opt"><input type="checkbox" id="ntFishOn">🎣 Tell me when a lake or river near me is stocked with fish <small id="ntFishWhere"></small></label>
+  <label class="nt-opt"><input type="checkbox" id="ntFishOn"><span>🎣 Tell me when a lake or river near me is stocked with fish <small id="ntFishWhere"></small></span></label>
   <div class="nt-push"><label class="nt-opt"><input type="checkbox" id="ntPushOn">📱 Also send them to this phone as notifications</label><p id="ntPushMsg"></p></div>
   <p class="nt-zhead">My regions:</p>
   <div class="nt-zones" id="ntZones"></div>

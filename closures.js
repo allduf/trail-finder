@@ -48,8 +48,8 @@
 .cl-box details { margin-top: 4px; } .cl-box summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 .cl-st { font-weight: 700; } .cl-st.bad { color: #c22; } .cl-st.warn { color: #b26a00; } .cl-st.ok { color: #2f7d32; }
 .cl-pin span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; border: 2px solid #fff; box-sizing: border-box; font-size: 14px;
-  box-shadow: 0 0 0 1.5px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4); cursor: pointer; background: #f5a524; }
-.cl-pin.bad span { background: #e5484d; } .cl-pin.rider span { border-radius: 50%; background: #fff; }
+  box-shadow: 0 0 0 1.5px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4); cursor: pointer; background: #f5a524; color: #1d2420; }
+.cl-pin.bad span { background: #e5484d; color: #fff; } .cl-pin.rider span { border-radius: 50%; background: #fff; color: #1d2420; }
 .map-tools #closeBtn.on { background: #e5484d; border-color: #e5484d; color: #fff; }
 .cl-pop ul { margin: 4px 0; padding-left: 16px; } .cl-pop li { margin: 2px 0; }`;
   document.head.append(css);
