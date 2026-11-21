@@ -4687,32 +4687,50 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Each pixel's area, exactly areaAt()'s for its middle (a 16 px block's middle used to colour up to 16 px past a
     // region line with the neighbour's rating): per pixel row, where each outline crosses that latitude (inPoly()'s
     // very sums), then a pixel is inside where an odd number of crossings lie east of it. 0 = no area with a day here.
-    const cell = new Uint16Array(65536), lats = new Float64Array(256);
+    const cell = new Uint16Array(65536), lats = new Float64Array(256), lons = new Float64Array(256);
+    for (let i = 0; i < 256; i++) { lats[i] = tileLat(y + (i + 0.5) / 256, z); lons[i] = tileLon(x + (i + 0.5) / 256, z); }
+    // The first row south of a latitude (rows run south), the first column at or east of a longitude.
+    const rowBelow = (v) => { let lo = 0, hi = 256; while (lo < hi) { const m = (lo + hi) >> 1; if (lats[m] < v) hi = m; else lo = m + 1; } return lo; };
+    const colFrom = (v) => { let lo = 0, hi = 256; while (lo < hi) { const m = (lo + hi) >> 1; if (lons[m] >= v) hi = m; else lo = m + 1; } return lo; };
+    // Each edge crosses the rows whose latitude is from its south end up to (not at) its north end, inPoly()'s
+    // (ay > lat) !== (by > lat): found once per edge, so a row only works out the edges on it.
+    const outs = [];
+    let most = 0;
+    near.forEach((n, q) => n.rings.forEach((r) => {
+      const from = [], to = [], at = [];
+      for (let i = 0; i < r.length; i += 4) {
+        const f = rowBelow(Math.max(r[i], r[i + 2])), t = rowBelow(Math.min(r[i], r[i + 2]));
+        if (f < t) { from.push(f); to.push(t); at.push(i); }
+      }
+      if (!at.length) return;
+      outs.push({ q, r, from, to, at, order: at.map((_, k) => k).sort((a, b) => from[a] - from[b]), next: 0, on: [] });
+      most = Math.max(most, at.length);
+    }));
+    const xs = new Float64Array(most), claim = new Uint16Array(256);
     let any = false;
     for (let py = 0; py < 256; py++) {
-      const lat = (lats[py] = tileLat(y + (py + 0.5) / 256, z));
-      const xs = near.map((n) => n.rings.map((r) => {
-        const c = [];
-        for (let i = 0; i < r.length; i += 4) { const ay = r[i], ax = r[i + 1], by = r[i + 2], bx = r[i + 3]; if ((ay > lat) !== (by > lat)) c.push(((bx - ax) * (lat - ay)) / (by - ay) + ax); }
-        return c.sort((p, q) => p - q);
-      }));
-      const west = xs.map((n) => n.map(() => 0));   // per outline: how many of its crossings are at or west of the pixel
-      for (let px = 0; px < 256; px++) {
-        const lon = tileLon(x + (px + 0.5) / 256, z);
-        for (let q = 0; q < near.length; q++) {
-          let inside = false;
-          for (let j = 0; j < xs[q].length; j++) {
-            const c = xs[q][j];
-            let w = west[q][j];
-            while (w < c.length && c[w] <= lon) w++;
-            west[q][j] = w;
-            if ((c.length - w) & 1) inside = true;
-          }
-          if (!inside) continue;
-          if (near[q].d) { cell[py * 256 + px] = q + 1; any = true; }
-          break;   // the first area holding it, as areaAt()
+      const lat = lats[py];
+      claim.fill(0);
+      for (const o of outs) {
+        while (o.next < o.order.length && o.from[o.order[o.next]] <= py) o.on.push(o.order[o.next++]);
+        let n = 0, k = 0;
+        for (const e of o.on) {
+          if (o.to[e] <= py) continue;   // south of it now
+          o.on[k++] = e;
+          const i = o.at[e], r = o.r, ay = r[i], ax = r[i + 1], by = r[i + 2], bx = r[i + 3];
+          xs[n++] = ((bx - ax) * (lat - ay)) / (by - ay) + ax;
+        }
+        o.on.length = k;
+        if (!n) continue;
+        const c = xs.subarray(0, n).sort();
+        // Inside: the runs of pixels with an odd number of crossings east of them, [c[w - 1], c[w]) with n - w odd.
+        // The first area holding a pixel keeps it, as areaAt() (an area without a day too: nothing is drawn there).
+        for (let w = n & 1 ? 0 : 1; w <= n; w += 2) {
+          const p0 = w ? colFrom(c[w - 1]) : 0, p1 = w < n ? colFrom(c[w]) : 256;
+          for (let px = p0; px < p1; px++) if (!claim[px]) claim[px] = o.q + 1;
         }
       }
+      for (let px = 0; px < 256; px++) { const cl = claim[px]; if (cl && near[cl - 1].d) { cell[py * 256 + px] = cl; any = true; } }
     }
     if (!any) return out;
     const E = await dem(z, x, y), o = out.data, thr = minSlope(E.z), k = 25 / thr;
