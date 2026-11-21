@@ -2192,14 +2192,15 @@
   let slept = null, lostSeen = false, wakeWanted = false;
   const QUIET = ["getSource", "getLayer", "addSource", "addLayer", "removeLayer", "removeSource", "setPaintProperty", "setLayoutProperty",
     "setFilter", "moveLayer", "getLayoutProperty", "getPaintProperty", "setTerrain", "getTerrain", "setSky", "hasImage", "addImage", "removeImage",
-    "updateImage", "setFeatureState", "removeFeatureState", "queryRenderedFeatures", "querySourceFeatures", "setLight", "isSourceLoaded"];
+    "updateImage", "setFeatureState", "removeFeatureState", "queryRenderedFeatures", "querySourceFeatures", "setLight", "isSourceLoaded",
+    "getLayersOrder"];   // the sport changed while asleep (Skiing 3D, ADV, then Hiking): ADV topo's layers were looked up on no style
   function quietWhileAsleep() {
     if (gl.tfQuiet) return;
     gl.tfQuiet = true;
     for (const k of QUIET) {
       const f = gl[k];
       if (typeof f !== "function") continue;
-      gl[k] = function () { if (!this.style) return k === "queryRenderedFeatures" || k === "querySourceFeatures" ? [] : k === "hasImage" ? false : undefined; return f.apply(this, arguments); };
+      gl[k] = function () { if (!this.style) return k === "queryRenderedFeatures" || k === "querySourceFeatures" || k === "getLayersOrder" ? [] : k === "hasImage" ? false : undefined; return f.apply(this, arguments); };
     }
     // No drawing while the context is away (a move or a resize then threw "shaderPreludeCode" in the test): the
     // camera still moves, and the first draw after the context comes back shows where it ended up.
