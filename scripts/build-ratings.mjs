@@ -26,6 +26,10 @@
 //      dos District of Squamish trails (OGL-Squamish): DIFFICULTY Easier, More Difficult, Most Difficult, Extreme Difficulty
 //          (green, blue, black, double black). Only the district's own lines: the ones its SOURCE field says were traced
 //          from Trailforks are left out (its terms don't allow copying), and so are hiking, access and road lines.
+//      kam City of Kamloops trails and bikeways (OGL-Kamloops): CLASSIFICATION of the TRAIL lines, Type II Easy, III More
+//          Difficult, IV Very Difficult (green, blue, black), as the City's park maps name them (Valleyview Nature Park map).
+//          They are general park levels for everyone on the trail (the City says they mostly reflect elevation change), so
+//          the site says so. Type I (paved) and Type V (no City map names it yet) are left out.
 //      ccf ... and other clubs' georeferenced PDF maps, read colour by colour by scripts/map-ratings.py (run by hand) into
 //          scripts/map-ratings.json: Cranbrook Community Forest Society (Easy, Moderate, Difficult, Very Difficult), and the
 //          Kimberley Nature Park Society trail guide (a picture with a UTM grid: Easy, Intermediate, Difficult)
@@ -240,6 +244,7 @@ const SOURCES = {
   rdos: { name: "Regional District of Okanagan-Similkameen", licence: "Published in the district's Hiking and Biking Trails map", url: "https://rdos.maps.arcgis.com/" },
   fta: { name: "Fernie Trails Alliance", licence: "Published in Tourism Fernie's public trail map", url: "https://www.fernietrailsalliance.com/" },
   dos: { name: "District of Squamish", licence: "Open Government Licence – Squamish", url: "https://squamish.ca/discover-squamish/maps-and-data/open-data/" },
+  kam: { name: "City of Kamloops", licence: "Open Government Licence – Kamloops", url: "https://www.kamloops.ca/open-data-catalogue-disclaimer" },
   tv: { name: "Greater Vernon trail map (City of Vernon, Tourism Vernon and local trail groups)", licence: "Published by the City of Vernon as a public service", url: "https://trails.tourismvernon.com/" },
 };
 const MAP_RATINGS = (() => { try { return JSON.parse(readFileSync("scripts/map-ratings.json", "utf8")); } catch { return { maps: {}, lines: [] }; } })();
@@ -378,6 +383,18 @@ async function buildLines() {
       for (const { a, paths } of fs) {
         if (/trailforks/i.test(a.SOURCE || "") || /road|paved/i.test(a.TRAIL_TYPE || "")) continue;
         paths.forEach((p) => add(LEVEL[(a.DIFFICULTY || "").trim()], "dos", a.NAME, a.DIFFICULTY, lonlat(p)));
+      }
+    },
+    async kam() {
+      const LEVEL = { "TYPE II": ["green", "Easy"], "TYPE III": ["blue", "More Difficult"], "TYPE IV": ["black", "Very Difficult"] };
+      const fs = await arcgis("https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13",
+        "OBJECTID,NAME,TYPE,CLASSIFICATION,LOCATION", "TYPE='TRAIL'");
+      if (!fs.length) throw new Error("City of Kamloops: no trails");
+      const title = (s) => (s || "").toLowerCase().replace(/(^|[\s/(-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+      for (const { a, paths } of fs) {
+        const lv = LEVEL[(a.CLASSIFICATION || "").trim()], name = (a.NAME || "").trim();
+        if (!lv || !name || /^unnamed$/i.test(name)) continue;
+        paths.forEach((p) => add(lv[0], "kam", [title(name), title(a.LOCATION)].filter(Boolean).join(", "), `${lv[1]} (City park level ${a.CLASSIFICATION.trim().replace("TYPE", "Type")})`, lonlat(p)));
       }
     },
     async maps() {   // from the file, so it never fails; each map is its own source

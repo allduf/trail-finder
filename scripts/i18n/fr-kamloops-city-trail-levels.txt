@@ -1,0 +1,5 @@
+# City of Kamloops open trail data as a rating source (scripts/build-ratings.mjs kam, ratings.js, credits.html), 2026-11-21
+Kamloops: trails with no level on the map now show the City of Kamloops' own park level (Easy, More Difficult, Very Difficult) from its open data, in Kenna Cartwright, Peterson Creek, Dallas/Barnhartvale and other City parks. It is a general park level, not a bike grade. ||| Kamloops : les sentiers sans niveau sur la carte affichent maintenant le niveau de parc de la Ville de Kamloops (facile, plus difficile, très difficile), tiré de ses données ouvertes, à Kenna Cartwright, Peterson Creek, Dallas/Barnhartvale et dans d'autres parcs de la Ville. C'est un niveau général de parc, pas une cote de vélo.
+Easy (City park level Type II) ||| Facile (niveau de parc de la Ville, type II)
+More Difficult (City park level Type III) ||| Plus difficile (niveau de parc de la Ville, type III)
+Very Difficult (City park level Type IV) ||| Très difficile (niveau de parc de la Ville, type IV)
