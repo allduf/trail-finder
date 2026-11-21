@@ -12,8 +12,9 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".pbf": "application/x-protobuf", ".txt": "text/plain" };
 createServer(async (req, res) => {
-  const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
-  const file = normalize(join(root, path));
+  let path, file;
+  try { path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html"; file = normalize(join(root, path)); }
+  catch { res.writeHead(400).end(); return; }
   try {
     if (!file.startsWith(root) || /^(\.git|\.github|scripts|supabase|ios-app|android-app)\//.test(path)) throw new Error("not served");
     const body = await readFile(file);

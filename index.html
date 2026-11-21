@@ -6203,6 +6203,10 @@ out body;`;
   // The browser's back (swipe from the edge, Android's back button) steps back inside the app: one history
   // entry stands for "there's something to go back from", and is taken off again when there isn't.
   let histHeld = false, skipPop = 0;
+  // An entry left by this page before it was loaded again (back from Terms or Help in the app): not one held now.
+  if (history.state && history.state.tfNav) history.replaceState(null, "");
+  // The Android app's Back button (native.js) steps back here only while the page holds its entry.
+  window.tfNavHeld = () => histHeld && !!(history.state && history.state.tfNav);
   function syncHistory() {
     if (canGoBack() && !histHeld) { history.pushState({ tfNav: 1 }, ""); histHeld = true; }
     else if (!canGoBack() && histHeld && history.state && history.state.tfNav) { histHeld = false; skipPop++; history.back(); }

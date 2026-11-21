@@ -93,7 +93,7 @@ const front = () => {
 const crashes = () => { try { return adb("logcat -d -b crash").trim(); } catch { return ""; } };
 let crashSeen = "";
 async function relaunch() {
-  adb("shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS");
+  try { adb("shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS"); } catch {}
   adb(`shell am start -W -n ${APP}/.MainActivity`);
   await sleep(8000);
   await connect();
@@ -174,11 +174,15 @@ async function webTop(r) {
   if (topPx != null) return topPx;
   topPx = 0;
   try {
-    await js(`window.__tapY = null; addEventListener("touchstart", (e) => { window.__tapY = e.touches[0].clientY; }, { capture: true, once: true })`);
+    // A see-through cover takes the tap, so nothing on the map is tapped.
+    await js(`(() => { window.__tapY = null; const d = document.createElement("div"); d.id = "__probe"; d.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:transparent";
+      d.addEventListener("touchstart", (e) => { window.__tapY = e.touches[0].clientY; e.preventDefault(); e.stopPropagation(); }, { passive: false });
+      d.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }); document.body.append(d); })()`);
     const y = Math.round(innerMid(r));
     adb(`shell input tap 20 ${y}`);
     await sleep(800);
     const cy = await js("window.__tapY");
+    await js(`document.getElementById("__probe")?.remove()`);
     if (cy != null) topPx = Math.round(y - cy * r.dpr);
   } catch {}
   console.log(`    (web view top: ${topPx} px)`);
