@@ -224,6 +224,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         super.init(nibName: nil, bundle: nil)
         waitWinter = self.base == "winter" && !WinterTiles.shared.ready
         if threeD { WinterTiles.shared.install() }   // the photo address rewriter (Winter photos, late-summer mountains)
+        // Names and dots near the camera stay near their size (NativeNearNames.swift). Before the map is made, as MapLibre
+        // compiles its shaders when a map first draws; on the flat map too, where nothing changes (no tilt).
+        NativeNearNames.install()
         if ski { WinterTiles.shared.load { _ in } }   // the lists of photo squares, ready by the time Winter is picked
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }

@@ -54,6 +54,20 @@ jobs:
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             build | tail -60
+      - name: Check native 3D names near the camera (NativeNearNames.swift)
+        # Against the MapLibre the app was just built with: its name and dot shaders still read as expected, the hook
+        # goes back to MapLibre's own text when the changed one fails, and (on a Mac with a Metal device) the changed
+        # lines compile and cap the sizes. See ios-app/checks/near-names/main.swift.
+        run: |
+          bin=$(find ~/Library/Developer/Xcode/DerivedData -path '*/MapLibre.xcframework/ios-arm64/MapLibre.framework/MapLibre' -type f 2>/dev/null | head -1)
+          if [ -z "$bin" ]; then
+            url=$(grep -o 'https://[^"]*MapLibre[^"]*\.zip' plugins/TrailMap/Package.swift | head -1)
+            curl -fsSL "$url" -o "$RUNNER_TEMP/maplibre.zip"
+            unzip -q "$RUNNER_TEMP/maplibre.zip" -d "$RUNNER_TEMP/maplibre"
+            bin=$(find "$RUNNER_TEMP/maplibre" -path '*/ios-arm64/MapLibre.framework/MapLibre' -type f | head -1)
+          fi
+          swiftc -O plugins/TrailMap/ios/Sources/TrailMap/NativeNearNames.swift checks/near-names/main.swift -o "$RUNNER_TEMP/near-names"
+          "$RUNNER_TEMP/near-names" "$bin"
 
   testflight:
     if: github.event_name != 'pull_request'
