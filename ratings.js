@@ -87,11 +87,11 @@
   const SRC = { qc: "Sépaq", ott: "the City of Ottawa", ut: "Utah's trail data (UGRC)", pa: "Pennsylvania state parks", wh: "the Resort Municipality of Whistler", csrd: "the Columbia Shuswap Regional District",
     fta: "the Fernie Trails Alliance", rdos: "the Regional District of Okanagan-Similkameen", ccf: "the Cranbrook Community Forest Society trail map",
     tv: "the Greater Vernon trail map (City of Vernon, Tourism Vernon)", knps: "the Kimberley Nature Park Society trail guide",
-    dos: "the District of Squamish" };
+    dos: "the District of Squamish", kam: "the City of Kamloops" };
   // Towns' own trail lists name each trail: a line with another trail's name is a different trail on the same spot.
   // Words are kept per name: the same few names are checked against every point of every trail (a freeze of a second
   // or more on a phone when a new part of the map loaded, alex 2026-10-23).
-  const NAMED = /^(wh|csrd|tv|dos)$/, wordsOf = new Map(), words = (s) => {
+  const NAMED = /^(wh|csrd|tv|dos|kam)$/, wordsOf = new Map(), words = (s) => {
     s = s || "";
     let w = wordsOf.get(s);
     if (!w) { if (wordsOf.size > 20000) wordsOf.clear(); wordsOf.set(s, (w = new Set(s.toLowerCase().match(/[a-z0-9]{3,}/g) || []))); }
@@ -126,7 +126,8 @@
     if (!pick) return null;
     const l = pick.l;
     return { d: l.d, src: "off", why: `Rated ${l.note ? `“${l.note}”` : LEVEL[l.d]} by ${SRC[l.src] || l.src}${l.name ? ` (${l.name})` : ""}`
-      + (l.src === "pa" ? ". Their rating is for everyone on the trail, not only bikes." : ".") };
+      + (l.src === "pa" ? ". Their rating is for everyone on the trail, not only bikes."
+        : l.src === "kam" ? ". It is the City's general park level for everyone on the trail, not a bike grade." : ".") };
   }
 
   // ---------- the slope estimate (same numbers as scripts/build-ratings.mjs: change both together) ----------
