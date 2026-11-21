@@ -54,7 +54,9 @@ const rows = [];
 for (const { label, dir: root } of ROOTS) {
   const server = await serve(root);
   const site = `http://127.0.0.1:${server.address().port}/`;
-  for (const fill of [0, FILL]) {
+  // FILLS: what to save first, e.g. "0,cache:20000,idb:20000" (idb: the same files in an IndexedDB store instead).
+  for (const spec of (process.env.FILLS || `0,cache:${FILL}`).split(",")) {
+    const [where, fill] = spec.includes(":") ? [spec.split(":")[0], +spec.split(":")[1]] : ["cache", +spec];
     const dir = await mkdtemp(join(tmpdir(), "tf-start-"));
     // First visit: agree to the terms, let the offline helper save the app's files, then open again under it.
     let ctx = await open(dir), page = ctx.pages()[0] || await ctx.newPage();
@@ -65,10 +67,16 @@ for (const { label, dir: root } of ROOTS) {
     await page.reload({ waitUntil: "load" }); await wait(5000);
     if (fill) {
       // Offline maps' cache with FILL saved map files (16 KB each), like a 300 MB save.
-      await page.evaluate(async (n) => {
-        const c = await caches.open("tf-offline-1"), body = new Uint8Array(16384);
+      await page.evaluate(async ([n, where]) => {
+        const body = new Uint8Array(16384);
+        if (where === "idb") {
+          const db = await new Promise((ok, no) => { const r = indexedDB.open("tf-test-offline", 1); r.onupgradeneeded = () => r.result.createObjectStore("f"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+          for (let i = 0; i < n; i += 500) await new Promise((ok) => { const t = db.transaction("f", "readwrite"), st = t.objectStore("f"); for (let j = i; j < Math.min(n, i + 500); j++) st.put(new Blob([body]), `https://tiles.openfreemap.org/test/${j}.pbf`); t.oncomplete = ok; t.onerror = ok; });
+          return;
+        }
+        const c = await caches.open(where === "cache" ? "tf-offline-1" : where), pend = [];
         for (let i = 0; i < n; i += 250) await Promise.all(Array.from({ length: Math.min(250, n - i) }, (_, j) => c.put(`https://tiles.openfreemap.org/test/${i + j}.pbf`, new Response(body))));
-      }, fill);
+      }, [fill, where]);
       await wait(2000);
     }
     await ctx.close();
@@ -83,7 +91,7 @@ for (const { label, dir: root } of ROOTS) {
       await ctx.close();
     }
     await rm(dir, { recursive: true, force: true });
-    const row = { label, fill, sw: mid(t.sw), first: mid(t.first), html: mid(t.html), dcl: mid(t.dcl), under: `${t.ok}/${RUNS}`, all: t.html.join(" ") };
+    const row = { label, fill: fill ? `${fill} (${where})` : 0, sw: mid(t.sw), first: mid(t.first), html: mid(t.html), dcl: mid(t.dcl), under: `${t.ok}/${RUNS}`, all: t.html.join(" ") };
     rows.push(row);
     console.log(JSON.stringify(row));
   }
