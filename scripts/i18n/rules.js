@@ -160,6 +160,7 @@
     [/^just now$/i, "à l'instant"],
     [/^Was called (.+)$/, "Autrefois appelé $1"],
     [/^Photos on (.+) ↗$/, "Photos sur $1 ↗"],
+    [/^Photo: (.+), ([^,]+), Wikimedia Commons$/, function (m, by, lic) { return "Photo : " + by + ", " + (lic === "Public domain" ? "domaine public" : lic) + ", Wikimedia Commons"; }],   // moto.js route photo credit
     [/^Satellite photo of (.+)$/, function (m, d) { return "Photo satellite du " + dt(d); }],
     [/^(Sentinel-2|NASA HLS) photo of (.+)$/, function (m, w, d) { return "Photo " + w + " du " + dt(d); }],   // map3d.js Live note
     [/^✓ Saved: (.+)$/, "✓ Enregistré : $1"],

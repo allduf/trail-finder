@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 
 import { REGIONS, ROUTES as R, LINKS } from './moto-routes-spec.mjs';
+import { addPhotoCredits } from './moto-photo-credits.mjs';
 
 const UA = { 'user-agent': 'trail-finder-moto/1.0 (github allduf/trail-finder)' };
 const V = 'https://valhalla1.openstreetmap.de';
@@ -89,4 +90,5 @@ for (const r of R) {
   out.push(o); console.error(r.id.padEnd(26), String(o.km).padStart(5), 'km', String(o.dirtPct).padStart(3) + '% dirt', 'fuelGap', o.fuelGap, 'stops', stops.length, 'camps', camps.length, ferry ? 'FERRY' : '', 'pts', line.length, 'chars', o.line.length);
 }
 if (only) console.log(JSON.stringify(out.map(o => ({ ...o, line: o.line.length })), null, 1));
-if (!only) fs.writeFileSync(new URL('../data/moto-routes.json', import.meta.url), JSON.stringify({ v: 1, built: new Date().toISOString().slice(0, 10), note: 'Traced on OSM roads (Valhalla); dirtPct from OSM surface; fuel stops and camps from OSM within 3 km; photo from the Wikipedia source page. Check closures before riding.', regions: REGIONS, routes: out }));
+if (!only) await addPhotoCredits(out);
+if (!only) fs.writeFileSync(new URL('../data/moto-routes.json', import.meta.url), JSON.stringify({ v: 1, built: new Date().toISOString().slice(0, 10), note: 'Traced on OSM roads (Valhalla); dirtPct from OSM surface; fuel stops and camps from OSM within 3 km; photo from the Wikipedia source page, with its author and licence. Check closures before riding.', regions: REGIONS, routes: out }));
