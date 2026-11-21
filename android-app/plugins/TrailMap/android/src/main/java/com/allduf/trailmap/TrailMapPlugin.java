@@ -61,7 +61,8 @@ public class TrailMapPlugin extends Plugin {
                 s = new TrailMapScreen(a, this::fromScreen, lat, lon, zoom, bearing, base, threeD, winter, esri, fr);
             } catch (Throwable t) {
                 // The map engine couldn't start on this phone (no 3D graphics support): the page keeps its own map.
-                call.reject("The native map couldn't start: " + t.getMessage());
+                Throwable c = t.getCause() != null ? t.getCause() : t;
+                call.reject("The native map couldn't start: " + c);
                 return;
             }
             s.setData(lines, dots, dashes);
