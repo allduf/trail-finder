@@ -1,0 +1,4 @@
+# English ||| French (Quebec). One line each. The English is the text the app shows, without icons in front or : after.
+Offline maps can keep the 3D map's full detail up close (heights every 1.5 m, sharp Winter photos). The square starts at the recommended size, about 300 MB; Bigger saves more ground with less detail. Topo with no signal shows the saved map with elevation lines. ||| Les cartes hors ligne peuvent garder tous les détails de la carte 3D de près (altitudes aux 1,5 m, photos d'hiver nettes). Le carré commence à la taille recommandée, environ 300 Mo; Plus grand enregistre plus de terrain avec moins de détails. Topo sans réseau montre la carte enregistrée avec les courbes de niveau.
+Bigger ||| Plus grand
+Smaller ||| Plus petit

@@ -80,7 +80,7 @@ final class NativeFishing: NativeLayer {
             DispatchQueue.main.async {
                 guard r == self.round, let obj = obj else { return }
                 self.data = obj
-                guard let style = self.screen?.mapLibreView.style else { return }
+                guard let style = self.screen?.readyStyle else { return }
                 if self.setup() != self.built || style.source(withIdentifier: "fs-fill") == nil { self.build(style); return }
                 (style.source(withIdentifier: "fs-fill") as? MLNShapeSource)?.shape = FishStyle.shape(obj["fills"])
                 (style.source(withIdentifier: "fs-names") as? MLNShapeSource)?.shape = FishStyle.shape(obj["names"])
@@ -259,7 +259,7 @@ final class NativeFishCreeks: NativeLayer {
             DispatchQueue.main.async {
                 guard r == self.round else { return }
                 self.shape = s
-                guard let style = self.screen?.mapLibreView.style else { return }
+                guard let style = self.screen?.readyStyle else { return }
                 if let src = style.source(withIdentifier: "fs-cf") as? MLNShapeSource { src.shape = s } else { self.add(style) }
             }
         }
@@ -305,7 +305,7 @@ final class NativeFishDepth: NativeLayer {
             DispatchQueue.main.async {
                 guard r == self.round else { return }
                 self.shape = s
-                guard let style = self.screen?.mapLibreView.style else { return }
+                guard let style = self.screen?.readyStyle else { return }
                 if let src = style.source(withIdentifier: "fs-q") as? MLNShapeSource { src.shape = s } else { self.add(style) }
             }
         }
