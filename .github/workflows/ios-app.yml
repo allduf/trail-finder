@@ -39,7 +39,7 @@ jobs:
         working-directory: ios-app
     steps:
       - uses: actions/checkout@v4
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90   # v1.7.0, pinned to one exact version: runs beside the Apple keys
         with:
           xcode-version: latest-stable
       - uses: actions/setup-node@v4
@@ -89,7 +89,7 @@ jobs:
           fi
       - uses: actions/checkout@v4
         if: steps.keys.outputs.ok == 'true'
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90   # v1.7.0, pinned to one exact version: runs beside the Apple keys
         if: steps.keys.outputs.ok == 'true'
         with:
           xcode-version: latest-stable

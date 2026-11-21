@@ -249,7 +249,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
       <p>${esc(l.about)}</p>
       <div class="sc-facts">${facts.map(([k, v]) => `<div><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join("")}</div>
       <h3>Avalanche terrain: ${clsPill(l.cls)} ${l.clsWhy ? "" : "<span class=\"sc-small\">(estimated)</span>"}</h3>
-      <p class="sc-small">${esc(l.clsWhy || `Worked out from the shape of the ground, like the ATES scale: ${(c.why || []).join("; ")}. Forest, cornices and glaciers aren't seen.`)}</p>
+      <p class="sc-small">${esc(l.clsWhy || `Worked out from the shape of the ground, like the ATES scale: ${(c.why || []).filter((w) => !/under steep|gullies|creek beds|terrain trap/i /* wording-ok: a filter */.test(w)).join("; ") || "the terrain map"}. Forest, cornices and glaciers aren't seen.`)}</p>
       <div class="sc-lt">${lightHtml(l)}</div>
       <div class="sc-acts"><button type="button" class="go" data-act="show">Show on the map</button><button type="button" data-act="tour">＋ Add to tour</button><button type="button" data-act="list">All lines here</button></div>
       <div class="sc-key"><span><i></i>Descent</span><span><i class="up"></i>Way up from the gate</span><span><i class="out"></i>Way back</span></div>

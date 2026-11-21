@@ -180,6 +180,7 @@
           say("Opening Strava…");
           const r = await call("start", { back: location.origin + location.pathname });
           lsSet("tf:stravaPending", Date.now());
+          try { lsSet("tf:stravaState", new URL(r.url).searchParams.get("state")); } catch {}   // this device started it (finish)
           location.href = r.url;    // in the iPhone app this opens Safari
           return;
         }
@@ -249,6 +250,13 @@
   // Back from Strava's consent page.
   async function finish() {
     if (back.error || !back.code || !back.state) { say(back.error === "access_denied" ? "Strava wasn't connected: you said no on Strava's page." : "Strava didn't connect. Try again.", true); return; }
+    // A Strava answer this device didn't ask for (security check 2026-11-21): someone could send a Connect link they
+    // started, so your Strava would go to their Trail Finder account. Asked first, unless this device started it (in the
+    // iPhone app, Strava comes back in Safari, which doesn't know: then the question is asked too).
+    if (lsGet("tf:stravaState") !== back.state && !confirm("Connect your Strava to the Trail Finder account that started this? Only tap OK if you tapped Connect Strava in Trail Finder yourself, in the last 30 minutes.")) {
+      say("Strava wasn't connected."); return;
+    }
+    lsSet("tf:stravaState", null);
     say("Connecting Strava…");
     try {
       const r = await call("connect", { code: back.code, state: back.state, scope: back.scope });

@@ -1,0 +1,11 @@
+{
+  "name": "trail-map",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Android app's own map (MapLibre Native with 3D mountains): the same calls as ios-app/plugins/TrailMap, used by native-map.js on the website. Alex only for now.",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}

@@ -184,7 +184,7 @@ window.tfDragSort = (root, o) => {
     "cornice": "Overhanging snow on ridgetops that can break off and trigger the slope below.",
     "glide slab": "The whole snowpack sliding on smooth ground like rock or grass.",
   };
-  const SIZE_WHAT = ["", "Size 1: small, harmful mostly if it carries you into a terrain trap.", "Size 2: can bury, injure or kill a person.",
+  const SIZE_WHAT = ["", "Size 1: small, harmful mostly if it carries you into a terrain trap.", "Size 2: can bury, injure or kill a person.",   // wording-ok: Avalanche Canada's size definition
     "Size 3: can bury and destroy a car.", "Size 4: can destroy a railway car.", "Size 5: the largest known, can gouge the landscape."];
   const probWhat = (p) => PROB_WHAT[String(p.type || "").toLowerCase()] || "";
   const sizeWhat = (p) => { const n = Math.floor(Math.max(...String(p.size || "").split(/[^\d.]+/).map(Number).filter((x) => x > 0), 0)); return SIZE_WHAT[Math.min(5, n)] || ""; };
@@ -1495,10 +1495,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const what = listTab === "huts" ? "hut" : "route";
     const rated = listTab === "routes" && routes.some((x) => x.k), safe = sortSafe && rated;
     $("skSort").hidden = !rated;
-    $("skSort").textContent = safe ? "Sort: lowest risk ⇅" : "Sort: nearest ⇅";
-    $("skSort").title = safe ? "Sort by distance instead" : "Lowest avalanche risk first: the trip planner light, or the terrain class when there's no rating";
-    $("skCount").textContent = q ? `${rows.length} ${what}${rows.length === 1 ? "" : "s"} named “${findText.trim()}”, ${safe ? "lowest risk" : "nearest"} first`
-      : rows.length ? (safe ? "Lowest avalanche risk first, then nearest. Tap one for its details." : "Nearest the middle of the map first. Tap one for its details.") : "";
+    $("skSort").textContent = safe ? "Sort: trip planner ⇅" : "Sort: nearest ⇅";
+    $("skSort").title = safe ? "Sort by distance instead" : "Trip planner order: Normal caution first, then Extra caution, then Not recommended, or the terrain class when there's no rating";
+    $("skCount").textContent = q ? `${rows.length} ${what}${rows.length === 1 ? "" : "s"} named “${findText.trim()}”, ${safe ? "trip planner order" : "nearest first"}`
+      : rows.length ? (safe ? "Trip planner order (Normal caution first), then nearest. Tap one for its details." : "Nearest the middle of the map first. Tap one for its details.") : "";
     // The kind of route only when it isn't the list's usual kind (in Touring nearly all are ski touring).
     const kinds = new Map();
     for (const x of rows) if (x.g) kinds.set(x.g[0].type, (kinds.get(x.g[0].type) || 0) + 1);
@@ -2552,6 +2552,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const mapEl = map.getContainer();
     // From the flat map on alex's iPhone, native 3D flies it where the 3D button opens native 3D (native-flyover.js).
     if (!mapEl.classList.contains("is3d") && window.tfNativeFly && (await window.tfNativeFly(info.pts, title))) return;
+    // An iPhone with native 3D only (no web 3D map): nothing else can fly it.
+    if (window.tfNative && window.tfNative.full && window.tfNative.full()) { if (window.tfToast) window.tfToast("The 3D map isn't ready, so no flyover. Try again in a moment."); return; }
     if (!mapEl.classList.contains("is3d")) document.getElementById("btn3d")?.click();
     let gl = null;
     for (let n = 0; n < 150; n++) { gl = window.trailMap3d; if (gl && gl.getStyle() && mapEl.classList.contains("is3d")) break; await new Promise((ok) => setTimeout(ok, 100)); }

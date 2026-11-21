@@ -8,7 +8,7 @@
 (() => {
   "use strict";
   const N = window.tfNative;
-  if (!N || !N.addLayer) return;   // website, Android, or an older cached native-map.js
+  if (!N || !N.addLayer) return;   // website, or an older cached native-map.js (an Android build without Moto gets nothing: native-map.js draws)
   const t = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   N.addLayer("moto", () => {
     const d = window.tfMoto && window.tfMoto.native3d ? window.tfMoto.native3d() : null;

@@ -283,12 +283,17 @@
   map.on("moveend", () => { if (!card.hidden && !busy) { estimate(); if (!$("[data-name]").dataset.typed) $("[data-name]").value = suggestName(); } });
   $("[data-name]").addEventListener("input", (e) => { e.target.dataset.typed = "1"; });
 
+  // Areas saved in 3D with less detail than now fits them (before 2026-11-21 every save stopped at 12 m heights and
+  // the plain Winter photos; alex's airplane-mode video 2026-11-21: blurry snow up close): the detail they can get, or 0.
+  // Full detail fetches only the closer files: the saved ones are skipped.
+  // Not for a route's corridor (boxes): sized by its whole rectangle, it would fetch far more than the corridor.
+  const upTo = (a) => { if (!a.d3 || a.missing || a.boxes || !navigator.onLine) return 0; const z = detailFor(a.box, sportOf(a), true); return z > (+a.dz || 12) ? z : 0; };
   async function renderList() {
     const areas = load();
     drawOutlines();
     $("[data-saved-h]").hidden = !areas.length;
-    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
-${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-finish="${a.id}">Try again</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
+    $("[data-list]").innerHTML = areas.map((a) => { const up = upTo(a); return `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}${a.d3 && (+a.dz || 12) < 15 && !(busy && a.name === savingName) ? `<span class="muted" style="display:block">${esc(lessDetail(+a.dz || 12, sportOf(a)).replace(/^h/, "H"))}</span>` : ""}</div>
+${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-finish="${a.id}">Try again</button>` : up && !busy ? `<button type="button" data-up="${a.id}">${up >= 15 ? "Full detail" : "More detail"}</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`; }).join("");
     const use = $("[data-use]");
     use.textContent = "";
     if (navigator.storage && navigator.storage.estimate) {
@@ -299,9 +304,10 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   $("[data-list]").addEventListener("click", async (e) => {
     const b = e.target.closest("button");
     if (!b) return;
-    const areas = load(), a = areas.find((x) => x.id === (b.dataset.show || b.dataset.del || b.dataset.finish));
+    const areas = load(), a = areas.find((x) => x.id === (b.dataset.show || b.dataset.del || b.dataset.finish || b.dataset.up));
     if (!a) return;
     if (b.dataset.show) map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]);
+    else if (b.dataset.up) { if (busy || !upTo(a)) return; map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]); saveArea(a.box, a.name, a.id, a.boxes, false, upTo(a)); }
     else if (b.dataset.finish) { map.fitBounds([[a.box[0], a.box[1]], [a.box[2], a.box[3]]]); saveArea(a.box, a.name, a.id, a.boxes); }
     else if (!busy && confirm(`Delete the saved map of ${a.name}?`)) { b.disabled = true; await remove(a, areas); renderList(); estimate(); tell(a.name); }   // tell: native-offline.js drops its copy too
   });
@@ -677,7 +683,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   const needAccount = () => (window.tfAccount && window.tfAccount.require ? window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after.") : Promise.resolve(true));
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
   // files never come, so it can always be finished or deleted from there. auto: a try no one tapped (autoFinish).
-  async function saveArea(box, name, id, boxes, auto) {
+  async function saveArea(box, name, id, boxes, auto, wantDz) {
     if (busy) return;
     // A new save needs an account (alex 2026-11-04). Finishing an area already saved never asks, and saved areas
     // always work with no signal, signed in or not.
@@ -698,7 +704,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     if (busy) busy.wake = wake;
     let sources = null, bytes = 0, failed = [];
     const old0 = id && load().find((x) => x.id === id), sport = old0 ? sportOf(old0) : sportNow(), d3 = old0 ? !!old0.d3 : $("[data-3d]").checked;
-    const dz = old0 ? +old0.dz || 12 : detailFor(box, sport, d3);
+    const dz = wantDz || (old0 ? +old0.dz || 12 : detailFor(box, sport, d3));
     const ext = await extras(box, sport, d3, old0 ? old0.huntLayers : undefined, dz), huntLayers = ext.hunt ? ext.hunt.layers : undefined;
     // partial: while the save runs (alex 2026-11-21, "can the app continue to download an offline map if you quit the
     // app?"): the area is in the list from the start as not finished, so a save cut short by leaving or closing the
@@ -708,8 +714,11 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     const record = (partial) => {
       if (!sources) return;
       if (partial && busy.replace) return;   // a cabin trip's new square: the old save stays listed until this one is in
+      // An upgrade to more detail (wantDz): the saved map already works offline, so it stays as it was until the closer
+      // files are all in; one cut short is just tapped again.
+      if (wantDz && (partial || failed.length || busy.stop)) return;
       const areas = load(), old = areas.find((x) => x.id === id);
-      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes: partial ? Math.max(bytes, runBytes) : bytes, at: Date.now(), sport, ski: sport === "ski", d3, ...(d3 ? { dz } : {}), ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes: partial ? Math.max(bytes, runBytes) : bytes, at: wantDz && old && old.at ? old.at : Date.now(), sport, ski: sport === "ski", d3, ...(d3 ? { dz, dz0: old ? +old.dz0 || +old.dz || 12 : dz } : {}), ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
       if (old) { delete old.missing; delete old.missingUrls; }
       if (failed.length || busy.stop || partial) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
       if (old) Object.assign(old, entry); else areas.push(entry);

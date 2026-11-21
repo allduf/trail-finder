@@ -126,7 +126,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
 .pf .pf-areas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--chip); font-size: .85rem; }
 .pf .pf-areas span { flex-basis: 100%; }
 .pf .pf-areas .btn { padding: 5px 10px; font-size: .85rem; }
-.pf-pin { font-size: 22px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.pf-pin { box-sizing: border-box; display: grid; place-items: center; font-size: 15px; border-radius: 50%; background: #e0262b; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
 @media (max-width: 760px) { .pf { padding: 0; align-items: end; } .pf .card { max-height: 94%; border-radius: 14px 14px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
   .pf.kb .card { max-height: 100%; padding-bottom: 12px; } }
 `;
@@ -403,7 +403,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   }
   function showPin(p) {
     if (pin) pin.remove();
-    pin = L.marker(p, { icon: L.divIcon({ className: "pf-pin", html: "📷", iconSize: [30, 30], iconAnchor: [15, 26] }), title: "Where the photo or video was taken" })
+    pin = L.marker(p, { icon: L.divIcon({ className: "pf-pin", html: "📷", iconSize: [30, 30], iconAnchor: [15, 15] }), title: "Where the photo or video was taken" })
       .bindPopup(`Where the photo or video was taken<br><button type="button" class="linkish" data-pf-unpin>Remove this pin</button>`).addTo(map);
     pin.on("popupopen", (e) => { const b = e.popup.getElement().querySelector("[data-pf-unpin]"); if (b) b.onclick = () => { pin.remove(); pin = null; }; });
   }

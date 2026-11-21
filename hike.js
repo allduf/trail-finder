@@ -1740,7 +1740,9 @@ out center tags qt;`;
     renderToday(list, head);
   }
   // Each hike's group: a closure, warning or fire near it first ("check"), then snow up top, else neither found.
-  const todayState = (t) => (t.warn.some((w) => w.bad) ? "check" : t.snow != null && t.snow >= 0.1 ? "snow" : "good");
+  // Snow from 1 cm, the same as the trail's own line (trailCond): 2 cm of snow listed under "No snow" said two things
+  // at once (deep phone test 2026-11-21).
+  const todayState = (t) => (t.warn.some((w) => w.bad) ? "check" : t.snow != null && Math.round(t.snow * 100) >= 1 ? "snow" : "good");
   // The ground up top today, an estimate (alex 2026-11-19: "you can go hike when there is snow ... make sure the user
   // knows and maybe add the trail condition"): snow on the ground (snow depth), ice likely (wet in the last 2 days and
   // freezing within a day), mud likely, damp (prime) or firm, from the soil moisture in the top 9 cm on the same
