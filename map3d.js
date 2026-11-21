@@ -949,8 +949,34 @@
     }
     if (z === 0) throw new Error("no terrain");
     const parent = await demTile(z - 1, x >> 1, y >> 1, signal), size = parent.width / 2;
-    cx.drawImage(parent, (x % 2) * size, (y % 2) * size, size, size, 0, 0, 512, 512);
-    return cv;
+    return enlarge(parent, (x % 2) * size, (y % 2) * size, size);
+  }
+  // A quarter of the parent tile made into a whole tile, the heights blended smoothly between its points. Copying each
+  // point as a block (as before 2026-11-21) made steps of up to 20 m every few metres, which the shaded 3D ground showed
+  // as ripples all over the mountains with no signal (alex: "we are suppose to have the same quality off line").
+  // Blending the colour-coded pixels themselves would scramble the heights, so they're decoded, blended, coded again.
+  function enlarge(parent, sx, sy, size) {
+    const src = new OffscreenCanvas(size + 1, size + 1), sc = src.getContext("2d", { willReadFrequently: true });
+    sc.imageSmoothingEnabled = false;
+    // one point more right and down (the edge one repeated past the tile's end), so the last pixels have a neighbour
+    sc.drawImage(parent, sx, sy, size, size, 0, 0, size, size);
+    sc.drawImage(src, size - 1, 0, 1, size, size, 0, 1, size);
+    sc.drawImage(src, 0, size - 1, size + 1, 1, 0, size, size + 1, 1);
+    const p = sc.getImageData(0, 0, size + 1, size + 1).data, w = size + 1;
+    const h = new Float32Array(w * w);
+    for (let i = 0; i < h.length; i++) h[i] = p[i * 4] * 256 + p[i * 4 + 1] + p[i * 4 + 2] / 256;
+    const out = new OffscreenCanvas(512, 512), oc = out.getContext("2d"), img = oc.createImageData(512, 512), d = img.data, f = size / 512;
+    for (let j = 0; j < 512; j++) {
+      const v = (j + 0.5) * f - 0.5, y0 = Math.max(0, Math.floor(v)), ty = Math.min(1, Math.max(0, v - y0)), r0 = y0 * w, r1 = Math.min(size, y0 + 1) * w;
+      for (let i = 0; i < 512; i++) {
+        const u = (i + 0.5) * f - 0.5, x0 = Math.max(0, Math.floor(u)), tx = Math.min(1, Math.max(0, u - x0)), x1 = Math.min(size, x0 + 1);
+        const e = (h[r0 + x0] * (1 - tx) + h[r0 + x1] * tx) * (1 - ty) + (h[r1 + x0] * (1 - tx) + h[r1 + x1] * tx) * ty;
+        const k = (j * 512 + i) * 4, q = Math.round(e * 256);
+        d[k] = q >> 16; d[k + 1] = (q >> 8) & 255; d[k + 2] = q & 255; d[k + 3] = 255;
+      }
+    }
+    oc.putImageData(img, 0, 0);
+    return out;
   }
   // The height under the view's centre comes first. The 3D map stays flat, "Loading the mountains…" up, until it's in,
   // and MapLibre only asks for it once its library has started and the map's style is in (deep test, alex 2026-11-09:

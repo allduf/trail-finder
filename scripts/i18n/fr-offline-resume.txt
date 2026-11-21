@@ -4,3 +4,4 @@ Offline map not finished ||| Carte hors ligne pas finie
 the save may pause while Trail Finder isn't open. Open the app to finish it. ||| l’enregistrement peut s’arrêter quand Trail Finder n’est pas ouvert. Ouvrez l’app pour le finir.
 Saving offline map ||| Enregistrement de la carte hors ligne
 Offline maps: a save can keep going when you switch apps (Android shows a notification; iPhone allows a short time), and a save cut short may finish by itself the next time the app opens with signal. ||| Cartes hors ligne : l’enregistrement peut continuer quand vous changez d’app (Android affiche une notification; l’iPhone donne un court délai), et un enregistrement coupé peut se finir tout seul à la prochaine ouverture de l’app avec du réseau.
+3D with no signal: the mountains are smooth up close again, instead of rippled. ||| 3D sans réseau : les montagnes sont de nouveau lisses de près, sans ondulations.
