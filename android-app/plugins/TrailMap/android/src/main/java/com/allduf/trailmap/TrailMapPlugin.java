@@ -22,8 +22,10 @@ import java.util.Map;
 //   layer({ key, data }): one feature's data (NativeLayers.java; "base" is the map style picked on the page).
 //   close(): leaves it, as Back does.
 //   features(): { keys } the native 3D features this build draws (the page opens the web 3D map for the others).
-// Not yet on Android: offline() (the iPhone's own copies of offline areas); the page gets "not implemented" and goes on.
-// Events: "moved" and "closed", as on the iPhone (TrailMapScreen.java).
+//   offline({ areas: [{ id, box, boxes, ski, sharp }] }): the saved areas this phone keeps its own copy of for native 3D
+//     (OfflinePacks.java); answers { areas: { id: { pct, saved, active, bytes } } }, and "offlinePacks" with the same as
+//     the copies download.
+// Events: "moved" and "closed", as on the iPhone (TrailMapScreen.java), and "offlinePacks".
 @CapacitorPlugin(name = "TrailMap")
 public class TrailMapPlugin extends Plugin {
     private TrailMapScreen screen;
@@ -73,7 +75,19 @@ public class TrailMapPlugin extends Plugin {
             s.onStart();
             s.onResume();
             watchBack(a, true);
-            s.animate().alpha(1).setDuration(250).withEndAction(call::resolve).start();
+            // Seamless from the flat map (as on the iPhone): the screen stays unseen over the page's flat map (it takes the
+            // touches all the same) until its own map has drawn the same spot, then shows in a quick fade and (3D) tilts
+            // up from flat. At most 2.5 s (no signal, slow tiles).
+            boolean[] shown = { false };
+            Runnable show = () -> {
+                if (shown[0]) return;
+                shown[0] = true;
+                s.onReady = null;
+                if (s.isLeft()) { call.resolve(); return; }
+                s.animate().alpha(1).setDuration(180).withEndAction(() -> { s.tiltIn(); call.resolve(); }).start();
+            };
+            s.onReady = show;
+            s.postDelayed(show, 2500);
         });
     }
 
@@ -97,7 +111,13 @@ public class TrailMapPlugin extends Plugin {
             @Override public void handleOnBackPressed() {
                 TrailMapScreen s = screen;
                 if (s == null) { remove(); back = null; return; }
-                if (s.cardShown()) s.hideCard();
+                if (s.pageHasBack()) {
+                    // The page's own Back (Capacitor's): it closes its tool or dialog.
+                    setEnabled(false);
+                    Activity a = getActivity();
+                    if (a instanceof ComponentActivity) ((ComponentActivity) a).getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                } else if (s.cardShown()) s.hideCard();
                 else s.leave(false, false, null);
             }
         };
@@ -121,6 +141,19 @@ public class TrailMapPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("keys", new JSArray(TrailMapScreen.featureKeys()));
         call.resolve(r);
+    }
+
+    @PluginMethod
+    public void offline(PluginCall call) {
+        org.json.JSONArray areas;
+        try { areas = call.getArray("areas", new JSArray()); } catch (Exception e) { areas = new JSArray(); }
+        final org.json.JSONArray list = areas;
+        Activity a = getActivity();
+        if (a == null) { call.resolve(); return; }
+        a.runOnUiThread(() -> {
+            OfflinePacks.shared.onChange = (st) -> notifyListeners("offlinePacks", st);
+            OfflinePacks.shared.sync(a, list, call::resolve);
+        });
     }
 
     @PluginMethod

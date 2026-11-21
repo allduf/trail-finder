@@ -64,6 +64,8 @@ final class WinterTiles {
     private File dir;
 
     boolean ready() { synchronized (lock) { return loaded; } }
+    // The lists came from their sites just now (not the copy kept for no signal, which may lack newer squares).
+    boolean fresh() { synchronized (lock) { return loaded && !stale; } }
 
     // The address rewriter: set once a 3D screen opens (the late-summer mountains need it too, no lists).
     void install(Context ctx) {

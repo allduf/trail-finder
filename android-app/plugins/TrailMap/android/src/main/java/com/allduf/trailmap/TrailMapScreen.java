@@ -82,6 +82,9 @@ import org.maplibre.geojson.Point;
 @SuppressLint("ViewConstructor")
 final class TrailMapScreen extends FrameLayout {
     interface Events { void send(String name, JSObject data); }
+    // A feature that watches the fingers on the map (NativeFingers.java); the map still gets every touch.
+    interface TouchWatcher { void onTouch(android.view.MotionEvent e); }
+    private final List<TouchWatcher> watchers = new ArrayList<>();
 
     // The map styles, in the order the style button goes through them (as the iPhone's).
     private static final String[][] FLAT = { { "osm", "Map" }, { "topo", "Topo" }, { "sat", "Satellite" }, { "vector", "Sharp" } };
@@ -134,7 +137,8 @@ final class TrailMapScreen extends FrameLayout {
         this.startZoom = zoom;
         this.startBearing = bearing;
         String b = "sathybrid".equals(base) ? "sat" : base;
-        if (threeD) this.base = this.winter && "winter".equals(b) ? "winter" : "sat";
+        // 3D opens in the flat map's style where it has it (Topo, Map), so the change to 3D shows no other map.
+        if (threeD) this.base = this.winter && "winter".equals(b) ? "winter" : listed(THREE_D, b) ? b : "sat";
         else this.base = listed(FLAT, b) ? b : "osm";
         features = threeD ? NativeLayers.make() : new ArrayList<>();
         setBackgroundColor(PAPER);
@@ -154,6 +158,7 @@ final class TrailMapScreen extends FrameLayout {
         mapView.onCreate(null);
         mapView.setOnTouchListener((v, e) -> {
             if (e.getActionMasked() == android.view.MotionEvent.ACTION_UP) { lastTouch = new PointF(e.getX(), e.getY()); lastTouchAt = e.getEventTime(); }
+            for (TouchWatcher w : watchers) { try { w.onTouch(e); } catch (Exception ignored) {} }
             return false;   // the map still gets every touch
         });
         addView(mapView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
@@ -251,9 +256,50 @@ final class TrailMapScreen extends FrameLayout {
     private int barTop = 0, barBottom = 0;
     private void inset(WindowInsetsCompat ins) {
         Insets s = ins.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-        area.setPadding(s.left, s.top, s.right, s.bottom);
-        barTop = s.top; barBottom = s.bottom;
+        barTop = s.top; barBottom = s.bottom; barLeft = s.left; barRight = s.right;
+        padArea();
+    }
+    private int barLeft = 0, barRight = 0;
+    // The phone's bars only where the map reaches the screen's edge (a tool's page bar may sit between).
+    private void padArea() {
+        area.setPadding(barLeft, insetTop > 0 ? 0 : barTop, barRight, insetBottom > 0 ? 0 : barBottom);
         if (map != null) placeMapMarks();
+    }
+
+    // ---------- a tool of the page's (NativeTools): its bars show above and below, the map between ----------
+    // top and bottom in the page's points (CSS pixels, dp here) from the screen's edges.
+    private int insetTop = 0, insetBottom = 0;
+    private boolean aside = false;
+    void setToolInsets(float top, float bottom) {
+        float h = heightDp();
+        if (h <= 0) return;
+        float t = Math.max(0, Math.min(top, h * 0.6f)), b = Math.max(0, Math.min(bottom, h * 0.75f));
+        if (t + b > h - 160) return;          // no room left for a map: keep it as it is
+        int ti = dp(Math.round(t)), bi = dp(Math.round(b));
+        if (ti == insetTop && bi == insetBottom) return;
+        insetTop = ti; insetBottom = bi;
+        if (getLayoutParams() instanceof MarginLayoutParams) {
+            MarginLayoutParams lp = (MarginLayoutParams) getLayoutParams();
+            lp.topMargin = ti; lp.bottomMargin = bi;
+            setLayoutParams(lp);
+        }
+        padArea();
+    }
+    // A dialog of the page's is open (or there's no room for a map): the screen steps aside until it's answered.
+    void stepAside(boolean on) {
+        if (aside == on) return;
+        aside = on;
+        animate().cancel();
+        if (on) animate().alpha(0).setDuration(200).withEndAction(() -> { if (aside) setVisibility(INVISIBLE); }).start();
+        else { setVisibility(VISIBLE); animate().alpha(1).setDuration(200).start(); }
+    }
+    // Back goes to the page while its tool or dialog is showing (it closes them there).
+    boolean pageHasBack() { return aside || insetTop > 0 || insetBottom > 0; }
+    // The whole screen's height, not the map's between a tool's bars (the margins set above shrink this view itself).
+    float heightDp() {
+        android.view.ViewParent p = getParent();
+        int h = p instanceof View && ((View) p).getHeight() > 0 ? ((View) p).getHeight() : getHeight() + insetTop + insetBottom;
+        return h / getResources().getDisplayMetrics().density;
     }
     // MapLibre's compass under Back, its credits (ⓘ) at the bottom left, above the phone's bar.
     private void placeMapMarks() {
@@ -265,6 +311,13 @@ final class TrailMapScreen extends FrameLayout {
     private void ready(MapLibreMap m) {
         if (left) return;
         map = m;
+        mapView.addOnDidFinishRenderingMapListener((fully) -> {
+            Style st = map.getStyle();
+            if (!fully || onReady == null || st == null || !st.isFullyLoaded()) return;
+            Runnable r = onReady;
+            onReady = null;
+            r.run();
+        });
         placeMapMarks();
         if (threeD) {
             map.setMaxPitchPreference(80);
@@ -336,12 +389,17 @@ final class TrailMapScreen extends FrameLayout {
         addDashLayers(style);
         for (NativeLayer f : features) { try { f.added(style, this); } catch (Exception ignored) {} }
         showMe(style);
-        // 3D opens flat where the flat map was, then tilts in (as the web 3D map does).
-        if (threeD && !tilted) {
-            tilted = true;
-            map.animateCamera(CameraUpdateFactory.tiltTo(TILT), 1200);
-        }
     }
+    // 3D opens flat where the flat map was, then tilts in (as the web 3D map does), once it shows (TrailMapPlugin.open).
+    void tiltIn() {
+        if (!threeD || tilted || left || map == null) return;
+        tilted = true;
+        map.animateCamera(CameraUpdateFactory.tiltTo(TILT), 1200);
+    }
+    // A feature that sets the camera itself first (a Flyover): no tilt in after it.
+    void noTiltIn() { tilted = true; }
+    // The first frame of the same spot as the page's flat map, in the loaded style (open() then shows this screen).
+    Runnable onReady;
 
     // In 3D the trails go just under the place names, so names stay readable over them.
     private void put(Style style, Layer l) {
@@ -420,6 +478,23 @@ final class TrailMapScreen extends FrameLayout {
     // The lowest trail layer: a feature drawn under the trails adds its layers below this one.
     String trailsBottomLayer() { return "tf-line"; }
     MapLibreMap mapLibre() { return map; }
+    // Where a feature's own labels go: the screen inside the phone's bars (its children are laid out by gravity).
+    FrameLayout mapArea() { return area; }
+    // Top left, under the radar and smoke captions (NativeOverlay rows 0-1): the ground keys, then the avalanche card.
+    private LinearLayout infoColumn;
+    LinearLayout infoColumn() {
+        if (infoColumn == null) {
+            infoColumn = new LinearLayout(activity);
+            infoColumn.setOrientation(LinearLayout.VERTICAL);
+            FrameLayout.LayoutParams at = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+            at.setMargins(dp(12), dp(148), dp(12), 0);
+            area.addView(infoColumn, at);
+        }
+        return infoColumn;
+    }
+    void watchTouches(TouchWatcher w) { if (!watchers.contains(w)) watchers.add(w); }
+    // A feature's own drawing over the whole map, under the buttons (it lets every touch through).
+    void addOverMap(View v) { addView(v, indexOfChild(area), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)); }
     // A feature's own card: the same card as a trail's, with Details coming back to the page ("closed" then carries
     // feature: key and open: the feature's own number). details: false for a feature with nothing more to open.
     void showFeatureCard(String name, String sub, String colour, int open, LatLng at, String key, boolean details) {
@@ -445,7 +520,7 @@ final class TrailMapScreen extends FrameLayout {
     // The camera flies to a box (a searched place), a little less tilted in 3D.
     void fly(LatLng sw, LatLng ne) {
         if (map == null) return;
-        stopFollowing();
+        stopFollowingMe();
         CameraPosition c = map.getCameraForLatLngBounds(LatLngBounds.from(ne.getLatitude(), ne.getLongitude(), sw.getLatitude(), sw.getLongitude()),
             new int[] { dp(30), dp(90), dp(30), dp(110) });
         if (c == null) return;
@@ -507,10 +582,10 @@ final class TrailMapScreen extends FrameLayout {
     void hideCard() { showCard(null); }
     boolean cardShown() { return card.getVisibility() == VISIBLE; }
 
-    private static int num(Feature f, String k) {
+    static int num(Feature f, String k) {
         try { return f.hasProperty(k) && f.getProperty(k).isJsonPrimitive() ? f.getNumberProperty(k).intValue() : -1; } catch (Exception e) { return -1; }
     }
-    private static String str(Feature f, String k) {
+    static String str(Feature f, String k) {
         try { return f.hasProperty(k) && f.getProperty(k).isJsonPrimitive() ? f.getStringProperty(k) : ""; } catch (Exception e) { return ""; }
     }
     // "#rgb", "#rrggbb" (the colours the page uses); anything else is the fallback.
@@ -584,7 +659,18 @@ final class TrailMapScreen extends FrameLayout {
         LocationComponent lc = map.getLocationComponent();
         lc.setCameraMode(lc.getCameraMode() == CameraMode.NONE ? CameraMode.TRACKING : CameraMode.NONE);
     }
-    private void stopFollowing() {
+    // A tool follows you: "heading" turns the map with you, "follow" keeps you in the middle, anything else stops.
+    void followUser(String how) {
+        if (map == null) return;
+        Style style = map.getStyle();
+        boolean on = "heading".equals(how) || "follow".equals(how);
+        if (on && !located && style != null && style.isFullyLoaded()) showMe(style);
+        if (!located) return;
+        try {
+            map.getLocationComponent().setCameraMode("heading".equals(how) ? CameraMode.TRACKING_COMPASS : on ? CameraMode.TRACKING : CameraMode.NONE);
+        } catch (Exception ignored) {}
+    }
+    void stopFollowingMe() {
         if (located && map != null) { try { map.getLocationComponent().setCameraMode(CameraMode.NONE); } catch (Exception ignored) {} }
     }
 
@@ -639,7 +725,7 @@ final class TrailMapScreen extends FrameLayout {
     }
 
     // ---------- looks ----------
-    private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
+    int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
     private GradientDrawable round(int colour, float radiusDp) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(colour);
