@@ -11,6 +11,9 @@ import java.util.function.Supplier;
 final class NativeLayers {
     static final List<Supplier<NativeLayer>> ALL = List.of(
         NativeFingers::new,                    // NativeFingers.java: two-finger measure
+        NativeFishing::new,                    // NativeFishing.java: Fishing fills, names, spot, water, Crown land, depth pictures
+        NativeFishing.Creeks::new,             // NativeFishing.java: Fishing creeks from further away
+        NativeFishing.Depth::new,              // NativeFishing.java: Fishing lake depth lines and soundings
         NativeFlyover::new,                    // NativeFlyover.java: a ski tour's Flyover
         NativeHunting::new,                    // NativeHunting.java: Hunting fills, zone names, cone, rings, glassing, pictures
         NativeMoto::new,                       // NativeMoto.java: Adventure moto dirt roads and stops
