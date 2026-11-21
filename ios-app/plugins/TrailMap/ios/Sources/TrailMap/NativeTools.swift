@@ -145,7 +145,7 @@ final class NativeTools: NativeLayer {
                 guard r == self.round else { return }
                 self.shapes = (l, p, x)
                 self.labelTexts = texts
-                guard let st = self.screen?.mapLibreView.style else { return }
+                guard let st = self.screen?.readyStyle else { return }
                 self.addPictures(st)
                 (st.source(withIdentifier: NativeTools.lines) as? MLNShapeSource)?.shape = l
                 (st.source(withIdentifier: NativeTools.dots) as? MLNShapeSource)?.shape = p

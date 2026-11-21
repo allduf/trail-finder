@@ -31,7 +31,10 @@ final class NativeOffline: NativeLayer {
         apply(style)
         // Right after the app starts, MapLibre may still be reading its list of saved packs: draw again once it's in.
         if !online && MLNOfflineStorage.shared.packs == nil {
-            OfflinePacks.shared.withPacks { [weak self, weak style] _ in if let s = style { self?.apply(s) } }
+            OfflinePacks.shared.withPacks { [weak self, weak style] _ in
+                // Only the style still showing (a new base map may have come meanwhile; it draws this again itself).
+                if let s = style, s === self?.screen?.readyStyle { self?.apply(s) }
+            }
         }
     }
 
@@ -43,7 +46,8 @@ final class NativeOffline: NativeLayer {
             let b = ((a["box"] as? [Any]) ?? []).compactMap(num)
             return b.count == 4 ? (b, (a["label"] as? String) ?? "") : nil
         }
-        if let s = style ?? self.style { apply(s) }
+        // Only the style showing now, once loaded: while a new base map loads, its added(to:) draws this when it's in.
+        if let s = style ?? self.style, s === screen?.readyStyle { apply(s) }
     }
 
     private func apply(_ style: MLNStyle) {
@@ -56,7 +60,8 @@ final class NativeOffline: NativeLayer {
         guard off else { return }
 
         // The saved ground: under Winter's photos when they're there, else right under the trails.
-        let under = style.layer(withIdentifier: "wide") ?? screen?.trailsBottomLayer()
+        // From this same style: a layer from another one can't be inserted below (MapLibre stops the app).
+        let under = style.layer(withIdentifier: "wide") ?? style.layer(withIdentifier: "tf-line")
         let put = { (l: MLNStyleLayer) in if let u = under { style.insertLayer(l, below: u) } else { style.addLayer(l) } }
         let bg = MLNBackgroundStyleLayer(identifier: "tf-off-bg")
         bg.backgroundColor = NSExpression(forConstantValue: UIColor(red: 0xdf / 255.0, green: 0xe5 / 255.0, blue: 0xd2 / 255.0, alpha: 1))
