@@ -153,7 +153,10 @@ const front = () => /mResumedActivity|topResumedActivity/.test(adb("shell dumpsy
 
   // Back button: a menu open closes first; with nothing open it puts the app away (still running)
   // The terms are agreed to like a person would (they come back if just closed: Back can't skip them), the rest closed.
-  await js(`(() => { const ok = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (ok) ok.click(); document.querySelectorAll("dialog[open]").forEach((d) => d.close()); })()`);
+  // On a new phone the welcome opens a moment after I agree: waited for, then closed with the rest.
+  await js(`(() => { const ok = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (ok) ok.click(); })()`);
+  await sleep(3000);
+  await js(`document.querySelectorAll("dialog[open]").forEach((d) => d.close())`);
   await sleep(500);
   await js(`(() => { const b = document.getElementById("layersBtn"); if (b) b.click(); })()`);
   await sleep(800);
