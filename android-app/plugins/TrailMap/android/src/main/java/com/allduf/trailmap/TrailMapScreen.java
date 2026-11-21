@@ -255,10 +255,46 @@ final class TrailMapScreen extends FrameLayout {
     private int barTop = 0, barBottom = 0;
     private void inset(WindowInsetsCompat ins) {
         Insets s = ins.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-        area.setPadding(s.left, s.top, s.right, s.bottom);
-        barTop = s.top; barBottom = s.bottom;
+        barTop = s.top; barBottom = s.bottom; barLeft = s.left; barRight = s.right;
+        padArea();
+    }
+    private int barLeft = 0, barRight = 0;
+    // The phone's bars only where the map reaches the screen's edge (a tool's page bar may sit between).
+    private void padArea() {
+        area.setPadding(barLeft, insetTop > 0 ? 0 : barTop, barRight, insetBottom > 0 ? 0 : barBottom);
         if (map != null) placeMapMarks();
     }
+
+    // ---------- a tool of the page's (NativeTools): its bars show above and below, the map between ----------
+    // top and bottom in the page's points (CSS pixels, dp here) from the screen's edges.
+    private int insetTop = 0, insetBottom = 0;
+    private boolean aside = false;
+    void setToolInsets(float top, float bottom) {
+        float h = getHeight() / getResources().getDisplayMetrics().density;
+        if (h <= 0) return;
+        float t = Math.max(0, Math.min(top, h * 0.6f)), b = Math.max(0, Math.min(bottom, h * 0.75f));
+        if (t + b > h - 160) return;          // no room left for a map: keep it as it is
+        int ti = dp(Math.round(t)), bi = dp(Math.round(b));
+        if (ti == insetTop && bi == insetBottom) return;
+        insetTop = ti; insetBottom = bi;
+        if (getLayoutParams() instanceof MarginLayoutParams) {
+            MarginLayoutParams lp = (MarginLayoutParams) getLayoutParams();
+            lp.topMargin = ti; lp.bottomMargin = bi;
+            setLayoutParams(lp);
+        }
+        padArea();
+    }
+    // A dialog of the page's is open (or there's no room for a map): the screen steps aside until it's answered.
+    void stepAside(boolean on) {
+        if (aside == on) return;
+        aside = on;
+        animate().cancel();
+        if (on) animate().alpha(0).setDuration(200).withEndAction(() -> { if (aside) setVisibility(INVISIBLE); }).start();
+        else { setVisibility(VISIBLE); animate().alpha(1).setDuration(200).start(); }
+    }
+    // Back goes to the page while its tool or dialog is showing (it closes them there).
+    boolean pageHasBack() { return aside || insetTop > 0 || insetBottom > 0; }
+    float heightDp() { return getHeight() / getResources().getDisplayMetrics().density; }
     // MapLibre's compass under Back, its credits (ⓘ) at the bottom left, above the phone's bar.
     private void placeMapMarks() {
         map.getUiSettings().setCompassMargins(0, barTop + dp(64), dp(14), 0);
@@ -592,6 +628,17 @@ final class TrailMapScreen extends FrameLayout {
         if (!located) return;
         LocationComponent lc = map.getLocationComponent();
         lc.setCameraMode(lc.getCameraMode() == CameraMode.NONE ? CameraMode.TRACKING : CameraMode.NONE);
+    }
+    // A tool follows you: "heading" turns the map with you, "follow" keeps you in the middle, anything else stops.
+    void followUser(String how) {
+        if (map == null) return;
+        Style style = map.getStyle();
+        boolean on = "heading".equals(how) || "follow".equals(how);
+        if (on && !located && style != null && style.isFullyLoaded()) showMe(style);
+        if (!located) return;
+        try {
+            map.getLocationComponent().setCameraMode("heading".equals(how) ? CameraMode.TRACKING_COMPASS : on ? CameraMode.TRACKING : CameraMode.NONE);
+        } catch (Exception ignored) {}
     }
     void stopFollowingMe() {
         if (located && map != null) { try { map.getLocationComponent().setCameraMode(CameraMode.NONE); } catch (Exception ignored) {} }

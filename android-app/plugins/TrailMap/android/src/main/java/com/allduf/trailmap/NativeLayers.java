@@ -20,7 +20,8 @@ final class NativeLayers {
         () -> new NativeOverlay("radar", 0),   // NativeOverlay.java: rain and snow radar and forecast
         () -> new NativeOverlay("smoke", 1),   // NativeOverlay.java: wildfire smoke forecast
         NativePins::new,                       // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)
-        NativeSearch::new                      // NativeSearch.java: search a place and fly there
+        NativeSearch::new,                     // NativeSearch.java: search a place and fly there
+        NativeTools::new                       // NativeTools.java: the page's map tools (plan, record, compass, measure)
     );
 
     static List<NativeLayer> make() {

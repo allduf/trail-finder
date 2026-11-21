@@ -97,7 +97,13 @@ public class TrailMapPlugin extends Plugin {
             @Override public void handleOnBackPressed() {
                 TrailMapScreen s = screen;
                 if (s == null) { remove(); back = null; return; }
-                if (s.cardShown()) s.hideCard();
+                if (s.pageHasBack()) {
+                    // The page's own Back (Capacitor's): it closes its tool or dialog.
+                    setEnabled(false);
+                    Activity a = getActivity();
+                    if (a instanceof ComponentActivity) ((ComponentActivity) a).getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                } else if (s.cardShown()) s.hideCard();
                 else s.leave(false, false, null);
             }
         };
