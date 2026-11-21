@@ -328,12 +328,18 @@ final class OfflinePacks: NSObject {
             guard let t = c["tmpl"] as? String else { return nil }
             sources["ofm"] = ["type": "vector", "tiles": [t], "minzoom": 0, "maxzoom": 14]
             sources["dem"] = ["type": "raster-dem", "encoding": "terrarium", "tileSize": 512, "maxzoom": 12, "tiles": [demTiles]]
-            if ski { sources["winter"] = winter }
+            if ski {
+                sources["winter"] = winter
+                // The sharpened Winter photos too (zooms 11-15, ~5 KB each), as native 3D shows them online (WinterTiles
+                // "sharp"): close up the saved ground looks as it does with signal (alex 2026-11-21: "same quality off line").
+                sources["sharp"] = ["type": "raster", "tileSize": 256, "minzoom": 11, "maxzoom": 15, "tiles": ["https://\(WinterTiles.host)/s/{z}/{x}/{y}"]]
+            }
         } else if ski { sources["winter"] = winter } else { return nil }
         var layers: [[String: Any]] = [["id": "bg", "type": "background"]]
         if sources["ofm"] != nil { layers.append(["id": "water", "type": "fill", "source": "ofm", "source-layer": "water"]) }
         if sources["dem"] != nil { layers.append(["id": "shade", "type": "hillshade", "source": "dem"]) }
         if sources["winter"] != nil { layers.append(["id": "winter", "type": "raster", "source": "winter"]) }
+        if sources["sharp"] != nil { layers.append(["id": "sharp", "type": "raster", "source": "sharp"]) }
         return ["version": 8, "sources": sources, "layers": layers]
     }
 

@@ -924,10 +924,19 @@
   const AWS = (z, x, y) => `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
   const missing = new Set();    // Mapterhorn tiles that don't exist; their children don't either
   const isMissing = (z, x, y) => { for (; z >= 0; z--, x >>= 1, y >>= 1) if (missing.has(`${z}/${x}/${y}`)) return true; return false; };
-  // Offline maps (offline.js, "3D map" ticked) keep Mapterhorn's heights down to zoom 12 (SAVED_DEM_Z). With no signal a
-  // closer tile is cut from those straight away instead of trying sites that can't answer.
+  // Offline maps (offline.js, "3D map" ticked) keep Mapterhorn's heights down to zoom 12 (SAVED_DEM_Z), and since
+  // 2026-11-21 (alex: "same quality off line") down to their own detail, zoom 15 at full detail (dz in the saved list).
+  // With no signal a tile closer than the deepest saved one is cut from those straight away instead of trying sites
+  // that can't answer.
   const SAVED_DEM_Z = 12;
-  const offDeep = (z) => !navigator.onLine && z > SAVED_DEM_Z;
+  let savedDz = null;
+  const savedDemZ = () => {
+    if (savedDz == null) { try { savedDz = Math.max(SAVED_DEM_Z, ...(JSON.parse(localStorage.getItem("tf-offline-areas")) || []).map((a) => +a.dz || SAVED_DEM_Z)); } catch { savedDz = SAVED_DEM_Z; } }
+    return savedDz;
+  };
+  window.addEventListener("tf:offline", () => { savedDz = null; });
+  window.addEventListener("storage", () => { savedDz = null; });
+  const offDeep = (z) => !navigator.onLine && z > savedDemZ();
   async function image(url, signal) {
     const r = await fetch(url, { signal });
     if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
@@ -1847,10 +1856,15 @@
   // answers both from the saved copy. Esri's photos (Summer, Live) can't be saved: offline the ground is the saved map.
   const tileX = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);
   const tileY = (lat, z) => Math.floor(((1 - Math.asinh(Math.tan((lat * Math.PI) / 180)) / Math.PI) / 2) * 2 ** z);
-  window.tf3dOffline = async (b, sport) => {
+  // dz: the deepest heights to keep (offline.js picks it from the square's size: 15 is full detail, Mapterhorn's
+  // finest here, 1.5 m a pixel; 12 as before 2026-11-21). At 15 in Skiing, the sharpened Winter photos (zoom 15, ~5 KB
+  // each) come too: close up they're the photos the 3D map shows online, and the lidar light on the snow is drawn from
+  // the saved heights (winter-hd.js). Esri's fine photo detail can't be saved (its terms).
+  window.tf3dOffline = async (b, sport, dz = SAVED_DEM_Z) => {
     const tiles = [], data = [];
+    dz = Math.max(SAVED_DEM_Z, Math.min(15, +dz || SAVED_DEM_Z));
     const each = (z0, z1, fn) => { for (let z = z0; z <= z1; z++) for (let x = tileX(b[1], z); x <= tileX(b[3], z); x++) for (let y = tileY(b[2], z); y <= tileY(b[0], z); y++) fn(z, x, y); };
-    each(6, SAVED_DEM_Z, (z, x, y) => tiles.push(MAPTERHORN(z, x, y)));
+    each(6, dz, (z, x, y) => tiles.push(MAPTERHORN(z, x, y)));
     let photos = 0;
     if (sport === "ski") {
       const have = await loadWinterBlocks();
@@ -1862,9 +1876,16 @@
         const add = (z, x, y) => { if (anyWinter(have, z, x, y)) { tiles.push(tfWinterShard(new URL(`${winterSite(have, z, x, y)}${z}/${x}/${y}.webp`, location.href).href, z, x, y)); photos++; } };
         for (let z = 6; z <= 10; z++) for (let x = tileX(b[1], z) - 1; x <= tileX(b[3], z) + 1; x++) for (let y = tileY(b[2], z) - 1; y <= tileY(b[0], z) + 1; y++) add(z, x, y);
         each(11, 14, add);
+        if (dz >= 15) {
+          const sharp = await loadSharp().catch(() => null);
+          if (sharp) {
+            data.push(tfWinterShard(new URL(SHARP + "sharp.json", location.href).href, 0, 0, 0), new URL("data/sharp-canada.json", location.href).href);
+            each(15, 15, (z, x, y) => { if (hasSharp(sharp, z, x, y)) { tiles.push(tfWinterShard(new URL(`${sharpBase(sharp, z, x, y)}${z}/${x}/${y}.webp${SHARP_REV}`, location.href).href, z, x, y)); photos++; } });
+          }
+        }
       }
     }
-    return { data, tiles, heights: tiles.length - photos, photos };
+    return { data, tiles, heights: tiles.length - photos, photos, dz };
   };
   // Is tile z/x/y all inside the zoom-11 squares that have winter photos?
   const covered = (have, z, x, y) => {
@@ -3186,6 +3207,9 @@
       // shaded, like the offline map (see the topo source).
       else if (photos === "topo") for (const id of ["off-bg", "off-land", "off-water"]) gl.setLayoutProperty(id, "visibility", "visible");
       gl.setLayoutProperty("topo-shade", "visibility", !off && photos === "topo" ? "visible" : "none");
+      // Topo with no signal: elevation lines from the saved heights over the saved map (contours.js), our own Topo
+      // look, since OpenTopoMap's pictures can't be saved (alex 2026-11-21: "Topo is not working off line").
+      if (window.tfContourForce) window.tfContourForce("offline-3d", off && photos === "topo");
     };
     netChange = () => { if (gl && gl.getLayer("off-bg")) setPhotos(photos); };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no

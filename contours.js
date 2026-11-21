@@ -256,7 +256,7 @@ onmessage = async (e) => {
       });
     }
     const apply = () => {
-      if (!on) { if (gl.getLayer("contours")) gl.removeLayer("contours"); if (gl.getSource("contours")) gl.removeSource("contours"); return; }
+      if (!shown()) { if (gl.getLayer("contours")) gl.removeLayer("contours"); if (gl.getSource("contours")) gl.removeSource("contours"); return; }
       if (!gl.getSource("contours")) gl.addSource("contours", { type: "raster", tiles: ["tfcontour://{z}/{x}/{y}"], tileSize: 256, minzoom: MIN_ZOOM + 1, maxzoom: 16, attribution: ATTR });
       const before = ["avy", "skiheat", "osm-roads"].find((id) => gl.getLayer(id));
       if (!gl.getLayer("contours")) gl.addLayer({ id: "contours", type: "raster", source: "contours", paint: { "raster-fade-duration": 0 } }, before);
@@ -270,13 +270,24 @@ onmessage = async (e) => {
   // The iPhone's own 3D map asks for the same pictures (native-ground.js); on top of the other ground layers.
   (window.tfGround = window.tfGround || {}).contours = {
     paint: (z, x, y, signal) => render(z, x, y, "3d", 256, signal).then((r) => r.bmp || null),
-    on: () => on, ver: () => "1", min: MIN_ZOOM + 1, max: 16, opacity: 1, z: 400, credit: ATTR.replace(/<[^>]+>/g, ""), keep: false,   // a failed drawing comes back blank: never kept
+    on: () => shown(), ver: () => "1", min: MIN_ZOOM + 1, max: 16, opacity: 1, z: 400, credit: ATTR.replace(/<[^>]+>/g, ""), keep: false,   // a failed drawing comes back blank: never kept
   };
 
   // ---------- the button ----------
   let on = store.get("contours", false);
+  // Topo with no signal (alex 2026-11-21: "Topo is not working off line"): its pictures can't be saved (OpenTopoMap
+  // asks apps not to bulk-download them), so the Topo look offline is our own: the saved map with these lines drawn
+  // from the saved heights. offline.js (flat map) and map3d.js (3D) ask for them with window.tfContourForce(who, on);
+  // the button and its saved setting stay as the rider left them.
+  const forced = new Set();
+  const shown = () => on || forced.size > 0;
+  window.tfContourForce = (who, want) => {
+    if (want === forced.has(who)) return;
+    if (want) forced.add(who); else forced.delete(who);
+    refresh();
+  };
   function refresh() {
-    if (on) { if (!map.hasLayer(layer)) layer.addTo(map); } else if (map.hasLayer(layer)) map.removeLayer(layer);
+    if (shown()) { if (!map.hasLayer(layer)) layer.addTo(map); } else if (map.hasLayer(layer)) map.removeLayer(layer);
     sync3d();
     window.dispatchEvent(new Event("tf:ground"));
     btn.classList.toggle("on", on);
