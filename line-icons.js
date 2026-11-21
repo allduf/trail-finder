@@ -61,6 +61,14 @@
     loop: '<path d="M4 12a6 6 0 0 1 6-6h8M15 3l3 3-3 3"/><path d="M20 12a6 6 0 0 1-6 6H6M9 21l-3-3 3-3"/>',
     battery: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10.5v3M7 10.5v3M10.5 10.5v3"/>',
     barrier: '<rect x="2.5" y="7" width="19" height="6" rx="1"/><path d="M6 7l-3 6M11 7l-4 6M16 7l-4 6M21 7l-4 6M5 13v8M19 13v8"/>',
+    tree: '<path d="M12 2 6 10h3l-4 6h14l-4-6h3z"/><path d="M12 16v6"/>',
+    rain: '<path d="M7 15a4.5 4.5 0 0 1-.5-9 5.5 5.5 0 0 1 10.5 1.5A3.75 3.75 0 0 1 17 15z"/><path d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/>',
+    soil: '<path d="M3 9c3-2 6-2 9 0s6 2 9 0M3 14c3-2 6-2 9 0s6 2 9 0M3 19c3-2 6-2 9 0s6 2 9 0"/>',
+    hut: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10M10 20v-5h4v5"/>',
+    cloud: '<path d="M7 18a4.5 4.5 0 0 1-.5-9 5.5 5.5 0 0 1 10.5 1.5A3.75 3.75 0 0 1 17 18z"/>',
+    fog: '<path d="M7 12a4.5 4.5 0 0 1 10-2.5A3.5 3.5 0 0 1 18 12"/><path d="M3 15h18M5 18.5h14M7 22h10"/>',
+    snowcloud: '<path d="M7 14a4.5 4.5 0 0 1-.5-9 5.5 5.5 0 0 1 10.5 1.5A3.75 3.75 0 0 1 17 14z"/><path d="M8 18v.5M12 17v.5M16 18v.5M10 21v.5M14 21v.5"/>',
+    town: '<path d="M2.5 21V11l5-4 5 4v10M12.5 21v-7l4.5-3.5 4.5 3.5v7M2 21h20M6 21v-4h3v4"/>',
     peak: '<path d="M2 20 9 7l4 6 2.5-3.5L22 20z"/><path d="M7.5 10 9 12l1.5-2"/>',
     calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     snow: '<path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5"/><path d="m9 4 3 2 3-2M9 20l3-2 3 2"/>',
@@ -100,7 +108,8 @@
     "⏰": "alarm", "✅": "check", "✏": "pencil", "⬇": "download", "👥": "people", "🚗": "car", "🛏": "bed", "🔥": "fire", "⏱": "timer",
     "🎉": "sparkle", "💬": "chat",
     "🧂": "salt", "⛺": "tent", "🚁": "heli", "🔍": "search", "🔎": "search", "📱": "phone", "🔁": "loop", "🔋": "battery", "🚧": "barrier",
-    "⛰": "peak", "🏔": "peak",
+    "⛰": "peak", "🏔": "peak", "🌲": "tree", "🌧": "rain", "🤎": "soil", "🛖": "hut",
+    "☁": "cloud", "🌫": "fog", "🌨": "snowcloud", "📄": "doc", "🏘": "town",
   };
   const draw = (k, size) => `<svg class="tf-line" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
   const keyOf = (s) => {
@@ -111,6 +120,20 @@
   window.tfLine = (s, size = 18) => { const k = keyOf(s); return k && !k[2].trim() ? draw(k[1], size) : String(s == null ? "" : s); };
   window.tfLineName = (name, size = 18) => (P[name] ? draw(name, size) : "");
   const SKIP = /^(SCRIPT|STYLE|TEXTAREA|INPUT|SELECT|OPTION|svg)$/i;
+  // One text node: the drawing goes in front of it and the emoji leaves the text.
+  const swap = (n, [, name, rest]) => {
+    const pc = n.parentElement.classList, size = pc.contains("ic") || pc.contains("spb-i") || pc.contains("i") ? 22 : 17;
+    const t = document.createElement("template");
+    t.innerHTML = draw(name, size);
+    const cs = getComputedStyle(n.parentElement);
+    // A column (Layers' "🔥 Wildfires" over its status line): the drawing and its words stay on one line together.
+    const column = /flex/.test(cs.display) && /column/.test(cs.flexDirection);
+    if (column) { const row = document.createElement("span"); n.parentNode.insertBefore(row, n); row.append(t.content.firstChild, n); }
+    else n.parentNode.insertBefore(t.content.firstChild, n);
+    // A space after the drawing, unless the button lays its parts out with a gap already (flex).
+    const flex = !column && /flex|grid/.test(cs.display);
+    n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
+  };
   window.tfLineify = (root) => {
     if (!root) return;
     const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
@@ -122,15 +145,7 @@
       const k = keyOf(n.data);
       if (k) hits.push([n, k]);
     }
-    for (const [n, [, name, rest]] of hits) {
-      const pc = n.parentElement.classList, size = pc.contains("ic") || pc.contains("spb-i") || pc.contains("i") ? 22 : 17;
-      const t = document.createElement("template");
-      t.innerHTML = draw(name, size);
-      n.parentNode.insertBefore(t.content.firstChild, n);
-      // A space after the drawing, unless the button lays its parts out with a gap already (flex).
-      const flex = /flex|grid/.test(getComputedStyle(n.parentElement).display);
-      n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
-    }
+    for (const [n, k] of hits) swap(n, k);
   };
   // The sports' own icons, everywhere (alex 2026-11-08, "i like those kind of icon, we should put the same style for
   // all the sport"): the Sport menu's drawings for MTB, Skiing, Hunting, Fishing, Adventure moto and Hiking also replace
@@ -142,7 +157,10 @@
   // the panels): only those that show in colour on phones (Emoji_Presentation, or a picture past U+1F000 such as 🗺),
   // so text symbols such as ★ rating stars, ◎, ⚠ or ▶ stay as they are outside the panels.
   const COLOUR = Object.keys(E).filter((e) => /\p{Emoji_Presentation}/u.test(e) || e.codePointAt(0) >= 0x1f000).map((e) => e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const ALT = ["🚵", "🚴", "🚲", "⛷", "🎿", "🛷", "🚡", "🦌", "🎣", "🐟", "🏍", "🥾", ...COLOUR].filter((e, i, a) => a.indexOf(e) === i).join("|");
+  // Symbols that are text by default turn colour on phones when written with VS16 (⚙️ Settings, ☀️ Dry, ❄️ Snow), and
+  // ☁ shows in colour on iPhones as it is (⛰ stays out: the 3D button draws its own mountain).
+  const VS16 = Object.keys(E).filter((e) => !COLOUR.includes(e) && !/^[★◎▭▶➚⤓⤢]$/u.test(e)).map((e) => e + "\uFE0F");
+  const ALT = ["🚵", "🚴", "🚲", "⛷", "🎿", "🛷", "🚡", "🦌", "🎣", "🐟", "🏍", "🥾", "☁", ...VS16, ...COLOUR].filter((e, i, a) => a.indexOf(e) === i).join("|");
   const SPORT_E = new RegExp(`^\\s*(${ALT})`, "u"), HAS = new RegExp(ALT, "u");
   const PANES = "#skiPane, #huntPane, #fishPane, #motoPane, #hikePane";
   const NOT = ".leaflet-pane, .leaflet-marker-icon, .maplibregl-marker, .maplibregl-canvas-container, [data-no-line], select, textarea, input";
@@ -156,10 +174,12 @@
       const p = n.parentElement;
       if (!p || !SPORT_E.test(n.data) || SKIP.test(p.tagName) || p.closest(NOT + ", svg")) continue;
       if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
-      hits.push(p);
+      const k = keyOf(n.data);
+      if (k) hits.push([n, k]);
     }
-    // tfLineify swaps every known emoji at the start of that element's texts (a "🚵 My rides" button, a ⛷ icon box).
-    new Set(hits).forEach((p) => window.tfLineify(p));
+    // Only the text that starts with one of them (a "🚵 My rides" button, a ⛺ icon box): a ★ rating or a ◎ next to
+    // it stays as it is.
+    for (const [n, k] of hits) swap(n, k);
   };
   const pending = new Set();
   let queued = false;
