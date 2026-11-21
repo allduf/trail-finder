@@ -73,6 +73,7 @@ final class NativeGround: NativeLayer {
             // Under the first of ours above it, else under the trails.
             let above = items[(n + 1)...].lazy.compactMap { self.onMap[$0.sourceId] != nil ? style.layer(withIdentifier: $0.sourceId) : nil }.first
             if let a = above { style.insertLayer(layer, below: a) }
+            else if let c = NativeLayers.groundCeiling.lazy.compactMap({ style.layer(withIdentifier: $0) }).first { style.insertLayer(layer, below: c) }
             else if let t = screen?.trailsBottomLayer() { style.insertLayer(layer, below: t) }
             else { style.addLayer(layer) }
             onMap[it.sourceId] = it.url

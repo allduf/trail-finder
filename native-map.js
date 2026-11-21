@@ -190,21 +190,24 @@
   const tf = (k, d) => { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const pressed = (id) => { const b = document.getElementById(id); return !!b && !b.hidden && b.getAttribute("aria-pressed") === "true"; };
   const GROUND = ["slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND, but avalanche
-  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // before hunting.js loads (its tfHunt.webOnly3d)
+  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // a hunting.js from before tfHunt.web3d
   // The ground layers (native-ground.js: elevation lines, sun and shade, Skiing's ground colours, Hunting's slope angle and
   // aspect) open in native 3D once this phone's app build has shown it draws them ("tf-native-ground", set the first
   // time a native 3D map with them opens); older builds keep the web 3D map for them.
   const groundNative = () => { try { return localStorage.getItem("tf-native-ground") === "1"; } catch { return false; } };
+  // Hunting's picture layers the same way ("tf-native-huntpics": NativeHunting.swift says "huntPics" in any sport's native 3D).
+  const huntPicsNative = () => { try { return localStorage.getItem("tf-native-huntpics") === "1"; } catch { return false; } };
+  TrailMap.addListener("huntPics", () => { try { localStorage.setItem("tf-native-huntpics", "1"); } catch {} });   // here: hunting.js may not be loaded yet
   const webOnly = () => {
     if (tf("avy", false) === true || pressed("avyBtn")) return true;   // avalanche stays in the web 3D map (its own step)
     const ground = groundNative();
     if (!ground && ["contourBtn", "shadeBtn"].some(pressed)) return true;
-    // Hunting: its picture layers are drawn only by the web 3D map (NativeHunting.swift draws the rest). Not stored yet =
-    // Hunting's first-time set (zones, parks, scent cone): all native.
+    // Hunting: what this build can't draw opens the web 3D map (hunting.js tfHunt.web3d; NativeHunting.swift and
+    // native-ground.js draw the rest). Not stored yet = Hunting's first-time set (zones, parks, scent cone): all native.
     if (document.body.classList.contains("sport-hunt")) {
       const hunt = tf("huntLayers2", null);
-      const web = ((window.tfHunt && window.tfHunt.webOnly3d) || HUNT_WEB).filter((k) => !ground || (k !== "slope" && k !== "aspect"));
-      if (Array.isArray(hunt) && hunt.some((k) => web.includes(k))) return true;
+      if (window.tfHunt && window.tfHunt.web3d) { if (window.tfHunt.web3d(ground, huntPicsNative())) return true; }
+      else if (Array.isArray(hunt) && hunt.some((k) => HUNT_WEB.filter((x) => !ground || (x !== "slope" && x !== "aspect")).includes(k))) return true;
     }
     if (ground || !document.body.classList.contains("sport-ski")) return false;
     const shown = tf("skiLayers2", null);
