@@ -72,13 +72,26 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             host.addChild(s)
             s.view.frame = host.view.bounds
             s.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            s.view.alpha = 0
+            s.view.alpha = 0.011   // not seen, but it takes the touches (alpha 0 lets them through to the flat map)
             host.view.addSubview(s.view)
             s.didMove(toParent: host)
-            UIView.animate(withDuration: 0.25, animations: { s.view.alpha = 1 }) { _ in
-                if s.parent != nil && !s.left && !s.toolOpen && !s.aside { s.showWeb?(false) }
-                call.resolve()
+            // Seamless from the flat map (alex 2026-11-21: "tilt from the 2d directly and it transition seamless to 3d"):
+            // the screen stays invisible over the page's flat map until its own map has drawn the same spot, in the same
+            // style, then shows in a quick fade and (3D) tilts up from flat. At most 2.5 s (no signal, slow tiles).
+            var shown = false
+            let show = { [weak s] in
+                if shown { return }
+                shown = true
+                guard let s = s, !s.left else { call.resolve(); return }
+                s.onReady = nil
+                UIView.animate(withDuration: 0.18, animations: { s.view.alpha = 1 }) { _ in
+                    if s.parent != nil && !s.left && !s.toolOpen && !s.aside { s.showWeb?(false) }
+                    s.tiltIn()
+                    call.resolve()
+                }
             }
+            s.onReady = show
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: show)
         }
     }
 
@@ -167,6 +180,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private let esri: String?      // the page's Esri photo address (the app's own key), for the 3D photos
     private let fr: Bool           // names in French
     private var tilted = false
+    // The first frame of the same spot and style as the page's flat map is drawn (open() then shows this screen).
+    var onReady: (() -> Void)?
+    private var waitWinter = false   // Skiing's Winter asked for but its lists still coming: not ready on Satellite
+    // False from the moment a new map style is asked for until it has loaded. Meanwhile MapLibre swaps the old layers
+    // out from under their objects, so a feature touching the style then can crash the app (alex's crash 2026-11-21:
+    // Satellite picked in 3D with no signal). Features draw again in didFinishLoading.
+    private(set) var styleReady = false
     private var base: String
     private var map: MLNMapView!
     private var lineShape: MLNShape?
@@ -198,8 +218,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         self.winter = ski
         let b = base == "sathybrid" ? "sat" : base
         let list = threeD ? TrailMapScreen.styles3D : TrailMapScreen.flatStyles
-        self.base = threeD ? (ski && b == "winter" ? "winter" : "sat") : (list.contains { $0.key == b } ? b : "osm")
+        // 3D opens in the flat map's style where it has it (Topo, Map), so the change to 3D shows no other map.
+        self.base = threeD ? (ski && b == "winter" ? "winter" : list.contains { $0.key == b } ? b : "sat") : (list.contains { $0.key == b } ? b : "osm")
         super.init(nibName: nil, bundle: nil)
+        waitWinter = self.base == "winter" && !WinterTiles.shared.ready
         if threeD { WinterTiles.shared.install() }   // the photo address rewriter (Winter photos, late-summer mountains)
         if ski { WinterTiles.shared.load { _ in } }   // the lists of photo squares, ready by the time Winter is picked
     }
@@ -245,7 +267,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
 
         let back = pill("← Back", #selector(backTapped))
         let tag = UILabel()
-        tag.text = threeD ? "  Native 3D (test)  " : "  Native map (test)  "
+        tag.text = "  Native map (test)  "
+        tag.isHidden = threeD   // native 3D is the iPhone's 3D map now (alex 2026-11-21): no "(test)" label
         tag.font = .systemFont(ofSize: 12, weight: .semibold)
         tag.textColor = .white
         tag.backgroundColor = UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 0.75)
@@ -399,9 +422,11 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         showStyle()
     }
     private func showStyle() {
-        guard base == "winter", !WinterTiles.shared.ready else { map.styleURL = styleURL(base); return }
+        guard base == "winter", !WinterTiles.shared.ready else { if base == "winter" { waitWinter = false }; styleReady = false; map.styleURL = styleURL(base); return }
         WinterTiles.shared.load { [weak self] ok in
             guard let self = self, !self.left, self.base == "winter" else { return }
+            self.waitWinter = false
+            self.styleReady = false
             if ok { self.map.styleURL = self.styleURL("winter"); return }
             // The lists couldn't come (no connection): back to Satellite.
             self.base = "sat"
@@ -519,6 +544,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
     // A new style has no trails: they're added again on top of it.
     func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
+        styleReady = true
         dashLayers = []
         let lines = MLNShapeSource(identifier: "tf-lines", shape: lineShape, options: nil)
         let dots = MLNShapeSource(identifier: "tf-dots", shape: dotShape, options: nil)
@@ -560,13 +586,19 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         }
         addDashLayers()
         features.forEach { $0.added(to: style, screen: self) }
-        // 3D opens flat where the flat map was, then tilts in (as the web 3D map does).
-        if threeD && !tilted {
-            tilted = true
-            let cam = mapView.camera
-            cam.pitch = TrailMapScreen.tilt
-            mapView.setCamera(cam, withDuration: 1.2, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
-        }
+    }
+    // 3D opens flat where the flat map was, then tilts in (as the web 3D map does), once it shows (open()).
+    func tiltIn() {
+        guard threeD, !tilted, !left else { return }
+        tilted = true
+        let cam = map.camera
+        cam.pitch = TrailMapScreen.tilt
+        map.setCamera(cam, withDuration: 1.2, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
+    }
+    func mapViewDidFinishRenderingMap(_ mapView: MLNMapView, fullyRendered: Bool) {
+        guard fullyRendered, styleReady, !(waitWinter && base == "winter"), let ready = onReady else { return }
+        onReady = nil
+        ready()
     }
 
     private func lineLayer(id: String, source: MLNSource, dash: String) -> MLNLineStyleLayer {
@@ -590,7 +622,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // against the photos (thin dots all but vanished on the Winter photos). The band isn't tappable: the dots are.
     private static let dotGrow = 1.3, dotBand = 2.5
     private func addDashLayers() {
-        guard let style = map.style, let src = style.source(withIdentifier: "tf-lines"), let dots = style.layer(withIdentifier: "tf-dots") else { return }
+        guard let style = readyStyle, let src = style.source(withIdentifier: "tf-lines"), let dots = style.layer(withIdentifier: "tf-dots") else { return }
         for d in dashKeys where !d.isEmpty {
             let id = "tf-dash:" + d
             if dashLayers.contains(id) { continue }
@@ -616,10 +648,12 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         if key == "base" { setBase(data); return }
         if key == "layers" { layersAsked = false; return }   // the page opens its Layers over this screen (layersTapped)
         guard let f = features.first(where: { $0.key == key }) else { return }
-        f.setData(data, style: isViewLoaded ? map.style : nil)
+        f.setData(data, style: isViewLoaded && styleReady ? map.style : nil)
     }
     // The lowest trail layer: a feature drawn under the trails inserts its layers below this one.
-    func trailsBottomLayer() -> MLNStyleLayer? { map.style?.layer(withIdentifier: "tf-line") }
+    func trailsBottomLayer() -> MLNStyleLayer? { styleReady ? map.style?.layer(withIdentifier: "tf-line") : nil }
+    // The style a feature may change now: the one showing, once it has loaded (nil while a new one loads).
+    var readyStyle: MLNStyle? { isViewLoaded && styleReady ? map.style : nil }
     var mapLibreView: MLNMapView { map }
     // Where a feature's own labels and buttons go: the map's part of the screen, inside the safe area (it shrinks while a
     // tool's bar from the page is open, setToolInsets).
@@ -671,7 +705,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
                 self.lineShape = l
                 self.dotShape = d
                 self.dashKeys = dashes.split(separator: "|").map(String.init)
-                guard self.isViewLoaded, let style = self.map.style else { return }
+                guard let style = self.readyStyle else { return }
                 (style.source(withIdentifier: "tf-lines") as? MLNShapeSource)?.shape = l
                 (style.source(withIdentifier: "tf-dots") as? MLNShapeSource)?.shape = d
                 self.addDashLayers()

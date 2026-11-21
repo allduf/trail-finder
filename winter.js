@@ -2556,6 +2556,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const mapEl = map.getContainer();
     // From the flat map on alex's iPhone, native 3D flies it where the 3D button opens native 3D (native-flyover.js).
     if (!mapEl.classList.contains("is3d") && window.tfNativeFly && (await window.tfNativeFly(info.pts, title))) return;
+    // An iPhone with native 3D only (no web 3D map): nothing else can fly it.
+    if (window.tfNative && window.tfNative.full && window.tfNative.full()) { if (window.tfToast) window.tfToast("The 3D map isn't ready, so no flyover. Try again in a moment."); return; }
     if (!mapEl.classList.contains("is3d")) document.getElementById("btn3d")?.click();
     let gl = null;
     for (let n = 0; n < 150; n++) { gl = window.trailMap3d; if (gl && gl.getStyle() && mapEl.classList.contains("is3d")) break; await new Promise((ok) => setTimeout(ok, 100)); }
