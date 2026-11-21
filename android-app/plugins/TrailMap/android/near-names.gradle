@@ -1,0 +1,73 @@
+// Names and dots near the camera in native 3D on Android, as on the iPhone (ios-app/plugins/TrailMap/ios/Sources/
+// TrailMap/NativeNearNames.swift) and in the web 3D map (map3d.js, PR #885; alex's recording 2026-11-21 at Wedge
+// Mountain). MapLibre draws an upright name up to 4 times its size near the camera (perspective_ratio in its symbol
+// shaders) and an upright dot that scales with the map with no limit (its circle shader); no style property changes it.
+// MapLibre's Android build compiles its OpenGL shaders from text kept inside libmaplibre.so, where the app can't change
+// it while it runs, so this changes that text in the app's own copy of the library while the app is built (the
+// downloaded file itself, checked by its sha256 in build.gradle, is left as it is). Every byte stays where it was: the
+// new text is shorter and padded with spaces.
+//   - upright names and pictures grow at most NEAR_MAX times near the camera; names lying flat on the ground
+//     (u_pitch_with_map) and names placed along a line or with variable anchors (MapLibre places those on the processor
+//     at full size; their label plane matrix is the identity) keep MapLibre's 4 times;
+//   - upright dots scaled with the map stop at NEAR_MAX times.
+// The text must read exactly as in the MapLibre pinned in build.gradle: 3 name shaders and 1 dot shader in each
+// library, or the build stops, so a MapLibre update can't drop this quietly. test/near-names.mjs compiles the changed
+// shaders with Khronos' GLSL compiler in the pull request check. Applied from android/app/build.gradle, where the
+// libraries are put together.
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
+def NEAR_MAX = "1.25"   // NEAR_MAX in map3d.js, nearMax in NativeNearNames.swift
+def NAMES = Pattern.compile("clamp\\(\\s*0\\.5 \\+ 0\\.5 \\* distance_ratio,\\s*0\\.0, // Prevents oversized near-field " +
+        "symbols in pitched/overzoomed tiles\\s*4\\.0\\);")
+// A label plane matrix that leaves a point where it is: MapLibre's identity (names along a line, variable anchors).
+def NAMES_TO = "clamp(0.5+0.5*distance_ratio,0.0,(u_pitch_with_map||u_label_plane_matrix*vec4(1,2,4,1)==vec4(1,2,4,1))?4.0:" +
+        NEAR_MAX + ");"
+// An upright dot's size on the screen is u_camera_to_center_distance / w times its size in the middle of the view.
+def DOTS = Pattern.compile("if \\(u_scale_with_map\\) \\{\\s*gl_Position\\.xy \\+= extrude \\* \\(radius \\+ stroke_width\\) \\* " +
+        "u_extrude_scale \\* u_camera_to_center_distance;\\s*\\} else \\{")
+def DOTS_TO = "if(u_scale_with_map){gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*min(u_camera_to_center_distance," +
+        NEAR_MAX + "*gl_Position.w);}else{"
+
+// Changes one libmaplibre.so in place; returns how many name and dot shaders it changed (0, 0 when already changed).
+ext.trailMapNearNames = { File so ->
+    // One char per byte both ways, so the file comes back the same apart from the changed text.
+    String text = new String(so.bytes, "ISO-8859-1")
+    def swap = { String from, Pattern pattern, String to ->
+        Matcher m = pattern.matcher(from)
+        StringBuffer out = new StringBuffer()
+        int n = 0
+        while (m.find()) {
+            String old = m.group()
+            if (to.length() > old.length()) throw new GradleException("near-names: the new text is longer than MapLibre's in " + so)
+            m.appendReplacement(out, Matcher.quoteReplacement(to + " " * (old.length() - to.length())))
+            n++
+        }
+        m.appendTail(out)
+        [out.toString(), n]
+    }
+    def (afterNames, names) = swap(text, NAMES, NAMES_TO)
+    def (afterDots, dots) = swap(afterNames, DOTS, DOTS_TO)
+    boolean done = names == 0 && dots == 0 && text.count(NAMES_TO) == 3 && text.count(DOTS_TO) == 1
+    if (!done && (names != 3 || dots != 1)) {
+        throw new GradleException("near-names: MapLibre's shaders in " + so + " don't read as expected (" + names +
+                " name shaders, " + dots + " dot shaders, not 3 and 1). A new MapLibre? Update near-names.gradle.")
+    }
+    byte[] bytes = afterDots.getBytes("ISO-8859-1")
+    if (bytes.length != so.length()) throw new GradleException("near-names: size changed in " + so)
+    if (!done) so.bytes = bytes
+    [names, dots]
+}
+
+// After the app's libraries are put together for a build (debug, release, Google Play bundle): before the debug
+// symbols are stripped and the app is packed, so every build gets it.
+plugins.withId("com.android.application") {
+    tasks.matching { it.name ==~ /merge\w*NativeLibs/ }.configureEach { task ->
+        task.doLast {
+            task.outputs.files.asFileTree.matching { include "**/libmaplibre.so" }.each { File so ->
+                def (names, dots) = trailMapNearNames(so)
+                logger.lifecycle("near-names: " + so.parentFile.name + " libmaplibre.so, " + names + " name and " + dots + " dot shaders changed")
+            }
+        }
+    }
+}

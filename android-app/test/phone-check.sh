@@ -25,6 +25,10 @@ fi
 status=0
 node test/phone-check.mjs || status=$?
 timeout 30 adb logcat -d -v time | grep -E "AndroidRuntime|$APP|chromium|Capacitor|TrailGps|MapLibre|Mbgl|libc|DEBUG|Fatal" | tail -400 > shots/logcat.txt || true
+# The native 3D map's shaders (near-names.gradle changes some of MapLibre's): none may fail to compile or link.
+if timeout 30 adb logcat -d -v time | grep -iE -A4 "Mbgl.*failed to (compile|link)" > shots/shader-errors.txt; then
+  echo "✗ a native 3D shader failed to compile or link:"; head -30 shots/shader-errors.txt; status=1
+fi
 # A failed check: the app's crashes and the map engine's own lines in the log too (no artifact download needed).
 [ $status = 0 ] || grep -E "FATAL|Fatal signal|AndroidRuntime|MapLibre|Mbgl|backtrace|#0[0-9] pc" shots/logcat.txt | tail -60 || true
 [ $status = 0 ] && { node test/fgs-video.mjs || true; }
