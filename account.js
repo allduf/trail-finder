@@ -32,6 +32,16 @@
 
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
+  // Signed in on this device (alex 2026-11-21: "if im already signed in I should not have to re-sign in"):
+  //  - TOKEN: the sign-in the library keeps on the device. It's there before the library loads, and stays with no
+  //    signal (the library then can't renew it, so api.user can be empty for a while: that is not signed out).
+  //  - DEVICE: set at every sign-in, cleared only by Sign out or Delete my account. If the phone loses the saved
+  //    sign-in (the phone clears website data, or the account server ends the session), what only needs "has an account
+  //    on this device" (saving maps for no signal) still never asks again.
+  const TOKEN = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+  const DEVICE = "trailfinder-signed-in", LAST_EMAIL = "trailfinder-last-email";
+  const hasToken = () => !!lsGet(TOKEN);
+  api.signedIn = () => !!(api.user || hasToken() || lsGet(DEVICE));
 
   // ---------- button and sign-in box ----------
   const css = document.createElement("style");
@@ -63,6 +73,10 @@ dialog.acct .acct-alt a { color: var(--accent); font-weight: 600; padding: 2px 0
 dialog.acct .acct-alt button.acct-del { color: #c0392b; }
 dialog.acct .acct-code { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 dialog.acct #acctPassTip { margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
+dialog.acct .acct-pw { display: block; position: relative; }
+dialog.acct .acct-pw input { padding-right: 48px; }
+dialog.acct .acct-pw button.acct-eye { position: absolute; right: 2px; top: 0; bottom: 10px; width: 44px; padding: 0; border: 0; background: none; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+dialog.acct form.acct-wait label, dialog.acct form.acct-wait .acct-pw, dialog.acct form.acct-wait input, dialog.acct form.acct-wait #acctWhy, dialog.acct form.acct-wait #acctSend, dialog.acct form.acct-wait .acct-alt { display: none; }
 dialog.acct #acctCode { font-size: 1.3rem; letter-spacing: .25em; text-align: center; }
 .acct-nudge, .acct-nudge * { box-sizing: border-box; }
 .acct-nudge { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px); z-index: 2400; width: min(380px, calc(100vw - 32px));
@@ -88,7 +102,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   <label for="acctEmail">Email</label>
   <input type="email" id="acctEmail" placeholder="you@example.com" autocomplete="email" required>
   <label for="acctPass">Password</label>
-  <input type="password" id="acctPass" autocomplete="current-password" minlength="6">
+  <span class="acct-pw"><input type="password" id="acctPass" autocomplete="current-password" minlength="6"><button type="button" class="acct-eye" aria-label="Show password" aria-pressed="false"></button></span>
   <p id="acctPassTip" hidden>At least 6 characters. Pick a new one, not your email password.</p>
   <p class="acct-msg" id="acctMsg" role="status"></p>
   <div class="acct-row"><button type="button" data-close>Not now</button><button type="submit" class="go" id="acctSend">Sign in</button></div>
@@ -120,7 +134,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     <input type="email" id="acctNewEmail" autocomplete="email">
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetEmail">Change email</button></div>
     <label for="acctNewPass">New password</label>
-    <input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters">
+    <span class="acct-pw"><input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters"><button type="button" class="acct-eye" aria-label="Show password" aria-pressed="false"></button></span>
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
     <label>Your data</label>
     <div class="acct-row" style="margin-bottom:12px;justify-content:flex-start"><button type="button" id="acctExport">Download my data</button></div>
@@ -137,8 +151,26 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
 </div>`;
   document.body.appendChild(box);
   const q = (id) => box.querySelector("#" + id);
+  // Show or hide the password being typed (alex 2026-11-21: "the option so we can see the hidden password"). Line
+  // drawings, no emoji: an open eye shows it, a crossed-out eye hides it again.
+  const EYE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7c2 0 3.7.7 5.1 1.6M22 12s-3.6 7-10 7c-2 0-3.7-.7-5.1-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg>';
+  function showPass(btn, on) {
+    const inp = btn.previousElementSibling;
+    inp.type = on ? "text" : "password";
+    btn.innerHTML = on ? EYE_OFF : EYE;
+    btn.setAttribute("aria-label", on ? "Hide password" : "Show password");
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  const eyes = [...box.querySelectorAll(".acct-eye")];
+  eyes.forEach((b) => {
+    showPass(b, false);
+    b.addEventListener("click", () => { const on = b.previousElementSibling.type === "password"; showPass(b, on); b.previousElementSibling.focus(); });
+  });
+  const hidePasses = () => eyes.forEach((b) => showPass(b, false));
   box.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => box.close()));
   box.addEventListener("click", (e) => { if (e.target === box) box.close(); });
+  box.addEventListener("close", () => hidePasses());
 
   const buttons = [];
   document.querySelectorAll("[data-account-slot]").forEach((slot) => {
@@ -148,10 +180,15 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     slot.appendChild(b); buttons.push(b);
   });
   // The rider's name (Settings → Your name), kept on the account (user_metadata.name), so it follows them to every device.
-  api.name = () => ((api.user && api.user.user_metadata && api.user.user_metadata.name) || "").trim();
+  const nameOf = (u) => ((u && u.user_metadata && u.user_metadata.name) || "").trim();
+  api.name = () => nameOf(api.user);
+  // The person this device's saved sign-in belongs to (what the library keeps), for the button before it loads.
+  function savedUser() { try { const t = JSON.parse(lsGet(TOKEN) || "null"); return (t && t.user) || null; } catch { return null; } }
   function paintButtons() {
     buttons.forEach((b) => {
-      if (api.user) { b.innerHTML = `<span class="acct-dot" aria-hidden="true"></span>Account`; b.querySelector(".acct-dot").textContent = (api.name() || api.user.email || "?")[0]; b.title = api.user.email || ""; }
+      // Signed in, or still signed in on this device while the account can't be reached (no signal): Account, not Sign in.
+      const u = api.user || savedUser();
+      if (u) { b.innerHTML = `<span class="acct-dot" aria-hidden="true"></span>Account`; b.querySelector(".acct-dot").textContent = (nameOf(u) || u.email || "?")[0]; b.title = u.email || ""; }
       else { b.textContent = "Sign in"; b.title = "Optional: save your settings and rides to an account"; }
     });
   }
@@ -160,16 +197,46 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     api.load();
     q("acctIn").hidden = !!api.user; q("acctOut").hidden = !api.user;
     if (api.user) showSettings(false);
-    else { q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; q("acctCodeBox").hidden = true; q("acctCode").value = ""; setMode("in"); }
+    else {
+      q("acctMsg").textContent = ""; q("acctMsg").className = "acct-msg"; q("acctCodeBox").hidden = true; q("acctCode").value = ""; setMode("in");
+      if (!q("acctEmail").value) q("acctEmail").value = lsGet(LAST_EMAIL) || (savedUser() || {}).email || "";
+      if (hasToken()) resume();
+    }
     if (!box.open) box.showModal();
+  }
+  // The box opened while this device still has its sign-in, but the library hasn't (re)loaded it yet, often because
+  // it couldn't reach the account with no signal. Try once more instead of asking for the password again.
+  let resuming = null;
+  function resume() {
+    const seq = modeSeq;   // the person switches screens (Create an account) or reopens the box: leave it as they set it
+    say("Checking your sign-in…");
+    q("acctSend").disabled = true;
+    resuming = resuming || (async () => {
+      await api.load();
+      if (!api.user && api.client && hasToken()) {
+        const r = await api.client.auth.refreshSession().catch(() => null);
+        const u = r && r.data && r.data.session ? r.data.session.user : null;
+        if (u) setUser(u);
+      }
+    })().finally(() => { resuming = null; });
+    // With no signal the library keeps retrying for a long time: answer after a few seconds. If it gets through later,
+    // the box still switches to the account by itself (setUser).
+    Promise.race([resuming, new Promise((r) => setTimeout(r, 5000))]).then(() => {
+      q("acctSend").disabled = false;
+      if (api.user || !box.open || q("acctIn").hidden || seq !== modeSeq) return;   // signed in: setUser already showed the account
+      if (!hasToken()) { setMode("in"); return; }   // the account ended this sign-in: the form, to sign in again
+      q("acctIn").classList.add("acct-wait"); q("acctHead").textContent = "Signed in";
+      say("You're signed in on this device, but your account can't be reached right now (no signal?). Everything saved here keeps working. Try again with signal.");
+    });
   }
   // Two screens in one box (alex 2026-11-08: "when you click on Create an account it should open a new window and start
   // creating an account"): Sign in, and Create an account with its own heading and big button. need: the reason an
   // account is needed (api.require), shown on both screens.
-  let mode = "in", need = "";
+  let mode = "in", need = "", modeSeq = 0;
   const HAD = "trailfinder-had-account";   // this device was signed in before: open on Sign in, not Create an account
   function setMode(m) {
-    mode = m;
+    mode = m; modeSeq++; hidePasses();
+    q("acctIn").classList.remove("acct-wait");
     const nu = m === "new";
     q("acctHead").textContent = nu ? (need ? "Create a free account" : "Create an account") : (need ? "Sign in to save maps offline" : "Sign in");
     q("acctNeed").hidden = !need; q("acctNeed").textContent = need;
@@ -203,8 +270,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // Resolves true once the person is signed in (straight away if they already are, or have a saved sign-in on this
   // device, even with no signal), false if they close the box. why: what the account is for, shown in the box.
   api.require = (why) => {
-    if (api.user || api.savedSession) return Promise.resolve(true);
-    if (!api.enabled) return Promise.resolve(true);
+    if (api.signedIn() || !api.enabled) return Promise.resolve(true);
     return new Promise((resolve) => {
       openBox();
       need = why || "You need a free account for this.";
@@ -235,15 +301,21 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
         api.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
         const { data } = await api.client.auth.getSession();
         setUser(data.session ? data.session.user : null);
-        api.client.auth.onAuthStateChange((_ev, session) => setUser(session ? session.user : null));
+        api.client.auth.onAuthStateChange((_ev, session) => {
+          setUser(session ? session.user : null);
+          // The box said "signed in, can't be reached" and the account has since ended that sign-in: the form again.
+          if (!session && !hasToken() && q("acctIn").classList.contains("acct-wait")) setMode("in");
+        });
       } catch (e) { console.warn("Sign-in unavailable:", e); }
       resolve(api.user);
     };
     s.onerror = () => { buttons.forEach((b) => { b.hidden = true; }); resolve(null); };
     document.head.appendChild(s);
   }));
-  const savedSession = !!lsGet(`sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`);
-  api.savedSession = savedSession;   // signed in on this device, even with no signal (reports.js keeps reports for later)
+  const savedSession = hasToken();
+  // Signed in on this device, even with no signal (reports.js keeps reports for later). Read fresh each time, so a
+  // sign-in after the page opened counts too.
+  Object.defineProperty(api, "savedSession", { get: hasToken, enumerable: true });
   const fromLink = /[#&?](access_token|code|error_description)=/.test(location.href);
   api.ready = savedSession || fromLink ? api.load() : Promise.resolve(null);
 
@@ -253,7 +325,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     paintButtons();
     if (was === now) return;
     if (!was && now && box.open) openBox();
-    if (now) { api.sync(); lsSet(HAD, "1"); }
+    if (now) { api.sync(); lsSet(HAD, "1"); lsSet(DEVICE, "1"); if (user.email) lsSet(LAST_EMAIL, user.email); }
     window.dispatchEvent(new CustomEvent("tf:account", { detail: user }));
   }
 
@@ -268,6 +340,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   const redirect = () => location.origin + location.pathname;
   q("acctIn").addEventListener("submit", async (e) => {
     e.preventDefault();
+    hidePasses();   // back to a password field, so the phone's password keeper offers to save it
     if (mode === "new") return createAccount();
     const c = await creds(); if (!c) return;
     if (!c.password) { say("Type your password. No account yet? Tap \u201cNew here? Create an account\u201d.", true); q("acctPass").focus(); return; }
@@ -338,6 +411,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     if (!err) { const b = q(btnId), was = b.dataset.label || (b.dataset.label = b.textContent); b.textContent = "\u2713 Saved"; setTimeout(() => { b.textContent = was; }, 2500); }
   }
   q("acctSetPass").addEventListener("click", async () => {
+    hidePasses();
     const pw = q("acctNewPass").value;
     if (pw.length < 6) { answer("acctSetPass", "Passwords need at least 6 characters.", true); q("acctNewPass").focus(); return; }
     q("acctSetPass").disabled = true;
@@ -482,6 +556,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     api.signingOut = true;
     await api.clearDevice();
     try { await api.client.auth.signOut(); } catch { await api.client.auth.signOut({ scope: "local" }).catch(() => {}); }
+    lsSet(DEVICE, null); lsSet(LAST_EMAIL, null);
     try { sessionStorage.setItem("tf:signedOut", "1"); } catch {}
     // A fresh start, so nothing of the account is left in the open page either.
     location.reload();
@@ -548,6 +623,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       await api.clearDevice();
       await api.client.auth.signOut({ scope: "local" }).catch(() => {});
       api.signingOut = false;
+      lsSet(DEVICE, null); lsSet(LAST_EMAIL, null); q("acctEmail").value = ""; q("acctPass").value = "";
       setUser(null);
       msg.textContent = "Your account is deleted.";
       setTimeout(() => box.close(), 1800);

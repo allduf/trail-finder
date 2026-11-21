@@ -200,7 +200,7 @@
     btn.classList.toggle("on", on);
     btn.setAttribute("aria-pressed", on);
     if (on) {
-      const A = window.tfAccount; $("[data-needacct]").hidden = !A || !A.require || !!(A.user || A.savedSession);
+      const A = window.tfAccount; $("[data-needacct]").hidden = !A || !A.require || !!(A.signedIn ? A.signedIn() : A.user || A.savedSession);
       drawnLayer.addTo(map); $("[data-name]").value = suggestName(); sportText(); renderList(); estimate();
       if (!busy) $("[data-state]").hidden = true;
       setTimeout(autoFinish, 1500);
