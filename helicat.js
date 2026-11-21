@@ -24,7 +24,9 @@
   const PROV = { BC: "British Columbia", AB: "Alberta", YT: "Yukon", QC: "Quebec", NL: "Newfoundland and Labrador" };
   // A small snowcat: cab and box on a track.
   const catSvg = (px) => `<svg viewBox="0 0 24 24" width="${px}" height="${px}" aria-hidden="true"><path fill="#fff" d="M1 9h2v9H1zM4 10l2-4h5v5H4zM12 5h10v6H12z"/><rect x="3.5" y="11.5" width="19" height="2.5" fill="#fff"/><rect x="3" y="15" width="20" height="5" rx="2.5" fill="#fff"/><path fill="${C.cat}" d="M6.6 7.3h3.2v2.5H5.4zM13.4 6.5h3.6v2.6h-3.6zM18 6.5h2.8v2.6H18z"/><circle cx="5.6" cy="17.5" r="1.1" fill="${C.cat}"/><circle cx="10.4" cy="17.5" r="1.1" fill="${C.cat}"/><circle cx="15.6" cy="17.5" r="1.1" fill="${C.cat}"/><circle cx="20.4" cy="17.5" r="1.1" fill="${C.cat}"/></svg>`;
-const sym = (t) => (t === "cat" ? catSvg(15) : `<span>🚁</span>`);
+  // The heli pin is a line drawing like the cat one (line-icons.js; the emoji if an old copy of it has no helicopter).
+  const heliSvg = (px) => (window.tfLineName && window.tfLineName("heli", px)) || "🚁";
+  const sym = (t) => (t === "cat" ? catSvg(15) : `<span>${heliSvg(15)}</span>`);
 
   const css = document.createElement("style");
   css.textContent = `
@@ -208,7 +210,7 @@ dialog.hc-dlg .hc-near button { font: inherit; font-size: .84rem; font-weight: 7
   // ---------- the map key ----------
   (window.tfSkiKeyExtra = window.tfSkiKeyExtra || []).push(() => {
     if (!shown()) return "";
-    const pin = (t, label) => `<li><span class="sk-kic"><span class="hc-pin hc-kpin ${t}">${t === "cat" ? catSvg(11) : "🚁"}</span></span>${label}</li>`;
+    const pin = (t, label) => `<li><span class="sk-kic"><span class="hc-pin hc-kpin ${t}">${t === "cat" ? catSvg(11) : heliSvg(11)}</span></span>${label}</li>`;
     const area = (c, label, dash) => `<li><span class="sk-kic"><i class="hc-karea" style="background:${c}22;border:2px ${dash ? "dashed" : "solid"} ${c}"></i></span>${label}</li>`;
     return pin("heli", "Heli-skiing operation") + pin("cat", "Cat skiing operation") + pin("both", "Heli and cat skiing")
       + area(C.heli, "Heli-ski terrain (BC tenure)") + area(C.cat, "Cat-ski terrain (BC tenure)") + area("#888888", "Applied for, not granted yet", true);

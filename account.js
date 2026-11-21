@@ -489,7 +489,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   const PREFS = new Set(["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "toride", "riddenMap", "newsSeen"]);
   // Personal things kept only on the device (not in SETTINGS): Strava link, pending reports/grades, alerts already
   // seen, the home spot, the friends' live groups looked at, route drafts, the friend/admin flags, notifications.
-  const DEVICE_PERSONAL = ["strava", "stravaFolder", "stravaPending", "stravaReady", "stravaAsked", "liveGroups", "liveName", "caHome",
+  const DEVICE_PERSONAL = ["strava", "stravaFolder", "stravaPending", "stravaState", "stravaReady", "stravaAsked", "liveGroups", "liveName", "caHome",
     "repQueue", "gradeQueue", "hiddenRiders", "loamAlerts", "fishAlerts", "avyAlerts", "findsScan", "findsCache", "myFindsNo", "plan", "planPicks",
     "loopWant", "loopSkip", "shareSent", "shareYes", "shareNo", "rideShapes", "riderTrailDraft", "whereRecent", "tripMe", "skiPlan", "motoPlan",
     "hikeGrades", "usageWho", "pushId", "pushSaved", "pushErr", "settingsAt", "settingsKeyAt"];

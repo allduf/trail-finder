@@ -278,7 +278,7 @@
       const r = sel.run, here = r.lat != null ? areaAt(r.lat, r.lon)[0] : null;
       h = r.name;
       p = [`<p><span class="rp-dot" style="--c:${C.cls[r.cls]}"></span><b>ATES class ${r.cls}: ${CLS[r.cls]}</b> (Parks Canada's official rating)</p>`,
-        `<p>${r.cls === 1 ? "Low-angle or mostly forested terrain; some exposure to avalanche runouts possible." : r.cls === 2 ? "Exposure to well-defined avalanche paths, start zones or terrain traps; options to reduce or avoid it with careful route-finding." : "Multiple overlapping avalanche paths or large expanses of steep, open terrain, often glaciated: many start zones and terrain traps, little chance to reduce exposure."}</p>`];
+        `<p>${r.cls === 1 ? "Low-angle or mostly forested terrain; some exposure to avalanche runouts possible." : r.cls === 2 ? "Exposure to well-defined avalanche paths, start zones or terrain traps; options to reduce or avoid it with careful route-finding." : "Multiple overlapping avalanche paths or large expanses of steep, open terrain, often glaciated: many start zones and terrain traps, little chance to reduce exposure."}</p>`];   // wording-ok: the ATES scale's own definition (Parks Canada)
       if (here) p.push(`<p>In <b>${esc(here.name)}</b>: ${esc(stateOf(here))}.</p>`);
       if (r.approx) p.push(`<p class="sk-note">Pin placed roughly: see the Winter Terrain Atlas for the exact terrain.</p>`);
       if (r.atlas) p.push(`<p><a href="${esc(r.atlas)}" target="_blank" rel="noopener">Winter Terrain Atlas chapter (PDF) ↗</a></p>`);

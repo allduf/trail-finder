@@ -45,6 +45,10 @@ Deno.serve(async (req) => {
     if (rows === null) return reply(503, { error: "the database didn't answer (was supabase/strava.sql run?)" });
     const row = rows[0];
     if (!row || !row.state_at || Date.now() - Date.parse(row.state_at) > STATE_MS) return reply(400, { error: "that link is out of date: tap Connect Strava again" });
+    // Signed in here as someone else than who started connecting: refuse (security check 2026-11-21). Someone could
+    // send their own Connect link, and the Strava of whoever opens it would go to their account.
+    const asker = await who(req);
+    if (asker && asker !== row.user_id) return reply(403, { error: "this Strava link was started by another Trail Finder account: tap Connect Strava again" });
     const t = await token(id, secret, { grant_type: "authorization_code", code: body.code });
     if ("error" in t) return reply(502, { error: t.error });
     const athlete = t.athlete ? [t.athlete.firstname, t.athlete.lastname].filter(Boolean).join(" ") : null;
@@ -70,7 +74,7 @@ Deno.serve(async (req) => {
     if (!ok) return reply(503, { error: "couldn't start connecting" });
     const back = body.back + (body.back.includes("?") ? "&" : "?") + "strava=1";
     const url = "https://www.strava.com/oauth/authorize?" + new URLSearchParams({ client_id: id, response_type: "code", redirect_uri: back,
-      approval_prompt: "auto", scope: "read,activity:read_all", state }).toString();
+      approval_prompt: "force" /* Strava always shows its own page, never a silent connect */, scope: "read,activity:read_all", state }).toString();
     return reply(200, { ok: true, url });
   }
 

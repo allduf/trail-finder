@@ -38,7 +38,7 @@
   const sync = () => {
     if (!admin() || !TrailMap.offline) return;
     if (N() && N().draws && !N().draws("offline")) return;   // Android: no native offline copies yet
-    const areas = load().filter((a) => a.d3).map((a) => ({ id: a.id, box: a.box, ...(a.boxes ? { boxes: a.boxes } : {}), ski: (a.sport || (a.ski ? "ski" : "mtb")) === "ski", sharp: +a.dz >= 15 }));
+    const areas = load().filter((a) => a.d3).map((a) => ({ id: a.id, box: a.box, ...(a.boxes ? { boxes: a.boxes } : {}), ski: (a.sport || (a.ski ? "ski" : "mtb")) === "ski", sharp: +(a.dz0 || a.dz) >= 15 }));   // dz0: the detail first saved: a later "Full detail" doesn't make the iPhone fetch its whole copy again
     TrailMap.offline({ areas }).then((r) => { packs = (r && r.areas) || {}; paint(); }).catch(() => {});
   };
   const later = (ms) => { clearTimeout(timer); timer = setTimeout(sync, ms); };
