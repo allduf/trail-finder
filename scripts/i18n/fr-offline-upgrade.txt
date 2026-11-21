@@ -1,0 +1,3 @@
+# English ||| French (Quebec). One line each. The English is the text the app shows, without icons in front or : after.
+Full detail ||| Tous les détails
+Older saved maps can get full detail: tap Full detail in Offline maps (only the missing close-up files download). ||| Les anciennes cartes enregistrées peuvent avoir tous les détails : touchez Tous les détails dans Cartes hors ligne (seuls les fichiers de près manquants se téléchargent).
