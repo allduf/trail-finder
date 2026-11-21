@@ -113,6 +113,9 @@
   // Native 3D for every iPhone tester, and no web 3D map on the iPhone (alex 2026-11-21, the last step of the native 3D
   // plan): only on an app build that draws every 3D feature itself (these keys, NativeLayers.all). Older builds keep the
   // web 3D map (and alex's own "native for viewing" as before) until they're updated. Android keeps the web 3D map.
+  // Never add a key to FULL: every iPhone build already on phones (150 and later) would lack it and go back to the web
+  // 3D map after a website update. A newer native feature shows in native 3D from the build that has it (has(key) tells
+  // the page). The phone test fails if FULL asks for more than build 150 has, or if NativeLayers.swift drops one.
   const FULL = ["avy", "fish", "flyover", "ground", "hunt", "moto", "offline", "pins", "radar", "search", "smoke", "tools"];
   const ios = !!(C.getPlatform && C.getPlatform() === "ios");
   const fullNative = () => ios && !!nativeKeys && FULL.every((k) => nativeKeys.has(k));
@@ -230,11 +233,10 @@
     open = true; open3d = threeD;
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
     const winter = threeD && document.body.classList.contains("sport-ski");
-    // Skiing's 3D photos are Winter, as on the web 3D map (alex 2026-11-21: "it should be winter"), whatever photos the
-    // flat map shows; Summer only if picked for Skiing's 3D before (map3d.js "3dPhotosBy"). The native map has no ADV
-    // topo: its closest is "vector".
-    const photos3d = (() => { const o = tf("3dPhotosBy", null); return o && o.ski; })();
-    const base = sel === "advtopo" ? "vector" : winter && /^(sat|sathybrid|winter)$/.test(sel) && photos3d !== "sharp" ? "winter" : sel;
+    // Skiing's 3D is always Winter when the flat map shows photos or Winter (alex 2026-11-21: "it should be winter",
+    // "winter should always be by default in skiing"), as on the web 3D map, whatever was picked on an earlier visit;
+    // Map and Topo picked in Skiing stay those maps. The native map has no ADV topo: its closest is "vector".
+    const base = sel === "advtopo" ? "vector" : winter && /^(sat|sathybrid|winter)$/.test(sel) ? "winter" : sel;
     // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
     const snap = snapshot();
@@ -289,26 +291,30 @@
     return openNative(true);
   };
   // map3d.js asks here before it builds the web 3D map (set3d). On a full native build it never does: a tap on 3D, a
-  // tilt, a tour or route that wants 3D opens native 3D instead; the 3D a sport opens on by itself (Skiing, or the app
-  // reopening in 3D) stays on the flat map, one tap away (native 3D covers the whole screen). While this build's keys
-  // aren't known yet (a moment after the app opens), the 3D a sport opens on waits for them: retry() asks again.
-  let bypass = false;
+  // tilt, a tour or route that wants 3D, another script clicking 3D all open native 3D instead; the 3D a sport opens on
+  // by itself (Skiing, or the app reopening in 3D) stays on the flat map, one tap away (native 3D covers the whole
+  // screen). While this build's keys aren't known yet (a moment after the app opens), the 3D a sport opens on waits
+  // for them: retry() asks again.
+  // Never the web 3D map on a full native build (alex 2026-11-21, after an update seemed to bring back an old version:
+  // "I don't want that to happen again"), not even when the native screen can't open: the flat map stays, with a note.
+  // The phone test fails if any way into 3D builds the web 3D map here (scripts/phone-test.mjs, "App builds").
+  const native3d = () => openNative(true).then((ok) => { if (!ok && window.tfToast) window.tfToast("3D didn't open. Try again in a moment."); return ok; });
   window.tfNative3d = {
     claim(auto, retry) {
-      if (!ios || bypass) return false;
+      if (!ios) return false;
       if (!nativeKeys) { if (typeof retry === "function") keysWait.push(retry); return true; }
       if (!fullNative() || webOnly()) return false;
-      // The native screen couldn't open (no app screen to show it on): the web 3D map this once, never nothing.
-      if (!auto && !open) openNative(true).then((ok) => { if (ok || typeof retry !== "function") return; bypass = true; try { retry(); } finally { bypass = false; } });
+      if (!auto && !open) native3d();
       return true;
     },
   };
   const map3d = document.getElementById("btn3d");
   if (map3d) map3d.addEventListener("click", (e) => {
-    // Only a real tap, going from the flat map into 3D: other scripts click this button to open the web 3D map.
+    // Only a real tap, going from the flat map into 3D: another script's click goes to map3d.js's set3d, which asks
+    // claim() above (native 3D on a full native build, the web 3D map on older builds).
     if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return;
     e.stopImmediatePropagation(); e.preventDefault();
-    openNative(true);
+    native3d();
   }, true);
   // "Layers" on the native 3D screen (builds from 2026-11-21): the page's own Layers over it; the native screen steps
   // aside while Layers is open (native-tools.js "cover") and comes back as it was, with the map style picked there. If

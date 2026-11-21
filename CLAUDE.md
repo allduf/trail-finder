@@ -81,10 +81,21 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - A change to native code (`ios-app/`, `android-app/`, plugins, push, deep links, native 3D) starts a new iPhone
   build ("iPhone app" workflow) and a new Android build ("Android app" workflow) in the same round, so both apps get
   it together. Tell alex before opening the pull request, then tell alex both build numbers.
+- Every iPhone fix also goes to Android in the same round (alex 2026-11-21: "everything you fix on iphone version
+  need to be fix on android version too").
 - New native 3D features follow the split from PR #847: one `NativeXxx.swift` file (a `NativeLayer`, one line in
   `NativeLayers.all`, alphabetical) and one `native-xxx.js` page side (`window.tfNative.addLayer`, guarded). Until a
   layer is drawn natively, add it to `webOnly()` in `native-map.js` so turning it on opens the full web 3D and nothing
-  goes missing.
+  goes missing (on older iPhone builds and Android only: see the next rule).
+- An iPhone build that draws every 3D feature natively (build 150 and later) never shows the web 3D map, after any
+  update (alex 2026-11-21: "I don't want that to happen again"). The 3D button, a tilt, a tour, a route or another
+  script asking for 3D all open native 3D; if it can't open, the flat map stays with a note. Never add a key to `FULL`
+  in `native-map.js` (builds already on phones would lack it and go back to the web 3D map), and never take one out of
+  `NativeLayers.all`. A new native feature shows from the build that has it.
+- Skiing always opens on the Winter map (alex 2026-11-21: "winter should always be by default in skiing"): the flat
+  map, the web 3D map and native 3D, on the website, iPhone and Android, whatever style was picked there before. A
+  style picked in Skiing lasts until another sport is picked or the app is closed.
+- The phone test's "App builds" checks (`scripts/phone-test.mjs`) fail if either rule above breaks. Keep them passing.
 - Native 3D must never be slower than the build before (`/check-lag`), draws nothing while switched off, and shows
   avalanche only exactly as Avalanche Canada gives it.
 - Never leave a feature on one device only without telling alex and writing down the plan to bring it to the others.

@@ -1,8 +1,9 @@
 // Phone test (see .github/workflows/phone-test.yml): opens the app at iPhone size in a real browser (WebKit, the engine
 // Safari and the iPhone app use) and goes through every sport the way a rider would on a phone: pick the sport with the
-// map's Sport button, then each tab of the bottom bar, Layers, and the 3D map; then ride.html. It fails when the
-// page throws a script error, when a tap does nothing because something is broken, or when the page is wider than the
-// phone (sideways scrolling). Screenshots of each step go in OUT, the results in the job summary.
+// map's Sport button, then each tab of the bottom bar, Layers, and the 3D map; then the page as the iPhone and Android
+// apps open it ("App builds": no web 3D map on an iPhone build with native 3D only, Skiing on Winter); then ride.html.
+// It fails when the page throws a script error, when a tap does nothing because something is broken, or when the page
+// is wider than the phone (sideways scrolling). Screenshots of each step go in OUT, the results in the job summary.
 //
 // The page is served from this checkout on localhost, with the data jobs' files (scripts/site-data.sh get) when they
 // are there; files it doesn't have come from the live site. Outside it, only the code libraries, fonts and the map
@@ -14,7 +15,7 @@
 // Optional: BROWSER (webkit), OUT (phone-test-shots), SPORTS (mtb,ski,hunt,fish,moto), CHROMIUM (a Chromium to use).
 
 import { createServer } from "node:http";
-import { readFile, mkdir, appendFile } from "node:fs/promises";
+import { readFile, readdir, mkdir, appendFile } from "node:fs/promises";
 import { join, extname, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,7 +23,7 @@ const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
 const OUT = process.env.OUT || "phone-test-shots";
 const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
-const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
+const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
@@ -256,6 +257,195 @@ async function groundWhole(p) {
     if (sky > 0.015) throw new Error(`${Math.round(sky * 100)}% of the ground shows the sky through holes`);
   }, 0);
 }
+
+// ---------- App builds: never the old 3D map, and Skiing on Winter (alex 2026-11-21) ----------
+// alex updated the iPhone app, and leaving 3D in Skiing showed summer Satellite, like an old version of the app: "I don't
+// want that to happen again", "winter should always be by default in skiing". These checks open the page as the phone
+// apps do, with a stand-in for the app (Capacitor and its TrailMap plugin, answering as an app build does), and fail if:
+//  - native-map.js's FULL asks for a key the first iPhone builds with native 3D only (FIRST_FULL) don't report, or the
+//    next build's NativeLayers.swift drops one of FULL's: those builds would go back to the web 3D map;
+//  - on such an iPhone build any way into 3D (the 3D button, a two-finger tilt, another script clicking 3D) builds the
+//    web 3D map, also when the native screen can't open, or 3D opens again by itself after Back;
+//  - Skiing doesn't open on Winter (the flat map, native 3D, the web 3D photos) though a summer style was picked there
+//    before: on the iPhone app, the Android app (alex's native 3D) and the website.
+// The keys iPhone build 150 reports (TrailMap.features), the first with native 3D only (#871): never take one out.
+const FIRST_FULL = { build: 150, keys: ["avy", "fingers", "fish", "fish-creeks", "fish-depth", "flyover", "ground", "hunt", "moto", "offline", "pins", "radar", "search", "smoke", "tools"] };
+const APP_DIRS = { ios: "ios-app/plugins/TrailMap/ios/Sources/TrailMap", android: "android-app/plugins/TrailMap/android/src/main/java/com/allduf/trailmap" };
+// The keys the next iPhone build reports: NativeLayers.all, each entry's own key (NativeOverlay(key:)) or its class's.
+async function iosKeys() {
+  const dir = join(root, APP_DIRS.ios), byClass = new Map();
+  let list = "";
+  for (const f of (await readdir(dir)).filter((f) => f.endsWith(".swift"))) {
+    const t = await readFile(join(dir, f), "utf8");
+    if (f === "NativeLayers.swift") list = (t.match(/static let all[^=]*=\s*\[([\s\S]*?)\n\s*\]/) || [])[1] || "";
+    const cls = [...t.matchAll(/\bclass (\w+)/g)];
+    cls.forEach((c, i) => {
+      const k = t.slice(c.index, i + 1 < cls.length ? cls[i + 1].index : t.length).match(/\blet key = "([^"]+)"/);
+      if (k) byClass.set(c[1], k[1]);
+    });
+  }
+  return new Set([...list.matchAll(/\{\s*(\w+)\((?:key:\s*"([^"]+)")?/g)].map((e) => e[2] || byClass.get(e[1])).filter(Boolean));
+}
+// The keys the Android build reports (TrailMapScreen.featureKeys): every layer's key() and the overlays'.
+async function androidKeys() {
+  const dir = join(root, APP_DIRS.android), keys = new Set();
+  for (const f of (await readdir(dir)).filter((f) => f.endsWith(".java"))) {
+    const t = await readFile(join(dir, f), "utf8");
+    for (const m of t.matchAll(/String key\(\)\s*\{\s*return "([^"]+)";/g)) keys.add(m[1]);
+    for (const m of t.matchAll(/new NativeOverlay\("([^"]+)"/g)) keys.add(m[1]);
+  }
+  return [...keys];
+}
+async function fullKeysCheck() {
+  const m = (await readFile(join(root, "native-map.js"), "utf8")).match(/const FULL = (\[[^\]]*\]);/);
+  const full = m ? JSON.parse(m[1]) : null, next = await iosKeys(), problems = [];
+  if (!full) problems.push("FULL not found in native-map.js");
+  else {
+    const more = full.filter((k) => !FIRST_FULL.keys.includes(k));
+    if (more.length) problems.push(`FULL asks for ${more.join(", ")}, which iPhone builds ${FIRST_FULL.build} and later don't report: they would go back to the web 3D map`);
+    const gone = full.filter((k) => !next.has(k));
+    if (gone.length) problems.push(`the next iPhone build (NativeLayers.swift) no longer draws ${gone.join(", ")}: it would open the web 3D map`);
+  }
+  results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: !problems.length, note: problems.join(" · "), shot: "" });
+  console.log(`${problems.length ? "✗" : "✓"} App builds: iPhone builds ${FIRST_FULL.build}+ keep native 3D only${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
+}
+// In the page before its own scripts: a summer style picked in Skiing before, and (platform) the app's stand-in.
+// window.__tm: what the page asked of TrailMap (opens), fail = open() refuses, fire(name, e) = an event from the app.
+function appStandIn({ platform, keys, admin, photos }) {
+  try {
+    localStorage.setItem("tf:sport", JSON.stringify("ski"));
+    localStorage.setItem("tf:basemapSki", JSON.stringify("sat"));
+    localStorage.setItem("tf:3dPhotosBy", JSON.stringify({ ski: photos }));
+    localStorage.setItem("tf:appUpdateSeen", "99999:" + Date.now());   // no "new build" card over the map
+    if (admin) localStorage.setItem("tf-admin", "1");
+  } catch {}
+  if (!platform) return;
+  const tm = (window.__tm = { opens: [], fail: false, on: {} });
+  tm.fire = (name, e) => (tm.on[name] || []).forEach((fn) => fn(e));
+  const ok = (v) => Promise.resolve(v);
+  const TrailMap = {
+    features: () => ok({ keys }),
+    open: (o) => { tm.opens.push(o); return tm.fail ? Promise.reject(new Error("No screen to show the map on")) : ok(); },
+    update: () => ok(), layer: () => ok(), close: () => ok(), offline: () => ok({ areas: {} }),
+    addListener: (name, fn) => { (tm.on[name] = tm.on[name] || []).push(fn); return ok({ remove() {} }); },
+  };
+  // The app's other plugins: every call answers with nothing.
+  const other = () => new Proxy({}, { get: (_, k) => (k === "then" ? undefined : () => ok(k === "addListener" ? { remove() {} } : {})) });
+  window.Capacitor = { isNativePlatform: () => true, getPlatform: () => platform, isPluginAvailable: (n) => n === "TrailMap",
+    registerPlugin: (n) => (n === "TrailMap" ? TrailMap : other()), Plugins: { TrailMap } };
+}
+async function appBuild(kind) {
+  const label = { ios: "iPhone app", android: "Android app", web: "Website" }[kind];
+  const p = await phone(), { page } = p;
+  const keys = kind === "ios" ? FIRST_FULL.keys : kind === "android" ? await androidKeys() : null;
+  await p.ctx.addInitScript(appStandIn, { platform: kind === "web" ? null : kind, keys, admin: kind === "android", photos: kind === "web" ? "live" : "sharp" });
+  let n = 0;
+  const check = async (name, fn) => {
+    let note = "";
+    try { const r = await fn(); if (typeof r === "string") note = r; } catch (e) { note = String(e.message || e).split("\n")[0].slice(0, 200); }
+    const shot = `app-${kind}-${String(++n).padStart(2, "0")}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60)}.png`;
+    await page.screenshot({ path: join(OUT, shot) }).catch(() => {});
+    results.push({ sport: "app", step: `${label}: ${name}`, ok: !note, note, shot });
+    console.log(`${note ? "✗" : "✓"} App builds: ${label}: ${name}${note ? "\n    " + note : ""}`);
+  };
+  const ev = (fn, arg) => page.evaluate(fn, arg);
+  const until = (fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms, polling: 100 });
+  const base = () => ev(() => (document.getElementById("basemap") || {}).value);
+  // The web 3D map on screen; on the iPhone, also ever built (Android's testers check builds it first).
+  const web3d = () => ev((ever) => !!((ever && window.tf3dGl && window.tf3dGl()) || document.querySelector(".is3d")), kind === "ios");
+  const opens = () => ev(() => window.__tm.opens.length);
+  const noWeb3d = async (what) => { await wait(2500); if (await web3d()) throw new Error(`${what} built the web 3D map`); };
+  const back = () => ev(() => { const c = window.tfLeaflet.getCenter(); window.__tm.fire("closed", { lat: c.lat, lon: c.lng, zoom: 12, bearing: 0, details: false, layers: false, open: -1 }); });
+  // act() must open native 3D, in 3D, on Winter, and not the web 3D map; Back after it either way, so one failure
+  // doesn't fail the next checks too.
+  const nativeOpen = async (what, act, stay = false) => {
+    const before = await opens();
+    try {
+      await act();
+      await until((c) => window.__tm.opens.length > c, before, 5000).catch(() => {});
+      const o = await ev((c) => window.__tm.opens[c] || null, before);
+      if (!o) throw new Error(`${what} didn't open native 3D`);
+      if (!o.threeD || o.base !== "winter" || !o.winter) throw new Error(`${what} opened native 3D on "${o.base}"${o.threeD ? "" : " (flat)"}, not Winter`);
+      await noWeb3d(what);
+    } finally { if (!stay) await back(); }
+  };
+  const tap3d = () => page.locator("#btn3d").first().click({ timeout: 8000 });
+  const sport = (s) => ev((s) => { const el = document.getElementById("sport"); el.value = s; el.dispatchEvent(new Event("change")); }, s);
+  const flatWinter = async (when) => {
+    await until(() => document.body.classList.contains("sport-ski") && (document.getElementById("basemap") || {}).value === "winter", null, 10_000).catch(() => {});
+    const b = await base();
+    if (b !== "winter") throw new Error(`the flat map ${when} is "${b}", not Winter`);
+  };
+  // The web 3D map's photos: the style button that's on.
+  const photos3d = async () => {
+    await until(() => [...document.querySelectorAll(".maplibregl-ctrl-group button[data-on]")].length > 0, null, 30_000).catch(() => {});
+    return ev(() => [...document.querySelectorAll(".maplibregl-ctrl-group button[data-on]")].map((b) => b.textContent).join(", ") || "none");
+  };
+
+  await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
+  if (await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).then(() => true, () => false)) await wait(500);
+  await page.keyboard.press("Escape").catch(() => {});
+  await check("Skiing opens on Winter (Satellite picked there before)", () => flatWinter("at start"));
+  if (kind === "ios") {
+    await check("native 3D only on this build", async () => {
+      await until(() => window.tfNative && window.tfNative.full && window.tfNative.full(), null, 8000).catch(() => {});
+      if (!(await ev(() => !!(window.tfNative && window.tfNative.full && window.tfNative.full())))) throw new Error(`the page doesn't treat iPhone build ${FIRST_FULL.build}'s keys as native 3D only`);
+      await noWeb3d("Skiing's own 3D at start");
+      if (await opens()) throw new Error("native 3D opened by itself at start (Skiing starts on the flat map)");
+    });
+    await check("3D button opens native 3D on Winter", () => nativeOpen("the 3D button", tap3d, true));
+    await check("Back keeps Winter, nothing reopens by itself", async () => {
+      const n0 = await opens();
+      await back(); await wait(3000);
+      if (await opens() !== n0) throw new Error("3D opened again by itself after Back");
+      await flatWinter("after Back"); await noWeb3d("Back");
+    });
+    await check("two-finger tilt opens native 3D", () => nativeOpen("the tilt", () => ev(() => window.tfTilt3d.go())));
+    await check("another script's 3D opens native 3D", () => nativeOpen("a script clicking 3D", () => ev(() => document.getElementById("btn3d").click())));
+    await check("native 3D can't open: the flat map stays", async () => {
+      const n0 = await opens();
+      await ev(() => { window.__tm.fail = true; });
+      try {
+        await tap3d();
+        await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+        await noWeb3d("a native 3D that couldn't open");
+      } finally { await ev(() => { window.__tm.fail = false; }); }
+      if (await opens() === n0) throw new Error("the 3D button asked for nothing");
+      if (!(await ev(() => /3D didn't open/.test((document.getElementById("tfToast") || {}).textContent || "")))) throw new Error("no note that 3D didn't open");
+    });
+    await check("Skiing again after another sport: Winter", async () => {
+      await ev(() => { const s = document.getElementById("basemap"); s.value = "sat"; s.dispatchEvent(new Event("change")); });
+      await sport("mtb"); await wait(2500); await sport("ski");
+      await flatWinter("back in Skiing");
+      await nativeOpen("the 3D button back in Skiing", tap3d);
+    });
+  } else if (kind === "android") {
+    // Testers: the web 3D map (Android's native 3D is alex's only for now). friends.js keeps "tf-admin" for alex's
+    // account only, so it's set again just before alex's tap.
+    await check("testers' 3D (web) opens on Winter", async () => {
+      await ev(() => localStorage.removeItem("tf-admin"));
+      await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {});   // Skiing opens in 3D here
+      if (!(await web3d())) { await tap3d(); await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {}); }
+      if (await opens()) { await back(); throw new Error("a tester's 3D opened native 3D"); }
+      if (!(await web3d())) throw new Error("3D didn't open");
+      const on = await photos3d();
+      if (on !== "Winter") throw new Error(`the web 3D map opened on ${on}, not Winter`);
+    });
+    if (await web3d()) { await tap3d().catch(() => {}); await until(() => !document.querySelector(".is3d"), null, 8000).catch(() => {}); }
+    await check("alex's native 3D opens on Winter", () => nativeOpen("the 3D button", async () => { await ev(() => localStorage.setItem("tf-admin", "1")); await tap3d(); }));
+  } else {
+    await check("3D photos are Winter (Live picked there before)", async () => {
+      await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {});
+      if (!(await web3d())) await page.locator("#btn3d").first().click({ timeout: 8000 });
+      const on = await photos3d();
+      if (on !== "Winter") throw new Error(`the 3D map opened on ${on}, not Winter`);
+    });
+  }
+  await p.ctx.close();
+}
+await fullKeysCheck();
+for (const kind of ["ios", "android", "web"]) await appBuild(kind);
 
 // The ride page (My rides, recording) on its own.
 {
