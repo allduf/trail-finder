@@ -2537,8 +2537,12 @@ body.sport-alt #rideMapBtn { display: none !important; }
     return mo < 24 ? mo + " months ago" : Math.round(days / 365) + " years ago";
   }
   function log(line) { state.log.push(line); const pre = $("debugLog"); if (pre) pre.textContent = state.log.join("\n"); }
+  // MTB's trail search lines (renderStatus: "Press Find new trails...", "11 new trails...") are marked, so the other
+  // sports' full map leaves them out but still shows the shared ones (location, place search, wildfires). var: no TDZ.
+  var mtbStatus = false;
   function setStatus(msg, warn, action) {
     const s = $("status"); s.textContent = msg; s.classList.toggle("warn", !!warn);
+    s.dataset.mtb = mtbStatus ? "1" : "";
     if (action) { const b = document.createElement("button"); b.className = "linkish"; b.type = "button"; b.textContent = action.label; b.addEventListener("click", action.fn); s.append(" ", b); }
   }
 
@@ -3849,7 +3853,8 @@ out body;`;
     }).join("") + "</ol>" : "";
   }
 
-  function renderStatus() {
+  function renderStatus() { mtbStatus = true; try { return renderStatusNow(); } finally { mtbStatus = false; } }
+  function renderStatusNow() {
     if (anyMode()) {
       $("resetBtn").hidden = true; $("toggles").hidden = true; $("debug").hidden = !state.error;
       $("findBtn").disabled = false; $("findLabel").textContent = "Find trails";
@@ -6285,7 +6290,7 @@ out body;`;
     if (v == null) mtbNowHtml = "";
     else {
       const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
-      mtbNowHtml = isSnowy(cell.snow) ? `<span>${snowIc(15)} <b>Snow likely on the trails</b> here, about ${Math.round(cell.snow)} cm (estimate)</span>`
+      mtbNowHtml = isSnowy(cell.snow) ? `<span>${snowIc(15)} <b>Snow likely on the trails</b></span><span>About ${Math.round(cell.snow)} cm here (estimate)</span>`
         : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
         : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v})</span><span>☀ Where to ride today ›</span>`;
       // The freeze line (middle of 3 models) when the ground freezes somewhere below 3,000 m around here.
@@ -7826,8 +7831,11 @@ out body;`;
     if (!map.getBounds().intersects(b)) map.fitBounds(b, { maxZoom: 16, padding: [40, 40] });
   }
   // The search status, shown on the map while the panel is hidden.
-  function syncMapStatus() { $("mapStatus").textContent = isFull() ? $("status").textContent.trim() : ""; }
+  // Not MTB's trail search lines in the other sports (deep phone test 2026-11-21: Skiing's full map said "Press Find new
+  // trails to see trails in Sea to Sky").
+  function syncMapStatus() { const st = $("status"), mtbOnly = st.dataset.mtb === "1" && document.body.classList.contains("sport-alt"); $("mapStatus").textContent = isFull() && !mtbOnly ? st.textContent.trim() : ""; }
   new MutationObserver(syncMapStatus).observe($("status"), { childList: true, characterData: true, subtree: true });
+  window.addEventListener("tf:sport", () => setTimeout(syncMapStatus));
   $("fullBtn").addEventListener("click", () => setFullMap(!isFull()));
   $("fullExit").addEventListener("click", () => setFullMap(false));
   document.addEventListener("fullscreenchange", () => {
