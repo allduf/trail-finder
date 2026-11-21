@@ -124,7 +124,8 @@ async function savedFirst(req) {
 // saved with an area only with no signal. Before 2026-11-21 nothing answered them offline, so with no signal the saved
 // Winter photos weren't shown (the lists came back empty).
 async function savedIfNoNet(req) {
-  try { return await fetch(req); }
+  // A weak signal can hang instead of failing: the saved copy after 4 s.
+  try { return await Promise.race([fetch(req), new Promise((_, no) => setTimeout(() => no(new Error("slow")), 4000))]); }
   catch (err) { const hit = await (await caches.open(OFFLINE)).match(req.url, { ignoreVary: true }); if (hit) return hit; throw err; }
 }
 

@@ -192,7 +192,8 @@ final class OfflinePacks: NSObject {
     private var observing = false
     private var notifyQueued = false
 
-    struct Area { let id: String; let boxes: [[Double]]; let ski: Bool }
+    // sharp: saved at full detail on the page (dz 15): the sharpened Winter photos come too.
+    struct Area { let id: String; let boxes: [[Double]]; let ski: Bool; let sharp: Bool }
 
     func withPacks(_ fn: @escaping ([MLNOfflinePack]) -> Void) {
         let st = MLNOfflineStorage.shared
@@ -232,7 +233,7 @@ final class OfflinePacks: NSObject {
             guard let id = a["id"] as? String, !id.isEmpty else { return nil }
             var boxes = OfflinePacks.boxes(a["boxes"])
             if boxes.isEmpty { let b = ((a["box"] as? [Any]) ?? []).compactMap(num); if b.count == 4 { boxes = [b] } }
-            return boxes.isEmpty ? nil : Area(id: id, boxes: boxes, ski: (a["ski"] as? Bool) ?? false)
+            return boxes.isEmpty ? nil : Area(id: id, boxes: boxes, ski: (a["ski"] as? Bool) ?? false, sharp: (a["sharp"] as? Bool) ?? false)
         }
         withPacks { [weak self] _ in
             guard let self = self else { return }
@@ -241,7 +242,7 @@ final class OfflinePacks: NSObject {
             var have: [String: Set<String>] = [:]
             for (p, c) in self.ours {
                 let id = (c["id"] as? String) ?? "", a = byId[id]
-                let same = a != nil && OfflinePacks.sameBoxes(OfflinePacks.boxes(c["boxes"]), a!.boxes) && ((c["ski"] as? Bool) ?? false) == a!.ski
+                let same = a != nil && OfflinePacks.sameBoxes(OfflinePacks.boxes(c["boxes"]), a!.boxes) && ((c["ski"] as? Bool) ?? false) == a!.ski && ((c["sharp"] as? Bool) ?? false) == a!.sharp
                 if !same { MLNOfflineStorage.shared.removePack(p, withCompletionHandler: nil); continue }
                 let part = (c["part"] as? String) ?? ""
                 have[id, default: []].insert(part)
@@ -279,7 +280,7 @@ final class OfflinePacks: NSObject {
             let go = {
                 for part in parts {
                     let key = a.id + "/" + part
-                    let c: [String: Any] = ["tf": "offline", "id": a.id, "part": part, "boxes": a.boxes, "ski": a.ski, "tmpl": tmpl]
+                    let c: [String: Any] = ["tf": "offline", "id": a.id, "part": part, "boxes": a.boxes, "ski": a.ski, "sharp": a.sharp, "tmpl": tmpl]
                     guard let style = OfflinePacks.style(c), let region = OfflinePacks.region(a, part, styleBase: OfflinePacks.styleBase),
                           let ctxData = try? JSONSerialization.data(withJSONObject: c) else { self.creating.remove(key); continue }
                     self.putStyle(style, region.styleURL) { ok in
@@ -327,10 +328,14 @@ final class OfflinePacks: NSObject {
         if part == "main" {
             guard let t = c["tmpl"] as? String else { return nil }
             sources["ofm"] = ["type": "vector", "tiles": [t], "minzoom": 0, "maxzoom": 14]
+            // Heights to zoom 12, as native 3D asks for them with signal too (NativeBaseStyles.swift "dem"): the copy matches
+            // what the screen shows. Deeper heights here wait for native 3D itself to go deeper.
             sources["dem"] = ["type": "raster-dem", "encoding": "terrarium", "tileSize": 512, "maxzoom": 12, "tiles": [demTiles]]
             if ski {
                 sources["winter"] = winter
-                // The sharpened Winter photos too (zooms 11-15, ~5 KB each), as native 3D shows them online (WinterTiles
+            }
+            if ski && ((c["sharp"] as? Bool) ?? false) {
+                // Saved at full detail on the page (dz 15): the sharpened Winter photos too (zooms 11-15, ~5 KB each), as native 3D shows them online (WinterTiles
                 // "sharp"): close up the saved ground looks as it does with signal (alex 2026-11-21: "same quality off line").
                 sources["sharp"] = ["type": "raster", "tileSize": 256, "minzoom": 11, "maxzoom": 15, "tiles": ["https://\(WinterTiles.host)/s/{z}/{x}/{y}"]]
             }

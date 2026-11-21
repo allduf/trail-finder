@@ -929,21 +929,29 @@
   // With no signal a tile closer than the deepest saved one is cut from those straight away instead of trying sites
   // that can't answer.
   const SAVED_DEM_Z = 12;
-  let savedDz = null;
-  const savedDemZ = () => {
-    if (savedDz == null) { try { savedDz = Math.max(SAVED_DEM_Z, ...(JSON.parse(localStorage.getItem("tf-offline-areas")) || []).map((a) => +a.dz || SAVED_DEM_Z)); } catch { savedDz = SAVED_DEM_Z; } }
-    return savedDz;
+  // Per tile: only inside an area saved that deep (elsewhere the sites can't answer, and on a weak signal waiting
+  // for them would hold the near ground back).
+  let deepAreas = null;
+  const loadDeep = () => {
+    if (!deepAreas) { try { deepAreas = (JSON.parse(localStorage.getItem("tf-offline-areas")) || []).filter((a) => +a.dz > SAVED_DEM_Z && Array.isArray(a.box)); } catch { deepAreas = []; } }
+    return deepAreas;
   };
-  window.addEventListener("tf:offline", () => { savedDz = null; });
-  window.addEventListener("storage", () => { savedDz = null; });
-  const offDeep = (z) => !navigator.onLine && z > savedDemZ();
+  window.addEventListener("tf:offline", () => { deepAreas = null; });
+  window.addEventListener("storage", () => { deepAreas = null; });
+  const tileLon = (x, z) => (x / 2 ** z) * 360 - 180;
+  const tileLat = (y, z) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** z))) * 180) / Math.PI;
+  const offDeep = (z, x, y) => {
+    if (navigator.onLine || z <= SAVED_DEM_Z) return false;
+    const n = tileLat(y, z), s = tileLat(y + 1, z), w = tileLon(x, z), e = tileLon(x + 1, z);
+    return !loadDeep().some((a) => +a.dz >= z && a.box[0] < n && a.box[2] > s && a.box[1] < e && a.box[3] > w);
+  };
   async function image(url, signal) {
     const r = await fetch(url, { signal });
     if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
     return createImageBitmap(await r.blob());
   }
   async function demTile(z, x, y, signal) {
-    if (!isMissing(z, x, y) && !offDeep(z)) {
+    if (!isMissing(z, x, y) && !offDeep(z, x, y)) {
       try { return await image(MAPTERHORN(z, x, y), signal); }
       catch (e) { if (signal.aborted) throw e; if (e.status === 404 || e.status === 204) missing.add(`${z}/${x}/${y}`); }
     }
@@ -1029,7 +1037,7 @@
       const [z, x, y] = params.url.replace("tfdem://", "").split("/").map(Number);
       const warm = warmDem.get(MAPTERHORN(z, x, y));
       if (warm) { warmDem.delete(MAPTERHORN(z, x, y)); const b = await warm; if (b) return { data: b }; }
-      if (!isMissing(z, x, y) && !offDeep(z)) {   // the usual case: Mapterhorn's own tile, passed on as it is
+      if (!isMissing(z, x, y) && !offDeep(z, x, y)) {   // the usual case: Mapterhorn's own tile, passed on as it is
         const r = await fetch(MAPTERHORN(z, x, y), { signal: abort.signal }).catch((e) => { if (abort.signal.aborted) throw e; return null; });
         if (r && r.ok) return { data: await r.arrayBuffer() };
         if (r && (r.status === 404 || r.status === 204)) missing.add(`${z}/${x}/${y}`);
@@ -3209,7 +3217,7 @@
       gl.setLayoutProperty("topo-shade", "visibility", !off && photos === "topo" ? "visible" : "none");
       // Topo with no signal: elevation lines from the saved heights over the saved map (contours.js), our own Topo
       // look, since OpenTopoMap's pictures can't be saved (alex 2026-11-21: "Topo is not working off line").
-      if (window.tfContourForce) window.tfContourForce("offline-3d", off && photos === "topo");
+      if (window.tfContourForce) window.tfContourForce("offline-3d", off && photos === "topo");   // contours.js clears it with signal back
     };
     netChange = () => { if (gl && gl.getLayer("off-bg")) setPhotos(photos); };
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no

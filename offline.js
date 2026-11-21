@@ -867,7 +867,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   function goOffline() {
     if (!load().length || !window.tfSetBasemap) return;
     const sel = document.getElementById("basemap");
-    if (sel && /topo/.test(sel.value)) contourForce(true);
+    if (sel && sel.value === "topo") contourForce(true);
     if (sel && sel.value !== "vector") window.tfSetBasemap("vector", false);
   }
   if (!navigator.onLine) goOffline();

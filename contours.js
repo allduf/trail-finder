@@ -286,6 +286,8 @@ onmessage = async (e) => {
     if (want) forced.add(who); else forced.delete(who);
     refresh();
   };
+  // Forced only with no signal: with signal back, the rider's own setting again (even if the 3D map that asked is closed).
+  window.addEventListener("online", () => { if (forced.size) { forced.clear(); refresh(); } });
   function refresh() {
     if (shown()) { if (!map.hasLayer(layer)) layer.addTo(map); } else if (map.hasLayer(layer)) map.removeLayer(layer);
     sync3d();
