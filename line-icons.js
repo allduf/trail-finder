@@ -168,7 +168,7 @@
     const jobs = [];
     all.forEach(([k, pin], n) => {
       const p = n.parentElement;
-      if (!p || !n.isConnected || !n.data.replace(/^\s+/, "").startsWith(k[0])) return;   // changed since it was found
+      if (!p || !n.data.replace(/^\s+/, "").startsWith(k[0])) return;   // changed since it was found
       const cs = getComputedStyle(p);
       jobs.push([n, k, pin, cs.display, cs.flexDirection]);
     });

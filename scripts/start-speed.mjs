@@ -22,7 +22,8 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 
 function serve(root) {
   const server = createServer(async (req, res) => {
-    const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
+    let path;
+    try { path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html"; } catch { res.writeHead(400).end(); return; }
     for (const base of [root, path.startsWith("data/") ? DATA : null]) {
       if (!base) continue;
       const file = normalize(join(base, path));
