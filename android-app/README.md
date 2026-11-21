@@ -12,17 +12,19 @@ The Android app is the live website (https://trailfinderapp.ca) in a Capacitor s
 - `plugins/TrailMap/`: the map drawn by the phone itself (MapLibre Native with 3D mountains), the same calls as the
   iPhone's (`ios-app/plugins/TrailMap`), used by `native-map.js`: alex-only "Native map (test)" (MTB) and "Native 3D
   (test)" in Layers > Tools, with the iPhone's base maps (Satellite with the late-summer mountains, Topo, Map, and
-  Skiing's Winter), roads, paths, place and peak names, the trails with their names, and the trail card. The iPhone's
-  other native 3D features (`NativeLayers.swift`) come one by one into `NativeLayers.java`; until this build draws
-  them all, the map's 3D button keeps opening the web 3D map. The engine is a community build, pinned by sha256
+  Skiing's Winter), roads, paths, place and peak names, the trails with their names, and the trail card, plus every
+  native 3D feature the iPhone has (`NativeLayers.swift`), one `NativeXxx.java` each in `NativeLayers.java`: pins,
+  search, radar and smoke, two-finger measure, Flyover, moto, hunting, fishing, the map tools, ground layers, the
+  avalanche card and offline maps (`OfflinePacks.java`). The page's 3D button opens it (alex only) once the build
+  draws every feature the page sends; otherwise the web 3D map. The engine is a community build, pinned by sha256
   (`vendor/SOURCES.md`).
 - `android/app/.../MainActivity.java`: photo boxes offer the camera next to the gallery, like the iPhone.
 - On the website, `native.js` adds the Android Back button (closes what's open, then puts the app away) and
   readable status bar icons on both themes; `app-update.js` (TestFlight popup) and `usage.js` (iPhone-only usage
   page) stay off on Android.
 
-Not in the Android app yet: phone notifications (they need a Firebase project and the push job sending to it),
-and most native 3D features (see `plugins/TrailMap/` above).
+Not in the Android app yet: phone notifications (they need a Firebase project and the push job sending to it).
+Native 3D is alex-only on Android for now (the iPhone has it for every tester).
 
 ## Builds
 
