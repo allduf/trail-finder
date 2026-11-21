@@ -81,7 +81,7 @@
      "about": "The classic first slackcountry run from Whistler: over Flute and Oboe, then down Oboe's north side, open slopes then trees, to the Singing Pass trail in the Fitzsimmons valley.",
      "access": "Through the Flute gate, then east along the Musical Bumps ridge to Oboe Summit (1956 m), on skins or with a short bootpack.",
      "exit": "The Singing Pass trail, down the south side of Fitzsimmons Creek to Whistler Village (about 7 km). It can be icy and hard to follow when there's little snow.",
-     "hazards": ["Open avalanche slopes above the trees.", "Hard to find the way on the ridge in a whiteout.", "Creek gullies near the bottom: a small slide piles up deep there."],
+     "hazards": ["Open avalanche slopes above the trees.", "Hard to find the way on the ridge in a whiteout."],
      "src": [
       {
        "t": "Whistler Blackcomb: backcountry access",
@@ -108,7 +108,7 @@
       "tripKm": 12.2,
       "climb": 1473,
       "cls": 3,
-      "why": ["1.4 km on slopes of 35° or more", "9.1 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+      "why": ["1.4 km on slopes of 35° or more"]
      }
     },
     {
@@ -123,7 +123,7 @@
      "about": "Lots of tree lines on the east side of Oboe, the better side of the peak: gentle at first, then steeper and more continuous through the openings at treeline, down to the Singing Pass trail. So popular you often don't need to break trail.",
      "access": "Through the Flute gate and east along the Musical Bumps to Oboe Summit (1956 m).",
      "exit": "The Singing Pass trail, down the south side of Fitzsimmons Creek to Whistler Village.",
-     "hazards": ["Busy: watch for other groups above you.", "Avalanche paths cross the Singing Pass trail on the way out."],
+     "hazards": ["Busy: other groups ski the same slopes.", "Avalanche paths cross the Singing Pass trail on the way out."],
      "src": [
       {
        "t": "Spearhead Backcountry: 8 popular Whistler backcountry zones",
@@ -146,7 +146,7 @@
       "tripKm": 13.3,
       "climb": 1463,
       "cls": 3,
-      "why": ["1.6 km on slopes of 35° or more", "9.2 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["1.6 km on slopes of 35° or more"]
      }
     },
     {
@@ -161,7 +161,7 @@
      "about": "The first run past the Flute gate: from the boundary at the top of Flute Summit down the far side to Oboe Creek. Gentler slopes far to skier's right, a steady sparsely treed line in the middle, trees to skier's left.",
      "access": "The Flute gate at the top of Flute Bowl: skin or bootpack up Flute Summit (about 15 minutes) from the Symphony or Harmony chairs.",
      "exit": "Follow Oboe Creek down to the Singing Pass trail and out to Whistler Village. Or skin back up past Lesser Flute into the resort.",
-     "hazards": ["Don't drift too far to skier's right: that drains toward Cheakamus Lake, and many lost parties there have needed Search and Rescue.", "Creek gullies near the bottom: a small slide piles up deep there."],
+     "hazards": ["Skier's right drains toward Cheakamus Lake, away from the resort; many lost parties there have needed Search and Rescue."],
      "src": [
       {
        "t": "Spearhead Backcountry: 8 popular Whistler backcountry zones",
@@ -187,7 +187,7 @@
       "tripKm": 10.3,
       "climb": 1388,
       "cls": 3,
-      "why": ["1.4 km on slopes of 35° or more", "8.9 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+      "why": ["1.4 km on slopes of 35° or more"]
      }
     },
     {
@@ -202,7 +202,7 @@
      "about": "A ridge tour over Flute, Oboe and the Musical Bumps to Singing Pass: mostly gentle, with easy ways back toward the resort early on. Russet Lake and the Kees and Claire Hut are beyond the pass, and it's the west end of the Spearhead Traverse.",
      "access": "Through the Flute gate at the top of Flute Bowl.",
      "exit": "The Singing Pass trail down to Whistler Village, or skin back over the Bumps to the resort.",
-     "hazards": ["Avalanche hazard on every open slope along the ridge.", "Route finding is hard in a whiteout.", "About 8 km and 4 hours from the lifts to the pass, then the long trail out: start early."],
+     "hazards": ["Avalanche hazard on every open slope along the ridge.", "Route finding is hard in a whiteout.", "About 8 km and 4 hours from the lifts to the pass, then the long trail out."],
      "src": [
       {
        "t": "Whistler Blackcomb: backcountry access",
@@ -232,7 +232,7 @@
       "tripKm": 15.2,
       "climb": 1486,
       "cls": 3,
-      "why": ["1.5 km on slopes of 35° or more", "9.9 km under steep slopes", "0.2 km in gullies or creek beds (terrain traps)"]
+      "why": ["1.5 km on slopes of 35° or more"]
      },
      "cls": 2,
      "clsWhy": "Mostly a gentle ridge with ways around the steep slopes; the trail out does pass under avalanche paths."
@@ -272,7 +272,7 @@
       "tripKm": 16.6,
       "climb": 1750,
       "cls": 3,
-      "why": ["1.5 km on slopes of 35° or more", "10.5 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["1.5 km on slopes of 35° or more"]
      }
     },
     {
@@ -318,7 +318,7 @@
       "tripKm": 24.9,
       "climb": 2636,
       "cls": 3,
-      "why": ["2.5 km on slopes of 35° or more", "14.4 km under steep slopes", "0.8 km in gullies or creek beds (terrain traps)"]
+      "why": ["2.5 km on slopes of 35° or more"]
      }
     },
     {
@@ -333,7 +333,7 @@
      "about": "Off Whistler Peak, skier's left of Upper Peak to Creek: steep trees, gullies and cliffs off Khyber Ridge, down toward the Microwave Tower road. It has no gate and no control.",
      "access": "Peak Express, then Upper Peak to Creek past Bagel Bowl. Right after an S bend, the trees on skier's left run past the boundary (the tiny Stu Inn shelter sits there).",
      "exit": "The Microwave Tower Access Road back to Creekside: about 3 km past the microwave tower, keep right (north-north-east), or you end up at the bottom of Cheakamus Lake Road.",
-     "hazards": ["Don't go more than about 200 m skier's left (south): that drops into the Cheakamus Lake drainage, under very large avalanche paths, with cliff bands and a long, bushy way out.", "Very easy to get lost: the terrain confuses even experienced navigators.", "Cliffs and creek gullies (terrain traps)."],
+     "hazards": ["About 200 m skier's left (south) the slopes drop into the Cheakamus Lake drainage: very large avalanche paths, cliff bands and a long, bushy way out.", "Very easy to get lost: the terrain confuses even experienced navigators.", "Cliffs and creek gullies."],
      "src": [
       {
        "t": "UBC VOC: Stu Inn and Khyber Ridge",
@@ -356,7 +356,7 @@
       "tripKm": 5.6,
       "climb": 1208,
       "cls": 3,
-      "why": ["0.1 km on slopes of 35° or more", "2.8 km under steep slopes", "0.5 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.1 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     },
     {
@@ -395,7 +395,7 @@
       "tripKm": 3.7,
       "climb": 755,
       "cls": 3,
-      "why": ["0.1 km on slopes of 35° or more", "2.7 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.1 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     },
     {
@@ -434,7 +434,7 @@
       "tripKm": 3.3,
       "climb": 792,
       "cls": 3,
-      "why": ["0.6 km on slopes of 35° or more", "2.1 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.6 km on slopes of 35° or more"]
      }
     },
     {
@@ -449,7 +449,7 @@
      "about": "A short run (about 60 m) down the north side of Disease Ridge, the ridge south of 7th Heaven, back toward Lakeside Bowl and the bottom of 7th Heaven. A quick lap from the gate.",
      "access": "The backcountry gate by 7th Heaven, then skin south up to Disease Ridge. Also reached from the East Col.",
      "exit": "Down the gully west to the bottom of 7th Heaven.",
-     "hazards": ["Wind slabs and storm slabs. Avalanches have run here on weak layers low on the ridge.", "The gully at the bottom is a terrain trap."],
+     "hazards": ["Wind slabs and storm slabs. Avalanches have run here on weak layers low on the ridge."],
      "src": [
       {
        "t": "Alpine Islands: ski touring Blackcomb Mountain",
@@ -472,7 +472,7 @@
       "tripKm": 2.7,
       "climb": 407,
       "cls": 2,
-      "why": ["0.1 km on slopes of 30° or more", "0.7 km under steep slopes", "0.1 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.1 km on slopes of 30° or more"]
      }
     },
     {
@@ -487,7 +487,7 @@
      "about": "South-east facing open slopes from the col south of the Spearhead down to Circle Lake: a long, steady fall line that splits into two broad gullies on either side of a low ridge.",
      "access": "The Garibaldi Park gate on the Blackcomb Glacier, then a short traversing climb to the Spearhead col.",
      "exit": "Skin over the col between Blackcomb Peak and Disease Ridge to the top of Body Bag Bowl, ski it and come back in at the bottom of 7th Heaven.",
-     "hazards": ["Sunny aspect: slopes warm up fast in the afternoon and in spring.", "The two gullies at the bottom are terrain traps."],
+     "hazards": ["Sunny aspect: slopes warm up fast in the afternoon and in spring."],
      "src": [
       {
        "t": "Spearhead Backcountry: 8 popular Whistler backcountry zones",
@@ -510,7 +510,7 @@
       "tripKm": 4.8,
       "climb": 972,
       "cls": 3,
-      "why": ["0.2 km on slopes of 35° or more", "3.5 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.2 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     },
     {
@@ -552,7 +552,7 @@
       "tripKm": 6.7,
       "climb": 1152,
       "cls": 3,
-      "why": ["0.8 km on slopes of 35° or more", "6.3 km under steep slopes", "1.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.8 km on slopes of 35° or more"]
      }
     },
     {
@@ -590,7 +590,7 @@
       "tripKm": 6.9,
       "climb": 1181,
       "cls": 3,
-      "why": ["0.7 km on slopes of 35° or more", "6.5 km under steep slopes", "1.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.7 km on slopes of 35° or more"]
      }
     },
     {
@@ -632,7 +632,7 @@
       "tripKm": 7.6,
       "climb": 1266,
       "cls": 3,
-      "why": ["0.7 km on slopes of 35° or more", "6.6 km under steep slopes", "1.0 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.7 km on slopes of 35° or more"]
      }
     },
     {
@@ -647,7 +647,7 @@
      "about": "Lines off Phalanx Mountain back down to the Blackcomb Glacier. The bowl south-west of the summit gives about 250 m of skiing at 35 to 40°. The way up is the Stairmaster, a steep bootpack couloir of about 160 m to the summit.",
      "access": "The Garibaldi Park gate, the Spearhead col and the Spearhead Glacier, then bootpack the Stairmaster couloir to the notch between Phalanx's two summits.",
      "exit": "Down to the Blackcomb Glacier and Glacier Road, then the Crystal or Excelerator chairs. Or the Phalanx Glacier and the Poop Chutes to Glacier Road.",
-     "hazards": ["Steep, narrow bootpack: sluffs and anyone above you come down the same couloir.", "Cornices on the summit ridge.", "Glacier on the way: crevasses."],
+     "hazards": ["Steep, narrow bootpack in the same couloir people ski down.", "Cornices on the summit ridge.", "Glacier on the way: crevasses."],
      "src": [
       {
        "t": "Altus Mountain Guides: Stairmaster couloir and Corona Bowl",
@@ -678,7 +678,7 @@
       "tripKm": 7.3,
       "climb": 1218,
       "cls": 3,
-      "why": ["0.8 km on slopes of 35° or more", "6.9 km under steep slopes", "1.1 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.8 km on slopes of 35° or more"]
      }
     },
     {
@@ -693,7 +693,7 @@
      "about": "Long chutes off Phalanx Mountain's north ridge down to Glacier Road. From the summit, ski the Phalanx Glacier north beside the ridge, then cross west over the lower north ridge into the chutes: about 700 m down from there.",
      "access": "From the Blackcomb Glacier gate, skin over the Spearhead's south shoulder and down onto the Spearhead Glacier, then sidehill round the east side of the Spearhead-Phalanx col: you can't stay on the ridge, Phalanx's south ridge has rock pinnacles. Bootpack the Stairmaster, a steep, narrow couloir on Phalanx's southeast face, to the notch between its two summits (about 140 m, 15 to 20 minutes), then the short walk to the summit. Ski the Phalanx Glacier north (not the north ridge's crest, which is jagged) and climb about 40 m west over the lower north ridge into the chutes.",
      "exit": "The chutes end on Glacier Road: follow it to the Crystal or Excelerator chairs, or the valley.",
-     "hazards": ["In 2021 two size 3 avalanches here killed one person and injured at least two others.", "Long, narrow chutes that funnel any slide.", "The Stairmaster on the way up is a steep couloir too: avalanche terrain, one at a time.", "The lower chutes (the dogleg) can be icy above a cliff."],
+     "hazards": ["In 2021 two size 3 avalanches here killed one person and injured at least two others.", "Long, narrow chutes that funnel any slide.", "The Stairmaster on the way up is a steep couloir too: avalanche terrain.", "The lower chutes (the dogleg) can be icy above a cliff."],
      "src": [
       {
        "t": "Global News: Blackcomb Glacier avalanche (2021)",
@@ -732,7 +732,7 @@
       "tripKm": 8.8,
       "climb": 1306,
       "cls": 3,
-      "why": ["2.0 km on slopes of 35° or more", "6.8 km under steep slopes", "0.5 km in gullies or creek beds (terrain traps)"]
+      "why": ["2.0 km on slopes of 35° or more"]
      }
     },
     {
@@ -774,7 +774,7 @@
       "tripKm": 12,
       "climb": 1547,
       "cls": 3,
-      "why": ["0.6 km on slopes of 35° or more", "8.9 km under steep slopes", "1.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.6 km on slopes of 35° or more"]
      }
     },
     {
@@ -789,7 +789,7 @@
      "about": "The long, more open run on Decker: north down the Decker Glacier to Decker Lake. Good for laps. Steeper lines on the same side: Chisel Chute, the Fingers, the 9th Hole (through corniced ground off the summit) and Decker Main.",
      "access": "The Garibaldi Park gate, over the East Col, down past Circle Lake to Decker Lake, then skin up to the top. About 2 to 3 hours.",
      "exit": "Over the col between Decker and Disease Ridge, then a contouring traverse round Disease Ridge back to the bottom of 7th Heaven.",
-     "hazards": ["Crevasses on the glacier, worst early in the season: rope and harness.", "Overhanging cornices on several slopes.", "Busy: watch the ascent track, it crosses below other groups' lines."],
+     "hazards": ["Crevasses on the glacier, worst early in the season: rope and harness.", "Overhanging cornices on several slopes.", "Busy: the ascent track crosses other groups' lines."],
      "src": [
       {
        "t": "Spearhead Backcountry: 8 popular Whistler backcountry zones",
@@ -820,7 +820,7 @@
       "tripKm": 8.7,
       "climb": 1324,
       "cls": 3,
-      "why": ["0.5 km on slopes of 35° or more", "5.4 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.5 km on slopes of 35° or more"]
      }
     },
     {
@@ -835,7 +835,7 @@
      "about": "The classic hut-to-hut ski traverse from Blackcomb to Whistler round the Spearhead and Fitzsimmons Ranges: about 35 km over 13 glaciers, usually 2 to 3 days with the Kees and Claire Hut on the way. Avalanche Canada rates it Complex.",
      "access": "The Garibaldi Park gate on the Blackcomb Glacier, then up to the East Col.",
      "exit": "Over Singing Pass and down the Singing Pass trail to Whistler Village.",
-     "hazards": ["Complex avalanche terrain the whole way: plan each slope with the day's forecast.", "Many glaciers: crevasse gear and training.", "Hard to bail out once past Decker: carry what you need to spend a night out."],
+     "hazards": ["Complex avalanche terrain the whole way.", "Many glaciers: crevasse gear and training.", "Hard to bail out once past Decker: a long way from help."],
      "src": [
       {
        "t": "Avalanche Canada: Spearhead Traverse in the trip planner (Complex)",
@@ -863,7 +863,7 @@
       "tripKm": 35.6,
       "climb": 3418,
       "cls": 3,
-      "why": ["2.5 km on slopes of 35° or more", "25.8 km under steep slopes", "1.0 km in gullies or creek beds (terrain traps)"]
+      "why": ["2.5 km on slopes of 35° or more"]
      }
     }
    ]
@@ -912,7 +912,7 @@
      "about": "The closest slackcountry to the lifts: a short skin past the gate, then open slopes and trees facing south-west, back toward the resort's south side.",
      "access": "Through the gate below Sub Peak, then a short skin east along the ridge to the top of the bowl.",
      "exit": "Traverse west at the bottom of the bowl back inside the boundary, near the bottom of Jalapeno and the Ninja Traverse.",
-     "hazards": ["Sun-baked south-west slopes: wet slides in the afternoon and in spring.", "Cornices on the ridge above.", "Easy to drift too far down: stay high enough to traverse back."],
+     "hazards": ["Sun-baked south-west slopes: wet slides in the afternoon and in spring.", "Cornices on the ridge above.", "Easy to drift too far down, below the traverse back."],
      "src": [
       {
        "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
@@ -940,7 +940,7 @@
       "tripKm": 1.9,
       "climb": 336,
       "cls": 3,
-      "why": ["0.1 km on slopes of 35° or more", "1.7 km under steep slopes"]
+      "why": ["0.1 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     },
     {
@@ -955,7 +955,7 @@
      "about": "Longer open lines off the ridge between Sub Peak and Montana Peak, south-west facing, ending in the trees above the traverse back to the resort.",
      "access": "Through the gate below Sub Peak, then about 2 km east on the ridge skin track.",
      "exit": "At the bottom, take the long traverse west (the way back on the map) to Devil's Club inside the resort. It's mostly downhill but long; skins help in deep snow.",
-     "hazards": ["Big open slopes above the trees: avalanche terrain, and slides run into the trees below.", "Wet slides on sunny afternoons.", "Cornices on the ridge."],
+     "hazards": ["Big open slopes and the trees under them: avalanche terrain.", "Wet slides on sunny afternoons.", "Cornices on the ridge."],
      "src": [
       {
        "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
@@ -983,7 +983,7 @@
       "tripKm": 5.4,
       "climb": 797,
       "cls": 3,
-      "why": ["0.2 km on slopes of 35° or more", "4.0 km under steep slopes", "0.7 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.2 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     },
     {
@@ -1026,7 +1026,7 @@
       "tripKm": 6.2,
       "climb": 971,
       "cls": 3,
-      "why": ["0.9 km on slopes of 35° or more", "4.5 km under steep slopes", "0.8 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.9 km on slopes of 35° or more"]
      }
     },
     {
@@ -1041,7 +1041,7 @@
      "about": "Spaced trees below Montana Bowl, cut by an old cat skiing operation. Steady fall line down to about 1,750 m.",
      "access": "Through the gate below Sub Peak, east along the ridge skin track, then down into the top of the trees below Montana Bowl.",
      "exit": "Put skins on at the bottom and skin back up north-west (about 170 m up) to the resort side, near the bottom of Jalapeno.",
-     "hazards": ["The trees are below big avalanche paths: don't stop under open slopes.", "You must skin out: leave time to be back by 3:45 pm.", "Tree wells in deep snow."],
+     "hazards": ["Big avalanche paths cross the trees.", "You must skin out; the resort asks skiers to be back by 3:45 pm.", "Tree wells in deep snow."],
      "src": [
       {
        "t": "Revelstoke Mountain Resort: boundary and backcountry safety",
@@ -1069,7 +1069,7 @@
       "tripKm": 6,
       "climb": 745,
       "cls": 3,
-      "why": ["0.2 km on slopes of 35° or more", "4.7 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.2 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     }
    ]
@@ -1136,7 +1136,7 @@
      "about": "The classic Whitewater slackcountry lap: skin up White Queen from the Silver King gate and ski the trees and open slopes back down its south-west side to the resort.",
      "access": "Through the Silver King gate, then about 45 minutes up the skin track along the ridge to the summit (2,180 m).",
      "exit": "The run ends on the Silver King ski way: follow it back to the Silver King chair.",
-     "hazards": ["Open slopes near the top hold wind slabs.", "Gullies in the lower trees.", "Don't drop off the north side: it goes away from the resort."],
+     "hazards": ["Open slopes near the top hold wind slabs.", "Gullies in the lower trees.", "The north side goes away from the resort."],
      "src": [
       {
        "t": "Whitewater: backcountry, waiver and check-in",
@@ -1168,7 +1168,7 @@
       "tripKm": 4.6,
       "climb": 800,
       "cls": 3,
-      "why": ["0.4 km on slopes of 35° or more", "3.2 km under steep slopes", "0.1 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.4 km on slopes of 35° or more"]
      }
     },
     {
@@ -1183,7 +1183,7 @@
      "about": "One drainage east of the resort: from the ridge above Half Dome, north-west facing slopes and trees down into Five Mile Basin, then skin back out.",
      "access": "Through the Silver King gate, then the skin track east up the ridge toward Half Dome (about 300 m up).",
      "exit": "Skin back up the zig-zag track to the ridge and return west to the Silver King gate. Don't follow the creek down: it goes away from the resort.",
-     "hazards": ["Slopes up to about 35°, open at the top.", "You have to skin out: leave time and energy.", "Avalanche paths come down from Half Dome and Ymir on the far side."],
+     "hazards": ["Slopes up to about 35°, open at the top.", "You have to skin out.", "Avalanche paths on Half Dome and Ymir, on the far side."],
      "src": [
       {
        "t": "Whitewater: backcountry, waiver and check-in",
@@ -1219,7 +1219,7 @@
       "tripKm": 6.4,
       "climb": 824,
       "cls": 3,
-      "why": ["0.5 km on slopes of 35° or more", "4.8 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.5 km on slopes of 35° or more"]
      }
     },
     {
@@ -1270,7 +1270,7 @@
       "tripKm": 5,
       "climb": 788,
       "cls": 3,
-      "why": ["0.8 km on slopes of 35° or more", "3.8 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.8 km on slopes of 35° or more"]
      }
     },
     {
@@ -1285,7 +1285,7 @@
      "about": "A short climb from the Powder Keg gate to the Prospector (2,127 m), then its north side straight back down into the resort.",
      "access": "Through the Powder Keg gate, then the Prospector skin track east (about 170 m up).",
      "exit": "Ends back inside the resort: ski out to the Silver King chair.",
-     "hazards": ["Short but steep near the top (40°+ in places).", "Cliffs in the trees.", "Slides here run into the resort's runs below."],
+     "hazards": ["Short but steep near the top (40°+ in places).", "Cliffs in the trees.", "Slides here can run into the resort's runs."],
      "src": [
       {
        "t": "Whitewater: backcountry, waiver and check-in",
@@ -1317,7 +1317,7 @@
       "tripKm": 2.6,
       "climb": 496,
       "cls": 3,
-      "why": ["0.2 km on slopes of 35° or more", "2.0 km under steep slopes", "0.4 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.2 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     },
     {
@@ -1332,7 +1332,7 @@
      "about": "Steep chutes, drops and pillows on the ridge south of Glory Ridge, skied back down toward the Glory side of the resort.",
      "access": "Through the Claim Jumper gate, then a short hike south-west up the ridge.",
      "exit": "From the bottom, ski back to the Glory Ridge chair.",
-     "hazards": ["Steep, rocky chutes: cliffs and drops.", "Terrain traps: small slides pile up deep in the gullies.", "Skills needed: easy to end up above a drop."],
+     "hazards": ["Steep, rocky chutes: cliffs and drops."],
      "src": [
       {
        "t": "Whitewater: backcountry, waiver and check-in",
@@ -1364,7 +1364,7 @@
       "tripKm": 3.4,
       "climb": 699,
       "cls": 3,
-      "why": ["0.1 km on slopes of 35° or more", "1.6 km under steep slopes", "0.1 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.1 km on slopes of 35° or more", "the shape of the ground around the route on the terrain map"]
      }
     }
    ]
@@ -1426,7 +1426,7 @@
      "about": "Simple terrain: open trees from the ridge just above the gate, back down to Silver Sheep and Rino's Run.",
      "access": "Through the gate, then a short hike north-west up the ridge.",
      "exit": "The glades come back down to Silver Sheep and Rino's Run inside the resort.",
-     "hazards": ["Don't drop west: the west-facing side leads to Big Sheep Creek, about 40 km from the ski area.", "Simple terrain, but still not controlled."],
+     "hazards": ["The west-facing side leads to Big Sheep Creek, about 40 km from the ski area.", "Simple terrain, but still not controlled."],
      "src": [
       {
        "t": "RED Mountain: backcountry information",
@@ -1450,7 +1450,7 @@
       "tripKm": 1.6,
       "climb": 157,
       "cls": 2,
-      "why": ["0.2 km on slopes of 30° or more", "0.7 km under steep slopes"]
+      "why": ["0.2 km on slopes of 30° or more"]
      }
     },
     {
@@ -1488,7 +1488,7 @@
       "tripKm": 3.8,
       "climb": 617,
       "cls": 3,
-      "why": ["0.3 km on slopes of 35° or more", "2.0 km under steep slopes", "0.3 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.3 km on slopes of 35° or more"]
      }
     },
     {
@@ -1526,7 +1526,7 @@
       "tripKm": 2.4,
       "climb": 511,
       "cls": 3,
-      "why": ["0.7 km on slopes of 35° or more", "2.1 km under steep slopes", "0.8 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.7 km on slopes of 35° or more"]
      }
     }
    ]
@@ -1606,7 +1606,7 @@
      "about": "From the Polar Peak saddle, west down Polaris Bowl to the valley the Thunder Meadows cabin route calls Easy Street (about 800 m down). It's the start of a tour, not a lap: the valley is on the far side of the ridge from the resort.",
      "access": "Ride the Polar Peak chair (it opens only on some days), ski to the saddle north of Polar Peak and go through the backcountry transceiver gate.",
      "exit": "There's no easy way back to the resort: from the valley, skin up to the Thunder Meadows cabin (the usual plan), or skin all the way back up to the saddle. Plan it as a backcountry tour.",
-     "hazards": ["The route crosses many slide paths: a deathtrap when the avalanche danger is high.", "Steep, open slopes under the ridge.", "You end up far from the resort, on the wrong side of the ridge."],
+     "hazards": ["The route crosses many slide paths.", "Steep, open slopes under the ridge.", "You end up far from the resort, on the wrong side of the ridge."],
      "src": [
       {
        "t": "Tourism Fernie: backcountry access at Fernie Alpine Resort",
@@ -1633,7 +1633,7 @@
       "tripKm": 3.1,
       "climb": 966,
       "cls": 3,
-      "why": ["1.0 km on slopes of 35° or more", "2.6 km under steep slopes", "0.1 km in gullies or creek beds (terrain traps)"]
+      "why": ["1.0 km on slopes of 35° or more"]
      }
     },
     {
@@ -1648,7 +1648,7 @@
      "about": "From the ridge above the top of Snake Ridge, north-east down the upper Fish Bowl to the old road that leads back into the resort.",
      "access": "Through the access point at the top of Snake Ridge (end of the Cedar High Traverse), then skin west up the ridge (about 230 m).",
      "exit": "At the bottom, follow Red Tree Road east back into the resort.",
-     "hazards": ["The traverse across Fish Bowl and 2000 Foot Ridge crosses steep avalanche terrain: ski patrol closes it when the danger is high.", "Steep (up to about 45°) near the top.", "Don't follow the creek past the road: it leads away from the resort."],
+     "hazards": ["The traverse across Fish Bowl and 2000 Foot Ridge crosses steep avalanche terrain: ski patrol closes it when the danger is high.", "Steep (up to about 45°) near the top.", "Past the road, the creek leads away from the resort."],
      "src": [
       {
        "t": "Tourism Fernie: backcountry access at Fernie Alpine Resort",
@@ -1675,7 +1675,7 @@
       "tripKm": 4.2,
       "climb": 693,
       "cls": 3,
-      "why": ["0.4 km on slopes of 35° or more", "3.0 km under steep slopes", "0.2 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.4 km on slopes of 35° or more"]
      }
     }
    ]
@@ -1724,7 +1724,7 @@
      "about": "The gully between Mount Strachan's two summits, skied west down to Strachan Meadows on the Howe Sound Crest Trail. Short, steep and narrow.",
      "access": "From the top of the Sky Chair area, up to the col between the summits of Mount Strachan (outside the ski area: follow the BAC and the red poles, never duck the rope).",
      "exit": "From Strachan Meadows, follow the Howe Sound Crest Trail south back to Bowen Lookout and the ski area. It's mostly flat with short climbs.",
-     "hazards": ["A gully: a terrain trap where even a small slide piles up deep. A skier who triggered a slide here hit trees and broke a femur; the rescue took a helicopter.", "Steep at the top (40°+).", "Don't drift north or west of the gully: the slopes drop toward Montizambert Creek and cliffs."],
+     "hazards": ["A skier who triggered a slide in this gully hit trees and broke a femur; the rescue took a helicopter.", "Steep at the top (40°+).", "North and west of the gully the slopes drop toward Montizambert Creek and cliffs."],
      "src": [
       {
        "t": "BC Parks: Cypress Park, Backcountry Access Corridor",
@@ -1752,7 +1752,7 @@
       "tripKm": 2.5,
       "climb": 504,
       "cls": 3,
-      "why": ["0.6 km on slopes of 35° or more", "2.2 km under steep slopes", "0.7 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.6 km on slopes of 35° or more"]
      }
     },
     {
@@ -1799,7 +1799,7 @@
       "tripKm": 2.1,
       "climb": 499,
       "cls": 3,
-      "why": ["0.6 km on slopes of 35° or more", "2.0 km under steep slopes", "0.6 km in gullies or creek beds (terrain traps)"]
+      "why": ["0.6 km on slopes of 35° or more"]
      }
     }
    ]
@@ -1848,7 +1848,7 @@
      "about": "The BC Parks up-track along the west side of the ski area to the saddle between First and Second Pump (Pump Peak, 1,407 m), then back down the same way.",
      "access": "From the kiosk at lot P4, skin up the marked trail (about 370 m up).",
      "exit": "Come back down the same trail. Stay on the marked route: don't drop into the gullies on either side.",
-     "hazards": ["Past Pump Peak toward Tim Jones and Mount Seymour the ridge gets steep and corniced.", "The gullies off the sides lead into the Seymour River or Indian Arm drainages, far from the road.", "Fog is common: easy to lose the poles."],
+     "hazards": ["Past Pump Peak toward Tim Jones and Mount Seymour the ridge gets steep and corniced.", "The gullies off the sides lead into the Seymour River or Indian Arm drainages, far from the road.", "Fog is common: the poles can be hard to see."],
      "src": [
       {
        "t": "BC Parks: Mount Seymour Park, winter backcountry routes",
@@ -1872,7 +1872,7 @@
       "tripKm": 6.5,
       "climb": 497,
       "cls": 3,
-      "why": ["0.2 km on slopes of 30° or more", "1.3 km under steep slopes"]
+      "why": ["0.2 km on slopes of 30° or more", "the shape of the ground around the route on the terrain map"]
      }
     }
    ]
@@ -1995,7 +1995,7 @@
       "tripKm": 6.9,
       "climb": 599,
       "cls": 2,
-      "why": ["0.9 km under steep slopes"]
+      "why": ["the shape of the ground around the route on the terrain map"]
      }
     },
     {
@@ -2011,7 +2011,7 @@
      "about": "The bowl on the west side of Redoubt Mountain (2,902 m), on the way to Boulder Pass. A popular ski descent; the line follows the summer route of the peak, so it's only a guide.",
      "access": "From Temple, skin up the Skoki ski route north, then east up Redoubt's west side (about 800 m up).",
      "exit": "Ski back down to the Skoki route and follow it south to Temple.",
-     "hazards": ["Big alpine terrain above the Skoki route: slides can reach the track below.", "Steep near the top, with cliffs.", "A full ski tour: plan a whole day."],
+     "hazards": ["Big alpine terrain along the Skoki route: slides can reach the track.", "Steep near the top, with cliffs.", "A full ski tour: usually a whole day."],
      "src": [
       {
        "t": "Lake Louise: backcountry tours (Yamnuska), the bowls past the boundary",
@@ -2042,7 +2042,7 @@
       "tripKm": 7.7,
       "climb": 803,
       "cls": 3,
-      "why": ["0.7 km on slopes of 35° or more", "2.8 km under steep slopes"]
+      "why": ["0.7 km on slopes of 35° or more"]
      }
     }
    ]

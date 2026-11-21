@@ -144,7 +144,7 @@
   // A way worked out before 2026-11-11 kept "km under steep slopes" and "terrain traps" in its reasons: not shown any more
   // (alex: "Don't show the terrain traps and what is above you because the data is not accurate enough").
   const whyShown = (why) => {
-    const w = (why || []).filter((x) => !/under steep slopes|terrain trap/i.test(x)).map((x) => x.replace(" on or above the route", " on the route"));
+    const w = (why || []).filter((x) => !/under steep slopes|terrain trap/i.test(x)).map((x) => x.replace(" on or above the route", " on the route"));   // wording-ok: a filter that hides those words
     return (w.length ? w : (why || []).length ? ["the shape of the ground around the route on the terrain map"] : []).join("; ");
   };
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();

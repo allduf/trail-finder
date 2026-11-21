@@ -34,7 +34,7 @@ jobs:
           HOURS: ${{ github.event_name == 'pull_request' && '336' || '' }}
           CRASH_HOURS: ${{ github.event_name == 'pull_request' && '336' || '' }}
         run: node scripts/app-errors.mjs
-      - name: Delete usage events and visit codes older than a year (privacy page promise)
+      - name: Delete what is older than the privacy page promises (usage, visit codes, shared trips, rides, join, feedback)
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}

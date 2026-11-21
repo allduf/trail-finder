@@ -94,7 +94,7 @@ begin
   if coalesce(hp, '') <> '' then return 'ok'; end if;
   if char_length(trim(coalesce(body, ''))) < 2 then return 'empty'; end if;
   if shot is not null and (char_length(shot) > 700000 or shot not like 'data:image/jpeg;base64,%') then shot := null; end if;
-  if not tf_form_ok('feedback', 20, 500) then return 'busy'; end if;
+  if not tf_form_ok('feedback', 20, 150) then return 'busy'; end if;   -- 150 a day for everyone: with pictures at most ~100 MB a day (security check 2026-11-21)
   insert into tf_feedback (body, shot, sport, app_v, platform, page, lang)
   values (left(trim(body), 1000), shot, left(sport, 10), left(app_v, 20), left(platform, 60), left(page, 20),
           case when lang = 'fr' then 'fr' else 'en' end);
