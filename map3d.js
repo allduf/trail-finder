@@ -2989,21 +2989,38 @@
       const DOT = "if (u_scale_with_map) {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*u_camera_to_center_distance;}";
       const DOT_TO = `if (u_scale_with_map) {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*min(u_camera_to_center_distance,${CAP}*gl_Position.w);}`;
       const warned = new Set();
-      const warn = (what) => { if (!warned.has(what)) { warned.add(what); console.warn(`3D map: MapLibre's ${what} read differently; names and dots near the camera grow as before`); } };
+      const warn = (why) => { if (!warned.has(why)) { warned.add(why); console.warn(`3D map: ${why}; names and dots near the camera grow as before`); } };
       try {
         const wgl = gl.painter && gl.painter.context && gl.painter.context.gl;
-        if (!wgl || typeof wgl.shaderSource !== "function") warn("graphics context");
+        if (!wgl || typeof wgl.shaderSource !== "function" || typeof wgl.compileShader !== "function") warn("no graphics context to change");
         else {
-          const shaderSource = wgl.shaderSource;
+          const shaderSource = wgl.shaderSource, compileShader = wgl.compileShader;
+          const changed = new WeakMap();   // shader -> MapLibre's own text, until it compiles
           wgl.shaderSource = function (shader, text) {
+            const own = text;
             if (typeof text === "string" && text.includes("perspective_ratio")) {
               if (text.includes(SIZE) && text.includes(MOVE)) text = text.replace(SIZE, SIZE_TO).replace(MOVE, MOVE_TO);
-              else warn("name shaders");
+              else warn("MapLibre's name shaders read differently");
             } else if (typeof text === "string" && text.includes("u_scale_with_map")) {
               if (text.includes(DOT)) text = text.replace(DOT, DOT_TO);
-              else warn("dot shader");
+              else warn("MapLibre's dot shader reads differently");
             }
+            if (text !== own) changed.set(shader, own); else changed.delete(shader);
             return shaderSource.call(this, shader, text);
+          };
+          // A graphics driver that refuses the changed text gets MapLibre's own back, so names and dots are still drawn
+          // (bigger near the camera, as before) instead of none at all (code review). MapLibre asks whether the shader
+          // compiled right after this, so the check here waits no longer than it already did.
+          wgl.compileShader = function (shader) {
+            const own = changed.get(shader);
+            compileShader.call(this, shader);
+            if (own === undefined) return;
+            changed.delete(shader);
+            if (!this.getShaderParameter(shader, this.COMPILE_STATUS) && !this.isContextLost()) {
+              warn("the changed shaders didn't compile on this device");
+              shaderSource.call(this, shader, own);
+              compileShader.call(this, shader);
+            }
           };
         }
       } catch (e) { console.warn("3D map: names and dots near the camera grow as before", e); }
