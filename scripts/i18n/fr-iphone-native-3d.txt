@@ -1,0 +1,1 @@
+iPhone app: the 3D map is now drawn by the iPhone itself, for smoother turning and tilting. Tap 3D or tilt with two fingers to open it, and Back to return. ||| App iPhone : la carte 3D est maintenant dessinée par l'iPhone lui-même, pour tourner et incliner plus en douceur. Touchez 3D ou inclinez avec deux doigts pour l'ouvrir, et Retour pour revenir.
