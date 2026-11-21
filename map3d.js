@@ -2959,6 +2959,27 @@
       const render = gl._render;
       if (typeof render === "function") gl._render = function () { if (!on && box.hidden) { this._frameRequest = null; return this; } return render.apply(this, arguments); };
     }
+    // Names close to the camera stay near their normal size (alex's recording 2026-11-21 at Wedge Mountain: "Wedge NW
+    // Couloir", "Wedge Mountain 2903 m" and "Parkhurst Mountain 2494 m" about 3 times their size at the bottom of a
+    // tilted view, one running off the screen). MapLibre draws an upright name bigger the nearer it is than the middle
+    // of the view, up to 4 times ("perspective_ratio" in its symbol shaders), and no style property changes that. Here
+    // those names grow at most NAME_NEAR_MAX times; farther ones still get smaller as before, so distance still reads,
+    // and names lying flat on the ground (u_pitch_with_map) are left as they were. Changed in the shader text this
+    // map's own graphics context compiles, before its first picture; a MapLibre whose shaders read differently is left
+    // as it is. MapLibre still keeps the room a near name would have taken at full size free of other names.
+    {
+      const NAME_NEAR_MAX = 1.25;
+      try {
+        const wgl = gl.painter && gl.painter.context && gl.painter.context.gl;
+        if (wgl && typeof wgl.shaderSource === "function") {
+          const shaderSource = wgl.shaderSource;
+          const near = /(perspective_ratio\s*=\s*clamp\(\s*0\.5\s*\+\s*0\.5\s*\*\s*distance_ratio\s*,\s*0\.0\s*,\s*)4\.0(\s*\))/g;
+          wgl.shaderSource = function (shader, text) {
+            return shaderSource.call(this, shader, typeof text === "string" ? text.replace(near, `$1u_pitch_with_map ? 4.0 : ${NAME_NEAR_MAX.toFixed(2)}$2`) : text);
+          };
+        }
+      } catch {}
+    }
     // How sharp the photos are, near and far (alex, 2026-10-18: "it lag" and "i dont like the resolution make it
     // better"). The photos come one zoom deeper than MapLibre would pick for their size (tileSize 128 below), so
     // up close they're as sharp as the screen, and the far ones get a little softer with distance (6 zoom levels

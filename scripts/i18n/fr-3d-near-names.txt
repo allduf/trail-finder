@@ -1,0 +1,1 @@
+3D map: names close to the camera stay near their normal size, instead of growing up to 4 times bigger and running off the screen. ||| Carte 3D : les noms près de la caméra gardent à peu près leur taille normale, au lieu de grossir jusqu'à 4 fois et de sortir de l'écran.
