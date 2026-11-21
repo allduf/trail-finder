@@ -2549,6 +2549,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   async function flyover(info, title) {
     stopFly();
     const mapEl = map.getContainer();
+    // From the flat map on alex's iPhone, native 3D flies it where the 3D button opens native 3D (native-flyover.js).
+    if (!mapEl.classList.contains("is3d") && window.tfNativeFly && (await window.tfNativeFly(info.pts, title))) return;
     if (!mapEl.classList.contains("is3d")) document.getElementById("btn3d")?.click();
     let gl = null;
     for (let n = 0; n < 150; n++) { gl = window.trailMap3d; if (gl && gl.getStyle() && mapEl.classList.contains("is3d")) break; await new Promise((ok) => setTimeout(ok, 100)); }
