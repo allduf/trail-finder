@@ -3463,6 +3463,8 @@
   let flatSleepT = 0;
   let want3d = null;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
   function set3d(want, auto) {
+    // An iPhone app build with native 3D for everything: no web 3D map on it (native-map.js tfNative3d).
+    if (want && !on && window.tfNative3d && window.tfNative3d.claim && window.tfNative3d.claim(!!auto, () => set3d(true, auto))) { want3d = false; syncBtn(); return; }
     want3d = want;
     if (want === on) { syncBtn(); return; }
     if (want) warmCentre();
