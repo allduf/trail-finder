@@ -1,0 +1,1 @@
+iPhone app: 3D now tilts up at the same spot and zoom as the flat map, instead of flying out to the far mountains. ||| App iPhone : la 3D s’incline maintenant au même endroit et au même zoom que la carte à plat, au lieu de s’envoler vers les montagnes au loin.

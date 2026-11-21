@@ -63,6 +63,7 @@ final class NativeFlyover: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         leg = 0
         heading = NativeFlyover.turn(0, toward: NativeFlyover.bearing(at(0), at(NativeFlyover.ahead)), by: 1)
         let map = screen.mapLibreView
+        screen.noTiltIn()   // the 3D screen's own tilt in stops, or never starts (as Android's noTiltIn)
         map.userTrackingMode = .none
         // Zoom 13 at this tilt: the camera's height there, kept for the whole flight.
         let cam = map.camera

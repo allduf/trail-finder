@@ -407,6 +407,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     @objc private func detailsTapped() { leave(details: true) }
     @objc private func cardClose() { showCard(nil) }
     @objc private func locateTapped() {
+        endTilt()
         map.userTrackingMode = map.userTrackingMode == .none ? .follow : .none
     }
     @objc private func styleTapped() {
@@ -507,6 +508,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // How the map follows you: "follow" (centred on you), "heading" (also turned the way the phone points, Compass)
     // or "none".
     func followUser(_ how: String) {
+        if how != "none" { endTilt() }
         switch how {
         case "heading": map.setUserTrackingMode(.followWithHeading, animated: true, completionHandler: nil)
         case "follow": map.setUserTrackingMode(.follow, animated: true, completionHandler: nil)
@@ -593,14 +595,55 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         features.forEach { $0.added(to: style, screen: self) }
     }
     // 3D opens flat where the flat map was, then tilts in (as the web 3D map does), once it shows (open()).
+    // Only the tilt changes: the middle of the map, its zoom and its heading stay exactly as on the flat map (alex
+    // 2026-11-21: "Why it doesn't stay the same for 2d and 3d?"). A tilted MLNMapCamera, by its height or by its
+    // distance, still flew out to the far mountains on the 3D ground (alex's recording 2026-11-21, after #878), so the tilt is stepped
+    // frame by frame here and the same middle and zoom are set again at each step (as NativeFlyover sets its zoom).
+    // A finger on the map, a Flyover, a search or the Me button stops it where it is; a camera set some other way
+    // during those 1.2 s should call endTilt() first.
+    private var tiltLink: CADisplayLink?
+    private var tiltFrom: (at: CFTimeInterval, pitch: CGFloat, center: CLLocationCoordinate2D, zoom: Double, heading: CLLocationDirection)?
     func tiltIn() {
         guard threeD, !tilted, !left else { return }
         tilted = true
-        // The same distance from the eye to the middle of the map, only tilted: keeping the camera's height instead (as
-        // before) moved the middle far away, so the view flew out to the far mountains (alex's recording 2026-11-21).
-        let now = map.camera
-        let cam = MLNMapCamera(lookingAtCenter: now.centerCoordinate, fromDistance: now.viewingDistance, pitch: TrailMapScreen.tilt, heading: now.heading)
-        map.setCamera(cam, withDuration: 1.2, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
+        // Following you (Record, Compass): the middle is yours, so only the tilt is eased, as before.
+        if map.userTrackingMode != .none {
+            let now = map.camera
+            let cam = MLNMapCamera(lookingAtCenter: now.centerCoordinate, fromDistance: now.viewingDistance, pitch: TrailMapScreen.tilt, heading: now.heading)
+            map.setCamera(cam, withDuration: 1.2, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
+            return
+        }
+        tiltFrom = (CACurrentMediaTime(), map.camera.pitch, map.centerCoordinate, map.zoomLevel, map.direction)
+        let link = CADisplayLink(target: TiltStep(self), selector: #selector(TiltStep.step))
+        if #available(iOS 15.0, *) { link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60) }
+        link.add(to: .main, forMode: .common)
+        tiltLink = link
+    }
+    private var stepping = false
+    // Stops the tilt where it is (a Flyover or a search setting the camera itself; a finger on the map).
+    // A feature that sets the camera itself as the screen opens (a Flyover): no tilt in at all, now or later.
+    func noTiltIn() { tilted = true; endTilt() }
+    func endTilt() {
+        guard tiltLink != nil else { return }
+        tiltLink?.invalidate(); tiltLink = nil; tiltFrom = nil
+        if !left { onEvent?("moved", camera()) }   // the page's flat map follows once, where the tilt ended
+    }
+    func mapView(_ mapView: MLNMapView, regionWillChangeWith reason: MLNCameraChangeReason, animated: Bool) {
+        if tiltLink != nil && !stepping && !reason.isDisjoint(with: TrailMapScreen.byFinger) { endTilt() }
+    }
+    private static let byFinger: MLNCameraChangeReason = [.gesturePan, .gesturePinch, .gestureRotate, .gestureZoomIn,
+                                                          .gestureZoomOut, .gestureOneFingerZoom, .gestureTilt]
+    fileprivate func tiltStep() {
+        guard let f = tiltFrom, !left else { endTilt(); return }
+        let t = min(1, (CACurrentMediaTime() - f.at) / 1.2)
+        let e = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2   // ease in and out
+        let cam = map.camera
+        cam.pitch = f.pitch + (TrailMapScreen.tilt - f.pitch) * CGFloat(e)
+        stepping = true
+        map.setCamera(cam, animated: false)
+        map.setCenter(f.center, zoomLevel: f.zoom, direction: f.heading, animated: false)   // keeps the new tilt
+        stepping = false
+        if t >= 1 { endTilt() }
     }
     func mapViewDidFinishRenderingMap(_ mapView: MLNMapView, fullyRendered: Bool) {
         guard fullyRendered, styleReady, !(waitWinter && base == "winter"), let ready = onReady else { return }
@@ -696,6 +739,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let pad = UIEdgeInsets(top: 90, left: 30, bottom: 110, right: 30)
         let cam = map.cameraThatFitsCoordinateBounds(bounds, edgePadding: pad)
         if threeD { cam.pitch = 55 }
+        endTilt()
         map.userTrackingMode = .none
         map.fly(to: cam, withDuration: 1.6, completionHandler: nil)
     }
@@ -725,7 +769,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
 
     func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
-        if !left { onEvent?("moved", camera()) }
+        if !left && tiltLink == nil { onEvent?("moved", camera()) }   // mid-tilt: once at its end (endTilt)
     }
 
     // A tap on a trail or a dot shows its card; a tap anywhere else closes it. Dots win: they sit on the trails.
@@ -776,5 +820,16 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         if h.count == 3 { h = h.map { "\($0)\($0)" }.joined() }
         guard h.count == 6, let v = UInt32(h, radix: 16) else { return nil }
         return UIColor(red: CGFloat((v >> 16) & 255) / 255, green: CGFloat((v >> 8) & 255) / 255, blue: CGFloat(v & 255) / 255, alpha: 1)
+    }
+}
+
+// The tilt's frame-by-frame step (TrailMapScreen.tiltIn). A display link holds its target strongly: this small
+// object holds the screen weakly, so a screen that closes mid-tilt is let go.
+private final class TiltStep: NSObject {
+    private weak var screen: TrailMapScreen?
+    init(_ s: TrailMapScreen) { screen = s }
+    @objc func step(_ link: CADisplayLink) {
+        guard let s = screen else { link.invalidate(); return }
+        s.tiltStep()
     }
 }
