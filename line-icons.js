@@ -77,6 +77,36 @@
     fire: '<path d="M12 21c-3.9 0-7-2.6-7-6.4 0-3.4 2.8-5.4 4-9.6 2 1.5 3 3.4 3 5.4.9-.8 1.5-2 1.6-3.2C16 9.2 19 12 19 14.6c0 3.8-3.1 6.4-7 6.4z"/>',
     chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
     timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l3 2M9 2.5h6"/>',
+    // Map buttons, weather, Layers rows and cards that still wrote colour emoji (wording sweep 2026-11-21).
+    mountain: '<path d="M2 20 9 7.5l4 6.5 3-4.5 6 10.5z"/><path d="m7 11 2 1.5 2-1.5"/>',
+    cloud: '<path d="M7 18.5h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 18.5z"/>',
+    rain: '<path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 14z"/><path d="m8.5 17-1 3.5M12.5 17l-1 3.5M16.5 17l-1 3.5"/>',
+    snowfall: '<path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 14z"/><path d="M8 17.5v.01M12 18.5v.01M16 17.5v.01M10 21v.01M14 21v.01"/>',
+    storm: '<path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 14z"/><path d="m12.5 15.5-2 3h3l-2 3"/>',
+    suncloud: '<path d="M8 2.5V4M2.5 8H4M4.1 4.1l1 1M11.9 4.1l-1 1"/><path d="M5 10.5a3.2 3.2 0 0 1 5.6-3"/><path d="M9.5 20.5h8a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6 1.3 2.9 2.9 0 0 0 1.2 5.7z"/>',
+    fog: '<path d="M3 7.5h18M5 11.5h14M3 15.5h18M7 19.5h10"/>',
+    wind: '<path d="M3 8.5h11a3 3 0 1 0-3-3M3 12.5h15a3 3 0 1 1-3 3M3 16.5h7"/>',
+    moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>',
+    barrier: '<rect x="2.5" y="7" width="19" height="6" rx="1"/><path d="M7.5 7l-3 6M12.5 7l-3 6M17.5 7l-3 6M5.5 13v7.5M18.5 13v7.5M5.5 4v3M18.5 4v3"/>',
+    heli: '<path d="M3 4.5h16M11 4.5V8"/><path d="M6 13a5 5 0 0 1 5-5h1a5 5 0 0 1 0 10H8a2 2 0 0 1-2-2z"/><path d="M17 13h4.5M21.5 11v4M9 18v3M14 18v3M6.5 21h10"/>',
+    battery: '<rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M22 10.5v3M6.5 10.5v3M10 10.5v3"/>',
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>',
+    phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+    save: '<path d="M4 4h12l4 4v12H4z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>',
+    sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+    mute: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>',
+    parking: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M9.5 17V7.5H13a3 3 0 0 1 0 6H9.5"/>',
+    plane: '<path d="M21 3.5 3 10.5l7 2.5 2.5 7.5z"/><path d="m10 13 4.5-4.5"/>',
+    tree: '<path d="M12 2.5 6.5 10h3L5 16h14l-4.5-6h3z"/><path d="M12 16v5.5"/>',
+    town: '<path d="M3 21V11l5-4 5 4v10M13 21V8l4-3 4 3v13M2 21h20M7 21v-4h2v4"/>',
+    hut: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5M10 20v-5h4v5"/>',
+    loop: '<path d="m17 2.5 3 3-3 3"/><path d="M4 11.5v-2a4 4 0 0 1 4-4h12M7 21.5l-3-3 3-3"/><path d="M20 12.5v2a4 4 0 0 1-4 4H4"/>',
+    boat: '<path d="M3 15h18l-2.5 5h-13z"/><path d="M6 15V9.5h12V15M9.5 9.5V6h5v3.5"/>',
+    shield: '<path d="M12 3 4.5 6v5.5c0 4.5 3 8 7.5 9.5 4.5-1.5 7.5-5 7.5-9.5V6z"/>',
+    unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.6-1.8"/>',
+    spring: '<path d="M4 17.5c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5S16.4 14 12 14s-8 1.6-8 3.5z"/><path d="M8 11c-1-1.5 1-2.5 0-4.5M12 11c-1-1.5 1-2.5 0-4.5M16 11c-1-1.5 1-2.5 0-4.5"/>',
+    salt: '<path d="M3.5 14.5 12 10l8.5 4.5L12 19z"/><path d="M3.5 14.5v3L12 22l8.5-4.5v-3M12 19v3M9 7.5v.01M12 5v.01M15 7.5v.01"/>',
+    sat: '<path d="m9.5 9.5 5 5M8 14l2-2M14 8l2-2"/><path d="m4.5 9.5 5-5 3 3-5 5zM14.5 19.5l5-5-3-3-5 5z"/><path d="M15 21a6 6 0 0 0 6-6"/>',
   };
   // Emoji (and the few text symbols used as icons) -> drawing. The tab bar and map buttons draw the sports the same way.
   const E = {
@@ -89,6 +119,12 @@
     "🎒": "pack", "🍲": "pot", "💵": "cash", "💲": "cash", "🛟": "buoy", "📓": "book", "📤": "share", "🔗": "link", "🗑": "trash",
     "⏰": "alarm", "✅": "check", "✏": "pencil", "⬇": "download", "👥": "people", "🚗": "car", "🛏": "bed", "🔥": "fire", "⏱": "timer",
     "🎉": "sparkle", "💬": "chat",
+    "⛰": "mountain", "🏔": "mountain", "☁": "cloud", "🌥": "cloud", "🌧": "rain", "🌦": "rain", "🌨": "snowfall", "⛈": "storm",
+    "🌤": "suncloud", "⛅": "suncloud", "🌫": "fog", "💨": "wind", "🌙": "moon", "🌑": "moon", "🌒": "moon", "🌓": "moon", "🌔": "moon",
+    "🌕": "moon", "🌖": "moon", "🌗": "moon", "🌘": "moon", "🚧": "barrier", "🚁": "heli", "🔋": "battery", "🔍": "search", "🔎": "search",
+    "📱": "phone", "💾": "save", "🔊": "sound", "🔇": "mute", "🅿": "parking", "✈": "plane", "🌲": "tree", "🏝": "tree", "🏘": "town",
+    "🛖": "hut", "🚻": "hut", "🔁": "loop", "⛴": "boat", "🛶": "boat", "🛡": "shield", "🔓": "unlock", "♨": "spring", "🛰": "sat",
+    "🗣": "chat", "🚶": "boot", "🚐": "truck", "⛺": "tent", "🗾": "map", "🔧": "gear", "📋": "doc", "📄": "doc", "🤎": "heart", "🧂": "salt",
   };
   const draw = (k, size) => `<svg class="tf-line" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
   const keyOf = (s) => {
@@ -114,9 +150,13 @@
       const pc = n.parentElement.classList, size = pc.contains("ic") || pc.contains("spb-i") || pc.contains("i") ? 22 : 17;
       const t = document.createElement("template");
       t.innerHTML = draw(name, size);
+      const cs = getComputedStyle(n.parentElement);
+      // A name stacked over its status line (Layers' Wildfires): the drawing stays on the name's line.
+      const col = /flex/.test(cs.display) && /column/.test(cs.flexDirection) && rest.trim() && n.nextSibling && n.nextSibling.nodeType === 1;
+      if (col) { const row = document.createElement("span"); row.className = "tf-line-row"; n.parentNode.insertBefore(row, n); row.appendChild(n); }
       n.parentNode.insertBefore(t.content.firstChild, n);
       // A space after the drawing, unless the button lays its parts out with a gap already (flex).
-      const flex = /flex|grid/.test(getComputedStyle(n.parentElement).display);
+      const flex = !col && /flex|grid/.test(cs.display);
       n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
     }
   };
@@ -126,7 +166,11 @@
   // lists, desktop panels). Map pins are left alone, and so is anything under data-no-line (a point's kind list, where
   // 🦌 means shed antlers, not Hunting).
   // The sports' own panels (Routes, Hunt, Fish, Roads, Hikes) get every known emoji drawn, like the phone's sheet.
-  const SPORT_E = /^\s*(🚵|🚴|🚲|⛷|🎿|🛷|🚡|🦌|🎣|🐟|🏍|🥾)/u, HAS = /🚵|🚴|🚲|⛷|🎿|🛷|🚡|🦌|🎣|🐟|🏍|🥾/u;
+  // Since the wording sweep (2026-11-21, CLAUDE.md "No emoji in the interface") that goes for every colour emoji that has a
+  // drawing, not only the sports': Layers rows (Radar, Smoke, Wildfires...), Where to ride today, folders, Plan a tour,
+  // weather icons. Plain text symbols (★ ✓ ✕) stay text: buttons and haptics (native.js) read them.
+  const PICT = Object.keys(E).filter((k) => /\p{Extended_Pictographic}/u.test(k)).join("|");
+  const START_E = new RegExp(`^\\s*(${PICT})`, "u"), HAS = new RegExp(PICT, "u");
   const PANES = "#skiPane, #huntPane, #fishPane, #motoPane, #hikePane";
   const NOT = ".leaflet-pane, .leaflet-marker-icon, .maplibregl-marker, .maplibregl-canvas-container, [data-no-line], select, textarea, input";
   const sweep = (root) => {
@@ -137,7 +181,7 @@
     const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
     for (let n = w.nextNode(); n; n = w.nextNode()) {
       const p = n.parentElement;
-      if (!p || !SPORT_E.test(n.data) || SKIP.test(p.tagName) || p.closest(NOT + ", svg")) continue;
+      if (!p || !START_E.test(n.data) || SKIP.test(p.tagName) || p.closest(NOT + ", svg")) continue;
       if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
       hits.push(p);
     }
