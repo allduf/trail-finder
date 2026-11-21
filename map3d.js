@@ -2963,19 +2963,37 @@
     // Couloir", "Wedge Mountain 2903 m" and "Parkhurst Mountain 2494 m" about 3 times their size at the bottom of a
     // tilted view, one running off the screen). MapLibre draws an upright name bigger the nearer it is than the middle
     // of the view, up to 4 times ("perspective_ratio" in its symbol shaders), and no style property changes that. Here
-    // those names grow at most NAME_NEAR_MAX times; farther ones still get smaller as before, so distance still reads,
-    // and names lying flat on the ground (u_pitch_with_map) are left as they were. Changed in the shader text this
-    // map's own graphics context compiles, before its first picture; a MapLibre whose shaders read differently is left
-    // as it is. MapLibre still keeps the room a near name would have taken at full size free of other names.
+    // those names grow at most NAME_NEAR_MAX times; farther ones still get smaller as before, so distance still reads.
+    // Names lying flat on the ground (u_pitch_with_map) and names written along a line (u_is_along_line, letters set out
+    // one by one at the full size) are left as they were. A name that MapLibre moves off its spot (trail-names' "text-
+    // variable-anchor-offset": above, below, left or right of its point) is moved by the full size on the processor, so
+    // that move is shrunk the same way here, back towards the spot, or the smaller name would drift away from its line
+    // (code review). MapLibre still keeps the room a near name would have taken at full size free of other names.
+    // Changed in the shader text this map's own graphics context compiles, before its first picture. A MapLibre whose
+    // shaders read differently is left as it is, with a warning in the console.
     {
       const NAME_NEAR_MAX = 1.25;
+      const SIZE = "highp float perspective_ratio=clamp(0.5+0.5*distance_ratio,0.0,4.0);";
+      const SIZE_TO = "highp float tf_full=0.5+0.5*distance_ratio;highp float perspective_ratio=clamp(tf_full,0.0," +
+        `u_pitch_with_map || u_is_along_line ? 4.0 : ${NAME_NEAR_MAX.toFixed(2)});`;
+      // Where MapLibre puts a moved name: its spot on the screen plus the move, in screen pixels (a_projected_pos). The
+      // spot is found again from projectedPoint and u_coord_matrix (screen pixels to the picture: a scale and a shift).
+      const MOVE = "if (u_is_along_line || u_is_variable_anchor) {projected_pos=vec4(a_projected_pos.xy,ele,1.0);}";
+      const MOVE_TO = "if (u_is_along_line || u_is_variable_anchor) {projected_pos=vec4(a_projected_pos.xy,ele,1.0);" +
+        "if (u_is_variable_anchor && !u_is_along_line && !u_pitch_with_map && tf_full > perspective_ratio) {" +
+        "vec2 tf_spot=(projectedPoint.xy/projectedPoint.w-u_coord_matrix[3].xy)/vec2(u_coord_matrix[0][0],u_coord_matrix[1][1]);" +
+        "projected_pos.xy=tf_spot+(a_projected_pos.xy-tf_spot)*(perspective_ratio/tf_full);}}";
       try {
         const wgl = gl.painter && gl.painter.context && gl.painter.context.gl;
         if (wgl && typeof wgl.shaderSource === "function") {
           const shaderSource = wgl.shaderSource;
-          const near = /(perspective_ratio\s*=\s*clamp\(\s*0\.5\s*\+\s*0\.5\s*\*\s*distance_ratio\s*,\s*0\.0\s*,\s*)4\.0(\s*\))/g;
+          let warned = false;
           wgl.shaderSource = function (shader, text) {
-            return shaderSource.call(this, shader, typeof text === "string" ? text.replace(near, `$1u_pitch_with_map ? 4.0 : ${NAME_NEAR_MAX.toFixed(2)}$2`) : text);
+            if (typeof text === "string" && text.includes("perspective_ratio")) {
+              if (text.includes(SIZE) && text.includes(MOVE)) text = text.replace(SIZE, SIZE_TO).replace(MOVE, MOVE_TO);
+              else if (!warned) { warned = true; console.warn("3D map: MapLibre's name shaders changed; names near the camera grow as before"); }
+            }
+            return shaderSource.call(this, shader, text);
           };
         }
       } catch {}
