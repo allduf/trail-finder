@@ -19,6 +19,7 @@ final class NativeLayers {
         NativeGround::new,                     // NativeGround.java: ground layers the page paints (slope, sun, snow, avalanche colours...)
         NativeHunting::new,                    // NativeHunting.java: Hunting fills, zone names, cone, rings, glassing, pictures
         NativeMoto::new,                       // NativeMoto.java: Adventure moto dirt roads and stops
+        NativeOffline::new,                    // NativeOffline.java: the saved map with no signal, and the saved areas
         () -> new NativeOverlay("radar", 0),   // NativeOverlay.java: rain and snow radar and forecast
         () -> new NativeOverlay("smoke", 1),   // NativeOverlay.java: wildfire smoke forecast
         NativePins::new,                       // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)

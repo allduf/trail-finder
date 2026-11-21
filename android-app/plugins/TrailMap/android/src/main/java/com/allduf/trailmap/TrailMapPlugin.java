@@ -22,8 +22,10 @@ import java.util.Map;
 //   layer({ key, data }): one feature's data (NativeLayers.java; "base" is the map style picked on the page).
 //   close(): leaves it, as Back does.
 //   features(): { keys } the native 3D features this build draws (the page opens the web 3D map for the others).
-// Not yet on Android: offline() (the iPhone's own copies of offline areas); the page gets "not implemented" and goes on.
-// Events: "moved" and "closed", as on the iPhone (TrailMapScreen.java).
+//   offline({ areas: [{ id, box, boxes, ski, sharp }] }): the saved areas this phone keeps its own copy of for native 3D
+//     (OfflinePacks.java); answers { areas: { id: { pct, saved, active, bytes } } }, and "offlinePacks" with the same as
+//     the copies download.
+// Events: "moved" and "closed", as on the iPhone (TrailMapScreen.java), and "offlinePacks".
 @CapacitorPlugin(name = "TrailMap")
 public class TrailMapPlugin extends Plugin {
     private TrailMapScreen screen;
@@ -127,6 +129,19 @@ public class TrailMapPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("keys", new JSArray(TrailMapScreen.featureKeys()));
         call.resolve(r);
+    }
+
+    @PluginMethod
+    public void offline(PluginCall call) {
+        org.json.JSONArray areas;
+        try { areas = call.getArray("areas", new JSArray()); } catch (Exception e) { areas = new JSArray(); }
+        final org.json.JSONArray list = areas;
+        Activity a = getActivity();
+        if (a == null) { call.resolve(); return; }
+        a.runOnUiThread(() -> {
+            OfflinePacks.shared.onChange = (st) -> notifyListeners("offlinePacks", st);
+            OfflinePacks.shared.sync(a, list, call::resolve);
+        });
     }
 
     @PluginMethod
