@@ -59,7 +59,7 @@ final class NativePins: NativeLayer {
                 guard r == self.round else { return }
                 self.shape = s
                 // The style showing now (a new base map may have come since the data left).
-                guard let style = self.screen?.mapLibreView.style ?? style else { return }
+                guard let style = self.screen?.readyStyle else { return }
                 self.addPictures(style)
                 (style.source(withIdentifier: NativePins.source) as? MLNShapeSource)?.shape = s
             }
