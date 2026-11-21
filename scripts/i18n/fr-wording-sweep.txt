@@ -4,4 +4,4 @@ Trip planner order (Normal caution first), then nearest. Tap one for its details
 Pick what the bell tells you about ||| Choisissez de quoi la cloche vous avertit
 Lakes near you just stocked, and what else the bell tells you about ||| Les lacs près de vous tout juste ensemencés, et le reste dont la cloche vous avertit
 Parks Canada's avalanche terrain maps ||| Cartes du terrain avalancheux de Parcs Canada
-Menus, buttons and weather now use the app's own line icons instead of colour emoji, and slackcountry and backcountry route notes describe the terrain only. ||| Les menus, les boutons et la météo utilisent maintenant les icônes au trait de l'app au lieu d'émojis en couleur, et les notes des lignes hors-piste et des itinéraires de ski de randonnée décrivent seulement le terrain.
+Weather, moon and the last Layers rows use line icons too, and slackcountry and backcountry route notes now describe the terrain only. ||| La météo, la lune et les dernières lignes des Couches utilisent aussi des icônes au trait, et les notes des lignes hors-piste et des itinéraires de ski de randonnée décrivent maintenant seulement le terrain.
