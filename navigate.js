@@ -254,6 +254,7 @@
 
   // ---------- map pieces ----------
   const layer = L.layerGroup();
+  (window.tfToolLayers = window.tfToolLayers || {}).ride = [layer];   // native 3D draws it itself (native-tools.js)
   const track = L.polyline([], { color: "#d1245f", weight: 5, opacity: 0.9, interactive: false });
   const onGlow = L.polyline([], { color: "#ffe14d", weight: 11, opacity: 0.55, lineCap: "round", interactive: false });
   const jDot = L.circleMarker([0, 0], { radius: 7, color: "#fff", weight: 3, fillColor: "#ff9f1c", fillOpacity: 1, interactive: false });
@@ -654,6 +655,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
   const routeDone = L.polyline([], { color: "#5b6068", weight: 4, opacity: 0.6, dashArray: "1 9", lineCap: "round", lineJoin: "round", interactive: false });
   const routeRest = L.polyline([], { color: "#7b2ff7", weight: 4, opacity: 0.35, lineCap: "round", lineJoin: "round", interactive: false });
   const routeMarks = L.layerGroup();
+  (window.tfToolLayers = window.tfToolLayers || {}).rideMarks = [routeMarks];
   function setRoute(lines, name, parts) {
     clearRoute();
     parts = (parts || []).filter((x) => x && x.pts && x.pts.length > 1);

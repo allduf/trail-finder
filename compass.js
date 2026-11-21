@@ -402,6 +402,7 @@ body.cp-ranging { user-select: none; -webkit-user-select: none; }
 
   // 2D: lines in Hunting's "hunt" pane (they turn with the map), the marks and labels upright over them.
   const layer2 = L.layerGroup();
+  (window.tfToolLayers = window.tfToolLayers || {}).compass = [layer2];   // native 3D draws it itself (native-tools.js)
   map.createPane("cpTop").style.zIndex = 645;   // you and the target, over Hunting's spot ring
   map.getPane("cpTop").style.pointerEvents = "none";
   function clear2d() { layer2.clearLayers(); if (map.hasLayer(layer2)) map.removeLayer(layer2); }

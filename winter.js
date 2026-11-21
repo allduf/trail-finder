@@ -873,6 +873,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     safe: store.get("skiSafe", false) === true,   // off until turned on for this tour (alex 2026-11-06, liability review: a choice, not the default)
     path: store.get("skiPlanPath", null), run: 0, wait: "", fail: "", hist: [], offer: null, flash: -1, dragAt: 0, show: false,   // safe: the 🛡 Safest way (ski-route.js)
     tour: store.get("skiPlanTour", null), naming: false };   // tour: the saved tour (tf:skiTours) on the card, if it's one
+  (window.tfToolLayers = window.tfToolLayers || {}).skiPlan = [plan.layer];   // native 3D draws it itself (native-tools.js)
   // The ?demo=forecast past forecast (taken out 2026-11-07) left its flag on the phones that opened it, and a way found
   // with it kept that day's "3 Considerable" as today's danger (alex's screenshot 2026-11-07). Both go; the way is found
   // again with the real forecast.
@@ -2549,6 +2550,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   async function flyover(info, title) {
     stopFly();
     const mapEl = map.getContainer();
+    // From the flat map on alex's iPhone, native 3D flies it where the 3D button opens native 3D (native-flyover.js).
+    if (!mapEl.classList.contains("is3d") && window.tfNativeFly && (await window.tfNativeFly(info.pts, title))) return;
     if (!mapEl.classList.contains("is3d")) document.getElementById("btn3d")?.click();
     let gl = null;
     for (let n = 0; n < 150; n++) { gl = window.trailMap3d; if (gl && gl.getStyle() && mapEl.classList.contains("is3d")) break; await new Promise((ok) => setTimeout(ok, 100)); }
