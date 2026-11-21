@@ -143,10 +143,11 @@ final class TrailMapScreen extends FrameLayout {
         setBackgroundColor(PAPER);
         setClickable(true);   // nothing under the screen gets a touch
 
+        // MapLibre first: its download client reads the app's name from it the first time it's touched (TileRewriter).
+        MapLibre.getInstance(activity);
         if (threeD) WinterTiles.shared.install(activity);           // the photo address rewriter (Winter, late-summer mountains)
         if (this.winter) WinterTiles.shared.load(activity, (ok) -> {}); // the lists of photo squares, ready by the time Winter is picked
 
-        MapLibre.getInstance(activity);
         MapLibreMapOptions opts = MapLibreMapOptions.createFromAttributes(activity)
             .logoEnabled(false)
             .compassEnabled(true)
