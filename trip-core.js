@@ -860,7 +860,10 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
       const r = await rpc("trip_get", { p_id: id, p_key: key });
       if (r && r.data && r.data.moved) { toast("This trip link doesn't work any more: someone in the group made a new one. Ask them to send it."); return; }
       if (!r || !r.data || !r.data.date) { toast("This shared trip doesn't exist any more."); return; }
-      const t = { id: uid(""), at: Date.now(), ...r.data, share: { id, key, rev: r.rev, base: r.data, at: Date.now(), by: r.by || "", err: "" } };
+      // Only the trip's shared parts come from the link (security check 2026-11-21): a made-up trip can't set this
+      // phone's own fields (its id, ticks, alarms) or anything else.
+      const doc = Object.fromEntries(SHARED().filter((k) => r.data[k] !== undefined).map((k) => [k, r.data[k]]));
+      const t = { id: uid(""), at: Date.now(), ...doc, share: { id, key, rev: r.rev, base: r.data, at: Date.now(), by: r.by || "", err: "" } };
       // The new link of a trip already on this phone (its old link was replaced): it takes the old copy's place, with
       // this phone's own ticks, trip plan, name and photos.
       const was = trips().find((x) => x.share && x.share.dead && x.date === t.date && title(x) === title(t));
