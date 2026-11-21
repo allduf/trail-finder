@@ -171,6 +171,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private static let tilt: CGFloat = 65        // the web 3D map eases to 70
     private static let ink = UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 1)
     private static let paper = UIColor(red: 0.95, green: 0.94, blue: 0.91, alpha: 1)
+    private static let sky = UIColor(red: 0.62, green: 0.70, blue: 0.78, alpha: 1)   // #9fb3c8, the web 3D map's
 
     private let start: CLLocationCoordinate2D
     private let startZoom: Double
@@ -231,7 +232,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = TrailMapScreen.paper
+        view.backgroundColor = threeD ? TrailMapScreen.sky : TrailMapScreen.paper
         // Winter waits for its lists of photo squares (a moment, once a session): Satellite until then.
         map = MLNMapView(frame: view.bounds, styleURL: styleURL(base == "winter" && !WinterTiles.shared.ready ? "sat" : base))
         map.translatesAutoresizingMaskIntoConstraints = false
@@ -239,6 +240,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         map.isPitchEnabled = threeD
         if threeD {
             map.maximumPitch = 80
+            map.backgroundColor = TrailMapScreen.sky   // above the far mountains: sky, not a blank page (as the web 3D map)
             // New ground fills in over a few frames instead of all in one (which can stall a frame while turning).
             map.terrainLoadMode = .balanced
             map.isCenterClampedToGround = true
@@ -468,7 +470,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         insetTop = t; insetBottom = b
         toolOpen = t > 0 || b > 0
         if toolOpen { showWeb?(true) }
-        view.backgroundColor = toolOpen ? .clear : TrailMapScreen.paper
+        view.backgroundColor = toolOpen ? .clear : threeD ? TrailMapScreen.sky : TrailMapScreen.paper
         layoutArea()
         UIView.animate(withDuration: 0.2, animations: { self.view.layoutIfNeeded() }) { _ in
             if !self.toolOpen && !self.left && !self.aside { self.showWeb?(false) }
@@ -591,8 +593,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     func tiltIn() {
         guard threeD, !tilted, !left else { return }
         tilted = true
-        let cam = map.camera
-        cam.pitch = TrailMapScreen.tilt
+        // The same distance from the eye to the middle of the map, only tilted: keeping the camera's height instead (as
+        // before) moved the middle far away, so the view flew out to the far mountains (alex's recording 2026-11-21).
+        let now = map.camera
+        let cam = MLNMapCamera(lookingAtCenter: now.centerCoordinate, fromDistance: now.viewingDistance, pitch: TrailMapScreen.tilt, heading: now.heading)
         map.setCamera(cam, withDuration: 1.2, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
     }
     func mapViewDidFinishRenderingMap(_ mapView: MLNMapView, fullyRendered: Bool) {
