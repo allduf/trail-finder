@@ -706,9 +706,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const picBounds = (p) => (p.src ? window.tfCrown.bounds(p.src) : BOUNDS[p.ab ? "ab" : "bc"]);
   // "recolor" layers: the server's picture, each colour swapped for ours (the saved-offline copy is the server's picture too).
   const CLASS_RGB = Object.fromEntries(FOREST.map(([id, c]) => [id, [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]]));
-  async function recolorTile(p, z, x, y) {
+  async function recolorTile(p, z, x, y, signal) {
     if (p.src) return window.tfCrown.tint(p.src, z, x, y);   // Quebec's public land: one colour
-    const r = await fetch(picUrl(p, z, x, y));
+    const r = await fetch(picUrl(p, z, x, y), signal ? { signal } : undefined);   // signal: the native map no longer needs it
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const cv = document.createElement("canvas"); cv.width = cv.height = 256;
     const cx = cv.getContext("2d", { willReadFrequently: true });
@@ -1992,7 +1992,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // opacity, bounds [w, s, e, n], attr }, only for zooms near the view's (sent again as it zooms). Far from roads' band
   // widths also follow the latitude: worked out at the view's, to the half degree (cos changes ~1% over that: tens of
   // metres on a 2-3 km band at most, inside the band's own estimate), so a pan doesn't load new pictures. Pictures repainted on the
-  // phone (Alberta forest types, Quebec public land) aren't here: those open the web 3D map (tfHunt.web3d).
+  // phone (Alberta forest types, Quebec public land) aren't here: native-ground.js draws those (tfGround below), and
+  // builds without it open the web 3D map for them (tfHunt.web3d).
   const NATIVE_MAX = 19;
   function nativePics() {
     const view = map.getBounds().pad(0.5), c = map.getCenter(), out = [];
@@ -2030,8 +2031,6 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }, 250);
   }
   // At opening (a new native screen, nothing on it yet) everything goes, the glassing picture too.
-  // NativeHunting.swift says "huntPics" when it opens: this build draws the picture layers (native-map.js webOnly).
-  if (window.tfNative && window.tfNative.on) window.tfNative.on("huntPics", () => { try { localStorage.setItem("tf-native-huntpics", "1"); } catch {} });
   if (window.tfNative && window.tfNative.addLayer) window.tfNative.addLayer("hunt", () => nativeSent(nativeNext != null ? nativeNext : (glassSent = "", nativeHunt())));
 
   // ---------- 3D map (map3d.js) ----------
@@ -2043,8 +2042,10 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // The pictures the phone repaints (Alberta forest types, Quebec public land) go the same way: the native map can't
   // repaint a server's picture, so it asks the page for the finished one (hunting.js nativePics sends the others).
   for (const p of PICS.filter((q) => q.recolor)) {
-    (window.tfGround = window.tfGround || {})["hn-pic-" + p.id] = { paint: (z, x, y) => recolorTile(p, z, x, y), on: () => isHunt() && shown.has(p.layer) && picNear(p),
-      ver: () => "1", min: Math.max(0, p.min - 1), max: 16, opacity: p.opacity, z: 300, credit: p.attr.replace(/<[^>]+>/g, ""), keep: true };
+    // Tiles outside the province come back empty (the flat map never asks for them: its bounds).
+    const box = L.latLngBounds(picBounds(p)), tileIn = (z, x, y) => box.intersects(L.latLngBounds([tileLat(y + 1, z), (x / 2 ** z) * 360 - 180], [tileLat(y, z), ((x + 1) / 2 ** z) * 360 - 180]));
+    (window.tfGround = window.tfGround || {})["hn-pic-" + p.id] = { paint: (z, x, y, signal) => (tileIn(z, x, y) ? recolorTile(p, z, x, y, signal) : null), on: () => isHunt() && shown.has(p.layer) && picNear(p),
+      ver: () => "1", min: Math.max(0, p.min - 1), max: NATIVE_MAX, opacity: p.opacity, z: 300, credit: p.attr.replace(/<[^>]+>/g, ""), keep: true };
   }
   for (const mode of ["slope", "aspect"]) {
     (window.tfGround = window.tfGround || {})["hn-" + mode] = { paint: (z, x, y) => paintTerrain(mode, z, x, y), on: () => isHunt() && shown.has(mode),

@@ -185,8 +185,9 @@
   // aspect) open in native 3D once this phone's app build has shown it draws them ("tf-native-ground", set the first
   // time a native 3D map with them opens); older builds keep the web 3D map for them.
   const groundNative = () => { try { return localStorage.getItem("tf-native-ground") === "1"; } catch { return false; } };
-  // Hunting's picture layers the same way ("tf-native-huntpics", set by hunting.js when NativeHunting.swift says it draws them).
+  // Hunting's picture layers the same way ("tf-native-huntpics": NativeHunting.swift says "huntPics" in any sport's native 3D).
   const huntPicsNative = () => { try { return localStorage.getItem("tf-native-huntpics") === "1"; } catch { return false; } };
+  TrailMap.addListener("huntPics", () => { try { localStorage.setItem("tf-native-huntpics", "1"); } catch {} });   // here: hunting.js may not be loaded yet
   const webOnly = () => {
     if (tf("avy", false) === true || pressed("avyBtn")) return true;   // avalanche stays in the web 3D map (its own step)
     const ground = groundNative();

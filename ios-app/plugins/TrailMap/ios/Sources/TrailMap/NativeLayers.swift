@@ -26,6 +26,9 @@ extension NativeLayer {
 }
 
 enum NativeLayers {
+    // Layers a feature keeps over the ground pictures (NativeGround.swift puts its own under the first one there, else
+    // under the trails): Hunting's lowest layer, so its pictures, fills and rings stay over slope and forest colours.
+    static let groundCeiling = ["hn-bottom"]
     // One line per feature (keep in alphabetical order: parallel pull requests then add different lines).
     static let all: [() -> NativeLayer] = [
         { NativeFishing() },        // NativeFishing.swift: Fishing fills, names, spot, water colours, Crown land, depth pictures

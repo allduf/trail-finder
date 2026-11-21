@@ -15,8 +15,9 @@ import UIKit
 //     the same map servers as the flat map, the addresses worked out on the page (hunting.js nativePics).
 // The page sends everything near the view as text under the key "hunt" (hunting.js window.tfNative.addLayer), only in
 // Hunting and only what's switched on there, so other sports draw nothing from here.
-// Slope angle and aspect, and the pictures the phone repaints (Alberta forest types, Quebec public land), are drawn only
-// by the web 3D map: with any of them on, the 3D button opens that one (hunting.js tfHunt.web3d).
+// Slope angle and aspect, and the pictures the phone repaints (Alberta forest types, Quebec public land), are painted by
+// the page and drawn by NativeGround.swift (native-ground.js), under these. Builds without that, or without the pictures
+// here, open the web 3D map for them (hunting.js tfHunt.web3d, native-map.js webOnly).
 final class NativeHunting: NativeLayer {
     let key = "hunt"
     private static let orange = UIColor(red: 0xd9 / 255, green: 0x48 / 255, blue: 0x0f / 255, alpha: 1)   // ORANGE in hunting.js
@@ -48,7 +49,11 @@ final class NativeHunting: NativeLayer {
         let below = screen.trailsBottomLayer()
         let under = { (l: MLNStyleLayer) in if let b = below { style.insertLayer(l, below: b) } else { style.addLayer(l) } }
 
-        // Under the trails, bottom to top: the glassing view (added when there is one), the fills, the cone, the rings.
+        // Under the trails, bottom to top: a marker the ground pictures go under (NativeLayers.groundCeiling), the picture
+        // layers and the glassing view (added when there are some), the fills, the cone, the rings.
+        let bottom = MLNFillStyleLayer(identifier: "hn-bottom", source: fills)
+        bottom.isVisible = false
+        under(bottom)
         let fill = MLNFillStyleLayer(identifier: "hn-fill", source: fills)
         fill.predicate = NSPredicate(format: "h == 0")
         fill.fillColor = NSExpression(forKeyPath: "c")
