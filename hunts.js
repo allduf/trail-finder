@@ -122,7 +122,7 @@
   const kindsLine = (seen, kinds) => {
     const by = {};
     for (const p of seen) by[p.kind] = (by[p.kind] || 0) + 1;
-    return Object.entries(by).map(([k, n]) => { const d = kinds.find((x) => x[0] === k) || [k, k, "📍"]; const nm = d[1].toLowerCase().replace(/ \(.*\)$/, ""); return `${d[2]} ${n > 1 ? `${n} ` : ""}${esc(nm)}${n > 1 && !/s$/.test(nm) ? "s" : ""}`; }).join(", ");
+    return Object.entries(by).map(([k, n]) => { const d = kinds.find((x) => x[0] === k) || [k, k, "📍"]; const nm = d[1].toLowerCase().replace(/ \(.*\)$/, ""); return `<span>${d[2]} ${n > 1 ? `${n} ` : ""}${esc(nm)}${n > 1 && !/s$/.test(nm) ? "s" : ""}</span>`; }).join(", ");
   };
   const sawAnimal = (p) => (p.tags && p.tags.length ? p.tags : [p.kind]).some((k) => SEEN.includes(k));   // a pin can carry several tags
 
@@ -141,7 +141,7 @@
             <b>${esc(h.title || "Hunt")}</b>
             <span class="sp-meta">${esc(fmtDay(h.start))}, ${esc(fmtTime(h.start))} to ${esc(fmtTime(endOf(h)))}${c && c.zone ? ` · ${esc(c.zone)}` : ""}</span>
             <span class="hh-nums">${esc(dur(endOf(h) - h.start))} · ${esc(km(st.dist))}${st.climb != null ? ` · ↑ ${Math.round(st.climb)} m` : ""}</span>
-            ${seen.length ? `<span class="hh-seen" data-no-line>${kindsLine(seen, kinds)}</span>` : `<span class="hh-seen none">Nothing saved on the way</span>`}
+            ${seen.length ? `<span class="hh-seen" data-pin-line>${kindsLine(seen, kinds)}</span>` : `<span class="hh-seen none">Nothing saved on the way</span>`}
             ${condLine(c && { ...c, moon: moonName(h.start) })}</span></button></li>`;
         }).join("")}</ul>`;
     }).join("") + `<p class="sp-meta">Tap a hunt to see your walk on the map. Photos, notes and GPX are in <a href="ride.html#rides">all your tracks</a>.</p>`;
@@ -227,7 +227,7 @@ body.sport-hunt dialog.sp-log .sp-bars i { background: ${COLOR}; }
 .hh-bar small { color: var(--muted); }
 .hh-bar button { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--chip, #eee); color: var(--fg); font-size: 1rem; cursor: pointer; }
 @media (max-width: 760px) { .hh-bar { top: calc(env(safe-area-inset-top, 0px) + 84px); left: 12px; right: 12px; transform: none; max-width: none; } .hh-bar span { flex: 1; } }   /* under the map buttons */
-.hh-pin { display: grid; place-items: center; font-size: 15px; background: #fff; border-radius: 50%; border: 2px solid ${COLOR}; box-shadow: 0 1px 4px rgba(0,0,0,.3); }`;
+.hh-pin { display: grid; place-items: center; font-size: 15px; background: #fff; color: ${COLOR}; border-radius: 50%; border: 2px solid ${COLOR}; box-shadow: 0 1px 4px rgba(0,0,0,.3); }`;
   document.head.append(css);
 
   // ---------- the header link follows the sport ----------
