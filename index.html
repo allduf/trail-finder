@@ -9323,6 +9323,9 @@ out tags center qt;`;
   // For Ride mode (navigate.js): the loaded trails, with what it needs to name and colour them.
   window.tfNav = { map, youLayer, DIFF, difficulty, diffColor, shown: () => allShown.map((x) => x.w.id),
     ways: () => [...allData.values()].filter(Boolean).flat(),
+    // How many: no copy of every trail (navigate.js checks it every few seconds while trail files load).
+    wayCount: () => { let n = 0; allData.forEach((l) => { if (l) n += l.length; }); return n; },
+    roadCount: () => { let n = 0; roadData.forEach((z) => { if (z) n += z.list.length; }); return n; },
     roads: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.list),   // forest roads, for Plan a route (planner.js)
     roadFeats: () => [...roadData.values()].filter(Boolean).flatMap((z) => z.feats || []),   // gates, barriers, bridges (Shuttle)
     // For Moto's route check (moto.js): the forest roads, gates and motor vehicle closures along a route (small boxes

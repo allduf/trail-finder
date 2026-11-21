@@ -153,32 +153,58 @@
   window.tfLine = (s, size = 18) => { const k = keyOf(s); return k && !k[2].trim() ? draw(k[1], size) : String(s == null ? "" : s); };
   window.tfLineName = (name, size = 18) => (P[name] ? draw(name, size) : "");
   const SKIP = /^(SCRIPT|STYLE|TEXTAREA|INPUT|SELECT|OPTION|svg)$/i;
-  // One text node: the drawing goes in front of it and the emoji leaves the text.
-  const swap = (n, [, name, rest]) => {
-    const pc = n.parentElement.classList, size = pc.contains("ic") || pc.contains("spb-i") || pc.contains("i") ? 22 : 17;
-    const t = document.createElement("template");
-    t.innerHTML = draw(name, size);
-    const cs = getComputedStyle(n.parentElement);
-    // A column (Layers' "🔥 Wildfires" over its status line): the drawing and its words stay on one line together.
-    const column = /flex/.test(cs.display) && /column/.test(cs.flexDirection);
-    if (column) { const row = document.createElement("span"); n.parentNode.insertBefore(row, n); row.append(t.content.firstChild, n); }
-    else n.parentNode.insertBefore(t.content.firstChild, n);
-    // A space after the drawing, unless the button lays its parts out with a gap already (flex).
-    const flex = !column && /flex|grid/.test(cs.display);
-    n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
+  // One text node: the drawing goes in front of it and the emoji leaves the text. In two passes over all the text nodes
+  // found (plan, then do): every parent's style is read before anything changes, so the browser works out the page's
+  // styles once instead of once per drawing (each read after a change forced a full restyle: a long freeze when a
+  // sport's panel or a list of pins arrived on a phone).
+  let planned = null;   // text node -> [key, pin?], while a sweep is gathering
+  const plan = (n, k, pin) => { if (!planned.has(n)) planned.set(n, [k, pin]); };
+  const gather = (fn) => {
+    const outer = !planned;
+    if (outer) planned = new Map();
+    try { fn(); } finally { if (outer) { const all = planned; planned = null; doAll(all); } }
   };
-  window.tfLineify = (root) => {
-    if (!root) return;
-    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
+  const doAll = (all) => {
+    const jobs = [];
+    all.forEach(([k, pin], n) => {
+      const p = n.parentElement;
+      if (!p || !n.isConnected || !n.data.replace(/^\s+/, "").startsWith(k[0])) return;   // changed since it was found
+      const cs = getComputedStyle(p);
+      jobs.push([n, k, pin, cs.display, cs.flexDirection]);
+    });
+    for (const [n, [, name, rest], pin, display, dir] of jobs) {
+      const t = document.createElement("template");
+      if (pin) {
+        t.innerHTML = draw(name, "1.2em");
+        t.content.firstChild.classList.add("tf-pin-line");
+        n.parentNode.insertBefore(t.content.firstChild, n);
+        // A space after the drawing, unless the pin lays its parts out with a gap already (flex or grid: \u26f7 resort label).
+        const flex = rest.trim() && /flex|grid/.test(display);
+        n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
+        continue;
+      }
+      const pc = n.parentElement.classList, size = pc.contains("ic") || pc.contains("spb-i") || pc.contains("i") ? 22 : 17;
+      t.innerHTML = draw(name, size);
+      // A column (Layers' "🔥 Wildfires" over its status line): the drawing and its words stay on one line together.
+      const column = /flex/.test(display) && /column/.test(dir);
+      if (column) { const row = document.createElement("span"); n.parentNode.insertBefore(row, n); row.append(t.content.firstChild, n); }
+      else n.parentNode.insertBefore(t.content.firstChild, n);
+      // A space after the drawing, unless the button lays its parts out with a gap already (flex).
+      const flex = !column && /flex|grid/.test(display);
+      n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
+    }
+  };
+  window.tfLineify = (root) => { if (root) gather(() => lineify(root)); };
+  const lineify = (root) => {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) {
       const p = n.parentElement;
       if (!p || SKIP.test(p.tagName) || p.closest("svg, [data-no-line], [data-pin-line]")) continue;
       // Only text that starts its element (a button, a title, an icon box): not mid-sentence.
       if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
       const k = keyOf(n.data);
-      if (k) hits.push([n, k]);
+      if (k) plan(n, k);
     }
-    for (const [n, k] of hits) swap(n, k);
     pinRoots(root);
   };
   // Map pins (Leaflet and the web 3D map's markers) and a saved point's kind lists: every emoji that has a drawing, at
@@ -187,22 +213,13 @@
   // drawn there already (NativePins.swift); native-pins.js reads the pins' html as written, so nothing changes there.
   const PIN = ".leaflet-marker-icon, .maplibregl-marker, [data-pin-line]";
   const pinify = (el) => {
-    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), hits = [];
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) {
       const p = n.parentElement;
       if (!p || SKIP.test(p.tagName) || p.closest("svg, [data-no-line]")) continue;
       if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
       const k = keyOfPin(n.data);
-      if (k) hits.push([n, k]);
-    }
-    for (const [n, [, name, rest]] of hits) {
-      const t = document.createElement("template");
-      t.innerHTML = draw(name, "1.2em");
-      t.content.firstChild.classList.add("tf-pin-line");
-      n.parentNode.insertBefore(t.content.firstChild, n);
-      // A space after the drawing, unless the pin lays its parts out with a gap already (flex or grid: \u26f7 resort label).
-      const flex = rest.trim() && /flex|grid/.test(getComputedStyle(n.parentElement).display);
-      n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
+      if (k) plan(n, k, true);
     }
   };
   const pinRoots = (root) => {
@@ -231,24 +248,23 @@
   const NOT = ".leaflet-pane, .leaflet-marker-icon, .maplibregl-marker, .maplibregl-canvas-container, [data-no-line], [data-pin-line], select, textarea, input";
   const sweep = (root) => {
     if (!root || root.nodeType !== 1 || pinRoots(root) || root.closest(NOT)) return;
-    if (root.closest(PANES)) return window.tfLineify(root);
-    root.querySelectorAll(PANES).forEach((p) => window.tfLineify(p));
+    if (root.closest(PANES)) return lineify(root);
+    root.querySelectorAll(PANES).forEach((p) => lineify(p));
     if (!HAS.test(root.textContent || "")) return;
-    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) {
       const p = n.parentElement;
       if (!p || !SPORT_E.test(n.data) || SKIP.test(p.tagName) || p.closest(NOT + ", svg")) continue;
       if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
       const k = keyOf(n.data);
-      if (k) hits.push([n, k]);
+      // Only the text that starts with one of them (a "🚵 My rides" button, a ⛺ icon box): a ★ rating or a ◎ next to
+      // it stays as it is.
+      if (k) plan(n, k);
     }
-    // Only the text that starts with one of them (a "🚵 My rides" button, a ⛺ icon box): a ★ rating or a ◎ next to
-    // it stays as it is.
-    for (const [n, k] of hits) swap(n, k);
   };
   const pending = new Set();
   let queued = false;
-  const flush = () => { queued = false; const roots = [...pending]; pending.clear(); mo.disconnect(); roots.forEach((r) => r.isConnected && sweep(r)); watch(); };
+  const flush = () => { queued = false; const roots = [...pending]; pending.clear(); mo.disconnect(); gather(() => roots.forEach((r) => r.isConnected && sweep(r))); watch(); };
   const mo = new MutationObserver((list) => {
     for (const m of list) {
       if (m.type === "characterData") { if (m.target.parentElement && (HAS.test(m.target.data) || m.target.parentElement.closest(PIN))) pending.add(m.target.parentElement); continue; }
@@ -260,7 +276,7 @@
     if (pending.size && !queued) { queued = true; requestAnimationFrame(flush); }
   });
   const watch = () => mo.observe(document.body, { childList: true, subtree: true, characterData: true });
-  const start = () => { sweep(document.body); watch(); };
+  const start = () => { gather(() => sweep(document.body)); watch(); };
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
   const css = document.createElement("style");
   css.textContent = `svg.tf-line { flex: none; vertical-align: -3px; }

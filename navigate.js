@@ -1431,13 +1431,17 @@ body.nav-night:not(.base-adv) .leaflet-tile-pane { filter: invert(1) hue-rotate(
   const arrows = L.layerGroup().addTo(map);
   const ARROW_ZOOM = 14, ARROW_EVERY_PX = 140, MAX_ARROWS = 400;
   let arrowTimer = 0, arrowN = -1, arrowView = "";
+  // How many trails are loaded. Only a count (wayCount, guarded for a page older than this script): a copy of every
+  // trail on each check, every 3 s in every sport and on each map move, was steady garbage collection (battery).
+  const wayN = () => (nav.wayCount ? nav.wayCount() : nav.ways().length);
   function drawArrows() {
-    const z = map.getZoom(), view = map.getBounds(), all = nav.ways();
-    const k = z + "|" + view.toBBoxString() + "|" + all.length;
+    const z = map.getZoom(), view = map.getBounds(), count = wayN();
+    const k = z + "|" + view.toBBoxString() + "|" + count;
     if (k === arrowView) return;
-    arrowView = k; arrowN = all.length;
+    arrowView = k; arrowN = count;
     arrows.clearLayers();
     if (z < ARROW_ZOOM || document.body.classList.contains("sport-alt")) return;
+    const all = nav.ways();
     const shown = nav.shown ? new Set(nav.shown()) : null;   // only on trails drawn on the map now
     const seen = new Set(), pad = view.pad(0.1);
     let n = 0;
@@ -1470,7 +1474,8 @@ body.nav-night:not(.base-adv) .leaflet-tile-pane { filter: invert(1) hue-rotate(
   }
   const queueArrows = () => { clearTimeout(arrowTimer); arrowTimer = setTimeout(drawArrows, 120); };
   map.on("moveend zoomend", queueArrows);
-  setInterval(() => { if (nav.ways().length !== arrowN) queueArrows(); }, 3000);   // trail files still loading
+  // Trail files still loading.
+  setInterval(() => { if (document.visibilityState === "visible" && wayN() !== arrowN) queueArrows(); }, 3000);
   queueArrows();
 
   async function offerResume() {

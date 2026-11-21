@@ -50,6 +50,19 @@ async function plain(r) {
   if (!r || !r.redirected) return r;
   return new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers });
 }
+// The saved copy of one of the site's own files: this version's cache first, then the older versions' still kept.
+// Never all caches at once (caches.match) unless those miss: that opens Offline maps' cache and the map pictures' too
+// (tens of thousands of files after a 300-600 MB save), and an iPhone reads the list of every file in a cache the first
+// time it's opened after the app starts. Alex's iPhone app took 3-4 s for the page on each open after a big offline save
+// (2026-11-21, usage Speed rows), against under 1 s before: scripts and data are looked up here first.
+async function ownHit(req) {
+  const mine = await caches.open(VERSION);
+  const hit = await mine.match(req);
+  if (hit) return hit;
+  const older = (await caches.keys()).filter((k) => /^tf-\d+$/.test(k) && k !== VERSION).reverse();
+  for (const k of older) { const h = await (await caches.open(k)).match(req); if (h) return h; }
+  return null;
+}
 async function networkFirst(req, e) {
   const cache = await caches.open(VERSION);
   try {
@@ -60,7 +73,10 @@ async function networkFirst(req, e) {
         const copy = res.clone();
         e.waitUntil((async () => {
           await cache.put(req, copy);
-          const off = await caches.open(OFFLINE);   // keep a saved area's trail data as fresh as the last visit
+          // Keep a saved area's trail data as fresh as the last visit. Data files only: Offline maps saves no pages
+          // or scripts, and opening its big cache on every page open slowed the start (see ownHit).
+          if (!/\/data\/[^?]*\.json$/.test(new URL(req.url).pathname)) return;
+          const off = await caches.open(OFFLINE);
           if (await off.match(req)) await off.put(req, await cache.match(req));
         })().catch(() => null));
       }
@@ -69,7 +85,7 @@ async function networkFirst(req, e) {
     const page = req.mode === "navigate";
     if (page || /\/data\/[^?]*\.json$/.test(new URL(req.url).pathname)) {
       const home = page && /\/(index\.html)?$/.test(new URL(req.url).pathname);
-      const hit = page ? await cache.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) || await caches.match(req, { ignoreSearch: true }) : await caches.match(req);
+      const hit = page ? await cache.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) || await caches.match(req, { ignoreSearch: true }) : await ownHit(req) || await caches.match(req);
       if (hit) {
         e.waitUntil(net.catch(() => null));
         if (page && hit.ok) return plain(hit);
@@ -89,11 +105,13 @@ async function networkFirst(req, e) {
 }
 
 async function cacheFirst(req) {
-  const hit = await caches.match(req);
+  const usable = (h) => h && !(h.type === "opaque" && req.mode === "cors");
+  let hit = await ownHit(req);
+  if (!usable(hit)) hit = await caches.match(req);
   // A copy saved from a <script> or <link> tag is opaque, which a script's own download (CORS) can't use: the browser
   // makes that a failed download. Offline maps' 3D files (MapLibre from unpkg) stayed "Not finished" for good because
   // of it (phone-size test, 2026-10-30): those get the network, as a normal download.
-  if (hit && !(hit.type === "opaque" && req.mode === "cors")) return hit;
+  if (usable(hit)) return hit;
   const res = await fetch(req);
   if (res.ok || res.type === "opaque") (await caches.open(VERSION)).put(req, res.clone());
   return res;

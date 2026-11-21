@@ -804,7 +804,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   const BOX = { "Trail name": "🔎 Trail name", Place: "📍 Place", Ask: "💬 Ask", Area: "🗺️ Where to look", "Ski find": "⛷ Skiing search", "Heli cat": "🚁 Heli and cat skiing", "Ski areas": "⛰ Ski areas" };
   // Where a search was made, from the phone's os line (usage.js).
   const fromOf = (os) => (/^Web\b/.test(os || "") ? "Website" : /^Android\b/.test(os || "") ? "Android app" : "iPhone app");
-  const SPEED = [["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["list", "New trails list"], ["3dshape", "3D mountains shown"], ["3d", "3D sharp photos all in"]];
+  const SPEED = [["sw", "Saved-copy helper started"], ["first", "Page first bytes"], ["html", "Page arrived"], ["dcl", "Scripts started"], ["page", "App ready"], ["map", "Map pictures"], ["list", "New trails list"], ["3dshape", "3D mountains shown"], ["3d", "3D sharp photos all in"]];
   function paint() {
     // alex's own phone is the one named "Me". Once one is, the page starts on "Everyone but me".
     const labels = new Map((all || []).map((d) => [d.device, d.label]));

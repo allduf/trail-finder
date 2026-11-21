@@ -1,0 +1,3 @@
+Faster on phones: the app finds its saved files sooner when opening (most with big offline maps saved), and icons appear without a pause when a sport opens. ||| Plus rapide sur téléphone : l'application trouve ses fichiers enregistrés plus vite à l'ouverture (surtout avec de grandes cartes hors ligne enregistrées), et les icônes apparaissent sans pause à l'ouverture d'un sport.
+Saved-copy helper started ||| Assistant des copies enregistrées démarré
+Page first bytes ||| Premiers octets de la page
