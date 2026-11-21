@@ -3137,15 +3137,17 @@
     // colours from the sun where the map is, like the flat map.
     let advNight = null;
     const advIds = () => gl.getLayersOrder().filter((id) => id.startsWith("adv-"));
+    // While the 3D map sleeps (no style) both wait: the style MapLibre brings back still has the ADV layers it had, and
+    // the restore hook (pick) then adds or drops them for the sport of the moment.
     const dropAdv = () => {
-      if (advNight === null) return;
+      if (advNight === null || !gl.style) return;
       for (const id of advIds()) gl.removeLayer(id);
       if (gl.getSource("adv-contours")) gl.removeSource("adv-contours");
       advNight = null;
     };
     const addAdv = () => {
       const A = window.tfAdvMap;
-      if (!A || photos !== "adv") return;
+      if (!A || photos !== "adv" || !gl.style) return;
       const c = gl.getCenter(), n = A.night(c.lat, c.lng);
       if (n === advNight) return;
       dropAdv();
