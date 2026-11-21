@@ -20,8 +20,8 @@ import ObjectiveC
 // out on the processor), as on the web.
 // Safety: text that reads differently (another MapLibre) is left as it is, and changed text that doesn't compile cleanly
 // (an error, or a warning, which MapLibre also counts as a failure) is compiled again as MapLibre's own. Either way names
-// and dots draw as before, with one line in the device log. ios-app/checks/near-names.swift checks all this on a Mac in
-// the iPhone app workflow: the real MapLibre text still matches, the change compiles, and the sizes come out right.
+// and dots draw as before, with one line in the device log. ios-app/checks/near-names/main.swift checks all this on a
+// Mac in the iPhone app workflow: the real MapLibre text still matches, the change compiles, and the sizes come out right.
 enum NativeNearNames {
     static let nearMax = "1.25"   // NEAR_MAX in map3d.js
 
@@ -85,8 +85,9 @@ enum NativeNearNames {
             if let lib = lib, problem == nil { return lib }
             // Compiled with a warning (MapLibre would refuse it) or not at all: MapLibre's own text instead.
             if let lib = lib { Unmanaged<AnyObject>.fromOpaque(lib).release() }
-            let detail = problem.map { ": " + String(Unmanaged<NSError>.fromOpaque($0).takeUnretainedValue().localizedDescription.prefix(300)) } ?? ""
-            say("the changed shaders didn't compile on this device" + detail)
+            say("the changed shaders didn't compile on this device", problem.map {
+                ": " + String(Unmanaged<NSError>.fromOpaque($0).takeUnretainedValue().localizedDescription.prefix(300))
+            } ?? "")
             return own(device, sel, source, options, error)
         }
         let imp = imp_implementationWithBlock(block)
@@ -98,10 +99,11 @@ enum NativeNearNames {
     private static let lock = NSLock()
     private static var installed = false
     private static var said = Set<String>()
-    private static func say(_ why: String) {
+    // Once for each reason (the first compiler message with it), not once for each shader.
+    private static func say(_ why: String, _ detail: String = "") {
         lock.lock()
         let first = said.insert(why).inserted
         lock.unlock()
-        if first { NSLog("TrailMap 3D: %@; names and dots near the camera grow as before", why) }
+        if first { NSLog("TrailMap 3D: %@; names and dots near the camera grow as before%@", why, detail) }
     }
 }
