@@ -133,7 +133,7 @@ const front = () => /mResumedActivity|topResumedActivity/.test(adb("shell dumpsy
   ok(keys, "TrailMap lists the native 3D features it draws");
   const line = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "MultiLineString", coordinates: [[[-122.96, 50.105], [-122.95, 50.11], [-122.94, 50.112]]] }, properties: { c: "#d33", w: 4, o: 1, d: "", n: "Test trail", lb: "Test trail", i: 0 } }] });
   const empty = JSON.stringify({ type: "FeatureCollection", features: [] });
-  await js(`(() => { window.__tmClosed = []; Capacitor.registerPlugin("TrailMap").addListener("closed", (e) => window.__tmClosed.push(e)); })()`);
+  await js(`(() => { window.__tmClosed = []; const T = Capacitor.registerPlugin ? Capacitor.registerPlugin("TrailMap") : Capacitor.Plugins.TrailMap; T.addListener("closed", (e) => window.__tmClosed.push(e)); })()`);
   const opened = await js(`Capacitor.nativePromise("TrailMap", "open", ${JSON.stringify({ lat: 50.11, lon: -122.95, zoom: 13, bearing: 20, base: "sat", threeD: true, winter: false, lang: "en", layers: {}, lines: line, dots: empty, dashes: "" })}).then(() => true, (e) => String(e && e.message || e))`);
   ok(opened === true, "the native 3D map opens", opened === true ? "" : opened);
   await sleep(12000);
