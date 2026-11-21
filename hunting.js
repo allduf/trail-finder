@@ -2005,6 +2005,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // fills, labels, pins or picture layers, so those are added here: the picture layers draped on the terrain, the
   // rules areas and scent cone as see-through fills, the zone labels, and the spot pin. A tap on the 3D map picks a
   // spot as on the flat map.
+  // The iPhone's own 3D map asks for the same slope pictures (native-ground.js), so the colours are the same.
+  for (const mode of ["slope", "aspect"]) {
+    (window.tfGround = window.tfGround || {})["hn-" + mode] = { paint: (z, x, y) => paintTerrain(mode, z, x, y), on: () => isHunt() && shown.has(mode),
+      ver: () => "1", min: 8, max: 14, opacity: 1, z: 355, credit: "Terrain: Mapzen Terrain Tiles", keep: true,
+      key: () => { const t = (x) => (window.tfLang && window.tfLang.t ? window.tfLang.t(x) : x);
+        return mode === "slope" ? { t: t("Slope angle"), c: SLOPES.map((q) => q[2]), l: SLOPES.map((q) => t(q[1])) } : { t: t("Slope direction"), c: ASPECT_COLORS, l: DIRS }; } };
+  }
   let gl3 = null, proto3 = false, fillsSet = false, labelsSet = false, spot3 = null, glass3 = "";
   let applyWait = false;
   function sync3d() {

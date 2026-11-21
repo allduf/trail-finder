@@ -4565,6 +4565,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const COLORS = DANGER.map((d) => rgb(d.color)), DARK_RGB = DARK.map(rgb);
   // Pixels at low zoom are hundreds of metres wide, which flattens slopes: ask for less steepness there.
   const minSlope = (z) => (z >= 12 ? 25 : z === 11 ? 21 : z === 10 ? 17 : z === 9 ? 13 : 10);
+  // Ground layers painted here, for the iPhone's own 3D map (native-ground.js asks for the same pictures, so the colours
+  // are the web's exactly): window.tfGround[id] = { paint(z, x, y) -> picture, on(), ver(), min, max, opacity, z, credit,
+  // keep }, and "tf:ground" when one goes on or off or is drawn again.
+  const groundAdd = (id, g) => { (window.tfGround = window.tfGround || {})[id] = g; };
+  const groundChanged = () => window.dispatchEvent(new Event("tf:ground"));
   async function paint(z, x, y) {
     const data = example ? exampleData() : avy;
     const out = new ImageData(256, 256);
@@ -4735,6 +4740,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   window.addEventListener("tf:map3d", syncSlope3d);
   function refreshSlope() {
     const want = sport === "ski" && shown.has("slope");
+    groundChanged();
     if (want && !map.hasLayer(slopeGrid)) slopeGrid.addTo(map);
     else if (!want && map.hasLayer(slopeGrid)) map.removeLayer(slopeGrid);
     syncSlope3d();
@@ -4742,6 +4748,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     key.hidden = !want;
     if (want && !key.innerHTML) key.innerHTML = `<b>Slope angle</b>${SLOPE.map((x) => `<span><i style="background:${x[2]}"></i>${x[1]}</span>`).join("")}`;
   }
+
+  groundAdd("skislope", { paint: paintSlope, on: () => sport === "ski" && shown.has("slope"), ver: () => slopePal, min: 9, max: 14, opacity: 1, z: 355, credit: "Slope angle: Mapzen Terrain Tiles", keep: true });
 
   // ---------- slope direction ----------
   // A map layer painted tile by tile from the terrain, on the flat map and on the 3D map (the same tiles as pictures).
@@ -4791,13 +4799,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (!setT) setT = setTimeout(() => { setT = 0; sync3d(); }, Math.max(wait, 1000));
     }
     window.addEventListener("tf:map3d", sync3d);
+    // The iPhone's own 3D map asks for the same pictures (native-ground.js).
+    groundAdd(id, { paint: paintFn, on: () => want, ver: () => String(o.ver ? o.ver() : 0), min: o.minZoom, max: o.maxNative || 14, opacity: o.opacity || 1, z: o.z, credit: o.attribution3d || "Terrain: Mapzen Terrain Tiles", keep: !o.ver });
     const set = (on) => {
+      if (want !== on) groundChanged();
       want = on;
       if (on && !map.hasLayer(grid)) grid.addTo(map);
       else if (!on && map.hasLayer(grid)) map.removeLayer(grid);
       sync3d();
     };
-    set.redraw = () => { if (map.hasLayer(grid)) grid.redraw(); sync3d(); };   // after o.ver() changed
+    set.redraw = () => { if (map.hasLayer(grid)) grid.redraw(); sync3d(); groundChanged(); };   // after o.ver() changed
     return set;
   }
   // Slope direction (as CalTopo and onX shade it): slopes of 25° and more coloured by the way they face, so the
@@ -4876,7 +4887,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   const flatsLayer = paintedLayer("skiflats", paintFlats, { z: 354, minZoom: 11, attribution: 'Flats: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
   let elevVer = 0;
-  const elevLayer = paintedLayer("skielev", paintElev, { z: 353, minZoom: 9, ver: () => elevVer, attribution: 'Elevation bands: Avalanche Canada areas, <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
+  const elevLayer = paintedLayer("skielev", paintElev, { z: 353, minZoom: 9, ver: () => elevVer, attribution3d: "Elevation bands (estimate): Avalanche Canada areas, Mapzen Terrain Tiles", attribution: 'Elevation bands: Avalanche Canada areas, <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
 
   // ---------- snow on the map: new snow and the snow forecast (FATMAP's Live snow) ----------
   // Open-Meteo's weather model (free, no key) on a grid of points, a tenth of a degree apart close up (coarser zoomed
@@ -5201,7 +5212,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (shown.has("slope")) out.push(bar(slopePal === "fatmap" ? "Slope angle (FATMAP)" : "Slope angle", SLOPE.map((s) => [s[2], s[3]])));
       if (shown.has("aspect")) out.push(bar("Slope direction, 25°+", ASPECTS.map((s, i) => [ASPECT_COLORS[i], s.toUpperCase()])));
       if (shown.has("flats")) out.push(bar(map.getZoom() < 11 ? "Flats: zoom in" : "Flats", [[`rgba(${FLAT_RGB.join(",")},.6)`, `under ${FLAT_DEG}°`]]));
-      if (shown.has("elev")) out.push(bar("Elevation bands", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
+      if (shown.has("elev")) out.push(bar("Elevation bands (estimate)", ELEV.map((e) => [e[2], e[1].replace("Below treeline", "Below TL")])));
       const cm = SNOW_CM.slice(0, 6).map(([v, c], i) => [c, i === 5 ? `${v}+` : String(v)]);
       const mm = [[LOW, "<1"], [MIX, "mix"], ...RAIN_MM.map(([v, c], i) => [c, i === RAIN_MM.length - 1 ? `${v}+` : String(v)])];
       if (shown.has("fresh")) out.push(bar("New snow, last 24 h (cm)", cm), bar("Rain instead, last 24 h (mm)", mm));
