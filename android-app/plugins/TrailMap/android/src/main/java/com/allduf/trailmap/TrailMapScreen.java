@@ -462,6 +462,18 @@ final class TrailMapScreen extends FrameLayout {
     MapLibreMap mapLibre() { return map; }
     // Where a feature's own labels go: the screen inside the phone's bars (its children are laid out by gravity).
     FrameLayout mapArea() { return area; }
+    // Top left, under the radar and smoke captions (NativeOverlay rows 0-1): the ground keys, then the avalanche card.
+    private LinearLayout infoColumn;
+    LinearLayout infoColumn() {
+        if (infoColumn == null) {
+            infoColumn = new LinearLayout(activity);
+            infoColumn.setOrientation(LinearLayout.VERTICAL);
+            FrameLayout.LayoutParams at = new FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+            at.setMargins(dp(12), dp(148), dp(12), 0);
+            area.addView(infoColumn, at);
+        }
+        return infoColumn;
+    }
     void watchTouches(TouchWatcher w) { if (!watchers.contains(w)) watchers.add(w); }
     // A feature's own drawing over the whole map, under the buttons (it lets every touch through).
     void addOverMap(View v) { addView(v, indexOfChild(area), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)); }

@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 // once its Android side is written.
 final class NativeLayers {
     static final List<Supplier<NativeLayer>> ALL = List.of(
+        NativeAvalanche::new,                  // NativeAvalanche.java: the avalanche card (its colours come through NativeGround)
         NativeFingers::new,                    // NativeFingers.java: two-finger measure
         NativeFishing::new,                    // NativeFishing.java: Fishing fills, names, spot, water, Crown land, depth pictures
         NativeFishing.Creeks::new,             // NativeFishing.java: Fishing creeks from further away

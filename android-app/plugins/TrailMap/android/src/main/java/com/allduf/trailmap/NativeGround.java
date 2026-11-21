@@ -9,7 +9,6 @@ import android.util.Base64;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.getcapacitor.JSObject;
@@ -163,9 +162,9 @@ final class NativeGround implements NativeLayer {
             keyBox = new LinearLayout(screen.getContext());
             keyBox.setOrientation(LinearLayout.VERTICAL);
             keyBox.setClickable(false);
-            FrameLayout.LayoutParams at = new FrameLayout.LayoutParams(screen.dp(230), FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
-            at.setMargins(screen.dp(12), screen.dp(148), 0, 0);   // under NativeOverlay's caption rows 0-1
-            screen.mapArea().addView(keyBox, at);
+            LinearLayout.LayoutParams at = new LinearLayout.LayoutParams(screen.dp(230), LinearLayout.LayoutParams.WRAP_CONTENT);
+            at.bottomMargin = screen.dp(6);
+            screen.infoColumn().addView(keyBox, 0, at);   // over the avalanche card (NativeAvalanche)
         }
         keyBox.removeAllViews();
         for (Object[] k : keys) {
