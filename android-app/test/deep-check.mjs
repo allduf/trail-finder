@@ -25,6 +25,8 @@ function shot(name) {
   try { execSync(`adb exec-out screencap -p > shots/${f}`, { shell: "/bin/bash", timeout: 20000 }); } catch {}
   return f;
 }
+// Capacitor's own SystemBars line when the page reloads after a system change (font size, dark mode): not the app's.
+const NOISE = /Error injecting safe area CSS/;
 const NETWORK = /Failed to fetch|NetworkError|network error|aborted|AbortError|ERR_|Load failed|status of [45]\d\d|AJAXError|Failed to load resource|tile|WebGL|GL_|Unrecognized feature|Access-Control|CORS/i;
 
 // ---------- the page, through Chrome's DevTools ----------
@@ -60,7 +62,7 @@ async function connect() {
       if (!NETWORK.test(msg)) errors.push(msg.slice(0, 200) + at);
     } else if (d.method === "Runtime.consoleAPICalled" && d.params.type === "error") {
       const t = d.params.args.map((a) => a.value || a.description || "").join(" ").split("\n")[0];
-      if (!NETWORK.test(t)) errors.push("console: " + t.slice(0, 200));
+      if (!NETWORK.test(t) && !NOISE.test(t)) errors.push("console: " + t.slice(0, 200));
     }
   };
   ws.onclose = () => { for (const [, f] of waiting) f({ result: { exceptionDetails: { text: "page connection closed" } } }); waiting.clear(); };
@@ -79,7 +81,8 @@ async function js(expr) {
   if (res.result && res.result.exceptionDetails) throw new Error(String(res.result.exceptionDetails.exception && res.result.exceptionDetails.exception.description || res.result.exceptionDetails.text).split("\n")[0]);
   return res.result && res.result.result && res.result.result.value;
 }
-const front = () => { try { return ((adb("shell dumpsys activity activities").match(/(?:topResumedActivity|mResumedActivity)[^\n]*/) || [""])[0]).includes(APP); } catch { return false; } };
+// The app is the one on screen: the window with the focus is ours (with the keyboard up too: mFocusedApp).
+const front = () => { try { const d = adb("shell dumpsys window displays"); return /mFocusedApp=[^\n]*com\.allduf\.trailfinder/.test(d) || /mCurrentFocus=[^\n]*com\.allduf\.trailfinder/.test(d); } catch { return false; } };
 const crashes = () => { try { return adb("logcat -d -b crash").trim(); } catch { return ""; } };
 let crashSeen = "";
 async function relaunch() {
@@ -119,6 +122,7 @@ const OPEN = `(() => {
   const out = [...document.querySelectorAll("dialog[open]")].map((d) => "dialog." + (d.className || d.id || "?"));
   const hub = document.getElementById("hub"); if (hub && vis(hub)) out.push("hub");
   const lm = document.getElementById("layersMenu"); if (lm && !lm.hidden) out.push("layers");
+  const rk = document.getElementById("tfRisk"); if (rk && vis(rk)) out.push("trip sheet");
   document.querySelectorAll(".offline-card, .sheet, .card, [role=dialog]").forEach((e) => { if (vis(e) && !e.closest("dialog")) out.push((e.className || e.getAttribute("role")) + ""); });
   return out;
 })()`;
@@ -146,6 +150,8 @@ async function home() {
 const click = (sel, i = 0) => js(`(() => { const b = document.querySelectorAll(${JSON.stringify(sel)})[${i}]; if (!b) return "not found: ${sel.replace(/"/g, "'")}"; b.scrollIntoView({ block: "center" }); b.click(); return ""; })()`);
 
 // A real finger tap on an element (isTrusted: the 3D button only opens native 3D for a real tap).
+// The one-time "Your trip, your decisions" sheet (risk.js) before routes and 3D: agreed to like a person would.
+const agree = () => js(`(() => { const b = document.querySelector("#tfRisk [data-rk=ok]"); if (b && b.offsetParent) { b.click(); return true; } return false; })()`).catch(() => false);
 async function fingerTap(sel) {
   const r = await js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, dpr: devicePixelRatio, ih: innerHeight }; })()`);
   if (!r) return `not found: ${sel}`;
@@ -281,7 +287,9 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
   await step("3D button (finger tap)", async () => {
     const r = await fingerTap("#btn3d");
     if (r) return r;
-    await sleep(14000);
+    await sleep(2500);
+    if (await agree()) { console.log("    (agreed to the trip sheet, tapping 3D again)"); await sleep(1500); if (!/MapView|SurfaceView|TextureView/.test(webViewShows()) && !(await js(`!!document.querySelector("#btn3d.on")`))) await fingerTap("#btn3d"); }
+    await sleep(12000);
     const web = await js(`!!document.querySelector(".is3d") || !!document.querySelector("#btn3d.on")`);
     const ui = webViewShows();
     native = /MapView|SurfaceView|TextureView/.test(ui) && !web;
@@ -326,7 +334,9 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     const has = await js(`!!document.getElementById("native3dBtn") && !document.getElementById("native3dBtn").hidden`);
     if (!has) return "no Native 3D (test) button in Layers";
     await click("#native3dBtn");
-    await sleep(14000);
+    await sleep(2500);
+    if (await agree()) { await sleep(1000); if (!/MapView|SurfaceView|TextureView/.test(webViewShows())) { await click("#layersBtn"); await sleep(500); await click("#native3dBtn"); } }
+    await sleep(12000);
     return /MapView|SurfaceView|TextureView/.test(webViewShows()) ? "" : "native 3D didn't open";
   }, 500);
   for (let i = 0; i < 3 && /MapView|SurfaceView|TextureView/.test(webViewShows()); i++) await key("KEYCODE_BACK", 2000);
@@ -417,8 +427,8 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     await step("Native offline copy of a small area (2 km, Whistler)", async () => {
       const draws = await js(`window.tfNative && window.tfNative.draws ? window.tfNative.draws("offline") : "no tfNative.draws"`);
       if (draws !== true) return `this build doesn't save native offline copies (${draws})`;
-      await js(`window.__off = null; (() => { const T = Capacitor.registerPlugin("TrailMap"); T.addListener("offlinePacks", (r) => { window.__off = r; }); })()`);
-      const r = await js(`Capacitor.registerPlugin("TrailMap").offline({ areas: [{ id: "deeptest", box: [50.10, -122.97, 50.12, -122.94], ski: false, sharp: false }] }).then((r) => JSON.stringify(r))`);
+      await js(`window.__off = null; (() => { const T = Capacitor.Plugins.TrailMap; T.addListener("offlinePacks", (r) => { window.__off = r; }); })()`);
+      const r = await js(`Capacitor.Plugins.TrailMap.offline({ areas: [{ id: "deeptest", box: [50.10, -122.97, 50.12, -122.94], ski: false, sharp: false }] }).then((r) => JSON.stringify(r))`);
       console.log("    offline answer: " + String(r).slice(0, 300));
       let last = "";
       for (let i = 0; i < 40; i++) {
@@ -447,13 +457,13 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     await backOut("offline saved");
     adb("shell cmd connectivity airplane-mode disable");
     await sleep(4000);
-    await js(`Capacitor.registerPlugin("TrailMap").offline({ areas: [] })`).catch(() => {});
+    await js(`Capacitor.Plugins.TrailMap.offline({ areas: [] })`).catch(() => {});
   }
 
   // ---------- the phone's log and memory ----------
   const mem = (() => { try { return (adb(`shell dumpsys meminfo ${APP}`).match(/TOTAL PSS:\s*(\d+)/) || adb(`shell dumpsys meminfo ${APP}`).match(/TOTAL\s+(\d+)/) || [])[1]; } catch { return ""; } })();
   note("Memory at the end", true, mem ? `${Math.round(mem / 1024)} MB` : "?");
-  const anr = (() => { try { return adb("logcat -d -b events").match(/am_anr[^\n]*/g) || []; } catch { return []; } })();
+  const anr = (() => { try { return (adb("logcat -d -b events").match(/am_anr[^\n]*/g) || []).filter((l) => l.includes(APP)); } catch { return []; } })();
   note("No 'app not responding'", !anr.length, anr.slice(0, 3).join(" | "));
   const c = crashes();
   note("No crash in the phone's log", !c, c.slice(0, 600));

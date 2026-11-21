@@ -72,7 +72,15 @@
       document.documentElement.className, document.body.className, location.hash].join("|");
     if (App && App.addListener) App.addListener("backButton", (e) => {
       const dlg = [...document.querySelectorAll("dialog[open]")].pop();
-      if (dlg) { dlg.dispatchEvent(new Event("cancel", { cancelable: true })); if (dlg.open) dlg.close(); return; }
+      if (dlg) {
+        // Like Escape: a dialog that keeps itself open on purpose (the terms, risk.js: Back doesn't agree for you)
+        // stays, and Back puts the app away instead, as on the map.
+        const ev = new Event("cancel", { cancelable: true });
+        dlg.dispatchEvent(ev);
+        if (!ev.defaultPrevented && dlg.open) dlg.close();
+        else if (dlg.open && App.minimizeApp) App.minimizeApp().catch(() => {});
+        return;
+      }
       const a = document.activeElement;
       if (a && a.matches && a.matches("input, textarea, select")) { a.blur(); return; }
       const before = shape();

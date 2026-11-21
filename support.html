@@ -105,5 +105,7 @@ li { margin: 4px 0; }
   document.addEventListener("click", function (e) { var a = e.target.closest("[data-to]"); if (a) { e.preventDefault(); show(a.dataset.to); scrollTo(0, 0); } });
 })();
 </script>
+<!-- Inside the phone apps: the Android Back button goes back to the map from this page (native.js). -->
+<script src="native.js?v=__V__"></script>
 </body>
 </html>
