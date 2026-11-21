@@ -11,10 +11,11 @@ const src = readFileSync(new URL("../account.js", import.meta.url), "utf8");
 const URL_ = (src.match(/SUPABASE_URL\s*=\s*"([^"]+)"/) || [])[1];
 const KEY = (src.match(/SUPABASE_ANON_KEY\s*=\s*"([^"]+)"/) || [])[1];
 if (!URL_ || !KEY) { console.log("account.js has no Supabase address or public key: nothing to probe."); process.exit(0); }
-const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
+// New keys (sb_publishable_...) go in the apikey header only; an old anon key is a JWT and goes in both.
+const H = { apikey: KEY, ...(KEY.startsWith("sb_") ? {} : { Authorization: `Bearer ${KEY}` }), "Content-Type": "application/json" };
 
 const PRIVATE_TABLES = ["settings", "rides", "ski_points", "shared_rides", "shared_trips", "live_spots", "push_subs", "push_keys",
-  "strava_links", "tf_admins", "tf_friends", "tf_join", "tf_feedback", "tf_form_hits", "tf_limit_hits", "tf_agreements",
+  "strava_links", "tf_admins", "tf_friends", "tf_join", "tf_feedback", "tf_form_hits", "tf_limit_counts", "tf_agreements",
   "tf_use_events", "tf_use_devices", "tf_use_roster", "tf_visits", "tf_visit_days", "photo_ai_use", "photo_ai_person_use",
   "content_flags", "trail_grades", "rider_trails", "rider_trail_votes"];
 // Columns of public tables that must stay hidden.
@@ -23,14 +24,16 @@ const HIDDEN_COLUMNS = [["trail_matches", "user_id"], ["trail_matches", "created
 const ADMIN_RPCS = [["tf_use_report", { days: 1 }], ["tf_use_devices_all", {}], ["tf_use_roster_get", {}], ["tf_visits_by_kind", { days: 1 }],
   ["tf_use_limits", {}], ["tf_flag_list", {}], ["tf_friend_list", {}], ["tf_join_list", {}], ["tf_feedback_list", {}],
   ["tf_is_friend", {}], ["tf_is_admin", {}], ["photo_ai_take", { p_kind: "ask", p_cap: 0 }], ["photo_ai_take_person", { p_who: "probe", p_kind: "ask", p_cap: 0 }],
-  ["tf_limit", { k: "probe", per_who: 0, per_day: 0 }], ["tf_client_ip", {}]];
+  ["tf_limit", { k: "probe", per_who: 0 }], ["tf_client_ip", {}]];
 // Private photo buckets: listing must return nothing.
 const PRIVATE_BUCKETS = ["ride-photos", "point-photos", "trail-match-photos"];
 
 let bad = 0;
 const fail = (what, why) => { bad++; console.log(`NOT OK  ${what}: ${why}`); };
 const ok = (what, why) => console.log(`ok      ${what}: ${why}`);
-const closed = (status, body) => status === 401 || status === 403 || status === 404 ||
+// A refusal by the database itself. 401 doesn't count: that means the key itself was refused, and then nothing was
+// really asked (the check at the start stops the run).
+const closed = (status, body) => status === 403 || status === 404 ||
   /permission denied|not allowed|42501|PGRST205|PGRST202|PGRST204|42883|does not exist|Could not find/i.test(body);
 
 async function get(path) {
@@ -42,6 +45,12 @@ async function rpc(fn, args) {
   return { status: r.status, body: await r.text() };
 }
 
+// First: does the database answer this key at all? A public view must answer 200, or every "closed" below means nothing.
+{
+  const { status, body } = await get("trail_grade_counts?select=grade&limit=1");
+  if (status !== 200) { console.log(`NOT OK  the public key got ${status} on a public view (${body.slice(0, 80)}): the probe can't ask anything.`); process.exit(1); }
+  ok("public key", "the database answers it");
+}
 for (const t of PRIVATE_TABLES) {
   const { status, body } = await get(`${t}?select=*&limit=1`);
   if (status === 200 && body.trim() === "[]") ok(t, "nothing visible");
@@ -62,7 +71,7 @@ for (const [fn, args] of ADMIN_RPCS) {
 for (const b of PRIVATE_BUCKETS) {
   const r = await fetch(`${URL_}/storage/v1/object/list/${b}`, { method: "POST", headers: H, body: JSON.stringify({ prefix: "", limit: 5 }), signal: AbortSignal.timeout(15000) });
   const body = await r.text();
-  if ((r.ok && body.trim() === "[]") || r.status === 400 || r.status === 401 || r.status === 403 || r.status === 404) ok(`bucket ${b}`, "nothing listed");
+  if ((r.ok && body.trim() === "[]") || r.status === 400 || r.status === 403 || r.status === 404) ok(`bucket ${b}`, "nothing listed");
   else fail(`bucket ${b}`, `listed ${r.status} ${body.slice(0, 80)}`);
 }
 // A shared trip opens only with its own key.

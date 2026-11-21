@@ -1,30 +1,34 @@
 -- Limits on what anyone can write without an account (security check 2026-11-21).
--- Run once in Supabase → SQL Editor (after the other files; it only replaces functions and adds two small tables).
+-- Run once in Supabase → SQL Editor (after the other files; it only replaces functions and adds one small table).
 -- Safe to run again.
 --
 -- Why: the functions the site calls without an account (shared trips, alerts, usage counts, I agree records, visit
 -- counts, shared ride lines) had at most an hourly limit for everyone together. One script could fill the free
 -- 500 MB database in a few hours, and Supabase then stops every write (sign-ins keep working, saving doesn't).
 -- Now:
---  - each internet address gets a daily allowance per kind (kept as a one-way hash, deleted after 2 days);
---  - when the database is over 400 MB, writes without an account stop (accounts keep saving);
---  - alert addresses must be a real browser push service or an Apple device token.
--- The numbers are far above what one phone or one family's Wi-Fi uses in a day.
+--  - each internet address gets a daily allowance per kind (one counter a day, kept as a one-way hash, deleted after
+--    2 days). There is no shared allowance for everyone together, so one person can't use it up for everybody;
+--  - the backstop: when the database is over 400 MB, writes without an account stop (accounts keep saving, and
+--    I agree records are always kept);
+--  - new alert addresses must be a real browser push service or an Apple device token.
+-- The numbers are far above what one phone or one family's Wi-Fi uses in a day. Usage counts and visit counts are
+-- dropped quietly over the allowance (a busy shared Wi-Fi may count a bit low); the rest says "busy, try later".
 
 create extension if not exists pgcrypto with schema extensions;
 
-create table if not exists public.tf_limit_hits (
+create table if not exists public.tf_limit_counts (
   kind text not null,
   who text not null,                         -- sha256 of the kind, the internet address and a fixed word: not reversible to the address
-  at timestamptz not null default now()
+  day date not null default current_date,
+  n int not null default 0,
+  primary key (kind, who, day)
 );
-create index if not exists tf_limit_hits_kind on public.tf_limit_hits (kind, who, at);
-create index if not exists tf_limit_hits_at on public.tf_limit_hits (at);
-alter table public.tf_limit_hits enable row level security;   -- no policies: closed to the site
-revoke all on public.tf_limit_hits from anon, authenticated;
+alter table public.tf_limit_counts enable row level security;   -- no policies: closed to the site
+revoke all on public.tf_limit_counts from anon, authenticated;
 
 -- The caller's internet address: Cloudflare (in front of Supabase) sets cf-connecting-ip itself, so a caller can't
--- choose it; x-forwarded-for's first entry is only the fallback.
+-- choose it; x-forwarded-for's first entry is only the fallback (a caller could choose that one, so the database-size
+-- backstop below still holds if they do).
 create or replace function public.tf_client_ip() returns text
 language plpgsql stable security definer set search_path = public as $$
 declare h json := nullif(current_setting('request.headers', true), '')::json;
@@ -33,16 +37,16 @@ begin
 exception when others then return 'none';
 end $$;
 
--- true: under today's allowance for this address (per_who) and for everyone together (per_day); counts this call.
-create or replace function public.tf_limit(k text, per_who int, per_day int) returns boolean
+-- true: under today's allowance for this address; counts this call (one row a day per address and kind).
+create or replace function public.tf_limit(k text, per_who int) returns boolean
 language plpgsql security definer set search_path = public, extensions as $$
-declare h text := encode(digest(k || '|' || tf_client_ip() || '|tf-limit', 'sha256'), 'hex');
+declare h text := encode(digest(k || '|' || tf_client_ip() || '|tf-limit', 'sha256'), 'hex'); v int;
 begin
-  if random() < 0.02 then delete from tf_limit_hits where at < now() - interval '2 days'; end if;
-  if (select count(*) from tf_limit_hits where kind = k and who = h and at > now() - interval '1 day') >= per_who then return false; end if;
-  if (select count(*) from tf_limit_hits where kind = k and at > now() - interval '1 day') >= per_day then return false; end if;
-  insert into tf_limit_hits (kind, who) values (k, h);
-  return true;
+  if random() < 0.01 then delete from tf_limit_counts where day < current_date - 1; end if;
+  insert into tf_limit_counts as c (kind, who, day, n) values (k, h, current_date, 1)
+    on conflict (kind, who, day) do update set n = c.n + 1
+    returning n into v;
+  return v <= per_who;
 end $$;
 
 -- Room left in the database for writes without an account (the free plan's limit is 500 MB).
@@ -52,59 +56,44 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 revoke all on function public.tf_client_ip() from public, anon, authenticated;
-revoke all on function public.tf_limit(text, int, int) from public, anon, authenticated;
+drop function if exists public.tf_limit(text, int, int);
+revoke all on function public.tf_limit(text, int) from public, anon, authenticated;
 revoke all on function public.tf_db_room() from public, anon, authenticated;
 
--- ---------- shared trips (shared-trips.sql): 30 new trips a day per address, 1,000 for everyone ----------
+-- ---------- shared trips (shared-trips.sql): 30 new trips a day per address ----------
 create or replace function public.trip_new(p_key uuid, p_data jsonb, p_by text)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare new_id uuid;
 begin
   if jsonb_typeof(p_data) <> 'object' or p_data->'hut' is null then raise exception 'bad trip'; end if;
   if pg_column_size(p_data) > 400000 then raise exception 'trip too big'; end if;
-  if not tf_db_room() or not tf_limit('trip', 30, 1000) then raise exception 'busy, try later'; end if;
+  if not tf_db_room() or not tf_limit('trip', 30) then raise exception 'busy, try later'; end if;
   if (select count(*) from public.shared_trips where created_at > now() - interval '1 hour') >= 300 then raise exception 'busy, try later'; end if;
   insert into public.shared_trips (secret, data, by) values (md5(p_key::text), p_data, left(coalesce(p_by, ''), 30))
   returning id into new_id;
   return new_id;
 end $$;
--- trip_put: only a trip's own link can change it, and a change replaces the trip (no growth): 2,000 saves a day per address.
-create or replace function public.trip_put(p_id uuid, p_key uuid, p_data jsonb, p_rev int, p_by text)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare r int;
-begin
-  if jsonb_typeof(p_data) <> 'object' or p_data->'hut' is null then raise exception 'bad trip'; end if;
-  if pg_column_size(p_data) > 400000 then raise exception 'trip too big'; end if;
-  if not tf_limit('trip-put', 2000, 50000) then raise exception 'busy, try later'; end if;
-  update public.shared_trips set data = p_data, rev = rev + 1, by = left(coalesce(p_by, ''), 30), updated_at = now()
-  where id = p_id and secret = md5(p_key::text) and rev = p_rev
-  returning rev into r;
-  if r is null then
-    select rev into r from public.shared_trips where id = p_id and secret = md5(p_key::text);
-    if r is null then raise exception 'no such trip'; end if;
-    return jsonb_build_object('ok', false, 'rev', r);
-  end if;
-  return jsonb_build_object('ok', true, 'rev', r);
-end $$;
 revoke all on function public.trip_new(uuid, jsonb, text) from public;
-revoke all on function public.trip_put(uuid, uuid, jsonb, int, text) from public;
 grant execute on function public.trip_new(uuid, jsonb, text) to anon, authenticated;
-grant execute on function public.trip_put(uuid, uuid, jsonb, int, text) to anon, authenticated;
 
--- ---------- alerts (push.sql): real push services only; 10 new phones a day per address ----------
+-- ---------- alerts (push.sql): new phones only from real push services, 10 a day per address ----------
 create or replace function public.push_save(p_id uuid, p_sub jsonb, p_watch jsonb) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-  if coalesce(p_sub->>'endpoint', '') !~ '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|push\.apple\.com|notify\.windows\.com)/'
-     or (p_sub ? 'apns' and coalesce(p_sub->>'apns', '') !~ '^[0-9A-Fa-f]{64,200}$')
-     or length(p_sub::text) > 4000 or length(p_watch::text) > 300000 then
+  if coalesce(left(p_sub->>'endpoint', 8), '') <> 'https://' or length(p_sub::text) > 4000 or length(p_watch::text) > 300000 then
     raise exception 'bad subscription';
   end if;
-  if not exists (select 1 from public.push_subs where id = p_id) and (
-       not tf_db_room() or not tf_limit('push', 10, 300)
+  if not exists (select 1 from public.push_subs where id = p_id) then
+    -- A new phone (phones already saved keep working as they are).
+    if coalesce(p_sub->>'endpoint', '') !~ '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|push\.apple\.com|notify\.windows\.com)/'
+       or (p_sub ? 'apns' and coalesce(p_sub->>'apns', '') !~ '^[0-9A-Fa-f]{64,200}$') then
+      raise exception 'bad subscription';
+    end if;
+    if not tf_db_room() or not tf_limit('push', 10)
        or (select count(*) from public.push_subs where created_at > now() - interval '1 hour') >= 50
-       or (select count(*) from public.push_subs) >= 1000) then
-    raise exception 'busy, try later';
+       or (select count(*) from public.push_subs) >= 1000 then
+      raise exception 'busy, try later';
+    end if;
   end if;
   insert into public.push_subs (id, sub, watch, updated_at) values (p_id, p_sub, p_watch, now())
   on conflict (id) do update set sub = excluded.sub, watch = excluded.watch, updated_at = now();
@@ -112,12 +101,12 @@ end
 $$;
 grant execute on function public.push_save(uuid, jsonb, jsonb) to anon, authenticated;
 
--- ---------- how the app is used (usage.js sends every 30 s while used): 3,000 sends a day per address ----------
+-- ---------- how the app is used (usage.js sends every 30 s while used, ~2,900 a day per phone): 15,000 a day per address ----------
 create or replace function public.tf_use(device text, os text, screen text, events jsonb) returns void
 language plpgsql security definer set search_path = public as $$
 #variable_conflict use_column
 begin
-  if not tf_db_room() or not tf_limit('use', 3000, 200000) then return; end if;   -- quietly: usage counts are optional
+  if not tf_db_room() or not tf_limit('use', 15000) then return; end if;   -- quietly: usage counts are optional
   insert into tf_use_devices (device, os, screen) values (tf_use.device, left(tf_use.os, 40), left(tf_use.screen, 20))
   on conflict (device) do update set os = excluded.os, screen = excluded.screen, last_seen = now();
   insert into tf_use_events (device, session, at, page, kind, what, ms)
@@ -131,12 +120,13 @@ end $$;
 revoke all on function public.tf_use(text, text, text, jsonb) from public;
 grant execute on function public.tf_use(text, text, text, jsonb) to anon, authenticated;
 
--- ---------- I agree records (agreements.sql): 100 a day per address ----------
+-- ---------- I agree records (agreements.sql): 200 a day per address ----------
 -- Never refused for lack of room: the proof of an I agree matters more than the limit (each row is tiny).
 create or replace function public.tf_agree(device text, what text, v int, season int, agreed_at timestamptz, lang text)
 returns void language plpgsql security definer set search_path = public as $$
+#variable_conflict use_column
 begin
-  if not tf_limit('agree', 100, 50000) then return; end if;
+  if not tf_limit('agree', 200) then return; end if;
   insert into public.tf_agreements (device, user_id, what, v, season, agreed_at, lang)
   values (tf_agree.device, auth.uid(), tf_agree.what, tf_agree.v, coalesce(tf_agree.season, 0),
           least(coalesce(tf_agree.agreed_at, now()), now()), left(tf_agree.lang, 10))
@@ -146,13 +136,13 @@ end $$;
 revoke all on function public.tf_agree(text, text, int, int, timestamptz, text) from public;
 grant execute on function public.tf_agree(text, text, int, int, timestamptz, text) to anon, authenticated;
 
--- ---------- visit counts (visitors-kind.sql): 200 a day per address ----------
+-- ---------- visit counts (visitors-kind.sql): 2,000 a day per address ----------
 create or replace function public.tf_ping(device text, kind text default null) returns void
 language plpgsql security definer set search_path = public as $$
 #variable_conflict use_column
 declare k text := case when tf_ping.kind in ('app', 'phone', 'computer') then tf_ping.kind end;
 begin
-  if not tf_db_room() or not tf_limit('ping', 200, 100000) then return; end if;
+  if not tf_db_room() or not tf_limit('ping', 2000) then return; end if;
   insert into tf_visits (device, kind) values (tf_ping.device, k)
   on conflict (device) do update set last_seen = current_date, kind = coalesce(excluded.kind, tf_visits.kind);
   if k is not null then
@@ -179,7 +169,7 @@ begin
     n := n + jsonb_array_length(piece);
   end loop;
   if n < 20 or n > 8000 then raise exception 'line too short or too long'; end if;
-  if not tf_db_room() or not tf_limit('ride', 300, 20000) then raise exception 'busy, try later'; end if;
+  if not tf_db_room() or not tf_limit('ride', 300) then raise exception 'busy, try later'; end if;
   if (select count(*) from public.shared_rides where contributor = who) >= 5000 then raise exception 'too many rides'; end if;
   if (select count(*) from public.shared_rides where created_at > now() - interval '1 hour') >= 1000 then raise exception 'busy, try later'; end if;
   if (select coalesce(sum(points), 0) from public.shared_rides where created_at > now() - interval '1 day') >= 1500000 then raise exception 'busy, try later'; end if;
@@ -199,8 +189,8 @@ update storage.buckets set file_size_limit = 10485760, allowed_mime_types = arra
   where id in ('ride-photos', 'point-photos');
 
 -- Check: 5 rows that say ok.
-select 'limits' as what, case when to_regprocedure('public.tf_limit(text, integer, integer)') is not null then 'ok' else 'not done' end as result
-union all select 'anon cannot call tf_limit', case when has_function_privilege('anon', 'public.tf_limit(text, integer, integer)', 'execute') then 'NOT OK' else 'ok' end
-union all select 'anon cannot read hits', case when has_table_privilege('anon', 'public.tf_limit_hits', 'select') then 'NOT OK' else 'ok' end
+select 'limits' as what, case when to_regprocedure('public.tf_limit(text, integer)') is not null then 'ok' else 'not done' end as result
+union all select 'anon cannot call tf_limit', case when has_function_privilege('anon', 'public.tf_limit(text, integer)', 'execute') then 'NOT OK' else 'ok' end
+union all select 'anon cannot read counts', case when has_table_privilege('anon', 'public.tf_limit_counts', 'select') then 'NOT OK' else 'ok' end
 union all select 'room now', case when public.tf_db_room() then 'ok' else 'database over 400 MB' end
 union all select 'photo buckets limited', case when (select count(*) from storage.buckets where id in ('ride-photos', 'point-photos') and file_size_limit is not null) = 2 then 'ok' else 'not done' end;
