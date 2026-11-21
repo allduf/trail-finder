@@ -39,7 +39,8 @@ function kindOf(t) {
 function extraOf(k, t) {
   if (k === "fuel") return [t.brand || "", t.opening_hours === "24/7" ? "24/7" : "", t["fuel:diesel"] === "yes" ? "diesel" : ""].filter(Boolean).join(" ");
   if (k === "camp") {
-    const kind = t.tourism === "camp_site" ? (t.backcountry === "yes" || t.camp_site === "basic" ? "basic" : "camp") : t.tourism === "caravan_site" ? "rv" : "hut";
+    // walkin: a backcountry site reached on foot (like the one at Wedgemount Lake): on the map, not in moto sleep lists.
+    const kind = t.tourism === "camp_site" ? (t.backcountry === "yes" ? "walkin" : t.camp_site === "basic" ? "basic" : "camp") : t.tourism === "caravan_site" ? "rv" : "hut";
     return [kind, t.fee === "no" ? "free" : t.fee === "yes" ? "fee" : ""].filter(Boolean).join(" ");
   }
   if (k === "sight") return t.tourism === "viewpoint" ? "view" : t.man_made === "lighthouse" ? "light" : "fall";

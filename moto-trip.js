@@ -633,7 +633,7 @@
     }
     if (kind === "pin" && (item.k === "camp" || item.k === "rec")) {
       const t = cur() && !E.card.hidden ? cur() : null;
-      if (!t) return;
+      if (!t || (H.sleepable && !H.sleepable(item.p))) return;   // no Sleep here on a hut or a walk-in site
       const pl = placeFromPin(item), free = nightStops(t).findIndex((c) => !c), here = nightStops(t).findIndex((c) => c && c.id === pl.id);
       const box = document.createElement("div");
       box.className = "tp-place-go";
