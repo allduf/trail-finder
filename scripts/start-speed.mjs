@@ -54,9 +54,11 @@ const rows = [];
 for (const { label, dir: root } of ROOTS) {
   const server = await serve(root);
   const site = `http://127.0.0.1:${server.address().port}/`;
-  // FILLS: what to save first, e.g. "0,cache:20000,idb:20000" (idb: the same files in an IndexedDB store instead).
-  for (const spec of (process.env.FILLS || `0,cache:${FILL}`).split(",")) {
-    const [where, fill] = spec.includes(":") ? [spec.split(":")[0], +spec.split(":")[1]] : ["cache", +spec];
+  // FILLS, what's saved before the opens are timed: "0" nothing; "save:N" N map files saved the way the app saves
+  // them (offline-store.js when the version has it, else the old cache); "old:N" N files in the old cache, as saved
+  // before 2026-11-21, then one open left running until the app has moved them.
+  for (const spec of (process.env.FILLS || `0,save:${FILL},old:${FILL}`).split(",")) {
+    const [where, fill] = spec.includes(":") ? [spec.split(":")[0], +spec.split(":")[1]] : ["save", +spec];
     const dir = await mkdtemp(join(tmpdir(), "tf-start-"));
     // First visit: agree to the terms, let the offline helper save the app's files, then open again under it.
     let ctx = await open(dir), page = ctx.pages()[0] || await ctx.newPage();
@@ -65,19 +67,26 @@ for (const { label, dir: root } of ROOTS) {
     await page.keyboard.press("Escape").catch(() => {});
     await wait(10000);
     await page.reload({ waitUntil: "load" }); await wait(5000);
+    let moved = "";
     if (fill) {
-      // Offline maps' cache with FILL saved map files (16 KB each), like a 300 MB save.
+      // FILL saved map files (16 KB each), like a 300 MB save.
       await page.evaluate(async ([n, where]) => {
-        const body = new Uint8Array(16384);
-        if (where === "idb") {
-          const db = await new Promise((ok, no) => { const r = indexedDB.open("tf-test-offline", 1); r.onupgradeneeded = () => r.result.createObjectStore("f"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
-          for (let i = 0; i < n; i += 500) await new Promise((ok) => { const t = db.transaction("f", "readwrite"), st = t.objectStore("f"); for (let j = i; j < Math.min(n, i + 500); j++) st.put(new Blob([body]), `https://tiles.openfreemap.org/test/${j}.pbf`); t.oncomplete = ok; t.onerror = ok; });
-          return;
-        }
-        const c = await caches.open(where === "cache" ? "tf-offline-1" : where), pend = [];
-        for (let i = 0; i < n; i += 250) await Promise.all(Array.from({ length: Math.min(250, n - i) }, (_, j) => c.put(`https://tiles.openfreemap.org/test/${i + j}.pbf`, new Response(body))));
+        const body = new Uint8Array(16384), url = (i) => `https://tiles.openfreemap.org/test/${i}.pbf`;
+        const F = where === "save" && window.tfFiles;
+        if (F) { for (let i = 0; i < n; i += 250) await Promise.all(Array.from({ length: Math.min(250, n - i) }, (_, j) => F.offline.put(url(i + j), new Response(body)))); return; }
+        const c = await caches.open("tf-offline-1");
+        for (let i = 0; i < n; i += 250) await Promise.all(Array.from({ length: Math.min(250, n - i) }, (_, j) => c.put(url(i + j), new Response(body))));
       }, [fill, where]);
       await wait(2000);
+      if (where === "old") {
+        // Open once more and wait for the app to move the old save (offline-store.js migrate), at most 8 min.
+        await ctx.close(); ctx = await open(dir); page = ctx.pages()[0] || await ctx.newPage();
+        await page.goto(site, { waitUntil: "load", timeout: 120000 });
+        const t0 = Date.now();
+        while (Date.now() - t0 < 480000 && await page.evaluate(() => caches.has("tf-offline-1"))) await wait(5000);
+        const left = await page.evaluate(() => caches.has("tf-offline-1"));
+        moved = left ? " (not moved)" : ` (moved in ${Math.round((Date.now() - t0) / 1000)} s)`;
+      }
     }
     await ctx.close();
     const t = { sw: [], first: [], html: [], dcl: [], ok: 0 };
@@ -91,7 +100,7 @@ for (const { label, dir: root } of ROOTS) {
       await ctx.close();
     }
     await rm(dir, { recursive: true, force: true });
-    const row = { label, fill: fill ? `${fill} (${where})` : 0, sw: mid(t.sw), first: mid(t.first), html: mid(t.html), dcl: mid(t.dcl), under: `${t.ok}/${RUNS}`, all: t.html.join(" ") };
+    const row = { label, fill: fill ? `${fill} ${where === "old" ? "saved before, then moved" : "saved"}${moved}` : 0, sw: mid(t.sw), first: mid(t.first), html: mid(t.html), dcl: mid(t.dcl), under: `${t.ok}/${RUNS}`, all: t.html.join(" ") };
     rows.push(row);
     console.log(JSON.stringify(row));
   }

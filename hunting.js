@@ -1763,6 +1763,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   // The data files and the picture tiles of the layers that are on (and the terrain for slope and aspect), zoom 10 to 15,
   // go in the same "tf-offline-1" cache as Offline maps; sw.js answers from it when there's no connection.
   const OFF_CACHE = "tf-offline-1", OFF_KEY = "huntOffline", OFF_MAX = 4000;
+  // IndexedDB since 2026-11-21 (offline-store.js: a faster app start), the old cache on a page without that file.
+  const offStore = () => (window.tfFiles ? Promise.resolve(window.tfFiles.offline) : caches.open(OFF_CACHE));
   const tx = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);
   const ty = (lat, z) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z); };
   // cap: stop once there are more than this many (the card only needs to know it's too big; counting every tile of a
@@ -1814,7 +1816,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       store.set(OFF_KEY, list);
       if (s) {   // keep files another saved area still uses
         const keep = new Set([...list.flatMap((o) => offUrls(o.box, o.layers)), ...(window.tfOfflineUrls ? await window.tfOfflineUrls() : [])]);
-        const c = await caches.open(OFF_CACHE);
+        const c = await offStore();
         await Promise.all(offUrls(s.box, s.layers).filter((u) => !keep.has(u) && !/\/data\/hunting\//.test(u)).map((u) => c.delete(u)));
       }
       renderOffline();
@@ -1826,7 +1828,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     if (window.tfAccount && window.tfAccount.require && !(await window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after."))) return;
     if (offBusy) return;
     const box = square || viewBox(), urls = offUrls(box, layers);
-    const c = await caches.open(OFF_CACHE);
+    const c = await offStore();
     offBusy = { pct: 0, msg: "Starting…", stop: false };
     renderOffline(); if (square) squareBar("saving");
     let done = 0, bad = 0;
