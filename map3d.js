@@ -113,6 +113,11 @@
 #map3d .maplibregl-marker.tf-crowd { visibility: hidden !important; pointer-events: none; }
 .maplibregl-marker.tf-off { display: none !important; }
 #map3d .maplibregl-ctrl-bottom-right { margin-bottom: 6px; }
+/* Phones: the photo switch folds to the picked one, with a small mark that there are more. On Map or ADV topo (no button
+   of their own here) it folds to Topo, unpicked, so it can still be opened. */
+#map3d .g3-styles:not(.open) > button:not([data-on]) { display: none !important; }
+#map3d .g3-styles:not(.open):not(:has(> button[data-on])) > button:last-of-type { display: block !important; }
+#map3d .g3-styles:not(.open) > button[data-on]::after { content: ""; display: inline-block; margin-left: 6px; vertical-align: middle; border: 4px solid transparent; border-top-color: currentColor; border-bottom-width: 0; }
 /* Phones: above the sheet like the flat map's buttons; the zoom/compass box was half under it (alex's recording 2026-11-05). */
 /* At most the sheet's peek height, so with the sheet up half way they don't climb into the top buttons. */
 @media (max-width: 760px) { #map3d .maplibregl-ctrl-bottom-right { bottom: min(var(--sheet-vis, 0px), 200px); transition: bottom .28s cubic-bezier(.2, .8, .2, 1); } }`;
@@ -3052,7 +3057,9 @@
     if (document.body.classList.contains("sk-route-focus")) gl.once("load", () => namesFocus({ detail: true }));
     window.trailMap3d = gl;   // handy for debugging in the browser console
     window.dispatchEvent(new CustomEvent("tf:map3d", { detail: gl }));   // winter.js adds its avalanche layer
-    gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
+    // Phones: no zoom and compass box (alex 2026-11-21: "crowded"). Pinch zooms, two fingers turn and tilt, and the
+    // compass button at the top left turns the map back to north (the flat map's, rotate.js, which this one follows).
+    if (!PHONE) gl.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     // Summer / Winter / Live: Summer = the sharp snow-free Esri photos, Winter = last winter's real
     // Sentinel-2 photos, Live = the newest clear satellite photo (liveRecent; else NASA's snow map on the sharp photos). Skiing has only Winter and
     // Live (alex, 2026-10-23), and MTB only Summer and Live.
@@ -3128,7 +3135,7 @@
       sumBtn.title = "Sharp photos, taken in summer where Esri has one";
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
       liveBtn.title = "The newest clear satellite photo (NASA Landsat and Sentinel-2, a few days to weeks old)";
-      for (const [el, on] of [[sumBtn, photos === "sharp"], [winBtn, photos === "winter"], [liveBtn, photos === "live"], [topoBtn, topo]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; }
+      for (const [el, on] of [[sumBtn, photos === "sharp"], [winBtn, photos === "winter"], [liveBtn, photos === "live"], [topoBtn, topo]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; el.toggleAttribute("data-on", on); }
       if (!drawn) bySport("3dPhotosBy", sportNow(), photos);
       offGround();
       winterHere();
@@ -3225,7 +3232,21 @@
     const pick = () => setPhotos(MAPS[flatStyle()] || savedPhotos());
     new MutationObserver(pick).observe(document.body, { attributes: true, attributeFilter: ["class"] });
     gl.addControl({ onAdd() { const d = document.createElement("div"); d.className = "maplibregl-ctrl maplibregl-ctrl-group";
-      d.style.cssText += ";display:flex;position:relative;overflow:visible"; d.append(sumBtn, winBtn, liveBtn, topoBtn, noWinter); return d; }, onRemove() {} }, "bottom-right");
+      d.style.cssText += ";display:flex;position:relative;overflow:visible"; d.append(sumBtn, winBtn, liveBtn, topoBtn, noWinter);
+      // Phones: only the picked one shows, as a small button (alex 2026-11-21: "crowded"); a tap on it shows the others,
+      // a pick or a touch on the map folds them away again.
+      if (PHONE) {
+        d.classList.add("g3-styles");
+        d.addEventListener("click", (e) => {
+          if (d.classList.contains("open")) { setTimeout(() => d.classList.remove("open"), 0); return; }
+          if (!e.target.closest("button")) return;
+          e.preventDefault(); e.stopImmediatePropagation();
+          d.classList.add("open");
+        }, true);
+        gl.on("touchstart", () => d.classList.remove("open"));
+        gl.on("movestart", () => d.classList.remove("open"));
+      }
+      return d; }, onRemove() {} }, "bottom-right");
     gl.once("styledata", pick);
     restoreHooks.push(pick);
     window.addEventListener("tf:basemap", pick);   // a new flat map style (Layers, or another sport's own): the same here

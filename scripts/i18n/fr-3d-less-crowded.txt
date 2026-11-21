@@ -1,0 +1,1 @@
+3D map on phones: less crowded. The map style is one small button (tap it for the others), and the zoom buttons are gone (pinch to zoom). ||| Carte 3D sur téléphone : moins chargée. Le style de carte tient dans un petit bouton (touchez-le pour les autres), et les boutons de zoom sont partis (pincez pour zoomer).

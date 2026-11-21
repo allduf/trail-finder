@@ -247,8 +247,30 @@
     e.stopImmediatePropagation(); e.preventDefault();
     openNative(true);
   }, true);
-  // "Layers" on the native 3D screen: the web 3D map here, with its Layers open.
+  // "Layers" on the native 3D screen (builds from 2026-11-21): the page's own Layers over it; the native screen steps
+  // aside while Layers is open (native-tools.js "cover") and comes back as it was, with the map style picked there. If
+  // something now on can only be drawn by the web 3D map, the web 3D map takes over (nothing goes missing).
+  let toWeb = false;
+  const lmenu = document.getElementById("layersMenu");
+  TrailMap.addListener("layers", () => {
+    const lb = document.getElementById("layersBtn");
+    if (!open || !lb || !lmenu) return;
+    const base0 = (document.getElementById("basemap") || {}).value;
+    if (lmenu.hidden) lb.click();
+    if (window.tfNative.send) window.tfNative.send("tools");   // steps aside now, not at the next look
+    const done = new MutationObserver(() => {
+      if (!lmenu.hidden) return;
+      done.disconnect();
+      if (!open) return;
+      if (webOnly()) { toWeb = true; TrailMap.close().catch(() => {}); return; }
+      const base = (document.getElementById("basemap") || {}).value;
+      if (base && base !== base0) TrailMap.layer({ key: "base", data: base }).catch(() => {});
+    });
+    done.observe(lmenu, { attributes: true, attributeFilter: ["hidden"] });
+  });
+  // "Layers" on an older native 3D screen: the web 3D map here, with its Layers open.
   TrailMap.addListener("closed", (e) => {
+    if (toWeb) { toWeb = false; if (map3d && !map.getContainer().classList.contains("is3d")) map3d.click(); return; }
     if (!e.layers || !map3d) return;
     if (!map.getContainer().classList.contains("is3d")) map3d.click();
     const layers = document.getElementById("layersBtn");

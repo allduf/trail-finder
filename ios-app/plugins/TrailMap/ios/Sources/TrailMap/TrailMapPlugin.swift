@@ -363,7 +363,19 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
 
     @objc private func backTapped() { leave(details: false) }
-    @objc private func layersTapped() { leave(details: false, layers: true) }
+    // Layers (alex 2026-11-21: no jumping to the web 3D map and back): the page opens its own Layers over this screen,
+    // which steps aside until Layers closes (NativeTools.swift "cover"), and comes back as it was. A page from before
+    // this (no answer within 1.5 s): the old way, the web 3D map with its Layers.
+    private var layersAsked = false
+    @objc private func layersTapped() {
+        layersAsked = true
+        send("layers", [:])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self = self, self.layersAsked, !self.left else { return }
+            self.layersAsked = false
+            self.leave(details: false, layers: true)
+        }
+    }
     @objc private func detailsTapped() { leave(details: true) }
     @objc private func cardClose() { showCard(nil) }
     @objc private func locateTapped() {
@@ -373,6 +385,14 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let all = styles
         let at = all.firstIndex { $0.key == base } ?? 0
         base = all[(at + 1) % all.count].key
+        styleBtn.configuration?.title = styleTitle()
+        showStyle()
+    }
+    // The page's map style, picked in its Layers while this screen stepped aside: the same style here when it has it.
+    private func setBase(_ b: String) {
+        let k = b == "sathybrid" ? "sat" : b
+        guard k != base, styles.contains(where: { $0.key == k }) else { return }
+        base = k
         styleBtn.configuration?.title = styleTitle()
         showStyle()
     }
@@ -430,6 +450,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // A dialog of the page's over everything (the trip terms before a first plan, a Save box): this screen hides and
     // lets every touch through until it's answered, then comes back as it was.
     func stepAside(_ on: Bool) {
+        if on { layersAsked = false }
         if aside == on { return }
         aside = on
         if on { showWeb?(true) }
@@ -590,6 +611,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
 
     // ---------- the native 3D features (NativeLayers.swift) ----------
     func setLayer(_ key: String, _ data: String) {
+        if key == "base" { setBase(data); return }
         guard let f = features.first(where: { $0.key == key }) else { return }
         f.setData(data, style: isViewLoaded ? map.style : nil)
     }

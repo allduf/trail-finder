@@ -130,10 +130,20 @@
   let ver = 0, geo = "", lastSig = null, lastState = "", sentAt = 0;
   // A sheet of the page's own over everything (a dialog: the trip terms before the first plan, a Save box...): the
   // native screen steps aside until it's answered.
-  const covered = () => [...document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"]')].some((el) => {
-    const r = el.getBoundingClientRect();
-    return r.width > innerWidth / 2 && r.height > innerHeight / 3 && getComputedStyle(el).visibility !== "hidden";
-  });
+  // Only a dialog really showing: on the screen, not see-through, and on top at its middle (alex 2026-11-21: native 3D
+  // stepped aside for one nobody could see). The page's Layers counts too (native-map.js opens it over native 3D).
+  const covered = () => {
+    const lm = document.getElementById("layersMenu");
+    if (lm && !lm.hidden) return true;
+    return [...document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"]')].some((el) => {
+      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+      if (r.width <= innerWidth / 2 || r.height <= innerHeight / 3 || cs.visibility === "hidden" || +cs.opacity < 0.1) return false;
+      if (r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) return false;
+      const x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), y = Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2));
+      const top = document.elementFromPoint(x, y);
+      return !!top && (el.contains(top) || top.contains(el));
+    });
+  };
   const state = () => {
     const tool = N.isOpen() ? current() : null, cover = N.isOpen() && covered();
     const box = tool && !cover ? insets() : { top: 0, bottom: 0 };
