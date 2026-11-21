@@ -22,6 +22,7 @@
   };
   // The app reopens on the map it was closed on, for each sport (alex 2026-10-25: "next time they open it, open with
   // the map style they closed it at"): 3D or flat, and the 3D photos, kept per sport in "map3dBy" and "3dPhotosBy".
+  // Not Skiing's photos: Skiing always opens on Winter (alex 2026-11-21, see savedPhotos).
   // The sport itself is saved by winter.js; before it has set the body class, the saved one is the sport.
   const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", "mtb");
   const bySport = (k, s, v) => { const o = store.get(k, null) || {}; if (v === undefined) return o[s]; if (o[s] !== v) store.set(k, { ...o, [s]: v }); };
@@ -3235,7 +3236,16 @@
     });
     gl.on("moveend", () => { if (photos === "adv") addAdv(); });
     setInterval(() => { if (photos === "adv" && on) addAdv(); }, 60000);
-    const savedPhotos = () => { const s = sportNow(); return bySport("3dPhotosBy", s) || (s === "ski" ? store.get("3dPhotosSki", "winter") : store.get("3dPhotos", "sharp")); };
+    // Skiing's 3D photos are always Winter at first (alex 2026-11-21: "winter should always be by default in skiing"):
+    // Live picked there lasts until another sport is picked or the app is closed, and isn't kept ("3dPhotosBy" is the
+    // other sports'). Native 3D opens Skiing on Winter too (native-map.js).
+    let skiPhotos = "winter", photoSport = sportNow();
+    window.addEventListener("tf:sport", (e) => {
+      const was = photoSport;
+      photoSport = e.detail;
+      if (e.detail === "ski" && was !== "ski" && skiPhotos !== "winter") { skiPhotos = "winter"; if (gl && gl.style) pick(); }
+    });
+    const savedPhotos = () => { const s = sportNow(); return s === "ski" ? skiPhotos : bySport("3dPhotosBy", s) || store.get("3dPhotos", "sharp"); };
     const setPhotos = (mode) => {
       photos = ["sharp", "winter", "live", "topo", "map", "adv"].includes(mode) ? mode : "sharp";
       if (photos === "adv" && !moto()) photos = "sharp";   // ADV topo is Adventure moto's   // (an old saved "2023" choice becomes Summer)
@@ -3261,7 +3271,7 @@
       liveBtn.title = "The newest clear satellite photo (NASA Landsat and Sentinel-2, a few days to weeks old)";
       for (const [el, on] of [[sumBtn, photos === "sharp"], [winBtn, photos === "winter"], [liveBtn, photos === "live"], [topoBtn, topo]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; el.toggleAttribute("data-on", on); }
       const sw = sumBtn.parentElement; if (sw) sw.classList.toggle("none-on", ![sumBtn, winBtn, liveBtn, topoBtn].some((b) => b.hasAttribute("data-on")));
-      if (!drawn) bySport("3dPhotosBy", sportNow(), photos);
+      if (!drawn) { if (ski()) skiPhotos = photos; else bySport("3dPhotosBy", sportNow(), photos); }
       offGround();
       winterHere();
     };
@@ -3531,9 +3541,17 @@
   };
   let flatSleepT = 0;
   let want3d = null, claimTok = 0;   // last asked for, so a switch back to 2D while the 3D library loads isn't undone when it arrives
+  const inApp = () => { const C = window.Capacitor; return !!(C && C.isNativePlatform && C.isNativePlatform()); };
   function set3d(want, auto) {
     // An iPhone app build with native 3D for everything: no web 3D map on it (native-map.js tfNative3d).
     if (!want) claimTok++;
+    // In the phone apps native-map.js, loaded just after this file, answers first: 3D asked for while the page is still
+    // loading (a sport reopening in 3D) waits for it, so a full native iPhone build can't get the web 3D map at start.
+    if (want && !on && !window.tfNative3d && inApp() && document.readyState === "loading") {
+      const tok = ++claimTok, s0 = sportNow();
+      document.addEventListener("DOMContentLoaded", () => { if (tok === claimTok && sportNow() === s0) set3d(true, auto); }, { once: true });
+      want3d = false; syncBtn(); return;
+    }
     if (want && !on && window.tfNative3d && window.tfNative3d.claim) {
       // retry: asked again once this build's native features are known, unless 2D or another sport was picked since.
       const tok = ++claimTok, s0 = sportNow();

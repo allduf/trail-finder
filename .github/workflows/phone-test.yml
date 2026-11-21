@@ -1,13 +1,16 @@
 name: Phone test
 
 # Before a change goes live: opens the app at iPhone size in WebKit (Safari's engine, the same as the iPhone app) and
-# goes through every sport like a rider: Sport button, each tab of the bottom bar, Layers, the 3D map, then My rides.
+# goes through every sport like a rider: Sport button, each tab of the bottom bar, Layers, the 3D map; then the page as
+# the phone apps open it (no web 3D map on an iPhone build with native 3D only, Skiing on Winter), then My rides.
 # The check fails on a script error, a tap that breaks, or a page wider than the phone. Screenshots of every step are
 # in the run's "phone-test-screenshots" download. Outside the app's own files only code libraries and map pictures
 # are fetched (see scripts/phone-test.mjs): no resort or club sites, no weather, no Supabase.
 on:
   pull_request:
-    paths-ignore: ["data/**", "ios-app/**", "supabase/**", "**.md"]
+    # ios-app/ runs it too since 2026-11-21: the "App builds" checks read the iPhone's native 3D keys (NativeLayers.swift),
+    # and a pull request that drops one must fail before its build reaches phones.
+    paths-ignore: ["data/**", "supabase/**", "**.md"]
   workflow_dispatch:
 
 permissions:
