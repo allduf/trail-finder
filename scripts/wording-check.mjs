@@ -20,13 +20,17 @@ import { execSync } from "node:child_process";
 const root = new URL("../", import.meta.url);
 const pages = readdirSync(root).filter((f) => (/\.js$/.test(f) && f !== "i18n-fr.js" && f !== "sw.js") || (/\.html$/.test(f) && !/^(terms|privacy)\.html$/.test(f)));   // the legal pages talk about these words
 let tracked = [];
-try { tracked = execSync("git ls-files", { cwd: new URL(".", root), encoding: "utf8" }).split("\n"); } catch {}
+try { tracked = execSync("git ls-files", { cwd: new URL(".", root), encoding: "utf8" }).split("\n"); }
+catch { console.log("Wording check: git ls-files failed, so the data files and the native apps' texts are not read this time."); }
 // Data the app shows as is (the big built lists on the site-data branch aren't in git here, so aren't read).
 const data = tracked.filter((f) => /^data\/([^/]+|changelog\.d\/[^/]+|ski-hand\/[^/]+)\.json$/.test(f) && f !== "data/changelog.json" && existsSync(new URL(f, root)));
 const native = tracked.filter((f) => /^(ios-app|android-app)\/.*\.(swift|java)$|^android-app\/.*\/res\/values\/strings\.xml$|^ios-app\/.*\/Info\.plist$/.test(f) && !/[Tt]est/.test(f));
 const files = [...pages, ...data, ...native];
 // Names that hold a risky word (a ski run called Safe Route): the name is fine, it isn't a promise.
-const NAMES = [/\bSafe Route\b/g, /"name":"Don't Stop"/g, /https?:\/\/[^\s"'<>)]+/g];   // wording-ok (and web addresses: a page's address isn't our wording)
+// Only in the data files: the app's own pages and scripts stay held to every word.
+const NAMES = [/\bSafe Route\b/g, /"name":"Don't Stop"/g];   // wording-ok
+// Web addresses aren't our wording, but a Trailforks address still counts (never mention Trailforks).
+const URL_RE = /https?:\/\/[^\s"'<>)]+/g;
 const BAD = [
   [/\bsafe (route|way|spot|place|ground|terrain|zone|line|ice|area|slope|path|crossing|pullout|parking|campsite|road|trail|bridge|launch|water)s?\b/i, "calls a place or route safe"],
   [/\bsafe to (eat|drink|cross|ride|ski|swim|camp|park|drive|walk|hike|hunt|fish|travel|go|use)\b/i, "promises something is safe to do"],
@@ -61,7 +65,8 @@ for (const f of files) {
     if (/wording-ok/.test(raw)) return;   // a line that has to name the word (a word list, a filter): mark it // wording-ok
     if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*") || t.startsWith("<!--")) return;
     let line = raw.replace(/\s\/\/\s.*$/, "").replace(/\/\*.*?\*\//g, "").replace(/<!--.*?-->/g, "");
-    for (const n of NAMES) line = line.replace(n, "the name");
+    if (data.includes(f)) for (const n of NAMES) line = line.replace(n, "the name");
+    line = line.replace(URL_RE, (u) => (/trailforks/i.test(u) ? u : "the address"));
     for (const [re, why] of BAD) {
       const m = re.exec(line);
       if (!m) continue;
