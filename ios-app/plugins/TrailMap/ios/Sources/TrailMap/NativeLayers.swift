@@ -41,5 +41,7 @@ enum NativeLayers {
         { NativeOffline() },
         { NativeOverlay(key: "radar", row: 0) },   // NativeWeather.swift: rain and snow radar and forecast
         { NativeOverlay(key: "smoke", row: 1) },   // NativeWeather.swift: wildfire smoke forecast
+        { NativePins() },
+        { NativeSearch() },
     ]
 }

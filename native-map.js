@@ -49,8 +49,11 @@
   // get() returns its data as text (or null for nothing); it's sent with the 3D screen's opening, and again with
   // window.tfNative.send(key) whenever it changes while the screen is open. Load those files after this one, and guard
   // the call (window.tfNative && window.tfNative.addLayer) so an older cached copy of this file can't break them.
+  // A feature's card (showFeatureCard in Swift) with Details pressed comes back as "closed" with feature: key and
+  // open: the feature's own number; addLayer's third argument, onDetails(n, latlng), opens it here. tfNative.on(name, fn)
+  // listens to a feature's own events from the native screen.
+  const feats = new Map(), details = new Map();
   // A sport whose data lives inside its own file registers from there instead (hunting.js: "hunt").
-  const feats = new Map();
   let open3d = false;
   const featureData = (threeD) => {
     const out = {};
@@ -59,7 +62,10 @@
     return out;
   };
   window.tfNative = {
-    addLayer(key, get) { if (typeof get === "function") feats.set(String(key), get); },
+    addLayer(key, get, onDetails) {
+      if (typeof get === "function") feats.set(String(key), get);
+      if (typeof onDetails === "function") details.set(String(key), onDetails);
+    },
     send(key) {
       const get = feats.get(String(key));
       if (!open || !open3d || !get || !TrailMap.layer) return;
@@ -69,18 +75,18 @@
     isOpen: () => open && open3d,
     // For a feature that talks with its native side (native-ground.js): its events from the 3D screen, and data sent
     // without waiting for its get().
-    on(name, fn) { TrailMap.addListener(String(name), fn); },
+    on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { try { fn(e || {}); } catch {} }); },
     post(key, data) { if (open && open3d && TrailMap.layer) TrailMap.layer({ key: String(key), data: String(data) }).catch(() => {}); },
     // "Details" on a feature's own card (one it showed with open -1, at its own spot): fn({ tapLat, tapLon }) opens
     // it on the page and returns true; otherwise the page opens what's at that spot, as for a trail.
-    onDetails(fn) { if (typeof fn === "function") details.push(fn); },
+    onDetails(fn) { if (typeof fn === "function") detailFns.push(fn); },
     // has(key): this app build draws that feature itself (TrailMap.features; older builds have no such call).
     has: (key) => !!nativeKeys && nativeKeys.has(String(key)),
     // moveWait(ms): how long the page waits after the native map moves before sending the trails again (500 ms); a
     // Flyover moves it every second, so it waits longer meanwhile. Nothing: back to 500.
     moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
   };
-  const details = [];
+  const detailFns = [];
   let nativeKeys = null, moveWait = 500;
   try { Promise.resolve(TrailMap.features()).then((r) => { nativeKeys = new Set((r && r.keys) || []); }, () => { nativeKeys = new Set(); }); } catch { nativeKeys = new Set(); }
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
@@ -164,7 +170,12 @@
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
-    if (!(e.open >= 0)) for (const fn of details) { try { if (fn(e)) return; } catch {} }
+    if (e.feature) {   // a feature's own card: that feature opens it (native-xxx.js)
+      const f = details.get(String(e.feature));
+      if (f) try { f(e.open, L.latLng(e.tapLat, e.tapLon)); } catch {}
+      return;
+    }
+    if (!(e.open >= 0)) for (const fn of detailFns) { try { if (fn(e)) return; } catch {} }
     // "Details" on a trail's card: the trail opens as if tapped there (most trails are found by the map's own tap).
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
