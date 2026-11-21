@@ -103,10 +103,13 @@ public class TrailGpsPlugin extends Plugin {
         boolean go = Boolean.TRUE.equals(call.getBoolean("on", false));
         if (call.getString("title") != null) SaveService.title = call.getString("title");
         if (call.getString("text") != null) SaveService.text = call.getString("text");
+        boolean running = false;
         if (!go) SaveService.stop(getContext());
-        else if (!SaveService.on) SaveService.start(getContext());
-        else SaveService.refresh(getContext());
-        call.resolve();
+        else if (!SaveService.on) running = SaveService.start(getContext());
+        else { SaveService.refresh(getContext()); running = true; }
+        JSObject r = new JSObject();
+        r.put("running", running);
+        call.resolve(r);
     }
 
     @PluginMethod

@@ -266,7 +266,7 @@
     drawOutlines();
     $("[data-saved-h]").hidden = !areas.length;
     $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
-${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
+${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-finish="${a.id}">Try again</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
     const use = $("[data-use]");
     use.textContent = "";
     if (navigator.storage && navigator.storage.estimate) {
@@ -336,9 +336,10 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
         // A file that doesn't exist (404: no winter photo, no fine heights or no map tile there) has nothing to save, so
         // it never counts as missing; before 2026-10-30 only the 3D ones were let off, and an area could stay
         // "Not finished" for good over a file no server has.
-        if (res) bytes += size || await cache.match(u).then((m) => (m ? m.blob() : null)).then((b) => (b ? b.size : 0), () => 0);
+        let got = 0;
+        if (res) { got = size || await cache.match(u).then((m) => (m ? m.blob() : null)).then((b) => (b ? b.size : 0), () => 0); bytes += got; }
         else if (!optional && !gone) failed.push(u);
-        if (onDone) onDone();
+        if (onDone) onDone(got);
       }
     }
     await Promise.all(Array.from({ length: 6 }, worker));
@@ -600,8 +601,10 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     if (!GPS || !GPS.keepGoing) return;
     if (on && keptPct >= 0 && pct - keptPct < 5 && pct < 100) return;   // the notification moves in 5% steps
     keptPct = on ? pct : -1;
-    try { GPS.keepGoing({ on, title: tr("Saving offline map"), text: `${name}: ${pct}%` }).then(() => { if (on) keptOk = true; }, () => {}); } catch {}
+    try { GPS.keepGoing(on ? { on, title: tr("Saving offline map"), text: `${name}: ${pct}%` } : { on }).then((r) => { if (on) keptOk = !!(r && r.running); }, () => {}); } catch {}
   }
+  // A page reloaded mid-save (an update, a crash) has no save running: nothing kept going for it.
+  if (GPS && GPS.keepGoing) try { GPS.keepGoing({ on: false }).catch(() => {}); } catch {}
   const tr = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   function leftNotice(on) {
     if (!LN) return;
@@ -616,7 +619,11 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       }).catch(() => {});
     } catch {}
   }
-  document.addEventListener("visibilitychange", () => { if (busy) leftNotice(document.hidden); });
+  document.addEventListener("visibilitychange", () => {
+    if (!busy) return;
+    leftNotice(document.hidden);
+    if (!document.hidden && busy.wake) busy.wake();   // the phone drops the screen lock when the app is left
+  });
 
   const needAccount = () => (window.tfAccount && window.tfAccount.require ? window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after.") : Promise.resolve(true));
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
@@ -637,17 +644,22 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     // The screen stays on while saving: a phone that locks itself pauses the save.
     let lock = null;
-    try { if (navigator.wakeLock) lock = await navigator.wakeLock.request("screen"); } catch {}
+    const wake = async () => { try { if (navigator.wakeLock && (!lock || lock.released)) lock = await navigator.wakeLock.request("screen"); } catch {} };
+    await wake();
+    if (busy) busy.wake = wake;
     let sources = null, bytes = 0, failed = [];
     const old0 = id && load().find((x) => x.id === id), sport = old0 ? sportOf(old0) : sportNow(), d3 = old0 ? !!old0.d3 : $("[data-3d]").checked;
     const ext = await extras(box, sport, d3, old0 ? old0.huntLayers : undefined), huntLayers = ext.hunt ? ext.hunt.layers : undefined;
     // partial: while the save runs (alex 2026-11-21, "can the app continue to download an offline map if you quit the
     // app?"): the area is in the list from the start as not finished, so a save cut short by leaving or closing the
     // app is picked up by itself the next time it opens (autoFinish), instead of vanishing from the list.
+    const isNew = !id;
+    let runBytes = 0;   // bytes saved so far, file by file (for the list while it saves)
     const record = (partial) => {
       if (!sources) return;
+      if (partial && busy.replace) return;   // a cabin trip's new square: the old save stays listed until this one is in
       const areas = load(), old = areas.find((x) => x.id === id);
-      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), sport, ski: sport === "ski", d3, ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes: partial ? Math.max(bytes, runBytes) : bytes, at: Date.now(), sport, ski: sport === "ski", d3, ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
       if (old) { delete old.missing; delete old.missingUrls; }
       if (failed.length || busy.stop || partial) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
       if (old) Object.assign(old, entry); else areas.push(entry);
@@ -666,7 +678,8 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       busy.left = total;
       record(true);
       keepGoing(true, name, 0);
-      const tick = () => {
+      const tick = (size) => {
+        runBytes += size || 0;
         done++; busy.left = total - done; busy.pct = Math.floor((100 * done) / total);
         if (done % 250 === 0) record(true);
         if (busy.pct === shown && done < total) return;
@@ -695,7 +708,11 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       const retry = sources && id ? `<button class="btn primary" type="button" data-retry="${esc(id)}">Try again now</button>` : "";
       if (e.message === "Stopped") showState("bad", "Not saved yet: stopped", `Tap Try again to pick up where it left off, or Delete ${name} below.`, null, retry);
       else if (failed.length) showState("bad", `⚠ Not saved yet: ${files(failed.length)} missing`, `Missing: ${whatsMissing(failed)}. The rest is saved. It tries again by itself when you have signal.`, null, retry);
-      else showState("bad", "⚠ Not saved", `${sources ? "The save stopped" : "Couldn't reach the map"} (${e.message}). Try again with signal.`, null, retry);
+      else {
+        showState("bad", "⚠ Not saved", `${sources ? "The save stopped" : "Couldn't reach the map"} (${e.message}). Try again with signal.`, null, retry);
+        // A new area that failed outright (storage full, say) leaves no half entry to be retried on its own.
+        if (isNew && id) { save(load().filter((x) => x.id !== id)); id = undefined; }
+      }
     }
     // A cabin trip saved again with a new square: the old save under its name goes once the new one is in the list,
     // finished or not (its tiles the new one shares stay).

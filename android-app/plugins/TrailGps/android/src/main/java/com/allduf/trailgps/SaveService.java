@@ -23,20 +23,25 @@ public class SaveService extends Service {
     private static final String CHANNEL = "offline-save";
     private static final int ID = 4713;
     static boolean on = false;
+    private static boolean wanted = false;   // a save is running: a start that arrives after its stop ends itself
     static String title = "Saving offline map";
     static String text = "";
 
-    static void start(Context ctx) {
+    // false when Android refused (the app wasn't on screen): the save still runs while the app is open.
+    static boolean start(Context ctx) {
+        wanted = true;
         try {
             ContextCompat.startForegroundService(ctx, new Intent(ctx, SaveService.class));
+            return true;
         } catch (Exception ignored) {
-            // Android refused (the app wasn't on screen): the save still runs while the app is open.
+            wanted = false;
+            return false;
         }
     }
 
     static void stop(Context ctx) {
-        if (!on) return;
-        ctx.stopService(new Intent(ctx, SaveService.class));
+        wanted = false;
+        try { ctx.stopService(new Intent(ctx, SaveService.class)); } catch (Exception ignored) {}
     }
 
     static void refresh(Context ctx) {
@@ -83,7 +88,9 @@ public class SaveService extends Service {
         } catch (Exception e) {
             on = false;
             stopSelf();
+            return START_NOT_STICKY;
         }
+        if (!wanted) stopSelf();   // the save ended before Android got here
         return START_NOT_STICKY;
     }
 

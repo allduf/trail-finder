@@ -2,5 +2,5 @@
 Saving now… ||| Enregistrement en cours…
 Offline map not finished ||| Carte hors ligne pas finie
 the save may pause while Trail Finder isn't open. Open the app to finish it. ||| l’enregistrement peut s’arrêter quand Trail Finder n’est pas ouvert. Ouvrez l’app pour le finir.
-Offline maps: a save keeps going when you switch apps (Android shows a notification; iPhone allows a short time), and a save cut short now finishes by itself the next time the app opens. ||| Cartes hors ligne : l’enregistrement continue quand vous changez d’app (Android affiche une notification; l’iPhone donne un court délai), et un enregistrement coupé se finit maintenant tout seul à la prochaine ouverture de l’app.
 Saving offline map ||| Enregistrement de la carte hors ligne
+Offline maps: a save can keep going when you switch apps (Android shows a notification; iPhone allows a short time), and a save cut short may finish by itself the next time the app opens with signal. ||| Cartes hors ligne : l’enregistrement peut continuer quand vous changez d’app (Android affiche une notification; l’iPhone donne un court délai), et un enregistrement coupé peut se finir tout seul à la prochaine ouverture de l’app avec du réseau.
