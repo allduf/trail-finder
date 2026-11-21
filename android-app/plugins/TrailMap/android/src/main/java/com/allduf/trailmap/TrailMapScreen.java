@@ -506,10 +506,10 @@ final class TrailMapScreen extends FrameLayout {
     void hideCard() { showCard(null); }
     boolean cardShown() { return card.getVisibility() == VISIBLE; }
 
-    private static int num(Feature f, String k) {
+    static int num(Feature f, String k) {
         try { return f.hasProperty(k) && f.getProperty(k).isJsonPrimitive() ? f.getNumberProperty(k).intValue() : -1; } catch (Exception e) { return -1; }
     }
-    private static String str(Feature f, String k) {
+    static String str(Feature f, String k) {
         try { return f.hasProperty(k) && f.getProperty(k).isJsonPrimitive() ? f.getStringProperty(k) : ""; } catch (Exception e) { return ""; }
     }
     // "#rgb", "#rrggbb" (the colours the page uses); anything else is the fallback.
