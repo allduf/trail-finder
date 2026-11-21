@@ -419,6 +419,8 @@ final class TrailMapScreen extends FrameLayout {
     // The lowest trail layer: a feature drawn under the trails adds its layers below this one.
     String trailsBottomLayer() { return "tf-line"; }
     MapLibreMap mapLibre() { return map; }
+    // Where a feature's own labels go: the screen inside the phone's bars (its children are laid out by gravity).
+    FrameLayout mapArea() { return area; }
     // A feature's own card: the same card as a trail's, with Details coming back to the page ("closed" then carries
     // feature: key and open: the feature's own number). details: false for a feature with nothing more to open.
     void showFeatureCard(String name, String sub, String colour, int open, LatLng at, String key, boolean details) {
@@ -638,7 +640,7 @@ final class TrailMapScreen extends FrameLayout {
     }
 
     // ---------- looks ----------
-    private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
+    int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
     private GradientDrawable round(int colour, float radiusDp) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(colour);
