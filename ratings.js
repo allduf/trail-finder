@@ -1,5 +1,6 @@
 // Difficulty for trails with no MTB rating on OpenStreetMap (built by scripts/build-ratings.mjs, see there for sources):
-//   off   official open data that rates bike trails (Sépaq, City of Ottawa, Whistler, Columbia Shuswap, Utah, Pennsylvania state parks), matched by shape
+//   off   official open data that rates trails (Sépaq, City of Ottawa, Whistler, Columbia Shuswap, Utah, Pennsylvania state parks, Squamish,
+//         Kamloops and more: SRC below), matched by shape
 //   same  another piece of the same named trail is rated on OpenStreetMap (data/ratings/osm.json)
 //   hand  a rider who knows the trail rated it here (HAND below), for trails with no rating on OpenStreetMap
 //   riders  riders' own grades given in the app (grades.js), before same and est
@@ -98,6 +99,9 @@
     return w;
   };
   const sameName = (a, b) => { const A = words(a), B = words(b); return !A.size || !B.size || [...A].some((w) => B.has(w)); };
+  // The City of Kamloops names nearly every line "... Trail": a shared "trail" or "loop" doesn't make two names the same trail.
+  const GENERIC = new Set(["trail", "trails", "loop", "connector", "access", "upper", "lower", "middle", "north", "south", "east", "west", "the", "and", "path"]);
+  const sameNameStrict = (a, b) => { const A = [...words(a)].filter((w) => !GENERIC.has(w)), B = words(b); return !A.length ? sameName(a, b) : !B.size || A.some((w) => B.has(w)); };
   // Kept until new squares arrive, like official.js's match: the same trail is rated again on every search (alex,
   // 2026-10-25: "trail research used to be quicker"; this was the biggest part of a Find new trails on a phone).
   const offMemo = new Map(), memo = window.tfMemo;   // official.js (loaded first)
@@ -117,7 +121,7 @@
         if (seen.has(l)) continue;
         const g = l.g, a0 = g[k], a1 = g[k + 1], b0 = g[k + 2], b1 = g[k + 3];
         if ((a0 < b0 ? b0 : a0) < la - dLa || (a0 < b0 ? a0 : b0) > la + dLa || (a1 < b1 ? b1 : a1) < lo - dLo || (a1 < b1 ? a1 : b1) > lo + dLo) continue;
-        if (segDist(p, a0, a1, b0, b1) <= NEAR_M && !(name && NAMED.test(l.src) && !sameName(name, l.name.split(", ")[0]))) seen.add(l);
+        if (segDist(p, a0, a1, b0, b1) <= NEAR_M && !(name && NAMED.test(l.src) && !(l.src === "kam" ? sameNameStrict : sameName)(name, l.name.split(", ")[0]))) seen.add(l);
       }
       seen.forEach((l) => { const key = l.src + "|" + l.name + "|" + l.d; hits.set(key, { l, n: ((hits.get(key) || {}).n || 0) + 1 }); });
     }

@@ -242,6 +242,7 @@
     [/^run by (.+)$/, "géré par $1"],
     [/^listed by (.+) as “(.+)”, with bikes allowed$/, "listé par $1 sous « $2 », vélos permis"],
     [/^listed by (.+) as “(.+)”$/, "listé par $1 sous « $2 »"],
+    [/^Rated “(.+)” by (.+) \((.+)\)\. It is the City's general park level for everyone on the trail, not a bike grade\.$/, function (m, r, b, n) { return "Coté « " + tw(r) + " » par " + b + " (" + n + "). C'est le niveau général de parc de la Ville, pour tous les usagers du sentier, pas une cote de vélo."; }],
     [/^Rated “(.+)” by (.+) \((.+)\)\.$/, function (m, r, b, n) { return "Coté « " + tw(r) + " » par " + b + " (" + n + ")."; }],
     [/^Rated (.+) by the (.+) map \((\d{4})\)\. It has no rating on OpenStreetMap yet\.$/, function (m, r, b, y) { return "Coté " + tw(r).toLowerCase() + " selon la carte " + b + " (" + y + "). Pas encore de cote sur OpenStreetMap."; }],
     [/^Part of MTB route “(.+)”$/, "Fait partie de l'itinéraire de vélo « $1 »"],
