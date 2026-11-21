@@ -53,15 +53,18 @@ final class NativeOffline implements NativeLayer {
     @Override
     public void added(Style style, TrailMapScreen screen) {
         this.screen = screen;
+        draw(style);
+    }
+
+    // Right after the app starts, MapLibre may still be reading its list of saved regions: draw again once it's in.
+    private void draw(Style style) {
         apply(style);
-        // Right after the app starts, MapLibre may still be reading its list of saved regions: draw again once it's in.
-        if (!online && !OfflinePacks.shared.listed()) {
-            OfflinePacks.shared.withRegions(screen.getContext(), (l) -> {
-                // Only the style still showing (a new base map may have come meanwhile; it draws this again itself).
-                Style now = ready();
-                if (now == style) apply(now);
-            });
-        }
+        if (online || OfflinePacks.shared.listed() || screen == null) return;
+        OfflinePacks.shared.withRegions(screen.getContext(), (l) -> {
+            // Only the style still showing (a new base map may have come meanwhile; it draws this again itself).
+            Style now = ready();
+            if (now == style) apply(now);
+        });
     }
 
     @Override
@@ -80,7 +83,7 @@ final class NativeOffline implements NativeLayer {
         }
         // Only the style showing now, once loaded: while a new base map loads, its added() draws this when it's in.
         Style now = ready();
-        if (now != null) apply(now);
+        if (now != null) draw(now);
     }
     private Style ready() {
         Style s = screen == null || screen.mapLibre() == null ? null : screen.mapLibre().getStyle();
@@ -91,16 +94,19 @@ final class NativeOffline implements NativeLayer {
         boolean off = !online;
         for (Layer l : style.getLayers()) if (l.getId().startsWith("tf-off-")) style.removeLayer(l);
         for (Source s : style.getSources()) if (s.getId().startsWith("tf-off-")) style.removeSource(s);
-        // Hidden, the photos aren't asked for at all (no retries with no signal). Winter's own photos stay.
-        for (String id : new String[] { "base", "esri" }) {
+        // Hidden, the photos aren't asked for at all (no retries with no signal). Winter's own photos stay. The 3D
+        // styles' photo layers (BaseStyles.threeD): sat and sumhi (Satellite), topo, osm (Map), esri (under Winter).
+        for (String id : new String[] { "base", "esri", "sat", "sumhi", "topo", "osm" }) {
             Layer l = style.getLayer(id);
             if (l != null) l.setProperties(PropertyFactory.visibility(off ? Property.NONE : Property.VISIBLE));
         }
         showTag(off);
         if (!off) return;
 
-        // The saved ground: under Winter's photos when they're there, else right under the trails.
-        String under = style.getLayer("wide") != null ? "wide" : style.getLayer("tf-line") != null ? "tf-line" : null;
+        // The saved ground: under Winter's photos when they're there, else just over the base map, under the roads, so
+        // the ground layers and every feature's own layers under the trails (added before this) stay on top of it.
+        String under = style.getLayer("wide") != null ? "wide" : style.getLayer("osm-roads") != null ? "osm-roads"
+            : style.getLayer("tf-line") != null ? "tf-line" : null;
         BackgroundLayer bg = new BackgroundLayer("tf-off-bg");
         bg.setProperties(PropertyFactory.backgroundColor(Color.rgb(0xdf, 0xe5, 0xd2)));
         put(style, bg, under);

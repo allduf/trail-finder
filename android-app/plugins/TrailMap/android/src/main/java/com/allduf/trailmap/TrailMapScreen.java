@@ -271,7 +271,7 @@ final class TrailMapScreen extends FrameLayout {
     private int insetTop = 0, insetBottom = 0;
     private boolean aside = false;
     void setToolInsets(float top, float bottom) {
-        float h = getHeight() / getResources().getDisplayMetrics().density;
+        float h = heightDp();
         if (h <= 0) return;
         float t = Math.max(0, Math.min(top, h * 0.6f)), b = Math.max(0, Math.min(bottom, h * 0.75f));
         if (t + b > h - 160) return;          // no room left for a map: keep it as it is
@@ -295,7 +295,12 @@ final class TrailMapScreen extends FrameLayout {
     }
     // Back goes to the page while its tool or dialog is showing (it closes them there).
     boolean pageHasBack() { return aside || insetTop > 0 || insetBottom > 0; }
-    float heightDp() { return getHeight() / getResources().getDisplayMetrics().density; }
+    // The whole screen's height, not the map's between a tool's bars (the margins set above shrink this view itself).
+    float heightDp() {
+        android.view.ViewParent p = getParent();
+        int h = p instanceof View && ((View) p).getHeight() > 0 ? ((View) p).getHeight() : getHeight() + insetTop + insetBottom;
+        return h / getResources().getDisplayMetrics().density;
+    }
     // MapLibre's compass under Back, its credits (ⓘ) at the bottom left, above the phone's bar.
     private void placeMapMarks() {
         map.getUiSettings().setCompassMargins(0, barTop + dp(64), dp(14), 0);
