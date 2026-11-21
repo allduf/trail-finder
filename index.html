@@ -1286,8 +1286,6 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .sheet-toggle { display: none; }
 /* Full map: the panel hides, the map fills the screen, and a big button brings the search back. */
 .map-full-exit, .map-status { display: none; }
-/* MTB's New trails line ("Press Find new trails...") isn't for the other sports' full map (deep phone test 2026-11-21). */
-body.sport-alt .map-status { display: none !important; }
 .app.fullmap { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 .app.fullmap .panel { display: none; }
 .app.fullmap .mapwrap { grid-column: 1; grid-row: 1; }
@@ -2535,8 +2533,12 @@ body.sport-alt .map-status { display: none !important; }
     return mo < 24 ? mo + " months ago" : Math.round(days / 365) + " years ago";
   }
   function log(line) { state.log.push(line); const pre = $("debugLog"); if (pre) pre.textContent = state.log.join("\n"); }
+  // MTB's trail search lines (renderStatus: "Press Find new trails...", "11 new trails...") are marked, so the other
+  // sports' full map leaves them out but still shows the shared ones (location, place search, wildfires). var: no TDZ.
+  var mtbStatus = false;
   function setStatus(msg, warn, action) {
     const s = $("status"); s.textContent = msg; s.classList.toggle("warn", !!warn);
+    s.dataset.mtb = mtbStatus ? "1" : "";
     if (action) { const b = document.createElement("button"); b.className = "linkish"; b.type = "button"; b.textContent = action.label; b.addEventListener("click", action.fn); s.append(" ", b); }
   }
 
@@ -3847,7 +3849,8 @@ out body;`;
     }).join("") + "</ol>" : "";
   }
 
-  function renderStatus() {
+  function renderStatus() { mtbStatus = true; try { return renderStatusNow(); } finally { mtbStatus = false; } }
+  function renderStatusNow() {
     if (anyMode()) {
       $("resetBtn").hidden = true; $("toggles").hidden = true; $("debug").hidden = !state.error;
       $("findBtn").disabled = false; $("findLabel").textContent = "Find trails";
@@ -7810,8 +7813,11 @@ out body;`;
     if (!map.getBounds().intersects(b)) map.fitBounds(b, { maxZoom: 16, padding: [40, 40] });
   }
   // The search status, shown on the map while the panel is hidden.
-  function syncMapStatus() { $("mapStatus").textContent = isFull() ? $("status").textContent.trim() : ""; }
+  // Not MTB's trail search lines in the other sports (deep phone test 2026-11-21: Skiing's full map said "Press Find new
+  // trails to see trails in Sea to Sky").
+  function syncMapStatus() { const st = $("status"), mtbOnly = st.dataset.mtb === "1" && document.body.classList.contains("sport-alt"); $("mapStatus").textContent = isFull() && !mtbOnly ? st.textContent.trim() : ""; }
   new MutationObserver(syncMapStatus).observe($("status"), { childList: true, characterData: true, subtree: true });
+  window.addEventListener("tf:sport", () => setTimeout(syncMapStatus));
   $("fullBtn").addEventListener("click", () => setFullMap(!isFull()));
   $("fullExit").addEventListener("click", () => setFullMap(false));
   document.addEventListener("fullscreenchange", () => {

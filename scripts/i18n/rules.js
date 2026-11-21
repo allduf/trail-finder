@@ -325,7 +325,6 @@
     // Snow checked against Environment Canada, and trails that may be icy (status.js), 2026-11-20
     [/^(All|\d+ of \d+) trails? likely under snow \(up to about (\d+) cm, (Environment Canada snow analysis|Open-Meteo snow depth), an estimate\)$/, function (m, n, c, f) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " probablement sous la neige (jusqu'à environ " + c + " cm, " + (f === "Open-Meteo snow depth" ? "épaisseur de neige Open-Meteo" : "analyse de neige d'Environnement Canada") + ", une estimation)"; }],
     [/^(All|\d+ of \d+) trails?: ground likely froze overnight, so it may be icy in spots \(soil temperature estimate\)$/, function (m, n) { return (n === "All" ? "Tous les sentiers" : n.replace(" of ", " sentiers sur ")) + " : le sol a probablement gelé pendant la nuit, il peut donc être glacé par endroits (estimation de la température du sol)"; }],
-    [/^here, about (\d+) cm \(estimate\)$/, "ici, environ $1 cm (estimation)"],
     [/^Snow \((\d+) cm or more, estimate\)$/, "Neige ($1 cm ou plus, estimation)"],
     // The Today card in every sport (today.js), 2026-11-19
     [/^In season today \(from (.+)\): (.+)$/, function (m, f, l) { return "En saison aujourd'hui (selon " + f + ") : " + tl(l); }],
