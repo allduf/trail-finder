@@ -30,13 +30,13 @@
   const isFish = () => sportNow() === "fish";
   const COLOR = "#0a7d6e", HUNT_COLOR = "#a34f00", FISH_COLOR = "#0c8599";
   // alex hunts in Quebec and tags in French too: a saline is a salt or mineral lick, a cache is a blind.
-  // The lines marked emoji-ok: a saved point's kinds, the same emoji as its map pin; map pins keep emoji for now (line-icons.js).
-  const HUNT_KINDS = [["cam", "Trail camera", "📷"], ["sign", "Tracks", "🐾"], ["lick", "Saline (salt lick)", "🧂"], ["blind", "Cache (blind)", "⛺"],   // emoji-ok
-    ["stand", "Tree stand", "🪜"], ["sighting", "Sighting", "👀"], ["rub", "Rub", "🌲"], ["scrape", "Scrape", "🍂"], ["bed", "Bedding area", "🛏"],   // emoji-ok
-    ["trail", "Game trail", "👣"], ["water", "Water", "💧"], ["food", "Feeding area", "🌾"], ["bait", "Bait site", "🍎"], ["shed", "Shed antlers", "🦌"],   // emoji-ok
+  // Each kind's emoji is drawn as a line icon on its pin and in its lists (line-icons.js, data-pin-line).
+  const HUNT_KINDS = [["cam", "Trail camera", "📷"], ["sign", "Tracks", "🐾"], ["lick", "Saline (salt lick)", "🧂"], ["blind", "Cache (blind)", "⛺"],
+    ["stand", "Tree stand", "🪜"], ["sighting", "Sighting", "👀"], ["rub", "Rub", "🌲"], ["scrape", "Scrape", "🍂"], ["bed", "Bedding area", "🛏"],
+    ["trail", "Game trail", "👣"], ["water", "Water", "💧"], ["food", "Feeding area", "🌾"], ["bait", "Bait site", "🍎"], ["shed", "Shed antlers", "🦌"],
     ["harvest", "Harvest (kill site)", "🎯"], ["truck", "Truck or parking", "🛻"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];
   const FISH_KINDS = [["catch", "Catch", "🐟"], ["spot", "Fishing spot", "🎣"], ["access", "Way to the water", "🚶"], ["launch", "Boat launch", "🛶"],
-    ["truck", "Truck or parking", "🛻"], ["hatch", "Hatch or bugs", "🦟"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];   // emoji-ok
+    ["truck", "Truck or parking", "🛻"], ["hatch", "Hatch or bugs", "🦟"], ["camp", "Camp", "🏕"], ["other", "Other", "📍"]];
   const KINDS_OF = { hunt: HUNT_KINDS, fish: FISH_KINDS };
   const hasKinds = (sp) => !!KINDS_OF[sp];
   const kindOf = (p, sp = sportOf(p)) => (KINDS_OF[sp] || []).find((k) => k[0] === p.kind) || null;
@@ -210,7 +210,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   const box = document.createElement("div");
   box.id = "spBox";
   box.innerHTML = `<div class="sp-head"><div class="label" id="spCount">Your points</div><button type="button" class="sp-new" id="spNew">📍 Save a point</button></div>
-    <div class="sp-filt" id="spFilt" role="group" aria-label="Show only" hidden></div>
+    <div class="sp-filt" id="spFilt" data-pin-line role="group" aria-label="Show only" hidden></div>
     <ul class="sk-list sp-list" id="spList"></ul>`;
   const skiPane = document.getElementById("skiPane");
   // The list sits under the chips of whichever sport is on (Skiing's or Hunting's panel); MTB and ADV keep it under My trails.
@@ -268,7 +268,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     const sorted = [...visible()].sort((a, b) => b.created - a.created);
     list.innerHTML = sorted.map((p, i) => {
       const u = p.thumb || p.photo ? thumbUrl(p) : "";
-      return `<li><button type="button" data-i="${i}"${selected === p.id ? ' aria-current="true"' : ""}>${u ? `<img class="sp-th" alt="" src="${u}">` : `<span class="sp-th" data-no-line>${iconOf(p)}</span>`}<span class="nm">${esc(p.name)}</span><span class="meta">${esc(new Date(p.created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</span></button></li>`;
+      return `<li><button type="button" data-i="${i}"${selected === p.id ? ' aria-current="true"' : ""}>${u ? `<img class="sp-th" alt="" src="${u}">` : `<span class="sp-th" data-pin-line>${iconOf(p)}</span>`}<span class="nm">${esc(p.name)}</span><span class="meta">${esc(new Date(p.created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }))}</span></button></li>`;
     }).join("");
     list.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => {
       const p = sorted[+b.dataset.i];
@@ -362,7 +362,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     <h2 id="spfTitle">New point</h2>
     <div id="spfPhoto"></div>
     <div class="sp-kind"><label id="spfKindL">What's here</label><select id="spfKind" hidden aria-hidden="true" tabindex="-1"></select>
-      <div class="sp-tags" id="spfTags" data-no-line role="group" aria-labelledby="spfKindL"></div><p class="sp-taghint" id="spfTagHint"></p></div>
+      <div class="sp-tags" id="spfTags" data-pin-line role="group" aria-labelledby="spfKindL"></div><p class="sp-taghint" id="spfTagHint"></p></div>
     <div class="sp-catch" id="spfCatch" hidden>
       <div class="sp-id" id="spfId" hidden></div>
       <div class="sp-grid2"><div><label for="spfFish">Fish</label><input type="text" id="spfFish" maxlength="40" list="spfFishList" placeholder="Rainbow trout"></div>
@@ -662,8 +662,8 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     if (blob) viewUrl = URL.createObjectURL(blob);
     const when = new Date(p.created).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     viewer.innerHTML = `${viewUrl ? `<div class="sp-photo"><img alt="${esc(p.name)}" src="${viewUrl}"></div>` : ""}
-      <h2 data-no-line>${hasKinds(sportOf(p)) ? iconOf(p) + " " : ""}${esc(p.name)}</h2>
-      ${hasKinds(sportOf(p)) && tagsOf(p).length > 1 ? `<div class="sp-tagline" data-no-line>${tagsOf(p).map((k) => kindOf({ kind: k }, sportOf(p))).filter(Boolean).map((d) => `<span>${d[2]} ${esc(d[1])}</span>`).join("")}</div>`
+      <h2 ${hasKinds(sportOf(p)) ? "data-pin-line" : "data-no-line"}>${hasKinds(sportOf(p)) ? iconOf(p) + " " : ""}${esc(p.name)}</h2>
+      ${hasKinds(sportOf(p)) && tagsOf(p).length > 1 ? `<div class="sp-tagline" data-pin-line>${tagsOf(p).map((k) => kindOf({ kind: k }, sportOf(p))).filter(Boolean).map((d) => `<span>${d[2]} ${esc(d[1])}</span>`).join("")}</div>`
         : hasKinds(sportOf(p)) && kindOf(p) ? `<p class="sp-meta">${esc(kindOf(p)[1])}</p>` : ""}
       ${p.kind === "catch" && p.catch ? catchFacts(p.catch) : ""}
       ${p.kind === "harvest" && p.harvest ? `<dl class="sp-facts">${p.harvest.species ? `<dt>Species</dt><dd>${esc(p.harvest.species)}</dd>` : ""}${p.harvest.sex ? `<dt>Animal</dt><dd>${esc(p.harvest.sex)}</dd>` : ""}${p.harvest.date ? `<dt>Date</dt><dd>${esc(fmtDay(p.harvest.date))}</dd>` : ""}${p.harvest.zone ? `<dt>Zone</dt><dd>${esc(p.harvest.zone)}</dd>` : ""}</dl>` : ""}

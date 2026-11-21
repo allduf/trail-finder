@@ -110,6 +110,15 @@
     unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.6-1.8"/>',
     spring: '<path d="M4 17.5c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5S16.4 14 12 14s-8 1.6-8 3.5z"/><path d="M8 11c-1-1.5 1-2.5 0-4.5M12 11c-1-1.5 1-2.5 0-4.5M16 11c-1-1.5 1-2.5 0-4.5"/>',
     sat: '<path d="m9.5 9.5 5 5M8 14l2-2M14 8l2-2"/><path d="m4.5 9.5 5-5 3 3-5 5zM14.5 19.5l5-5-3-3-5 5z"/><path d="M15 21a6 6 0 0 0 6-6"/>',
+    // A saved hunting or fishing point's kinds, on its map pin and in its lists (alex 2026-11-21: line icons on pins too).
+    ladder: '<path d="M7 3v18M17 3v18M7 7h10M7 12h10M7 17h10"/>',
+    eye: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    leaf: '<path d="M5 19c0-8 5-14 15-15-1 10-7 15-15 15z"/><path d="M5 19 13 11"/>',
+    steps: '<path d="M7 4.5c1.7 0 2.5 2 2.5 4s-1 3.5-2.5 3.5S4.5 10.5 4.5 8.5 5.3 4.5 7 4.5zM5 15h4M17 9.5c1.7 0 2.5 2 2.5 4s-1 3.5-2.5 3.5-2.5-1.5-2.5-3.5.8-4 2.5-4zM15 20h4"/>',
+    wheat: '<path d="M12 22V8"/><path d="M12 8c-2.5 0-3.5-2-3.5-4.5C11 3.5 12 5.5 12 8zm0 0c2.5 0 3.5-2 3.5-4.5C13 3.5 12 5.5 12 8zM12 13c-2.5 0-4-1.5-4-4 2.5 0 4 1.5 4 4zm0 0c2.5 0 4-1.5 4-4-2.5 0-4 1.5-4 4zM12 18c-2.5 0-4-1.5-4-4 2.5 0 4 1.5 4 4zm0 0c2.5 0 4-1.5 4-4-2.5 0-4 1.5-4 4z"/>',
+    apple: '<path d="M12 7.5c-1.5-1.5-6.5-2-7.5 3S6.5 21 9 21c1.2 0 1.8-.6 3-.6s1.8.6 3 .6c2.5 0 5.5-5.5 4.5-10.5s-6-4.5-7.5-3z"/><path d="M12 7.5c0-2 .8-3.5 2.5-4.5"/>',
+    antler: '<path d="M8 21v-6c0-4-3-6-4.5-9M8 13 4 11M6.5 8.5 3 7M16 21v-6c0-4 3-6 4.5-9M16 13l4-2M17.5 8.5 21 7"/>',
+    bug: '<ellipse cx="12" cy="13.5" rx="4" ry="6"/><path d="M12 7.5V19.5M9.5 5.5 8 3M14.5 5.5 16 3M8 11H3.5M8 15.5 4 18M16 11h4.5M16 15.5l4 2.5"/>',
   };
   // Emoji (and the few text symbols used as icons) -> drawing. The tab bar and map buttons draw the sports the same way.
   const E = {
@@ -129,6 +138,7 @@
     "🌔": "moon", "🌕": "moon", "🌖": "moon", "🌗": "moon", "🌘": "moon", "💾": "save", "🔊": "sound", "🔇": "mute", "🅿": "parking", "✈": "plane",
     "🏝": "tree", "🚻": "hut", "⛴": "boat", "🛶": "boat", "🛡": "shield", "🔓": "unlock", "♨": "spring", "🛰": "sat", "🗣": "chat", "🚶": "boot",
     "🚐": "truck", "🗾": "map", "🔧": "gear", "📋": "doc",
+    "🪜": "ladder", "👀": "eye", "🍂": "leaf", "👣": "steps", "🌾": "wheat", "🍎": "apple", "🦟": "bug",
   };
   const draw = (k, size) => `<svg class="tf-line" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
   const keyOf = (s) => {
@@ -136,6 +146,10 @@
     for (const e in E) if (t.startsWith(e)) return [e, E[e], t.slice(e.length).replace(/^[️‍]+/, "")];
     return null;
   };
+  // On a map pin and in a saved point's kind lists (data-pin-line) a few emoji mean something else: 🦌 is shed
+  // antlers there, not Hunting.
+  const PIN_E = { "🦌": "antler" };
+  const keyOfPin = (s) => { const k = keyOf(s); return k && PIN_E[k[0]] ? [k[0], PIN_E[k[0]], k[2]] : k; };
   window.tfLine = (s, size = 18) => { const k = keyOf(s); return k && !k[2].trim() ? draw(k[1], size) : String(s == null ? "" : s); };
   window.tfLineName = (name, size = 18) => (P[name] ? draw(name, size) : "");
   const SKIP = /^(SCRIPT|STYLE|TEXTAREA|INPUT|SELECT|OPTION|svg)$/i;
@@ -158,19 +172,51 @@
     const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
     for (let n = w.nextNode(); n; n = w.nextNode()) {
       const p = n.parentElement;
-      if (!p || SKIP.test(p.tagName) || p.closest("svg, [data-no-line]")) continue;
+      if (!p || SKIP.test(p.tagName) || p.closest("svg, [data-no-line], [data-pin-line]")) continue;
       // Only text that starts its element (a button, a title, an icon box): not mid-sentence.
       if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
       const k = keyOf(n.data);
       if (k) hits.push([n, k]);
     }
     for (const [n, k] of hits) swap(n, k);
+    pinRoots(root);
+  };
+  // Map pins (Leaflet and the web 3D map's markers) and a saved point's kind lists: every emoji that has a drawing, at
+  // the start of the pin's text, sized to the pin's own text (alex 2026-11-21: "Yes, line icons on pins"). The pin
+  // keeps its colour and the drawing takes the pin's text colour (white on most). The iPhone's native 3D pins are
+  // drawn there already (NativePins.swift); native-pins.js reads the pins' html as written, so nothing changes there.
+  const PIN = ".leaflet-marker-icon, .maplibregl-marker, [data-pin-line]";
+  const pinify = (el) => {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), hits = [];
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      const p = n.parentElement;
+      if (!p || SKIP.test(p.tagName) || p.closest("svg, [data-no-line]")) continue;
+      if (n.previousSibling && !(n.previousSibling.nodeType === 3 && !n.previousSibling.data.trim())) continue;
+      const k = keyOfPin(n.data);
+      if (k) hits.push([n, k]);
+    }
+    for (const [n, [, name, rest]] of hits) {
+      const t = document.createElement("template");
+      t.innerHTML = draw(name, "1.2em");
+      t.content.firstChild.classList.add("tf-pin-line");
+      n.parentNode.insertBefore(t.content.firstChild, n);
+      // A space after the drawing, unless the pin lays its parts out with a gap already (flex or grid: \u26f7 resort label).
+      const flex = rest.trim() && /flex|grid/.test(getComputedStyle(n.parentElement).display);
+      n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
+    }
+  };
+  const pinRoots = (root) => {
+    if (!root || root.nodeType !== 1) return false;
+    const own = root.closest(PIN);
+    if (own) { pinify(own); return true; }
+    root.querySelectorAll(PIN).forEach(pinify);
+    return false;
   };
   // The sports' own icons, everywhere (alex 2026-11-08, "i like those kind of icon, we should put the same style for
   // all the sport"): the Sport menu's drawings for MTB, Skiing, Hunting, Fishing, Adventure moto and Hiking also replace
   // those emoji at the start of a button or title anywhere else (welcome, How it works, Offline maps, Ask, logs, search
-  // lists, desktop panels). Map pins are left alone, and so is anything under data-no-line (a point's kind list, where
-  // 🦌 means shed antlers, not Hunting).
+  // lists, desktop panels). Map pins and a point's kind lists (data-pin-line, where 🦌 means shed antlers, not Hunting) go
+  // through pinify above; anything under data-no-line is left alone.
   // The sports' own panels (Routes, Hunt, Fish, Roads, Hikes) get every known emoji drawn, like the phone's sheet.
   // Every colour emoji that has a drawing, too (deep phone test 2026-11-21: 🧂 ⛺ 🔒 ⏰ 📱 in cards and boxes outside
   // the panels): only those that show in colour on phones (Emoji_Presentation, or a picture past U+1F000 such as 🗺),
@@ -182,9 +228,9 @@
   const ALT = ["🚵", "🚴", "🚲", "⛷", "🎿", "🛷", "🚡", "🦌", "🎣", "🐟", "🏍", "🥾", "☁", ...VS16, ...COLOUR].filter((e, i, a) => a.indexOf(e) === i).join("|");
   const SPORT_E = new RegExp(`^\\s*(${ALT})`, "u"), HAS = new RegExp(ALT, "u");
   const PANES = "#skiPane, #huntPane, #fishPane, #motoPane, #hikePane";
-  const NOT = ".leaflet-pane, .leaflet-marker-icon, .maplibregl-marker, .maplibregl-canvas-container, [data-no-line], select, textarea, input";
+  const NOT = ".leaflet-pane, .leaflet-marker-icon, .maplibregl-marker, .maplibregl-canvas-container, [data-no-line], [data-pin-line], select, textarea, input";
   const sweep = (root) => {
-    if (!root || root.nodeType !== 1 || root.closest(NOT)) return;
+    if (!root || root.nodeType !== 1 || pinRoots(root) || root.closest(NOT)) return;
     if (root.closest(PANES)) return window.tfLineify(root);
     root.querySelectorAll(PANES).forEach((p) => window.tfLineify(p));
     if (!HAS.test(root.textContent || "")) return;
@@ -205,7 +251,7 @@
   const flush = () => { queued = false; const roots = [...pending]; pending.clear(); mo.disconnect(); roots.forEach((r) => r.isConnected && sweep(r)); watch(); };
   const mo = new MutationObserver((list) => {
     for (const m of list) {
-      if (m.type === "characterData") { if (m.target.parentElement && HAS.test(m.target.data)) pending.add(m.target.parentElement); continue; }
+      if (m.type === "characterData") { if (m.target.parentElement && (HAS.test(m.target.data) || m.target.parentElement.closest(PIN))) pending.add(m.target.parentElement); continue; }
       for (const n of m.addedNodes) {
         if (n.nodeType === 1) pending.add(n);
         else if (n.nodeType === 3 && n.parentElement && HAS.test(n.data)) pending.add(n.parentElement);
@@ -218,6 +264,7 @@
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
   const css = document.createElement("style");
   css.textContent = `svg.tf-line { flex: none; vertical-align: -3px; }
+svg.tf-line.tf-pin-line { vertical-align: -.2em; }
 .spb-i > svg.tf-line, .sport-menu button > span > svg.tf-line { display: block; margin: 0 auto; }
 .hub-card .ic svg.tf-line, .hub-tile .ic svg.tf-line { color: var(--accent, #2f9e5b); }`;
   document.head.appendChild(css);
