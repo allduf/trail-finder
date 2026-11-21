@@ -38,4 +38,6 @@ jobs:
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
           APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Phones in the Android app go through Firebase Cloud Messaging (service account key of the Firebase project).
+          FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
         run: node scripts/push-loam.mjs

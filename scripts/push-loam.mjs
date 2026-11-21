@@ -97,6 +97,38 @@ function apnsSend(token, msg) {
   });
 }
 
+// ---------- Firebase Cloud Messaging, for phones in the Android app ----------
+// FCM_SERVICE_ACCOUNT = the Firebase project's service account key (JSON). A short-lived Google token is made from it.
+const fcmKey = (() => {
+  const raw = process.env.FCM_SERVICE_ACCOUNT || "";
+  if (!raw.trim()) return null;
+  try { const j = JSON.parse(raw); return { project: j.project_id, email: j.client_email, key: createPrivateKey(j.private_key) }; }
+  catch (e) { console.log(`FCM_SERVICE_ACCOUNT isn't a valid key file (${e.message}): Android app phones are skipped.`); return null; }
+})();
+let fcmToken = "", fcmAt = 0, fcmDown = "";
+async function fcmAuth() {
+  if (fcmDown) throw new Error(fcmDown);   // one failed sign-in per run, not one per message
+  if (Date.now() - fcmAt < 40 * 60e3) return fcmToken;
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url"), now = Math.floor(Date.now() / 1000);
+  const unsigned = `${b64({ alg: "RS256", typ: "JWT" })}.${b64({ iss: fcmKey.email, scope: "https://www.googleapis.com/auth/firebase.messaging", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 })}`;
+  const jwt = `${unsigned}.${sign("sha256", Buffer.from(unsigned), fcmKey.key).toString("base64url")}`;
+  const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }) });
+  if (!r.ok) { fcmDown = `Google sign-in for Firebase failed (HTTP ${r.status}): check FCM_SERVICE_ACCOUNT`; console.log(fcmDown); throw new Error(fcmDown); }
+  fcmToken = (await r.json()).access_token; fcmAt = Date.now();
+  return fcmToken;
+}
+// Resolves { status, reason }: 200 sent; UNREGISTERED means the app was removed or notifications turned off.
+async function fcmSend(token, msg) {
+  const r = await fetch(`https://fcm.googleapis.com/v1/projects/${fcmKey.project}/messages:send`, {
+    method: "POST", headers: { authorization: `Bearer ${await fcmAuth()}`, "content-type": "application/json" },
+    body: JSON.stringify({ message: { token, notification: { title: msg.title, body: msg.body }, data: { url: msg.url },
+      android: { collapse_key: msg.tag, ttl: "21600s", priority: "normal", notification: { tag: msg.tag } } } }) });
+  let reason = "";
+  if (!r.ok) { try { const e = (await r.json()).error || {}; reason = ((e.details || []).find((d) => d.errorCode) || {}).errorCode || e.status || e.message || ""; } catch {} }
+  return { status: r.status, reason };
+}
+
 const subs = await db("push_subs?select=id,sub,watch,sent,updated_at");
 console.log(`${subs.length} phone(s) signed up.`);
 // What each phone asked for (no addresses), so a quiet phone can be told apart from one with nothing picked.
@@ -382,6 +414,15 @@ for (const s of subs) {
       if (r.status === 200) { sent++; continue; }
       if (r.status === 410 || r.reason === "BadDeviceToken" || r.reason === "Unregistered") { expired = true; break; }
       console.log(`Apple push failed (HTTP ${r.status || "?"}): ${r.reason}`);
+      m.keys.forEach((k) => { delete now[k]; });
+      continue;
+    }
+    if (s.sub && s.sub.fcm) {   // a phone in the Android app
+      if (!fcmKey) { console.log("An Android app phone is waiting for the FCM_SERVICE_ACCOUNT secret."); m.keys.forEach((k) => { delete now[k]; }); continue; }
+      const r = await fcmSend(s.sub.fcm, msg).catch((e) => ({ status: 0, reason: e.message }));
+      if (r.status === 200) { sent++; continue; }
+      if (r.reason === "UNREGISTERED") { expired = true; break; }   // not any 404: a wrong project also gives 404 NOT_FOUND
+      console.log(`Firebase push failed (HTTP ${r.status || "?"}): ${r.reason}`);
       m.keys.forEach((k) => { delete now[k]; });
       continue;
     }
