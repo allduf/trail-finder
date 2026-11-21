@@ -51,7 +51,12 @@ async function connect() {
 }
 async function js(expr) {
   const id = ++seq;
-  const res = await new Promise((r) => { waiting.set(id, r); ws.send(JSON.stringify({ id, method: "Runtime.evaluate", params: { expression: expr, awaitPromise: true, returnByValue: true } })); });
+  // At most 90 s: a page that stopped answering (the app closed, or hung) fails the check instead of the whole job waiting.
+  const res = await new Promise((r, j) => {
+    const t = setTimeout(() => { waiting.delete(id); j(new Error("the page didn't answer in 90 s")); }, 90000);
+    waiting.set(id, (d) => { clearTimeout(t); r(d); });
+    ws.send(JSON.stringify({ id, method: "Runtime.evaluate", params: { expression: expr, awaitPromise: true, returnByValue: true } }));
+  });
   if (res.result && res.result.exceptionDetails) throw new Error(JSON.stringify(res.result.exceptionDetails.exception && res.result.exceptionDetails.exception.description || res.result.exceptionDetails.text));
   return res.result && res.result.result && res.result.result.value;
 }
