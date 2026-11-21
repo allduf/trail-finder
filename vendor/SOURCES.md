@@ -18,8 +18,13 @@ Each file is copied byte for byte from the official npm release named here (chec
 | supabase-js-2.99.3.js | @supabase/supabase-js@2.99.3 | dist/umd/supabase.js | `588fb53d9380e3cb8688065c48144fa839205c328b416cc68c11331ba01955ee` |
 | exifr-lite-7.1.3.js | exifr@7.1.3 | dist/lite.umd.js | `530dbaef11cd9d4d65f108abc159b113580eb3dbd7bc69cd1364e25dd40413f9` |
 | maplibre-contour-0.1.1.js | maplibre-contour@0.1.1 (BSD-3-Clause) | dist/index.min.js | `055e45d0a76aaeaaf5a96765b8ce524abba3272456be75e715081e235ebd1262` |
+| geotiff-2.1.3/compression/jpeg.js | geotiff@2.1.3 (MIT) | dist-module/compression/jpeg.js | `607cd7114c4e0cffbe5bd4a2ec49350bb3e12dbe3f5edb8f60fb3afe4a71153d` |
+| geotiff-2.1.3/compression/basedecoder.js | geotiff@2.1.3 (MIT) | dist-module/compression/basedecoder.js | `8d1f95fb468a03b73c304cb277cf11207e78b5a426b9cda4c8a7de930ea376f1` |
+| geotiff-2.1.3/predictor.js | geotiff@2.1.3 (MIT) | dist-module/predictor.js | `e65343613131379847315aa377692b8a1906595029a2d502bb4de4b00d67ae02` |
 
-Still loaded from cdn.jsdelivr.net at a fixed version: tesseract.js 5.1.1 (Photo find text reading: its worker, the 3-4 MB reading engine and the English data) and geotiff 2.1.3's JPEG reader (height tiles). Both are too large or split into many module files to copy here for now.
+geotiff 2.1.3's JPEG reader (the three module files above, same folders as in the package so their imports work) moved here from cdn.jsdelivr.net on 2026-11-21 (security check; the CDN copies had the same sha256).
+
+Still loaded from cdn.jsdelivr.net at a fixed version: tesseract.js 5.1.1 (Photo find text reading: its worker, the 3-4 MB reading engine and the English data), too large to copy here for now. Photo find is open only to alex and friends (PF_PUBLIC).
 
 ## iPhone app (ios-app/), not served by the site
 
@@ -38,3 +43,14 @@ Apple's StoreKit (part of iOS, nothing to download).
 | File | From | sha256 |
 |---|---|---|
 | review-2.0.2.aar | com.google.android.play:review:2.0.2 (dl.google.com/dl/android/maven2) | `1602026678231dba0f7482d1244e45ff83d9ff22fc8b6d6be8961228ac7a32dd` |
+
+The Android app's TrailMap plugin (android-app/plugins/TrailMap) gets MapLibre Native for Android with 3D mountains the
+same way: Gradle downloads it from one fixed commit of github.com/WxByte/maplibre-native-maven (raw files at a commit
+never change), and the plugin's `checkMapLibre` step stops the build if its sha256 differs. Like the iPhone's, it is a
+community build of MapLibre's terrain work (SatSquatch's globe-terrain branch, OpenGL ES, BSD-2-Clause), **not an
+official MapLibre release**; only the alex-only native map screens use it (since 2026-11-21).
+
+| File | From | sha256 |
+|---|---|---|
+| okhttp-4.12.0.jar | com.squareup.okhttp3:okhttp:4.12.0 (Maven Central, Apache-2.0; MapLibre's own download library, named by TrailMap to rewrite tile addresses) | `b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0` |
+| android-sdk-opengl-2026.10.19-globe-terrain-ss.13.aar | org.maplibre.gl:android-sdk-opengl:2026.10.19-globe-terrain-ss.13 (raw.githubusercontent.com/WxByte/maplibre-native-maven, commit `ff565a677d6f3ba8e7e0af4b1ceb3c53d3e9025a`) | `bdcdfda7b646a2a96659ddb5de34fca53c741d3221fe79c980ed6908ab4bfce1` |

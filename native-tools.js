@@ -6,7 +6,8 @@
 // point, the compass's target), and what the tool draws (window.tfToolLayers: the route, the recorded track, the sight
 // line...) goes back to be drawn over the trails, left out of the trails sent by native-map.js.
 // The native screen's "Tools" button lists the sport's tools; the one picked is started here with its own button.
-// On the website and in Android tfNative doesn't exist and this file does nothing.
+// On the website tfNative doesn't exist and this file does nothing; in an Android build without native tools yet
+// (tfNative.draws("tools") false) the tools stay in the trails native-map.js sends, and nothing here runs.
 (() => {
   "use strict";
   const N = window.tfNative, map = window.tfLeaflet, L = window.L;
@@ -78,7 +79,7 @@
   let memo = null, memoAt = 0;
   const toolSet = () => { const now = Date.now(); if (!memo || now - memoAt > 100) { memo = new Set(leaves()); memoAt = now; } return memo; };
   // native-map.js leaves these out of the trails (an older cached copy without skip just draws them twice).
-  if (N.skip) N.skip((l) => toolSet().has(l));
+  if (N.skip) N.skip((l) => toolSet().has(l), "tools");
 
   const r5 = (v) => Math.round(v * 1e5) / 1e5;
   const textOf = (h) => { const d = document.createElement("div"); d.innerHTML = String(h || ""); return d.textContent.replace(/\s+/g, " ").trim(); };
@@ -184,7 +185,7 @@
   // While the native screen is open: a look every 0.3 s (a few hundred tiny lookups, nothing when it's closed). A long
   // recorded track is sent at most every 3 s.
   setInterval(() => {
-    if (!N.isOpen()) { lastSig = null; return; }
+    if (!N.isOpen() || (N.draws && !N.draws("tools"))) { lastSig = null; return; }
     const was = ver, st = state();
     const geoNew = lastSig === null || (sig() !== lastSig && (geo.length < 100000 || Date.now() - sentAt > 3000));
     if (geoNew) { lastSig = null; refreshGeo(); }

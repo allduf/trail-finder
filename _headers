@@ -6,3 +6,17 @@
 /.well-known/assetlinks.json
   Content-Type: application/json
   Cache-Control: public, max-age=3600
+
+# Security headers for every page (security check 2026-11-21):
+#  - only this site may show its pages inside a frame, so another site can't hide a real Trail Finder button under its
+#    own (clickjacking): frame-ancestors, and X-Frame-Options for older browsers;
+#  - no plugins (object-src) and no changing where the page's own links point (base-uri);
+#  - files are used only as the type the server says (nosniff); other sites see only trailfinderapp.ca as where a visitor
+#    came from, never the rest of the address; browsers keep to https for a year (HSTS, this site only).
+/*
+  Content-Security-Policy: frame-ancestors 'self'; object-src 'none'; base-uri 'self'
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
+  Permissions-Policy: payment=(), usb=(), serial=(), hid=(), bluetooth=(), midi=()
