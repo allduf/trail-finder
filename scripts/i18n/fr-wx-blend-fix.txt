@@ -1,0 +1,4 @@
+Daily rain and snow (as water), highs and lows ||| Pluie et neige du jour (en eau), maximums et minimums
+Daily rain and snow (as water) ||| Pluie et neige du jour (en eau)
+Daily highs and lows ||| Maximums et minimums du jour
+Weather in BC: the 4-model daily blend now also covers places on Mountain time, and a day's rain or snow icon follows the models' amount. Forecasts stay estimates. ||| Météo en C.-B. : la combinaison quotidienne de 4 modèles couvre maintenant aussi les endroits à l'heure des Rocheuses, et l'icône de pluie ou de neige du jour suit la quantité des modèles. Les prévisions restent des estimations.

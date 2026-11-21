@@ -1,0 +1,8 @@
+Rain and snow (as water), temperature and wind ||| Pluie et neige (en eau), température et vent
+Rain and snow (as water) and temperature ||| Pluie et neige (en eau) et température
+Rain and snow (as water) and wind ||| Pluie et neige (en eau) et vent
+Rain and snow (as water) ||| Pluie et neige (en eau)
+Temperature and wind ||| Température et vent
+Temperature ||| Température
+Hours: every 3 hours from each model, filled in between ||| Heures : aux 3 heures pour chaque modèle, complétées entre les deux
+Weather in BC: hourly temperature, wind, rain and snow now also come from the middle of 4 weather models read directly from Environment Canada, ECMWF, NOAA and DWD. Forecasts stay estimates. ||| Météo en C.-B. : la température, le vent, la pluie et la neige heure par heure viennent maintenant aussi de la valeur du milieu de 4 modèles météo lus directement chez Environnement Canada, ECMWF, NOAA et DWD. Les prévisions restent des estimations.

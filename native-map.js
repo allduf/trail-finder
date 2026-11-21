@@ -49,6 +49,7 @@
   // get() returns its data as text (or null for nothing); it's sent with the 3D screen's opening, and again with
   // window.tfNative.send(key) whenever it changes while the screen is open. Load those files after this one, and guard
   // the call (window.tfNative && window.tfNative.addLayer) so an older cached copy of this file can't break them.
+  // A sport whose data lives inside its own file registers from there instead (hunting.js: "hunt").
   const feats = new Map();
   let open3d = false;
   const featureData = (threeD) => {
@@ -70,13 +71,24 @@
     // without waiting for its get().
     on(name, fn) { TrailMap.addListener(String(name), fn); },
     post(key, data) { if (open && open3d && TrailMap.layer) TrailMap.layer({ key: String(key), data: String(data) }).catch(() => {}); },
+    // "Details" on a feature's own card (one it showed with open -1, at its own spot): fn({ tapLat, tapLon }) opens
+    // it on the page and returns true; otherwise the page opens what's at that spot, as for a trail.
+    onDetails(fn) { if (typeof fn === "function") details.push(fn); },
   };
+  const details = [];
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
   const dashKey = (d, w) => {
     const n = String(d).trim().split(/[\s,]+/).map(Number);
     if (n.length === 2 && n[0] <= 1) return "0," + Math.max(0.1, (n[0] + n[1]) / Math.max(w, 1)).toFixed(2);
     return n.map((x) => Math.max(0.1, x / Math.max(w, 1)).toFixed(2)).join(",");
+  };
+  // The name written along a line in native 3D (lb): only a line's own label, as on the web 3D map (map3d.js), and MTB
+  // trail names stay off it in the other sports (alex 2026-11-02: bike trail names over Whistler read as clutter).
+  const label = (l) => {
+    const o = l.options, pane = o.renderer && o.renderer.options.pane;
+    if (!o.label || (document.body.classList.contains("sport-alt") && /^(allTrails|boxTrails|newTrails)$/.test(pane || ""))) return "";
+    return String(o.label);
   };
   const nameOf = (l) => {
     if (l.options.label) return String(l.options.label);
@@ -120,7 +132,7 @@
       const d = o.dashArray ? dashKey(o.dashArray, o.weight) : "";
       if (d) dashes.add(d);
       lines.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: parts },
-        properties: { ...props, c: o.color, w: o.weight || 3, o: o.opacity, d } });
+        properties: { ...props, c: o.color, w: o.weight || 3, o: o.opacity, d, ...(label(l) ? { lb: label(l) } : {}) } });
     });
     return {
       lines: JSON.stringify({ type: "FeatureCollection", features: lines }),
@@ -142,6 +154,7 @@
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
+    if (!(e.open >= 0)) for (const fn of details) { try { if (fn(e)) return; } catch {} }
     // "Details" on a trail's card: the trail opens as if tapped there (most trails are found by the map's own tap).
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
@@ -155,7 +168,9 @@
     open = true; open3d = threeD;
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
     const winter = threeD && document.body.classList.contains("sport-ski");
-    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), ...snapshot() })
+    // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
+    const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
+    TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snapshot() })
       .catch(() => { open = false; });
   }
   btn.addEventListener("click", () => openNative(false));
@@ -165,16 +180,25 @@
   const tf = (k, d) => { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const pressed = (id) => { const b = document.getElementById(id); return !!b && !b.hidden && b.getAttribute("aria-pressed") === "true"; };
   const GROUND = ["slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND, but avalanche
-  // The ground layers (native-ground.js) open in native 3D once this phone's app build has shown it draws them
-  // ("tf-native-ground", set the first time a native 3D map with them opens); older builds keep the web 3D map for them.
+  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // before hunting.js loads (its tfHunt.webOnly3d)
+  // The ground layers (native-ground.js: elevation lines, sun and shade, Skiing's ground colours, Hunting's slope angle and
+  // aspect) open in native 3D once this phone's app build has shown it draws them ("tf-native-ground", set the first
+  // time a native 3D map with them opens); older builds keep the web 3D map for them.
   const groundNative = () => { try { return localStorage.getItem("tf-native-ground") === "1"; } catch { return false; } };
   const avyNative = () => { try { return localStorage.getItem("tf-native-avy") === "1"; } catch { return false; } };
   const webOnly = () => {
     // Avalanche: native 3D only once this phone's build has shown its avalanche card (native-avalanche.js, "tf-native-avy").
     if ((tf("avy", false) === true || pressed("avyBtn")) && !(groundNative() && avyNative())) return true;
-    if (groundNative()) return false;
-    if (["contourBtn", "shadeBtn"].some(pressed)) return true;
-    if (!document.body.classList.contains("sport-ski")) return false;
+    const ground = groundNative();
+    if (!ground && ["contourBtn", "shadeBtn"].some(pressed)) return true;
+    // Hunting: its picture layers are drawn only by the web 3D map (NativeHunting.swift draws the rest). Not stored yet =
+    // Hunting's first-time set (zones, parks, scent cone): all native.
+    if (document.body.classList.contains("sport-hunt")) {
+      const hunt = tf("huntLayers2", null);
+      const web = ((window.tfHunt && window.tfHunt.webOnly3d) || HUNT_WEB).filter((k) => !ground || (k !== "slope" && k !== "aspect"));
+      if (Array.isArray(hunt) && hunt.some((k) => web.includes(k))) return true;
+    }
+    if (ground || !document.body.classList.contains("sport-ski")) return false;
     const shown = tf("skiLayers2", null);
     return Array.isArray(shown) && shown.some((k) => GROUND.includes(k));
   };

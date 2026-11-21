@@ -10,7 +10,7 @@ import MapLibre
 // is worked out from the square (as tfWinterShard and sharpBase in map3d.js). MapLibre can only fill {z}/{x}/{y} into
 // one address, so the style asks a made-up address (Self.host) and this object, as MapLibre's URL rewriter, turns it
 // into the real one. Lists of squares (~55 KB) are loaded once, before the Winter style is shown.
-final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
+final class WinterTiles: NSObject {
     static let shared = WinterTiles()
     static let host = "winter.trailfinder.invalid"
     static let credit = "Winter: Copernicus Sentinel-2 data 2025-2026 (ESA), via AWS Open Data"
@@ -30,27 +30,93 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
     private var loaded = false
     private var waiting: [(Bool) -> Void] = []
 
+    private var stale = false                  // the lists came from the copy kept for no signal: fetched again next load
     var ready: Bool { lock.lock(); defer { lock.unlock() }; return loaded }
+    var fresh: Bool { lock.lock(); defer { lock.unlock() }; return loaded && !stale }
+
+    // MapLibre's address rewriter (TileRewriter, shared with Moto's dirt roads): set once a 3D screen opens (the
+    // late-summer mountains need it too, no lists).
+    private var installed = false
+    func install() {
+        lock.lock()
+        let first = !installed
+        installed = true
+        lock.unlock()
+        if first { TileRewriter.add(host: Self.host) { [unowned self] in self.rewrite($0) } }
+        loadSummer()
+    }
+
+    // summer.json, the late-summer squares (zoom 11), so tiles elsewhere in the box aren't asked for (as map3d.js).
+    // Until it's in (or if it can't come), the site is asked and answers "not found" outside its squares.
+    private var summer: Set<Int>?
+    private var summerAsked = false
+    private func loadSummer() {
+        lock.lock()
+        if summerAsked { lock.unlock(); return }
+        summerAsked = true
+        lock.unlock()
+        guard let u = URL(string: "https://trailfinder-summer.pages.dev/trail-finder-summer/summer.json") else { return }
+        URLSession.shared.dataTask(with: u) { data, resp, _ in
+            guard let data = data, (resp as? HTTPURLResponse)?.statusCode == 200,
+                  let list = (try? JSONSerialization.jsonObject(with: data)) as? [[Int]] else {
+                self.lock.lock(); self.summerAsked = false; self.lock.unlock()   // asked again next time a 3D screen opens
+                return
+            }
+            let set = Set(list.filter { $0.count == 2 }.map { $0[0] * 4096 + $0[1] })
+            self.lock.lock(); self.summer = set; self.lock.unlock()
+        }.resume()
+    }
+
+    // The late-summer mountains over Esri's photo in the Sea to Sky (map3d.js SUMMER, SUMMER15, SUMMER_REV, SUMMER_BOUNDS):
+    // zooms 11-14 on one site, 15 on another. Outside its squares a tile is just "not found".
+    static let summerBounds = [-123.58, 49.6, -122.17, 50.74]
+    private static let summerRev = "?r=1"
+
+    // The Winter style's sources and layers (NativeBaseStyles.swift adds the heights, roads and names): bottom to top,
+    // Esri's photo far out only (where there's no winter photo, outside Canada), last winter's far-view photos of
+    // Canada, the 10 m Winter photos, the sharpened ones.
+    static func style(esri: String, credit: String) -> (sources: [String: Any], layers: [[String: Any]]) {
+        let at = { (kind: String) -> [String] in ["https://\(host)/\(kind)/{z}/{x}/{y}"] }
+        let canada = [-141.1, 41.6, -52, 70]
+        let sources: [String: Any] = [
+            "esri": ["type": "raster", "tileSize": 256, "maxzoom": 12, "attribution": credit, "tiles": [esri]],
+            "wide": ["type": "raster", "tileSize": 256, "minzoom": 3, "maxzoom": 10, "bounds": canada, "tiles": at("wide"), "attribution": WinterTiles.credit],
+            "winter": ["type": "raster", "tileSize": 256, "minzoom": 6, "maxzoom": 14, "bounds": [-141, 24, 146.5, 70], "tiles": at("w")],
+            "sharp": ["type": "raster", "tileSize": 256, "minzoom": 11, "maxzoom": 15, "bounds": canada, "tiles": at("s")]
+        ]
+        let layers: [[String: Any]] = [["id": "background", "type": "background", "paint": ["background-color": "#e8ebee"]]]
+            + ["esri", "wide", "winter", "sharp"].map { ["id": $0, "type": "raster", "source": $0] as [String: Any] }
+        return (sources, layers)
+    }
 
     // done(true) once the lists are in (on the main thread); done(false) when they couldn't come (offline).
     func load(_ done: @escaping (Bool) -> Void) {
         lock.lock()
-        if loaded { lock.unlock(); DispatchQueue.main.async { done(true) }; return }
+        if loaded && !stale { lock.unlock(); DispatchQueue.main.async { done(true) }; return }
         waiting.append(done)
         let first = waiting.count == 1
         lock.unlock()
         if !first { return }
-        MLNOfflineStorage.shared.delegate = self
+        install()
         var got = [[[Int]]?](repeating: nil, count: Self.lists.count)
+        var kept = false
         let gotLock = NSLock(), group = DispatchGroup()
         for (i, s) in Self.lists.enumerated() {
             guard let u = URL(string: s) else { continue }
             group.enter()
             URLSession.shared.dataTask(with: u) { data, resp, _ in
+                var list: [[Int]]?
                 if let data = data, (resp as? HTTPURLResponse)?.statusCode == 200 {
-                    let list = (try? JSONSerialization.jsonObject(with: data)) as? [[Int]]
-                    gotLock.lock(); got[i] = list; gotLock.unlock()
+                    list = (try? JSONSerialization.jsonObject(with: data)) as? [[Int]]
+                    if list != nil, let f = Self.kept(i) { try? data.write(to: f, options: .atomic) }
                 }
+                // No signal: the copy from the last time (offline maps, NativeOffline.swift), so Winter still opens.
+                var old = false
+                if list == nil, let f = Self.kept(i), let d = try? Data(contentsOf: f) {
+                    list = (try? JSONSerialization.jsonObject(with: d)) as? [[Int]]
+                    old = list != nil
+                }
+                gotLock.lock(); got[i] = list; if old { kept = true }; gotLock.unlock()
                 group.leave()
             }.resume()
         }
@@ -59,6 +125,8 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
             let ok = got[0] != nil || got[1] != nil
             self.lock.lock()
             if ok {
+                self.have = [:]   // a second load (the first came from the kept copy) starts over
+                self.some = [:]
                 for (site, list) in [got[0] ?? [], got[1] ?? []].enumerated() {
                     for p in list where p.count == 2 {
                         let k = p[0] * 4096 + p[1]
@@ -76,6 +144,7 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
                 self.sharpWest = Set(west)
                 self.sharpCa = Set((got[3] ?? []).filter { $0.count == 2 }.map { $0[0] * 4096 + $0[1] }).subtracting(self.sharpWest)
                 self.loaded = true
+                self.stale = kept
             }
             let calls = self.waiting
             self.waiting = []
@@ -84,9 +153,16 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
         }
     }
 
-    // MapLibre's URL rewriter (called off the main thread, for every download): only our made-up address is changed.
-    func offlineStorage(_ storage: MLNOfflineStorage, urlForResourceOf kind: MLNResourceKind, with url: URL) -> URL {
-        guard url.host == Self.host else { return url }
+    // Where each list's last copy is kept on the phone.
+    private static func kept(_ i: Int) -> URL? {
+        guard let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("trail-map", isDirectory: true) else { return nil }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("winter-list-\(i).json")
+    }
+
+    // MapLibre's URL rewriter (TileRewriter, called off the main thread, for every download) for our made-up address.
+    private func rewrite(_ url: URL) -> URL {
         let p = url.path.split(separator: "/").map(String.init)
         guard p.count == 4, let z = Int(p[1]), let x = Int(p[2]), let y = Int(p[3]) else { return Self.none }
         return real(p[0], z, x, y) ?? Self.none
@@ -122,6 +198,14 @@ final class WinterTiles: NSObject, MLNOfflineStorageDelegate {
             else if sharpWest.contains(sq) { site = "trailfinder-sharp-\((bx * 31 + by) % 10)" }
             else { return nil }
             return URL(string: "https://\(site).pages.dev/trail-finder-winter2/\(z)/\(x)/\(y).webp\(Self.sharpRev)")
+        case "sum":
+            guard z >= 11 && z <= 15 else { return nil }
+            lock.lock()
+            let known = summer
+            lock.unlock()
+            if let known = known, !known.contains(sq) { return nil }
+            let site = z == 15 ? "trailfinder-summer-15" : "trailfinder-summer"
+            return URL(string: "https://\(site).pages.dev/trail-finder-summer/\(z)/\(x)/\(y).webp\(Self.summerRev)")
         default: return nil
         }
     }
