@@ -18,6 +18,9 @@ import UIKit
 enum FishStyle {
     static let font = NSExpression(forConstantValue: ["Noto Sans Bold"])
     static func json(_ j: Any) -> NSExpression { NSExpression(mglJSONObject: j) }
+    // A plain colour goes to MapLibre as a UIColor: a "#rrggbb" text given as a plain value stops the app (MapLibre asks
+    // the value for its colour, which only a UIColor has). Colours inside an expression (["interpolate", ...]) are text.
+    static func colour(_ s: String) -> NSExpression { NSExpression(forConstantValue: NativeGround.colour(s) ?? UIColor.gray) }
     static func shape(_ obj: Any?) -> MLNShape? {
         guard let obj = obj, JSONSerialization.isValidJSONObject(obj), let d = try? JSONSerialization.data(withJSONObject: obj) else { return nil }
         return try? MLNShape(data: d, encoding: String.Encoding.utf8.rawValue)
@@ -110,7 +113,7 @@ final class NativeFishing: NativeLayer {
                 let l = MLNFillStyleLayer(identifier: id, source: w)
                 l.sourceLayerIdentifier = "water"
                 l.predicate = NSPredicate(mglJSONObject: filter)
-                l.fillColor = FishStyle.json(colour)
+                l.fillColor = FishStyle.colour(colour)
                 l.fillOpacity = NSExpression(forConstantValue: opacity)
                 under(l, FishStyle.overWater)
             }
@@ -118,7 +121,7 @@ final class NativeFishing: NativeLayer {
                 let l = MLNLineStyleLayer(identifier: id, source: w)
                 l.sourceLayerIdentifier = layer
                 l.predicate = NSPredicate(mglJSONObject: filter)
-                l.lineColor = FishStyle.json(colour)
+                l.lineColor = FishStyle.colour(colour)
                 l.lineWidth = FishStyle.json(width)
                 l.lineCap = NSExpression(forConstantValue: "round")
                 l.lineJoin = NSExpression(forConstantValue: "round")
@@ -153,7 +156,7 @@ final class NativeFishing: NativeLayer {
                 if let b = FishStyle.bounds(mb["b"]) { o[.coordinateBounds] = b }
                 let s = MLNVectorTileSource(identifier: "fs-mb", tileURLTemplates: [tiles], options: o)
                 add(s)
-                let colour = FishStyle.json((mb["c"] as? String) ?? "#1e40af")
+                let colour = FishStyle.colour((mb["c"] as? String) ?? "#1e40af")
                 let l = MLNLineStyleLayer(identifier: "fs-mb-line", source: s)
                 l.sourceLayerIdentifier = "Contours"
                 l.lineColor = colour
@@ -217,7 +220,7 @@ final class NativeFishing: NativeLayer {
         n.textHaloWidth = NSExpression(forConstantValue: 2)
         top(n)
         // The spot: a ring in the Fishing colour with a dot in the middle (.fs-spot in fishing.js).
-        let accent = FishStyle.json((data["accent"] as? String) ?? "#0c8599")
+        let accent = FishStyle.colour((data["accent"] as? String) ?? "#0c8599")
         let pin = MLNShapeSource(identifier: "fs-pin", shape: FishStyle.shape(data["pin"]), options: nil)
         add(pin)
         let ring = { (id: String, r: Double, fill: NSExpression, fillOpacity: Double, stroke: NSExpression, sw: Double) in
@@ -268,7 +271,7 @@ final class NativeFishCreeks: NativeLayer {
         for dashed in [false, true] {
             let l = MLNLineStyleLayer(identifier: dashed ? "fs-creek-far-i" : "fs-creek-far", source: src)
             l.predicate = NSPredicate(mglJSONObject: [dashed ? "==" : "!=", ["get", "i"], 1])
-            l.lineColor = FishStyle.json("#8cf0ff")
+            l.lineColor = FishStyle.colour("#8cf0ff")
             l.lineWidth = FishStyle.json(["interpolate", ["linear"], ["zoom"], 10, 1, 13, 1.6])
             l.lineOpacity = FishStyle.json(["interpolate", ["linear"], ["zoom"], 10, 0.85, 12, 1])
             l.lineCap = NSExpression(forConstantValue: "round")
@@ -327,7 +330,7 @@ final class NativeFishDepth: NativeLayer {
         p.circleColor = FishStyle.json(Self.colour)
         p.minimumZoomLevel = 13
         FishStyle.insert(p, style, screen: screen, above: FishStyle.overDepth)
-        let dark = FishStyle.json("#173a8a")
+        let dark = FishStyle.colour("#173a8a")
         let t = FishStyle.label("fs-q-label", src)
         t.predicate = NSPredicate(mglJSONObject: ["all", isLine, [">", ["get", "d"], 0]])
         t.symbolPlacement = NSExpression(forConstantValue: "line")
