@@ -27,6 +27,7 @@ import java.util.Map;
 @CapacitorPlugin(name = "TrailMap")
 public class TrailMapPlugin extends Plugin {
     private TrailMapScreen screen;
+    private TrailMapScreen closing;   // a screen fading out after "closed": still torn down if the app goes meanwhile
     private OnBackPressedCallback back;
 
     @PluginMethod
@@ -79,6 +80,7 @@ public class TrailMapPlugin extends Plugin {
     private void fromScreen(String name, JSObject data) {
         notifyListeners(name, data);
         if ("closed".equals(name)) {
+            closing = screen;
             screen = null;
             Activity a = getActivity();
             if (a != null) watchBack(a, false);
@@ -136,5 +138,9 @@ public class TrailMapPlugin extends Plugin {
     @Override protected void handleOnResume() { if (screen != null) screen.onResume(); }
     @Override protected void handleOnPause() { if (screen != null) screen.onPause(); }
     @Override protected void handleOnStop() { if (screen != null) screen.onStop(); }
-    @Override protected void handleOnDestroy() { if (screen != null) { screen.destroy(); screen = null; } }
+    @Override protected void handleOnDestroy() {
+        if (screen != null) { screen.destroy(); screen = null; }
+        if (closing != null) { closing.destroy(); closing = null; }
+        if (back != null) { back.remove(); back = null; }
+    }
 }

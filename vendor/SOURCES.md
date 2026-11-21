@@ -47,4 +47,5 @@ official MapLibre release**; only the alex-only native map screens use it (since
 
 | File | From | sha256 |
 |---|---|---|
+| okhttp-4.12.0.jar | com.squareup.okhttp3:okhttp:4.12.0 (Maven Central, Apache-2.0; MapLibre's own download library, named by TrailMap to rewrite tile addresses) | `b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0` |
 | android-sdk-opengl-2026.10.19-globe-terrain-ss.13.aar | org.maplibre.gl:android-sdk-opengl:2026.10.19-globe-terrain-ss.13 (raw.githubusercontent.com/WxByte/maplibre-native-maven, commit `ff565a677d6f3ba8e7e0af4b1ceb3c53d3e9025a`) | `bdcdfda7b646a2a96659ddb5de34fca53c741d3221fe79c980ed6908ab4bfce1` |
