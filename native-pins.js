@@ -40,7 +40,8 @@
     map.eachLayer((l) => {
       if (!tappable(l)) return;
       const o = l.options;
-      if (o.opacity === 0 || hiddenPane(o)) return;
+      // Moto's stops are drawn by their own native layer (NativeMoto.swift, native-moto.js).
+      if (o.opacity === 0 || o.pane === "moto" || hiddenPane(o)) return;
       const at = l.getLatLng();
       if (!near.contains(at)) return;
       const io = o.icon.options || {}, h = io.html, html = (io.className || "") + " " + (h && h.outerHTML != null ? h.outerHTML : String(h || ""));

@@ -13,8 +13,8 @@
 // first in its list, and opens on it when the page's map is on Winter (alex 2026-11-20: "can we have the Winter map like
 // that?"); app builds before that show Satellite.
 // "Native for viewing, web for tools" (alex 2026-11-20): on alex's iPhone, tapping the map's 3D button opens this native
-// 3D for looking around, unless a layer only the web 3D map draws is on (avalanche, slope angles and the other ground
-// layers, elevation lines, sun and shade): then the web 3D map opens as before, so avalanche ratings are only ever
+// 3D for looking around, unless a layer only the web 3D map draws is on (avalanche; before a build with native-ground.js's
+// layers, also slope angles and the other ground layers, elevation lines, sun and shade): then the web 3D map opens as before, so avalanche ratings are only ever
 // drawn by one piece of code (avalanche-exact). The native screen's "Layers" button goes to the web 3D map at the same
 // spot with its Layers open, for turning those on. Other ways into 3D (a tour, a plan, the app reopening in 3D) keep
 // opening the web 3D map. Only alex for now; the "(test)" label goes once friends have tried it.
@@ -53,6 +53,7 @@
   // open: the feature's own number; addLayer's third argument, onDetails(n, latlng), opens it here. tfNative.on(name, fn)
   // listens to a feature's own events from the native screen.
   const feats = new Map(), details = new Map();
+  // A sport whose data lives inside its own file registers from there instead (hunting.js: "hunt").
   let open3d = false;
   const featureData = (threeD) => {
     const out = {};
@@ -65,7 +66,6 @@
       if (typeof get === "function") feats.set(String(key), get);
       if (typeof onDetails === "function") details.set(String(key), onDetails);
     },
-    on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { if (open && open3d) { try { fn(e || {}); } catch {} } }); },
     send(key) {
       const get = feats.get(String(key));
       if (!open || !open3d || !get || !TrailMap.layer) return;
@@ -73,7 +73,15 @@
       if (d != null) TrailMap.layer({ key: String(key), data: String(d) }).catch(() => {});
     },
     isOpen: () => open && open3d,
+    // For a feature that talks with its native side (native-ground.js): its events from the 3D screen, and data sent
+    // without waiting for its get().
+    on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { try { fn(e || {}); } catch {} }); },
+    post(key, data) { if (open && open3d && TrailMap.layer) TrailMap.layer({ key: String(key), data: String(data) }).catch(() => {}); },
+    // "Details" on a feature's own card (one it showed with open -1, at its own spot): fn({ tapLat, tapLon }) opens
+    // it on the page and returns true; otherwise the page opens what's at that spot, as for a trail.
+    onDetails(fn) { if (typeof fn === "function") detailFns.push(fn); },
   };
+  const detailFns = [];
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
   const dashKey = (d, w) => {
@@ -157,6 +165,7 @@
       if (f) try { f(e.open, L.latLng(e.tapLat, e.tapLon)); } catch {}
       return;
     }
+    if (!(e.open >= 0)) for (const fn of detailFns) { try { if (fn(e)) return; } catch {} }
     // "Details" on a trail's card: the trail opens as if tapped there (most trails are found by the map's own tap).
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
@@ -181,10 +190,24 @@
   // ---------- the map's 3D button opens native 3D (alex only, see the top) ----------
   const tf = (k, d) => { try { const v = localStorage.getItem("tf:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } };
   const pressed = (id) => { const b = document.getElementById(id); return !!b && !b.hidden && b.getAttribute("aria-pressed") === "true"; };
-  const GROUND = ["avy", "slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND
+  const GROUND = ["slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];   // winter.js GROUND, but avalanche
+  const HUNT_WEB = ["land", "lots", "reach", "forest", "burns", "cut", "wet", "slope", "aspect"];   // before hunting.js loads (its tfHunt.webOnly3d)
+  // The ground layers (native-ground.js: elevation lines, sun and shade, Skiing's ground colours, Hunting's slope angle and
+  // aspect) open in native 3D once this phone's app build has shown it draws them ("tf-native-ground", set the first
+  // time a native 3D map with them opens); older builds keep the web 3D map for them.
+  const groundNative = () => { try { return localStorage.getItem("tf-native-ground") === "1"; } catch { return false; } };
   const webOnly = () => {
-    if (tf("avy", false) === true || ["avyBtn", "contourBtn", "shadeBtn"].some(pressed)) return true;
-    if (!document.body.classList.contains("sport-ski")) return false;
+    if (tf("avy", false) === true || pressed("avyBtn")) return true;   // avalanche stays in the web 3D map (its own step)
+    const ground = groundNative();
+    if (!ground && ["contourBtn", "shadeBtn"].some(pressed)) return true;
+    // Hunting: its picture layers are drawn only by the web 3D map (NativeHunting.swift draws the rest). Not stored yet =
+    // Hunting's first-time set (zones, parks, scent cone): all native.
+    if (document.body.classList.contains("sport-hunt")) {
+      const hunt = tf("huntLayers2", null);
+      const web = ((window.tfHunt && window.tfHunt.webOnly3d) || HUNT_WEB).filter((k) => !ground || (k !== "slope" && k !== "aspect"));
+      if (Array.isArray(hunt) && hunt.some((k) => web.includes(k))) return true;
+    }
+    if (ground || !document.body.classList.contains("sport-ski")) return false;
     const shown = tf("skiLayers2", null);
     return Array.isArray(shown) && shown.some((k) => GROUND.includes(k));
   };
