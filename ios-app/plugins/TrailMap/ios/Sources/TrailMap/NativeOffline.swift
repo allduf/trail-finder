@@ -55,7 +55,7 @@ final class NativeOffline: NativeLayer {
         for l in style.layers where l.identifier.hasPrefix("tf-off-") { style.removeLayer(l) }
         for s in style.sources where s.identifier.hasPrefix("tf-off-") { style.removeSource(s) }
         // Hidden, the photos aren't asked for at all (no retries with no signal). Winter's own photos stay.
-        for id in ["base", "esri"] { style.layer(withIdentifier: id)?.isVisible = !off }
+        for id in ["esri", "sat", "sumhi", "topo", "osm"] { style.layer(withIdentifier: id)?.isVisible = !off }
         showTag(off)
         guard off else { return }
 
