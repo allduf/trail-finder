@@ -140,11 +140,13 @@ async function backOut(what) {
     const open = await js(OPEN).catch(() => []);
     if (!open.length) return "";
     const href = await js("location.href").catch(() => "");
+    // What native.js will see (for a "did nothing" note): the map page's held step, the history entry, the focus.
+    const diag = await js(`JSON.stringify({ held: !!(window.tfNavHeld && window.tfNavHeld()), state: history.state, len: history.length, focus: document.activeElement ? document.activeElement.tagName + "#" + document.activeElement.id : "", panel: (document.getElementById("panel") || {}).className })`).catch(() => "");
     await key("KEYCODE_BACK", 900);
     if (!front()) return `Back closed the app while ${open.join(", ")} was open (${what})`;
     const after = await js(OPEN).catch(() => []);
     const href2 = await js("location.href").catch(() => "");
-    if (JSON.stringify(after) === JSON.stringify(open) && href === href2) return `Back did nothing with ${open.join(", ")} open (${what})`;
+    if (JSON.stringify(after) === JSON.stringify(open) && href === href2) return `Back did nothing with ${open.join(", ")} open (${what}) ${diag}`;
   }
   const left = await js(OPEN).catch(() => []);
   return left.length ? `still open after 4 Backs: ${left.join(", ")} (${what})` : "";
