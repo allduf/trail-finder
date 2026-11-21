@@ -247,11 +247,37 @@
     e.stopImmediatePropagation(); e.preventDefault();
     openNative(true);
   }, true);
-  // "Layers" on the native 3D screen: the web 3D map here, with its Layers open.
+  // "Layers" on the native 3D screen (builds from 2026-11-21): the page's own Layers over it; the native screen steps
+  // aside while Layers is open (native-tools.js "cover") and comes back as it was, with the map style picked there. If
+  // something now on can only be drawn by the web 3D map, the web 3D map takes over (nothing goes missing).
+  let toWeb = false, layersWatch = null;
+  const lmenu = document.getElementById("layersMenu");
+  TrailMap.addListener("layers", () => {
+    const lb = document.getElementById("layersBtn");
+    // Only with the page side that steps the screen aside (native-tools.js "tools"); otherwise no answer, and the
+    // screen goes the old way after 1.5 s (the web 3D map with its Layers).
+    if (!open || !open3d || !lb || !lmenu || !feats.has("tools")) return;
+    TrailMap.layer({ key: "layers", data: "ok" }).catch(() => {});   // answered: the screen waits for the step aside
+    const base0 = (document.getElementById("basemap") || {}).value;
+    if (lmenu.hidden) lb.click();
+    window.tfNative.send("tools");   // steps aside now, not at the next look
+    if (layersWatch) layersWatch.disconnect();
+    layersWatch = new MutationObserver(() => {
+      if (!lmenu.hidden) return;
+      layersWatch.disconnect(); layersWatch = null;
+      if (!open) return;
+      if (webOnly()) { toWeb = true; TrailMap.close().catch(() => { toWeb = false; }); return; }
+      const base = (document.getElementById("basemap") || {}).value;
+      if (base && base !== base0) TrailMap.layer({ key: "base", data: base }).catch(() => {});
+    });
+    layersWatch.observe(lmenu, { attributes: true, attributeFilter: ["hidden"] });
+  });
+  // "Layers" on an older native 3D screen: the web 3D map here, with its Layers open.
   TrailMap.addListener("closed", (e) => {
+    if (toWeb) { toWeb = false; if (map3d && !map.getContainer().classList.contains("is3d")) map3d.click(); return; }
     if (!e.layers || !map3d) return;
     if (!map.getContainer().classList.contains("is3d")) map3d.click();
     const layers = document.getElementById("layersBtn");
-    if (layers) setTimeout(() => layers.click(), 600);
+    if (layers) setTimeout(() => { if (!lmenu || lmenu.hidden) layers.click(); }, 600);
   });
 })();

@@ -130,10 +130,26 @@
   let ver = 0, geo = "", lastSig = null, lastState = "", sentAt = 0;
   // A sheet of the page's own over everything (a dialog: the trip terms before the first plan, a Save box...): the
   // native screen steps aside until it's answered.
-  const covered = () => [...document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"]')].some((el) => {
-    const r = el.getBoundingClientRect();
-    return r.width > innerWidth / 2 && r.height > innerHeight / 3 && getComputedStyle(el).visibility !== "hidden";
-  });
+  // Only a dialog really showing: on the screen, not see-through, and on top at its middle (alex 2026-11-21: native 3D
+  // stepped aside for one nobody could see). The page's Layers counts too (native-map.js opens it over native 3D).
+  const covered = () => {
+    const lm = document.getElementById("layersMenu");
+    if (lm && !lm.hidden) return true;
+    return [...document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"]')].some((el) => {
+      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+      if (r.width <= innerWidth / 2 || r.height <= innerHeight / 3 || cs.visibility === "hidden" || +cs.opacity < 0.1) return false;
+      if (r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) return false;
+      // A few points inside it: any of them showing the dialog (or something of it) on top counts.
+      const pts = [[0.5, 0.5], [0.5, 0.25], [0.5, 0.75], [0.25, 0.5], [0.75, 0.5]];
+      return pts.some(([fx, fy]) => {
+        const x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width * fx)), y = Math.min(innerHeight - 1, Math.max(0, r.top + r.height * fy));
+        const hits = document.elementsFromPoint(x, y);
+        const i = hits.findIndex((h) => el.contains(h) || h.contains(el));
+        // On top, or under only things that let it show (see-through or a bit of the page's frame over it).
+        return i === 0 || (i > 0 && hits.slice(0, i).every((h) => +getComputedStyle(h).opacity < 0.1 || getComputedStyle(h).pointerEvents === "none"));
+      });
+    });
+  };
   const state = () => {
     const tool = N.isOpen() ? current() : null, cover = N.isOpen() && covered();
     const box = tool && !cover ? insets() : { top: 0, bottom: 0 };
