@@ -265,7 +265,7 @@
     const areas = load();
     drawOutlines();
     $("[data-saved-h]").hidden = !areas.length;
-    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
+    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
 ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
     const use = $("[data-use]");
     use.textContent = "";
@@ -583,6 +583,28 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   setTimeout(libsTopUp, 25000);
   window.addEventListener("online", () => setTimeout(libsTopUp, 5000));
 
+  // Leaving the app while a save runs (alex 2026-11-21): the phone may pause it, and closing the app stops it. A
+  // notification on the phone itself (no server) says so a few seconds after the app goes to the background, and is
+  // taken back if the app comes back first. Only when notifications are already allowed: it never asks for them.
+  const CAP = window.Capacitor;
+  const LN = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (!CAP.isPluginAvailable || CAP.isPluginAvailable("LocalNotifications"))
+    ? (CAP.registerPlugin ? CAP.registerPlugin("LocalNotifications") : (CAP.Plugins || {}).LocalNotifications) : null;
+  const LEFT_ID = 734115;
+  const tr = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
+  function leftNotice(on) {
+    if (!LN) return;
+    try {
+      if (!on) { LN.cancel({ notifications: [{ id: LEFT_ID }] }).catch(() => {}); return; }
+      LN.checkPermissions().then((p) => {
+        if (!p || p.display !== "granted" || !busy) return;
+        return LN.schedule({ notifications: [{ id: LEFT_ID, title: tr("Offline map not finished"),
+          body: `${savingName || ""}: ${tr("the save may pause while Trail Finder isn't open. Open the app to finish it.")}`,
+          schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true } }] });
+      }).catch(() => {});
+    } catch {}
+  }
+  document.addEventListener("visibilitychange", () => { if (busy) leftNotice(document.hidden); });
+
   const needAccount = () => (window.tfAccount && window.tfAccount.require ? window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after.") : Promise.resolve(true));
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
   // files never come, so it can always be finished or deleted from there. auto: a try no one tapped (autoFinish).
@@ -600,15 +622,21 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     showState("", `Saving ${name}…`, "Getting the map style…", 0, stop);
     tell(name);
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    // The screen stays on while saving: a phone that locks itself pauses the save.
+    let lock = null;
+    try { if (navigator.wakeLock) lock = await navigator.wakeLock.request("screen"); } catch {}
     let sources = null, bytes = 0, failed = [];
     const old0 = id && load().find((x) => x.id === id), sport = old0 ? sportOf(old0) : sportNow(), d3 = old0 ? !!old0.d3 : $("[data-3d]").checked;
     const ext = await extras(box, sport, d3, old0 ? old0.huntLayers : undefined), huntLayers = ext.hunt ? ext.hunt.layers : undefined;
-    const record = () => {
+    // partial: while the save runs (alex 2026-11-21, "can the app continue to download an offline map if you quit the
+    // app?"): the area is in the list from the start as not finished, so a save cut short by leaving or closing the
+    // app is picked up by itself the next time it opens (autoFinish), instead of vanishing from the list.
+    const record = (partial) => {
       if (!sources) return;
       const areas = load(), old = areas.find((x) => x.id === id);
       const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), sport, ski: sport === "ski", d3, ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
       if (old) { delete old.missing; delete old.missingUrls; }
-      if (failed.length || busy.stop) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
+      if (failed.length || busy.stop || partial) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
       if (old) Object.assign(old, entry); else areas.push(entry);
       id = entry.id;
       save(areas);
@@ -623,8 +651,10 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       const total = tiles.length + data.length + parts.extra.length + LIBS.length + ext.tiles.length;
       let done = 0, shown = 0;
       busy.left = total;
+      record(true);
       const tick = () => {
         done++; busy.left = total - done; busy.pct = Math.floor((100 * done) / total);
+        if (done % 250 === 0) record(true);
         if (busy.pct === shown && done < total) return;
         shown = busy.pct;
         showState("", `Saving ${name}… ${busy.pct}%`, `${done.toLocaleString()} of ${total.toLocaleString()} files. Keep the app open until it says Saved.`, busy.pct, stop);
@@ -655,6 +685,8 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     // A cabin trip saved again with a new square: the old save under its name goes once the new one is in the list,
     // finished or not (its tiles the new one shares stay).
     if (busy.replace && id) for (;;) { const areas = load(), o = areas.find((x) => x.name === name && x.id !== id); if (!o) break; await remove(o, areas).catch(() => {}); if (load().includes(o) || load().some((x) => x.id === o.id)) break; }
+    if (lock) lock.release().catch(() => {});
+    leftNotice(false);
     busy = null; savingName = null;
     if (drawn) setDrawn(null);   // the square is in the list now (Try again uses its own box)
     tell(name);
