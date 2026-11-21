@@ -595,18 +595,19 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   // say no and nothing changes).
   const GPS = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (!CAP.isPluginAvailable || CAP.isPluginAvailable("TrailGps"))
     ? (CAP.registerPlugin ? CAP.registerPlugin("TrailGps") : (CAP.Plugins || {}).TrailGps) : null;
-  let keptPct = -1;
+  let keptPct = -1, keptOk = false;   // keptOk: this app build has keepGoing (Android then shows its own notification)
   function keepGoing(on, name, pct) {
     if (!GPS || !GPS.keepGoing) return;
     if (on && keptPct >= 0 && pct - keptPct < 5 && pct < 100) return;   // the notification moves in 5% steps
     keptPct = on ? pct : -1;
-    try { GPS.keepGoing({ on, title: tr("Saving offline map"), text: `${name}: ${pct}%` }).catch(() => {}); } catch {}
+    try { GPS.keepGoing({ on, title: tr("Saving offline map"), text: `${name}: ${pct}%` }).then(() => { if (on) keptOk = true; }, () => {}); } catch {}
   }
   const tr = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   function leftNotice(on) {
     if (!LN) return;
     try {
       if (!on) { LN.cancel({ notifications: [{ id: LEFT_ID }] }).catch(() => {}); return; }
+      if (keptOk && CAP.getPlatform && CAP.getPlatform() === "android") return;   // it keeps going there, with its own notification
       LN.checkPermissions().then((p) => {
         if (!p || p.display !== "granted" || !busy) return;
         return LN.schedule({ notifications: [{ id: LEFT_ID, title: tr("Offline map not finished"),
