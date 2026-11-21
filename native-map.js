@@ -215,10 +215,15 @@
   function openNative(threeD) {
     const close = document.getElementById("lmClose");
     if (close) close.click();
-    const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm", base = sel === "advtopo" ? "vector" : sel;   // the native map has no ADV topo: its closest
+    const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm";
     open = true; open3d = threeD;
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
     const winter = threeD && document.body.classList.contains("sport-ski");
+    // Skiing's 3D photos are Winter, as on the web 3D map (alex 2026-11-21: "it should be winter"), whatever photos the
+    // flat map shows; Summer only if picked for Skiing's 3D before (map3d.js "3dPhotosBy"). The native map has no ADV
+    // topo: its closest is "vector".
+    const photos3d = (() => { const o = tf("3dPhotosBy", null); return o && o.ski; })();
+    const base = sel === "advtopo" ? "vector" : winter && /^(sat|sathybrid|winter)$/.test(sel) && photos3d !== "sharp" ? "winter" : sel;
     // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
     const snap = snapshot();
