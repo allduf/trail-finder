@@ -12,14 +12,19 @@ const plain = (h) => String(h || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, 
 
 export async function addPhotoCredits(routes) {
   const file = (p) => decodeURIComponent(p.page.split('/wiki/File:')[1] || '').replace(/_/g, ' ');
-  const withPhoto = routes.filter((r) => r.photo && r.photo.page);
+  for (const r of routes) if (r.photo && !r.photo.page) delete r.photo;   // no page = no way to check its licence
+  const withPhoto = routes.filter((r) => r.photo);
   const names = [...new Set(withPhoto.map((r) => file(r.photo)).filter(Boolean))];
   const meta = {};
   for (let i = 0; i < names.length; i += 40) {
     const u = 'https://en.wikipedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=extmetadata'
       + '&iiextmetadatafilter=Artist|LicenseShortName|NonFree&titles=' + encodeURIComponent(names.slice(i, i + 40).map((n) => 'File:' + n).join('|'));
-    let j = null; for (let k = 0; k < 4 && !j; k++) { try { j = await (await fetch(u, { headers: UA })).json(); } catch { await sleep(3000 * 2 ** k); } }
-    if (!j) throw new Error('Wikipedia API did not answer');
+    let j = null;
+    for (let k = 0; k < 4 && !j; k++) {
+      try { const res = await fetch(u, { headers: UA }); const x = res.ok ? await res.json() : null; if (x && !x.error && x.query) j = x; } catch {}
+      if (!j) await sleep(3000 * 2 ** k);
+    }
+    if (!j) throw new Error('Wikipedia API did not answer');   // never drop photos on an outage
     const back = {}; for (const m of j.query?.normalized || []) back[m.to] = m.from;
     for (const pg of Object.values(j.query?.pages || {})) {
       const em = pg.imageinfo?.[0]?.extmetadata || {}; const t = (back[pg.title] || pg.title).replace(/^File:/, '');
@@ -41,6 +46,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const f = new URL('../data/moto-routes.json', import.meta.url);
   const d = JSON.parse(fs.readFileSync(f, 'utf8'));
   await addPhotoCredits(d.routes);
-  d.note = d.note.replace('photo from the Wikipedia source page', 'photo from the Wikipedia source page, with its author and licence');
+  if (!/with its author and licence/.test(d.note)) d.note = d.note.replace('photo from the Wikipedia source page', 'photo from the Wikipedia source page, with its author and licence');
   fs.writeFileSync(f, JSON.stringify(d));
 }
