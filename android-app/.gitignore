@@ -1,4 +1,4 @@
 node_modules/
-plugins/TrailGps/android/build/
+plugins/*/android/build/
 out/
 shots/

@@ -43,3 +43,14 @@ Apple's StoreKit (part of iOS, nothing to download).
 | File | From | sha256 |
 |---|---|---|
 | review-2.0.2.aar | com.google.android.play:review:2.0.2 (dl.google.com/dl/android/maven2) | `1602026678231dba0f7482d1244e45ff83d9ff22fc8b6d6be8961228ac7a32dd` |
+
+The Android app's TrailMap plugin (android-app/plugins/TrailMap) gets MapLibre Native for Android with 3D mountains the
+same way: Gradle downloads it from one fixed commit of github.com/WxByte/maplibre-native-maven (raw files at a commit
+never change), and the plugin's `checkMapLibre` step stops the build if its sha256 differs. Like the iPhone's, it is a
+community build of MapLibre's terrain work (SatSquatch's globe-terrain branch, OpenGL ES, BSD-2-Clause), **not an
+official MapLibre release**; only the alex-only native map screens use it (since 2026-11-21).
+
+| File | From | sha256 |
+|---|---|---|
+| okhttp-4.12.0.jar | com.squareup.okhttp3:okhttp:4.12.0 (Maven Central, Apache-2.0; MapLibre's own download library, named by TrailMap to rewrite tile addresses) | `b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0` |
+| android-sdk-opengl-2026.10.19-globe-terrain-ss.13.aar | org.maplibre.gl:android-sdk-opengl:2026.10.19-globe-terrain-ss.13 (raw.githubusercontent.com/WxByte/maplibre-native-maven, commit `ff565a677d6f3ba8e7e0af4b1ceb3c53d3e9025a`) | `bdcdfda7b646a2a96659ddb5de34fca53c741d3221fe79c980ed6908ab4bfce1` |

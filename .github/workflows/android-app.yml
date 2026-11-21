@@ -21,7 +21,7 @@ on:
     branches: [main]
     paths: ["android-app/**", ".github/workflows/android-app.yml"]
   pull_request:
-    paths: ["android-app/**", ".github/workflows/android-app.yml", "native.js", "native-gps.js", "app-update.js", "notify.js", "usage.js"]
+    paths: ["android-app/**", ".github/workflows/android-app.yml", "native.js", "native-*.js", "app-update.js", "notify.js", "usage.js"]
   workflow_dispatch:
 
 permissions:
@@ -73,7 +73,9 @@ jobs:
           arch: x86_64
           profile: pixel_7
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # swangle_indirect (ANGLE on SwiftShader): with swiftshader_indirect the simulator itself went offline right
+          # after the native 3D map (MapLibre, OpenGL ES 3) opened.
+          emulator-options: -no-window -gpu swangle_indirect -noaudio -no-boot-anim -camera-back none
           working-directory: android-app
           script: bash test/phone-check.sh
       - uses: actions/upload-artifact@v4

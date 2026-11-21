@@ -19,6 +19,14 @@ apply from: "variables.gradle"
 
 allprojects {
     repositories {
+        // MapLibre Native with 3D mountains for the TrailMap plugin (plugins/TrailMap/android/build.gradle): a community
+        // build read from one fixed commit, for that one library only; its sha256 is checked before every build.
+        exclusiveContent {
+            forRepository {
+                maven { url = "https://raw.githubusercontent.com/WxByte/maplibre-native-maven/ff565a677d6f3ba8e7e0af4b1ceb3c53d3e9025a" }
+            }
+            filter { includeModule("org.maplibre.gl", "android-sdk-opengl") }
+        }
         google()
         mavenCentral()
     }

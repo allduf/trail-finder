@@ -1,0 +1,64 @@
+ext {
+    androidxCoreVersion = project.hasProperty('androidxCoreVersion') ? rootProject.ext.androidxCoreVersion : '1.17.0'
+    androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.7.1'
+}
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace = "com.allduf.trailmap"
+    compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
+    defaultConfig {
+        minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+        targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    lint {
+        abortOnError = false
+    }
+}
+
+// MapLibre Native for Android (free, open, no key) WITH 3D mountains. The official release has none yet (maplibre-native
+// issue #252), so, as on the iPhone (ios-app/plugins/TrailMap/Package.swift), this is a community build of MapLibre's
+// terrain work, NOT an official MapLibre release: SatSquatch's globe-terrain build, published by WxByte
+// (github.com/WxByte/maplibre-native-maven, OpenGL ES, every ABI, BSD-2-Clause). It's read from one fixed commit of that
+// repository (raw files never change at a commit; the repository is in android/build.gradle, as the app needs it too)
+// and its sha256 is checked below before every build; both also in vendor/SOURCES.md. Only the alex-only native map
+// screens use it.
+def MAPLIBRE = "org.maplibre.gl:android-sdk-opengl:2026.10.19-globe-terrain-ss.13"
+def MAPLIBRE_SHA256 = "bdcdfda7b646a2a96659ddb5de34fca53c741d3221fe79c980ed6908ab4bfce1"
+
+
+dependencies {
+    implementation project(':capacitor-android')
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation MAPLIBRE
+    // MapLibre downloads with OkHttp; TileRewriter.java gives it a client that turns our made-up tile addresses into real ones.
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+}
+
+// The engine file must be exactly the one checked: anything else stops the build.
+tasks.register("checkMapLibre") {
+    doLast {
+        def cfg = configurations.detachedConfiguration(dependencies.create(MAPLIBRE + "@aar"))
+        cfg.transitive = false
+        def f = cfg.singleFile
+        def sha = java.security.MessageDigest.getInstance("SHA-256").digest(f.bytes).encodeHex().toString()
+        if (sha != MAPLIBRE_SHA256) throw new GradleException("MapLibre engine file changed: sha256 " + sha + ", expected " + MAPLIBRE_SHA256)
+    }
+}
+preBuild.dependsOn("checkMapLibre")

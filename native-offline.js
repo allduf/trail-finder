@@ -6,7 +6,8 @@
 //     native map, so it keeps its own (the same map, heights and Winter photos). It starts after the web save is done,
 //     follows Try again and Delete, and carries on by itself with signal. Only on alex's devices for now (tf-admin,
 //     like native 3D itself), and its line in the Offline maps list says how it's going.
-// On the website, Android and app builds without the TrailMap plugin, this file does nothing.
+// On the website and app builds without the TrailMap plugin, this file does nothing; nor in an Android build without its
+// own offline copies yet (tfNative.draws("offline")).
 (() => {
   "use strict";
   const C = window.Capacitor;
@@ -36,6 +37,7 @@
   let packs = {}, timer = 0;
   const sync = () => {
     if (!admin() || !TrailMap.offline) return;
+    if (N() && N().draws && !N().draws("offline")) return;   // Android: no native offline copies yet
     const areas = load().filter((a) => a.d3).map((a) => ({ id: a.id, box: a.box, ...(a.boxes ? { boxes: a.boxes } : {}), ski: (a.sport || (a.ski ? "ski" : "mtb")) === "ski", sharp: +(a.dz0 || a.dz) >= 15 }));   // dz0: the detail first saved: a later "Full detail" doesn't make the iPhone fetch its whole copy again
     TrailMap.offline({ areas }).then((r) => { packs = (r && r.areas) || {}; paint(); }).catch(() => {});
   };

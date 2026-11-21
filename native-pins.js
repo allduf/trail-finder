@@ -4,7 +4,8 @@
 // Each pin goes as a point with its name, what it is, a picture kind and its colour. Tapping one there shows the usual
 // card; its Details comes back here and opens the pin's own card, the one a tap on the flat map opens (the live
 // webcam, the hut's facts, the parking's card...), so every pin works as it does on the web without a second copy of
-// its card. Nothing to do on the website or in Android (native-map.js makes tfNative only inside the iPhone app).
+// its card. Nothing to do on the website (native-map.js makes tfNative only inside the phone apps); an Android build
+// without native pins yet ignores them, and its 3D button keeps opening the web 3D map (native-map.js drawsAll).
 (() => {
   "use strict";
   const N = window.tfNative, map = window.tfLeaflet, L = window.L;

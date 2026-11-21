@@ -1,5 +1,6 @@
-// Native map (test), inside the iPhone app only, in MTB: Layers > "📱 Native map (test)" opens the trail map drawn by the
-// iPhone itself (MapLibre Native, the TrailMap plugin in ios-app/plugins/TrailMap) instead of this page, to feel whether
+// Native map (test), inside the phone apps only, in MTB: Layers > "Native map (test)" opens the trail map drawn by the
+// phone itself (MapLibre Native, the TrailMap plugin in ios-app/plugins/TrailMap, and in android-app/plugins/TrailMap
+// since 2026-11-21: alex wanted native 3D on Android too) instead of this page, to feel whether
 // it pans and zooms smoother (alex 2026-10-30, Upgrade 3 of the review). It shows what the flat map shows (trails, their
 // colours and dashes, the dots), copied the way map3d.js copies them for 3D. As it moves, this page's map follows out of
 // sight so the trails there load, and they're sent again. Tapping a trail shows its name; "Details" comes back here and
@@ -31,11 +32,11 @@
 
   const btn = document.createElement("button");
   btn.type = "button"; btn.id = "nativeMapBtn";
-  btn.title = "Try the map drawn by the iPhone itself: does it move smoother?";
-  btn.textContent = "📱 Native map (test)";
+  btn.title = "Try the map drawn by the phone itself: does it move smoother?";
+  btn.textContent = "Native map (test)";
   const btn3d = document.createElement("button");
   btn3d.type = "button"; btn3d.id = "native3dBtn";
-  btn3d.title = "Try the 3D map drawn by the iPhone itself (photos and trails only): does it turn and tilt smoother?";
+  btn3d.title = "Try the 3D map drawn by the phone itself: does it turn and tilt smoother?";
   btn3d.textContent = "Native 3D (test)";
   tools.after(btn, btn3d);
   const isAdmin = () => { try { return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
@@ -57,13 +58,20 @@
   // tfNative.skip(fn): fn(layer) true for a layer a feature sends itself (a tool's route, track or sight line,
   // native-tools.js): it's left out of the trails here. tfNative.hit(i): the page's trail number i sent last.
   const feats = new Map(), details = new Map(), skips = [];
-  const skipped = (l) => skips.some((f) => { try { return f(l); } catch { return false; } });
+  // Android (android-app/plugins/TrailMap, since 2026-11-21) gets its native 3D features one at a time: draws(key) says
+  // whether this build draws a feature itself (TrailMap.features). On Android, nothing is worked out or sent for a
+  // feature it doesn't draw, and what that feature would draw stays in the trails sent here. On the iPhone, always true
+  // (as before: an older build ignores keys it doesn't know).
+  const android = !!(C.getPlatform && C.getPlatform() === "android");
+  const draws = (key) => !android || (!!nativeKeys && nativeKeys.has(String(key)));
+  // A skip belongs to the feature that draws those layers itself (native-tools.js: "tools").
+  const skipped = (l) => skips.some((s) => { try { return draws(s.key) && s.fn(l); } catch { return false; } });
   // A sport whose data lives inside its own file registers from there instead (hunting.js: "hunt").
   let open3d = false;
   const featureData = (threeD) => {
     const out = {};
     if (!threeD) return out;
-    for (const [k, get] of feats) { try { const d = get(); if (d != null) out[k] = String(d); } catch {} }
+    for (const [k, get] of feats) { if (!draws(k)) continue; try { const d = get(); if (d != null) out[k] = String(d); } catch {} }
     return out;
   };
   window.tfNative = {
@@ -73,7 +81,7 @@
     },
     send(key) {
       const get = feats.get(String(key));
-      if (!open || !open3d || !get || !TrailMap.layer) return;
+      if (!open || !open3d || !get || !TrailMap.layer || !draws(key)) return;
       let d = null; try { d = get(); } catch {}
       if (d != null) TrailMap.layer({ key: String(key), data: String(d) }).catch(() => {});
     },
@@ -81,18 +89,21 @@
     // For a feature that talks with its native side (native-ground.js): its events from the 3D screen, and data sent
     // without waiting for its get().
     on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { try { fn(e || {}); } catch {} }); },
-    post(key, data) { if (open && open3d && TrailMap.layer) TrailMap.layer({ key: String(key), data: String(data) }).catch(() => {}); },
+    post(key, data) { if (open && open3d && TrailMap.layer && draws(key)) TrailMap.layer({ key: String(key), data: String(data) }).catch(() => {}); },
     // "Details" on a feature's own card (one it showed with open -1, at its own spot): fn({ tapLat, tapLon }) opens
     // it on the page and returns true; otherwise the page opens what's at that spot, as for a trail.
     onDetails(fn) { if (typeof fn === "function") detailFns.push(fn); },
     // has(key): this app build draws that feature itself (TrailMap.features; older builds have no such call).
     has: (key) => !!nativeKeys && nativeKeys.has(String(key)),
+    // draws(key): whether to send this feature's data at all (see draws above); a feature's page side checks it before
+    // work done only for the native screen.
+    draws,
     // full(): this iPhone's app build draws everything natively, so native 3D is its only 3D map (no web 3D on it).
     full: () => fullNative(),
     // moveWait(ms): how long the page waits after the native map moves before sending the trails again (500 ms); a
     // Flyover moves it every second, so it waits longer meanwhile. Nothing: back to 500.
     moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
-    skip(fn) { if (typeof fn === "function") skips.push(fn); },
+    skip(fn, key = "tools") { if (typeof fn === "function") skips.push({ fn, key: String(key) }); },
     hit: (i) => hits[i] || null,
   };
   const detailFns = [];
@@ -268,8 +279,12 @@
   // at { lat, lon, zoom } (MapLibre's zoom) where the 3D button would open it, and the answer is a promise of true once
   // it's open; false (now, or if it couldn't open) means the web 3D map is the one (not alex, a web-only layer on,
   // already in 3D).
+  // Android (android-app/plugins/TrailMap, alex 2026-11-21): its native 3D is built up feature by feature, so the 3D
+  // button opens it only once that build draws every feature this page sends to native 3D (TrailMap.features); until
+  // then the web 3D map opens as before and nothing goes missing, and "Native 3D (test)" in Layers opens it to try.
+  const drawsAll = () => !android || (!!nativeKeys && [...feats.keys()].every((k) => nativeKeys.has(k)));
   window.tfNative.view = (at) => {
-    if (open || !nativeOn() || map.getContainer().classList.contains("is3d") || webOnly()) return Promise.resolve(false);
+    if (open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return Promise.resolve(false);
     if (at && isFinite(at.lat) && isFinite(at.lon)) map.setView([at.lat, at.lon], Math.round((at.zoom || 13) + 1), { animate: false });
     return openNative(true);
   };
@@ -291,7 +306,7 @@
   const map3d = document.getElementById("btn3d");
   if (map3d) map3d.addEventListener("click", (e) => {
     // Only a real tap, going from the flat map into 3D: other scripts click this button to open the web 3D map.
-    if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || webOnly()) return;
+    if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return;
     e.stopImmediatePropagation(); e.preventDefault();
     openNative(true);
   }, true);
