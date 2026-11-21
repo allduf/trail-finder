@@ -24,7 +24,7 @@ if ! adb shell dumpsys activity activities | grep -E "topResumedActivity|mResume
 fi
 status=0
 node test/phone-check.mjs || status=$?
-adb logcat -d -v time | grep -E "AndroidRuntime|$APP|chromium|Capacitor|TrailGps|MapLibre|Mbgl|libc|DEBUG|Fatal" | tail -400 > shots/logcat.txt || true
+timeout 30 adb logcat -d -v time | grep -E "AndroidRuntime|$APP|chromium|Capacitor|TrailGps|MapLibre|Mbgl|libc|DEBUG|Fatal" | tail -400 > shots/logcat.txt || true
 # A failed check: the app's crashes and the map engine's own lines in the log too (no artifact download needed).
 [ $status = 0 ] || grep -E "FATAL|Fatal signal|AndroidRuntime|MapLibre|Mbgl|backtrace|#0[0-9] pc" shots/logcat.txt | tail -60 || true
 [ $status = 0 ] && { node test/fgs-video.mjs || true; }
