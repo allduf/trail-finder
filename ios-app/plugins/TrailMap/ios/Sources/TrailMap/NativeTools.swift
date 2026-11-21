@@ -17,13 +17,14 @@ import UIKit
 //            "" (leave it), "menu": [the tools' names], "words": { English: the page's language } }
 //   version: the shapes' version; shapes (only read when the version changes, may be empty then):
 //            { "lines": GeoJSON (c colour, w width, o opacity, d 1 dashed), "dots": GeoJSON (r, c stroke, w, f fill, fo),
-//              "labels": GeoJSON (t text, c colour) }
+//              "labels": GeoJSON (t text, c colour), "arrows": GeoJSON (b bearing from north, c fill, e edge, img) }
+//   A page from before arrows sends none; a build from before them leaves them out.
 // Here -> page: "toolStart" { i } (the menu's number), "toolTap" { lat, lon, i } (i: the trail tapped, -1 for none).
 // Nothing is drawn while no tool has anything on the map. No travel advice and no new words of our own: the words are
 // the page's (CLAUDE.md).
 final class NativeTools: NativeLayer {
     let key = "tools"
-    private static let lines = "tf-tool-lines", dots = "tf-tool-dots", labels = "tf-tool-labels"
+    private static let lines = "tf-tool-lines", dots = "tf-tool-dots", labels = "tf-tool-labels", arrows = "tf-tool-arrows"
     private weak var screen: TrailMapScreen?
     private var button = false
     private var tool = ""
@@ -36,7 +37,9 @@ final class NativeTools: NativeLayer {
     private var words: [String: String] = [:]
     private var version = ""
     private var shapes: (MLNShape?, MLNShape?, MLNShape?) = (nil, nil, nil)
+    private var arrowShape: MLNShape?
     private var labelTexts: [(String, String)] = []    // (text, colour) of each label, for its picture
+    private var arrowInks: [(String, String)] = []     // (fill, edge) of each direction arrow, for its picture
     private var made = Set<String>()                   // label pictures already on the current style
     private var round = 0
     private func t(_ s: String) -> String { words[s] ?? s }
@@ -49,7 +52,8 @@ final class NativeTools: NativeLayer {
         let ls = MLNShapeSource(identifier: NativeTools.lines, shape: shapes.0, options: nil)
         let ds = MLNShapeSource(identifier: NativeTools.dots, shape: shapes.1, options: nil)
         let xs = MLNShapeSource(identifier: NativeTools.labels, shape: shapes.2, options: nil)
-        [ls, ds, xs].forEach { style.addSource($0) }
+        let ars = MLNShapeSource(identifier: NativeTools.arrows, shape: arrowShape, options: nil)
+        [ls, ds, xs, ars].forEach { style.addSource($0) }
         for dashed in [false, true] {
             let l = MLNLineStyleLayer(identifier: NativeTools.lines + (dashed ? "-dash" : ""), source: ls)
             l.predicate = NSPredicate(format: "d == %@", NSNumber(value: dashed ? 1 : 0))
@@ -69,6 +73,15 @@ final class NativeTools: NativeLayer {
         d.circleStrokeWidth = NSExpression(forKeyPath: "w")
         d.circlePitchAlignment = NSExpression(forConstantValue: "viewport")
         style.addLayer(d)
+        // Direction arrows (which way the planned or followed route goes): flat on the ground, turning with the map.
+        let a = MLNSymbolStyleLayer(identifier: NativeTools.arrows, source: ars)
+        a.iconImageName = NSExpression(forKeyPath: "img")
+        a.iconRotation = NSExpression(forKeyPath: "b")
+        a.iconAllowsOverlap = NSExpression(forConstantValue: true)
+        a.iconIgnoresPlacement = NSExpression(forConstantValue: true)
+        a.iconPitchAlignment = NSExpression(forConstantValue: "map")
+        a.iconRotationAlignment = NSExpression(forConstantValue: "map")
+        style.addLayer(a)
         // Labels (distances, point numbers) as pictures: the 3D styles have no letters of their own to draw text with.
         let x = MLNSymbolStyleLayer(identifier: NativeTools.labels, source: xs)
         x.iconImageName = NSExpression(forKeyPath: "img")
@@ -119,7 +132,7 @@ final class NativeTools: NativeLayer {
         let followNow = f != follow ? f : ""
         follow = f
         if let s = screen {
-            if !tool.isEmpty && tool != was { s.hideCard() }
+            if !tool.isEmpty && tool != was && tool != "sun" { s.hideCard() }   // the sun's time bar takes no taps
             apply(s)
             if !followNow.isEmpty { s.followUser(followNow) }
         }
@@ -129,13 +142,17 @@ final class NativeTools: NativeLayer {
         round += 1
         let r = round
         DispatchQueue.global(qos: .userInitiated).async {
-            var l: MLNShape?, p: MLNShape?, x: MLNShape?, texts: [(String, String)] = []
+            var l: MLNShape?, p: MLNShape?, x: MLNShape?, ar: MLNShape?, texts: [(String, String)] = [], inks: [(String, String)] = []
             if let gd = geo.data(using: .utf8), let g = try? JSONSerialization.jsonObject(with: gd) as? [String: Any] {
                 let shape = { (k: String) -> MLNShape? in
                     guard let v = g[k], let data = try? JSONSerialization.data(withJSONObject: v) else { return nil }
                     return try? MLNShape(data: data, encoding: String.Encoding.utf8.rawValue)
                 }
-                l = shape("lines"); p = shape("dots"); x = shape("labels")
+                l = shape("lines"); p = shape("dots"); x = shape("labels"); ar = shape("arrows")
+                for f in ((g["arrows"] as? [String: Any])?["features"] as? [[String: Any]]) ?? [] {
+                    let pr = f["properties"] as? [String: Any]
+                    if let c = pr?["c"] as? String, let e = pr?["e"] as? String, !inks.contains(where: { $0 == (c, e) }) { inks.append((c, e)) }
+                }
                 for f in ((g["labels"] as? [String: Any])?["features"] as? [[String: Any]]) ?? [] {
                     let pr = f["properties"] as? [String: Any]
                     if let t = pr?["t"] as? String { texts.append((t, (pr?["c"] as? String) ?? "#14211a")) }
@@ -145,11 +162,14 @@ final class NativeTools: NativeLayer {
                 guard r == self.round else { return }
                 self.shapes = (l, p, x)
                 self.labelTexts = texts
+                self.arrowShape = ar
+                self.arrowInks = inks
                 guard let st = self.screen?.mapLibreView.style else { return }
                 self.addPictures(st)
                 (st.source(withIdentifier: NativeTools.lines) as? MLNShapeSource)?.shape = l
                 (st.source(withIdentifier: NativeTools.dots) as? MLNShapeSource)?.shape = p
                 (st.source(withIdentifier: NativeTools.labels) as? MLNShapeSource)?.shape = x
+                (st.source(withIdentifier: NativeTools.arrows) as? MLNShapeSource)?.shape = ar
             }
         }
     }
@@ -170,6 +190,30 @@ final class NativeTools: NativeLayer {
             if made.contains(name) { continue }
             made.insert(name)
             style.setImage(NativeTools.picture(text, colour), forName: name)
+        }
+        for (fill, edge) in arrowInks {
+            let name = "tfta:\(fill):\(edge)"
+            if made.contains(name) { continue }
+            made.insert(name)
+            style.setImage(NativeTools.arrow(fill, edge), forName: name)
+        }
+    }
+    // A direction arrow pointing up (north at bearing 0), its fill with an edge round it, as the flat map draws it.
+    private static func arrow(_ fill: String, _ edge: String) -> UIImage {
+        let size = CGSize(width: 20, height: 20)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            let p = UIBezierPath()
+            p.move(to: CGPoint(x: 10, y: 3))
+            p.addLine(to: CGPoint(x: 17, y: 16))
+            p.addLine(to: CGPoint(x: 10, y: 12.5))
+            p.addLine(to: CGPoint(x: 3, y: 16))
+            p.close()
+            p.lineJoinStyle = .round
+            p.lineWidth = 2
+            (NativeTools.color(edge) ?? .white).setStroke()
+            p.stroke()
+            (NativeTools.color(fill) ?? UIColor(red: 0.29, green: 0.06, blue: 0.69, alpha: 1)).setFill()
+            p.fill()
         }
     }
     private static func picture(_ text: String, _ colour: String) -> UIImage {

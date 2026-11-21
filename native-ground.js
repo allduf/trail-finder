@@ -44,9 +44,15 @@
   // map does, since each one loads that layer's tiles again.
   let last = 0, timer = 0, sent = "";
   const sendNow = () => { timer = 0; last = Date.now(); const s = state(); if (s !== sent) { sent = s; N.send("ground"); } };
-  window.addEventListener("tf:ground", () => {
-    if (!N.isOpen() || timer) return;
-    timer = setTimeout(sendNow, Math.max(0, last + 4000 - Date.now()));
+  // The sun and shade time slider (shade.js, detail.fast) moves the moment as the finger slides: once a second then.
+  let timerAt = 0;
+  window.addEventListener("tf:ground", (e) => {
+    if (!N.isOpen()) return;
+    const at = last + (e && e.detail && e.detail.fast ? 1000 : 4000);
+    if (timer && timerAt <= at) return;
+    clearTimeout(timer);
+    timerAt = at;
+    timer = setTimeout(sendNow, Math.max(0, at - Date.now()));
   });
 
   // A picture as PNG bytes in base64 ("" for an empty one). Painted pixels (ImageData) are written to the PNG as they
