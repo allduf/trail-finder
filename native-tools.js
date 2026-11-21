@@ -139,9 +139,15 @@
       const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
       if (r.width <= innerWidth / 2 || r.height <= innerHeight / 3 || cs.visibility === "hidden" || +cs.opacity < 0.1) return false;
       if (r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) return false;
-      const x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), y = Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2));
-      const top = document.elementFromPoint(x, y);
-      return !!top && (el.contains(top) || top.contains(el));
+      // A few points inside it: any of them showing the dialog (or something of it) on top counts.
+      const pts = [[0.5, 0.5], [0.5, 0.25], [0.5, 0.75], [0.25, 0.5], [0.75, 0.5]];
+      return pts.some(([fx, fy]) => {
+        const x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width * fx)), y = Math.min(innerHeight - 1, Math.max(0, r.top + r.height * fy));
+        const hits = document.elementsFromPoint(x, y);
+        const i = hits.findIndex((h) => el.contains(h) || h.contains(el));
+        // On top, or under only things that let it show (see-through or a bit of the page's frame over it).
+        return i === 0 || (i > 0 && hits.slice(0, i).every((h) => +getComputedStyle(h).opacity < 0.1 || getComputedStyle(h).pointerEvents === "none"));
+      });
     });
   };
   const state = () => {

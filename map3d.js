@@ -116,7 +116,7 @@
 /* Phones: the photo switch folds to the picked one, with a small mark that there are more. On Map or ADV topo (no button
    of their own here) it folds to Topo, unpicked, so it can still be opened. */
 #map3d .g3-styles:not(.open) > button:not([data-on]) { display: none !important; }
-#map3d .g3-styles:not(.open):not(:has(> button[data-on])) > button:last-of-type { display: block !important; }
+#map3d .g3-styles.none-on:not(.open) > button:last-of-type { display: block !important; }
 #map3d .g3-styles:not(.open) > button[data-on]::after { content: ""; display: inline-block; margin-left: 6px; vertical-align: middle; border: 4px solid transparent; border-top-color: currentColor; border-bottom-width: 0; }
 /* Phones: above the sheet like the flat map's buttons; the zoom/compass box was half under it (alex's recording 2026-11-05). */
 /* At most the sheet's peek height, so with the sheet up half way they don't climb into the top buttons. */
@@ -3136,6 +3136,7 @@
       winBtn.title = "Real satellite photos from February and March 2026 (Sentinel-2, 10 m, so softer)";
       liveBtn.title = "The newest clear satellite photo (NASA Landsat and Sentinel-2, a few days to weeks old)";
       for (const [el, on] of [[sumBtn, photos === "sharp"], [winBtn, photos === "winter"], [liveBtn, photos === "live"], [topoBtn, topo]]) { el.style.background = on ? "#2f6f4f" : ""; el.style.color = on ? "#fff" : ""; el.toggleAttribute("data-on", on); }
+      const sw = sumBtn.parentElement; if (sw) sw.classList.toggle("none-on", ![sumBtn, winBtn, liveBtn, topoBtn].some((b) => b.hasAttribute("data-on")));
       if (!drawn) bySport("3dPhotosBy", sportNow(), photos);
       offGround();
       winterHere();
@@ -3244,7 +3245,7 @@
           d.classList.add("open");
         }, true);
         gl.on("touchstart", () => d.classList.remove("open"));
-        gl.on("movestart", () => d.classList.remove("open"));
+        gl.on("movestart", (e) => { if (e && e.originalEvent) d.classList.remove("open"); });   // a finger, not a follow or Flyover
       }
       return d; }, onRemove() {} }, "bottom-right");
     gl.once("styledata", pick);

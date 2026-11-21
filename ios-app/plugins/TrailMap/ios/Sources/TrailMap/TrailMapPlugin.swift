@@ -390,7 +390,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
     // The page's map style, picked in its Layers while this screen stepped aside: the same style here when it has it.
     private func setBase(_ b: String) {
-        let k = b == "sathybrid" ? "sat" : b
+        // As open() reads it: ADV topo is "vector" (flat only), the photos with names are the photos; another street
+        // map is the Map.
+        let k = b == "sathybrid" ? "sat" : b == "advtopo" ? "vector" : ["cyclosm", "hot", "voyager", "osmde", "osmfr"].contains(b) ? "osm" : b
         guard k != base, styles.contains(where: { $0.key == k }) else { return }
         base = k
         styleBtn.configuration?.title = styleTitle()
@@ -612,6 +614,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // ---------- the native 3D features (NativeLayers.swift) ----------
     func setLayer(_ key: String, _ data: String) {
         if key == "base" { setBase(data); return }
+        if key == "layers" { layersAsked = false; return }   // the page opens its Layers over this screen (layersTapped)
         guard let f = features.first(where: { $0.key == key }) else { return }
         f.setData(data, style: isViewLoaded ? map.style : nil)
     }
