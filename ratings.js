@@ -482,6 +482,20 @@
     // Sea to Sky check against club and guide maps, 2026-11-04: trails with only a slope estimate
     { name: "Green Lake Loop", c: [50.147, -122.93], r: 2500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/trail/7014305" },
     { name: "Train Wreck Trail", c: [50.08, -123.057], r: 1500, d: "blue", src: "MTB Project, Whistler (rated Intermediate)", url: "https://www.mtbproject.com/directory/8011397/whistler" },
+    // Squamish, Pemberton and Kamloops check, 2026-11-21: trails with only a slope estimate, levels from the club's or
+    // the tourism office's own pages
+    { name: "Cardrona", c: [49.789, -123.102], r: 1500, d: "blue", src: "SORCA, about our trails (progressive blue, optional black jumps)", url: "https://www.sorca.ca/about-our-trails" },
+    { name: "Miki's Extension", c: [49.787, -123.101], r: 1500, d: "blue", src: "SORCA, about our trails (progressive blue, optional black jumps)", url: "https://www.sorca.ca/about-our-trails" },
+    { name: "Father Side", c: [49.719, -123.119], r: 1500, d: "blue", src: "Tourism Squamish, Fatherside (rated Intermediate)", url: "https://www.exploresquamish.com/trails/fatherside/" },
+    // Kamloops: the City's open trail data (Type II Easy, III More Difficult, IV Very Difficult, as on its park maps; general
+    // park levels, the same ones the Kenna Cartwright entries above use)
+    { name: "Beetle Bend", c: [50.675, -120.409], r: 1500, d: "blue", src: "City of Kamloops open data, trails (Type III, More Difficult)", url: "https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13" },
+    { name: "Old Man's Beard", c: [50.669, -120.393], r: 1500, d: "blue", src: "City of Kamloops open data, trails (Type III, More Difficult)", url: "https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13" },
+    { name: "Lower Doc Findlay Tr", c: [50.66, -120.375], r: 2000, d: "blue", src: "City of Kamloops open data, trails (Type III, More Difficult)", url: "https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13" },
+    { name: "Coyote Crossing", c: [50.663, -120.258], r: 2000, d: "black", src: "City of Kamloops open data, trails (Type IV, Very Difficult)", url: "https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13" },
+    { name: "Pineview valley trail", c: [50.649, -120.395], r: 2000, d: "green", src: "City of Kamloops open data, trails (Type II, Easy)", url: "https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13" },
+    { name: "Perimeter Trail", c: [50.658, -120.296], r: 1500, d: "green", src: "City of Kamloops open data, trails (Type II, Easy)", url: "https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13" },
+    { name: "Cucwéll", c: [50.741, -120.17], r: 2500, d: "green", src: "Tourism Kamloops, a guide to Kamloops' mountain bike networks (2024): 'green flow descent'", url: "https://www.tourismkamloops.com/blog/limitless-trails-a-guide-to-kamloops-diverse-mountain-bike-networks/" },
     // weekly audit, 2026-10-24: levels from tourism, club and town pages
     { name: "Rock & Roll", c: [50.088, -120.852], r: 2000, d: "black", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
     { name: "Godey", c: [50.079, -120.748], r: 2000, d: "black", src: "Mountain Biking BC, Merritt day trip (2017)", url: "https://www.mountainbikingbc.ca/blog/ultimate-day-trip-to-the-interiors-hidden-gem-in-merritt-british-columbia/" },
