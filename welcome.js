@@ -130,8 +130,17 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
 
   let dlg = null, sport = "mtb", step = 0;
   const canLocate = () => !!navigator.geolocation && !!document.getElementById("locate");
-  const steps = () => (canLocate() ? 3 : 2);
+  // Last step, only for a sport with phone notifications on a device that can get them (notify.js, guarded: a stale
+  // cached notify.js just skips it). alex 2026-11-21: "Offer it in the first welcome".
+  // Fishing watches lakes near the rider, so only after Allow location (step 2).
+  let located = false, pushDone = false;
+  const offer = () => !!(window.tfPushAsk && window.tfPushAsk.can && window.tfPushAsk.can(sport)) && (sport !== "fish" || located);
+  // Where the rider is, for Fishing's stocking alerts: asked after the Allow box, location already allowed at step 2.
+  const spot = () => new Promise((ok, no) => navigator.geolocation.getCurrentPosition(
+    (p) => ok([Math.round(p.coords.latitude * 100) / 100, Math.round(p.coords.longitude * 100) / 100]), no, { maximumAge: 600000, timeout: 10000 }));
+  const steps = () => (canLocate() ? 3 : 2) + (offer() ? 1 : 0);
   function close() {
+    if (step === 3 && !pushDone && window.tfPushAsk && window.tfPushAsk.later) window.tfPushAsk.later();   // Skip or Not now on the notifications step
     set(KEY, true); set("tf:tipSeen", true);   // the small "New here?" tip says the same as step 3
     const tip = document.getElementById("firstTip"); if (tip) tip.hidden = true;
     window.tfWelcome.pending = false;
@@ -141,7 +150,7 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
     document.dispatchEvent(new CustomEvent("tf:welcomed"));   // map3d.js: Skiing's 3D opens now, not behind the welcome
   }
   function render() {
-    const n = steps(), at = step === 2 && n === 2 ? 1 : step;
+    const n = steps(), at = !canLocate() && step >= 2 ? step - 1 : step;
     const top = `<div class="welc-top"><div class="welc-dots" aria-hidden="true">${Array.from({ length: n }, (_, i) => `<i class="${i <= at ? "on" : ""}"></i>`).join("")}</div><button type="button" class="welc-skip" data-skip>Skip</button></div>`;
     const w = WORDS[sport];
     if (step === 0) {
@@ -151,14 +160,37 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
       dlg.innerHTML = `${top}<div class="welc-pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="52" height="52"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7z" fill="#e03131"/><circle cx="12" cy="9" r="2.6" fill="#fff"/></svg></div><h2>See what's around you</h2><p class="welc-lead">${w.here}</p>
         <button type="button" class="welc-go" data-loc>Allow location</button><button type="button" class="welc-later" data-next>Not now</button>
         <p class="welc-note">Only used to show you on the map and find what's close. Turn it off any time in your phone's settings.</p>`;
-    } else {
+    } else if (step === 2) {
       const icon = SPORTS.find((s) => s[0] === sport)[1];
       dlg.innerHTML = `${top}<h2>${icon} What you'll see</h2><p class="welc-lead">Three things to know, then you're set.</p>
         <ul class="welc-lines">${w.lines.map(([tag, cls, text]) => `<li><span class="welc-tag ${cls}">${tag}</span><span>${text}</span></li>`).join("")}</ul>
-        <button type="button" class="welc-go" data-done>${w.go}</button>`;
+        <button type="button" class="welc-go" ${offer() ? "data-next2" : "data-done"}>${offer() ? "Next" : w.go}</button>`;
+    } else {
+      const bell = window.tfLine ? window.tfLine("🔔", 44) : "";
+      dlg.innerHTML = `${top}<div class="welc-pin" aria-hidden="true">${bell && bell !== "🔔" ? bell : ""}</div><h2>Hear when it matters</h2><p class="welc-lead"></p>
+        <button type="button" class="welc-go" data-push>Turn on notifications</button><button type="button" class="welc-later" data-done>Not now</button>
+        <p class="welc-note">Checked a few times a day. Notifications can be late or missed, so check the source before you go. Change it any time with the bell.</p>`;
+      dlg.querySelector(".welc-lead").textContent = window.tfPushAsk.why(sport);
     }
     dlg.scrollTop = 0;
     if (dlg.open) dlg.focus({ preventScroll: true });
+  }
+  // Turn on from the tap (iPhone asks right then), then say what it watches; with no regions yet, offer to pick them.
+  async function pushOn(b) {
+    dlg.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+    const r = await window.tfPushAsk.turnOn(sport, sport === "fish" ? spot : undefined);
+    pushDone = r.ok;
+    const w = WORDS[sport];
+    dlg.querySelector("h2").textContent = r.ok ? "Notifications are on" : "Notifications aren't on";
+    dlg.querySelector(".welc-lead").textContent = !r.ok ? r.text : r.none ? (sport === "fish" ? "Your location didn't come through. Open the bell with the map on your area to pick where they watch." : "Pick the regions they watch, so they know where to look.") : r.text;
+    const note = dlg.querySelector(".welc-note"); if (note) note.remove();
+    b.remove();
+    const later = dlg.querySelector(".welc-later");
+    if (r.ok && r.none) {
+      later.insertAdjacentHTML("beforebegin", `<button type="button" class="welc-go" data-pick>${sport === "fish" ? "Open the bell" : "Pick regions"}</button>`);
+      later.textContent = "Later";
+    } else { later.className = "welc-go"; later.textContent = w.go; }
+    dlg.querySelectorAll("button").forEach((x) => { x.disabled = false; });
   }
   function pickSport(s) {
     sport = s;
@@ -179,6 +211,9 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
         const b = e.target.closest("button");
         if (!b) return;
         if (b.dataset.skip != null) { close(); return; }
+        if (b.dataset.next2 != null) { step = 3; render(); return; }
+        if (b.dataset.push != null) { pushOn(b); return; }
+        if (b.dataset.pick != null) { close(); setTimeout(() => window.tfPushAsk && window.tfPushAsk.pickRegions && window.tfPushAsk.pickRegions(), 400); return; }
         if (b.dataset.done != null) {
           close();
           // MTB's button says "Find new trails": show them (the New trails chip runs the search and shows the list).
@@ -186,7 +221,7 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
           return;
         }
         if (b.dataset.sport) { pickSport(b.dataset.sport); step = canLocate() ? 1 : 2; render(); return; }
-        if (b.dataset.loc != null) { set("tf:track", true); document.getElementById("locate").click(); step = 2; render(); return; }
+        if (b.dataset.loc != null) { located = true; set("tf:track", true); document.getElementById("locate").click(); step = 2; render(); return; }
         if (b.dataset.next != null) { set("tf:track", false); step = 2; render(); }
       });
       document.body.append(dlg);

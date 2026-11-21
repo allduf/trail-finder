@@ -78,7 +78,7 @@ dialog.notify p { margin: 0 0 10px; color: var(--muted); font-size: .9rem; }
 dialog.notify button { font: inherit; cursor: pointer; }
 dialog.notify .nt-row { display: flex; gap: 8px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin: 10px 0 0; }
 dialog.notify .nt-row button { font-weight: 600; min-height: 42px; padding: 8px 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); }
-dialog.notify .nt-row button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }
+dialog.notify .nt-row button.go, dialog.notify .nt-pushrow button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }
 dialog.notify .nt-link { background: none; border: 0; padding: 2px 0; color: var(--accent); font-weight: 600; }
 dialog.notify .nt-zones { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
 dialog.notify .nt-zones label { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; background: var(--chip); font-size: .86rem; cursor: pointer; }
@@ -103,6 +103,9 @@ dialog.notify .nt-push { margin: 10px 0 0; padding: 8px 10px; border-radius: 10p
 dialog.notify .nt-push .nt-opt { margin: 0; font-weight: 600; }
 dialog.notify .nt-push p { margin: 4px 0 0; font-size: .82rem; }
 dialog.notify .nt-push p:empty { display: none; }
+dialog.notify .nt-pushrow { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: var(--chip); display: flex; gap: 10px; align-items: center; }
+dialog.notify .nt-pushrow p { margin: 0; flex: 1; font-size: .85rem; line-height: 1.35; }
+dialog.notify .nt-pushrow button { flex: none; margin: 0; min-height: 40px; }
 dialog.notify .nt-opt:has(input:disabled) { opacity: .6; cursor: default; }
 dialog.notify details summary { list-style: none; cursor: pointer; padding: 10px 10px 10px 22px; border-bottom: 1px solid var(--line); position: relative; }
 dialog.notify details summary::-webkit-details-marker { display: none; }
@@ -144,6 +147,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   <div class="nt-row"><button type="button" data-close>Not now</button><button type="button" class="go" id="ntSave">Save</button></div>
 </div>
 <div id="ntList" hidden>
+  <div id="ntPushRow" class="nt-pushrow" hidden><p id="ntPushRowText"></p><button type="button" class="go" id="ntPushGo">Turn on</button></div>
   <div id="ntAvy" class="nt-loam nt-avy" hidden><h3>Avalanche danger</h3><p id="ntAvyWhere"></p><ol id="ntAvyItems"></ol></div>
   <div id="ntFish" class="nt-loam nt-fish" hidden><h3>Fresh stocking</h3><p id="ntFishText"></p><ol id="ntFishItems"></ol></div>
   <div id="ntLoam" class="nt-loam" hidden><h3>Prime loam, now and soon</h3><p id="ntLoamWhere"></p><ol id="ntLoamItems"></ol><h3 id="ntNewHead">New trails</h3></div>
@@ -428,7 +432,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const bike = !document.body.classList.contains("sport-alt");
     btn.title = parts.length ? parts.join(", ") : !bike ? "Notifications" : prefs() ? "No new trails" : "Get notified about new trails and prime loam";
     btn.setAttribute("aria-label", btn.title);
-    if (box.open && !q("ntList").hidden) paintList();
+    if (box.open && !q("ntList").hidden) { paintList(); paintPushRow(); }
   }
   // Canada groups the picker offers: the ones picked, then "Around you" and "Around where the map is" (outside the home
   // regions only, and not when a picked group already covers that spot). Filled in by paintPick, read by Save.
@@ -558,7 +562,23 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       window.tfShowFound({ type: "w", items: it.ids.map((id) => ({ id })), name: it.name || "Unnamed trail", kind: LABEL[it.c.cat] });
     }));
   }
-  function showList() { q("ntPick").hidden = true; q("ntList").hidden = false; paintList(); }
+  function showList() { q("ntPick").hidden = true; q("ntList").hidden = false; paintList(); paintPushRow(); }
+  // Alerts picked in this box show here when Trail Finder is open; without phone notifications nothing reaches the
+  // phone while it's closed, and testers who picked regions thought they'd hear about them (usage, Nov 2026: many
+  // picked regions, almost none turned the phone switch on). So the list says so, with a Turn on button (a tap, as
+  // iPhone requires). Only where this device can get them, never after the phone's Don't Allow; after "Not now" on
+  // the ask card it's the plain line without the button.
+  function paintPushRow() {
+    const row = q("ntPushRow");
+    const any = !!prefs() || loamOn() || avyOn() || fishOn();
+    row.hidden = !any || !pushOk || pushIsOn() || perm() === "denied";
+    if (row.hidden) return;
+    const said = !!askState().no;
+    q("ntPushRowText").textContent = said
+      ? "These alerts show here when you open Trail Finder. Phone notifications are off: Change regions has the switch to turn them on."
+      : "These alerts show here when you open Trail Finder. Turn on phone notifications to also get them on this phone.";
+    q("ntPushGo").hidden = said;
+  }
 
   btn.addEventListener("click", () => {
     openBox();
@@ -710,10 +730,11 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // settings, apart from Safari's) says so instead of staying quiet.
   function watchingText() {
     const p = prefs(), n = p ? (p.zones.includes("all") ? ZONES.length : p.zones.filter((id) => !isCa(id)).length) + caGroups(p).length : 0, r = loamOn() ? rideList().length : 0, st = avyOn() ? skiWatch().length : 0;
-    if (!n && !r && !st) return "It's watching nothing yet: pick your regions below and tap Save, or sign in to bring them over.";
+    const fishLine = fishOn() ? ` Fresh stocking: lakes and rivers within ${FISH_KM} km of the spot you picked.` : "";
+    if (!n && !r && !st) return fishLine ? fishLine.trim() : "It's watching nothing yet: pick your regions below and tap Save, or sign in to bring them over.";
     const parts = [n && (p.zones.includes("all") ? "all regions" : `${n} region${n > 1 ? "s" : ""}`), r && `${r} To ride trail${r > 1 ? "s" : ""}`, st && `${st} ski tour${st > 1 ? "s" : ""}`].filter(Boolean);
     const what = [loamOn() && "prime loam", newOn() && n && "new trails", avyOn() && "avalanche danger"].filter(Boolean);
-    return what.length ? `Watching ${parts.join(", ")} for ${what.join(", ")}.` : "The switches above are off, so it won't send anything.";
+    return what.length ? `Watching ${parts.join(", ")} for ${what.join(", ")}.${fishLine}` : fishLine ? fishLine.trim() : "The switches above are off, so it won't send anything.";
   }
   function pushMsg(text) { q("ntPushMsg").textContent = text; }
   function paintPush() {
@@ -837,6 +858,14 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
 .nt-ask button { margin: 0; min-height: 40px; line-height: 1.2; font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
 .nt-ask button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }`;
   document.head.appendChild(askCss);
+  // Turn phone notifications on for a sport (from a tap) and switch on that sport's alert; none = no regions picked yet.
+  async function turnOnFor(sp, spot) {
+    await pushTurnOn();   // straight from the tap: the phone's own Allow box
+    if (sp === "ski" && !avyOn()) store.set("avyAlert", true);
+    if (sp === "fish" && !fishOn()) { const c = spot ? await spot().catch(() => null) : fishWhere(); if (c) store.set("fishAlert", { c, since: new Date().toISOString() }); }
+    pushSync(0, true);
+    return { none: sp === "fish" ? !fishOn() : /^It's watching nothing/.test(watchingText()), text: watchingText() };
+  }
   function showAsk(sp) {
     if (pushIsOn() || document.querySelector(".nt-ask")) return;
     if (document.querySelector(".acct-nudge, dialog[open]")) { const st = askState(); st.shown = Math.max(0, (st.shown || 1) - 1); st.at = 0; askPut(st); return; }   // the Sign in card (or a dialog: Today card, a sheet) is up: one card at a time, so ask at the next save
@@ -858,12 +887,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
       clearTimeout(timer);
       el.querySelectorAll("button").forEach((x) => { x.disabled = true; });
       try {
-        await pushTurnOn();   // straight from the tap: the phone's own Allow box
-        if (sp === "ski" && !avyOn()) store.set("avyAlert", true);
-        if (sp === "fish" && !fishOn()) { const c = fishWhere(); if (c) store.set("fishAlert", { c, since: new Date().toISOString() }); }
-        pushSync(0, true);
+        const { none } = await turnOnFor(sp);
         el.querySelector("strong span").textContent = "Phone notifications are on";
-        const none = sp !== "fish" && /^It's watching nothing/.test(watchingText());
         el.querySelector(".nt-ask-why").textContent = sp === "fish" ? "It watches lakes and rivers within 50 km of where the map is now for fresh stocking reports."
           : none ? "Pick the regions it watches with the bell." : watchingText();
         if (none) { el.querySelector(".nt-ask-small").hidden = true; el.querySelector(".nt-ask-row").innerHTML = `<button type="button" data-a="ok">OK</button><button type="button" class="go" data-a="pick">Pick regions</button>`; timer = setTimeout(() => close(), 15000); return; }
@@ -881,7 +906,40 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     document.body.appendChild(el);
     requestAnimationFrame(() => el.classList.add("on"));
   }
-  window.tfPushAsk = { show: showAsk };   // for the phone test
+  q("ntPushGo").addEventListener("click", async () => {
+    const go = q("ntPushGo");
+    go.disabled = true;
+    try {
+      await pushTurnOn();   // straight from the tap: the phone's own Allow box
+      pushSync(0, true);
+      q("ntPushRowText").textContent = `Phone notifications are on. ${watchingText()}`;
+      go.hidden = true;
+    } catch (err) {
+      lsSet("tf:pushId", null);
+      if (err.message === "blocked") { const st = askState(); st.no = 1; askPut(st); }
+      q("ntPushRowText").textContent = pushFail(err);
+    }
+    go.disabled = false;
+  });
+  // The first-open welcome's last step (welcome.js, alex 2026-11-21 picked "Offer it in the first welcome": testers who
+  // leave after one visit never reach a save, so the ask after a save never showed them). Only for sports with phone
+  // notifications, on a device that can get them, not already on or blocked. Not now there doesn't count as the card's
+  // Not now (that's never again): it only holds the card back 3 days, like a shown card.
+  window.tfPushAsk = {
+    show: showAsk,   // for the phone test
+    can: (sp) => !!ASK_WHY[sp] && pushOk && !pushIsOn() && perm() !== "denied" && !askState().no,
+    why: (sp) => (sp === "fish" ? ASK_WHY.fish.replace("of where the map is now", "of you") : ASK_WHY[sp] || ""),
+    later: () => { const st = askState(); st.at = Date.now(); askPut(st); },
+    turnOn: async (sp, spot) => {
+      try { return { ok: true, ...(await turnOnFor(sp, spot)) }; }
+      catch (err) {
+        lsSet("tf:pushId", null);
+        if (err.message === "blocked") { const st = askState(); st.no = 1; askPut(st); }
+        return { ok: false, text: pushFail(err) };
+      }
+    },
+    pickRegions: () => openBox(),
+  };
 
   // Tapping a notification opens this box: in this window (sw.js sends a message) or a new one (#notify).
   if (pushOk && !NATIVE) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.tf === "loam") openBox(); });

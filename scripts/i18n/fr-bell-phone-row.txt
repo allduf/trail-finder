@@ -1,0 +1,13 @@
+These alerts show here when you open Trail Finder. Turn on phone notifications to also get them on this phone. ||| Ces alertes s'affichent ici quand vous ouvrez Trail Finder. Activez les notifications pour les recevoir aussi sur ce téléphone.
+These alerts show here when you open Trail Finder. Phone notifications are off: Change regions has the switch to turn them on. ||| Ces alertes s'affichent ici quand vous ouvrez Trail Finder. Les notifications sont désactivées : l'interrupteur pour les activer est dans Changer de régions.
+Notifications: the first welcome can turn on phone notifications for mountain biking, skiing and fishing, and the bell now says when alerts only show inside the app, with a Turn on button. ||| Notifications : le premier accueil peut activer les notifications pour le vélo de montagne, le ski et la pêche, et la cloche indique maintenant quand les alertes ne s'affichent que dans l'application, avec un bouton Activer.
+Hear when it matters ||| Soyez averti au bon moment
+Turn on notifications ||| Activer les notifications
+Checked a few times a day. Notifications can be late or missed, so check the source before you go. Change it any time with the bell. ||| Vérifié quelques fois par jour. Les notifications peuvent arriver en retard ou être manquées : vérifiez la source avant de partir. Modifiez-les en tout temps avec la cloche.
+Notifications are on ||| Notifications activées
+Notifications aren't on ||| Notifications non activées
+Pick the regions they watch, so they know where to look. ||| Choisissez les régions à surveiller, pour qu'elles sachent où regarder.
+Later ||| Plus tard
+Your location didn't come through. Open the bell with the map on your area to pick where they watch. ||| Votre position n'a pas été reçue. Ouvrez la cloche avec la carte sur votre secteur pour choisir où elles surveillent.
+Open the bell ||| Ouvrir la cloche
+Trail Finder can send a notification when a lake or river within 50 km of you shows up in the BC, Alberta or Ontario stocking reports. ||| Trail Finder peut envoyer une notification quand un lac ou une rivière à moins de 50 km de vous apparaît dans les rapports d'ensemencement de la C.-B., de l'Alberta ou de l'Ontario.
