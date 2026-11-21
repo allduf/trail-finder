@@ -1,0 +1,4 @@
+More about this spot ||| Plus sur cet endroit
+Reading the terrain… ||| Lecture du terrain…
+Couldn't read the terrain here (no connection?). ||| Impossible de lire le terrain ici (pas de connexion?).
+Native 3D on phones: change the avalanche forecast day on the avalanche card, and tap a slope for its avalanche details, the same as the web map. ||| 3D native sur téléphone : changez le jour du bulletin d'avalanche sur la carte avalanche, et touchez une pente pour voir ses détails avalanche, comme sur la carte web.

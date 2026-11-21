@@ -735,6 +735,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let p = g.location(in: map)
         let box = CGRect(x: p.x - 22, y: p.y - 22, width: 44, height: 44)
         pickedAt = map.convert(p, toCoordinateFrom: map)
+        for f in features { f.tapBegan(screen: self) }
         // A tool that's on (planning, measuring, the compass's target) takes the tap first, with the trail under it.
         if features.contains(where: { $0.wantsTaps }) {
             let trails = Set(["tf-line"] + dashLayers)
@@ -748,6 +749,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let layers = Set(["tf-line", "tf-dots"] + dashLayers)
         let named = { (f: MLNFeature) -> Bool in f.attribute(forKey: "i") != nil || !((f.attribute(forKey: "n") as? String) ?? "").isEmpty }
         let found = map.visibleFeatures(in: box, styleLayerIdentifiers: layers).filter(named)
+        // Beside every trail and dot: a feature's own card for that spot (a slope's avalanche card, NativeAvalanche).
+        if found.isEmpty { for f in features where f.emptyTap(pickedAt, screen: self) { showCard(nil); return } }
         showCard(found.first { $0 is MLNPointFeature } ?? found.first { $0.attribute(forKey: "i") != nil } ?? found.first)
     }
     private func showCard(_ f: MLNFeature?) {
