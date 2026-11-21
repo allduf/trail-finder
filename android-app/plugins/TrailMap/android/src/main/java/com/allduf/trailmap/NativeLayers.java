@@ -15,6 +15,7 @@ final class NativeLayers {
         NativeFishing.Creeks::new,             // NativeFishing.java: Fishing creeks from further away
         NativeFishing.Depth::new,              // NativeFishing.java: Fishing lake depth lines and soundings
         NativeFlyover::new,                    // NativeFlyover.java: a ski tour's Flyover
+        NativeGround::new,                     // NativeGround.java: ground layers the page paints (slope, sun, snow, avalanche colours...)
         NativeHunting::new,                    // NativeHunting.java: Hunting fills, zone names, cone, rings, glassing, pictures
         NativeMoto::new,                       // NativeMoto.java: Adventure moto dirt roads and stops
         () -> new NativeOverlay("radar", 0),   // NativeOverlay.java: rain and snow radar and forecast
