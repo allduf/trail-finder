@@ -10,7 +10,8 @@ import java.util.function.Supplier;
 // once its Android side is written.
 final class NativeLayers {
     static final List<Supplier<NativeLayer>> ALL = List.of(
-        NativePins::new                 // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)
+        NativePins::new,                // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)
+        NativeSearch::new               // NativeSearch.java: search a place and fly there
     );
 
     static List<NativeLayer> make() {
