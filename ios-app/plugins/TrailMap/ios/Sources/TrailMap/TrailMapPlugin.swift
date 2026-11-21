@@ -36,7 +36,8 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "update", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "layer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "offline", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "close", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "features", returnType: CAPPluginReturnPromise)
     ]
 
     private var screen: TrailMapScreen?
@@ -79,6 +80,12 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             self.screen?.setLayer(key, data)
             call.resolve()
         }
+    }
+
+    // The native 3D features this app build has (NativeLayers.all keys): the page asks before relying on one that does
+    // something by itself (a Flyover), since an older build quietly ignores keys it doesn't know.
+    @objc func features(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { call.resolve(["keys": NativeLayers.all.map { $0().key }]) }
     }
 
     // offline({ areas: [{ id, box, boxes, ski }] }): the saved areas the iPhone keeps its own copy of for native 3D
@@ -447,13 +454,29 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
 
     // One layer per dash pattern (MapLibre can't take the pattern from each line), under the dots.
+    // In 3D, dotted lines ("0,x": approach and uphill routes, unofficial trails) are drawn as the web 3D map draws them
+    // (map3d.js DOT_GROW, DOT_BAND): dots 1.3 times wider, on a dark see-through band that keeps them reading as one line
+    // against the photos (thin dots all but vanished on the Winter photos). The band isn't tappable: the dots are.
+    private static let dotGrow = 1.3, dotBand = 2.5
     private func addDashLayers() {
         guard let style = map.style, let src = style.source(withIdentifier: "tf-lines"), let dots = style.layer(withIdentifier: "tf-dots") else { return }
         for d in dashKeys where !d.isEmpty {
             let id = "tf-dash:" + d
             if dashLayers.contains(id) { continue }
             dashLayers.append(id)
-            style.insertLayer(lineLayer(id: id, source: src, dash: d), below: dots)
+            let l = lineLayer(id: id, source: src, dash: d)
+            if threeD && d.hasPrefix("0,") {
+                let band = MLNLineStyleLayer(identifier: "tf-band:" + d, source: src)
+                band.predicate = l.predicate
+                band.lineColor = NSExpression(forConstantValue: UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 1))   // #14201a
+                band.lineWidth = NSExpression(format: "w * %f + %f", TrailMapScreen.dotGrow, TrailMapScreen.dotBand)
+                band.lineOpacity = NSExpression(format: "o * 0.55")
+                band.lineCap = NSExpression(forConstantValue: "round")
+                band.lineJoin = NSExpression(forConstantValue: "round")
+                style.insertLayer(band, below: dots)
+                l.lineWidth = NSExpression(format: "w * %f", TrailMapScreen.dotGrow)
+            }
+            style.insertLayer(l, below: dots)
         }
     }
 
