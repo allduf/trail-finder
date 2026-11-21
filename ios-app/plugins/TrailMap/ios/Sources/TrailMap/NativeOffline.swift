@@ -238,14 +238,22 @@ final class OfflinePacks: NSObject {
             for (p, c) in self.ours {
                 let id = (c["id"] as? String) ?? "", a = byId[id]
                 let same = a != nil && OfflinePacks.sameBoxes(OfflinePacks.boxes(c["boxes"]), a!.boxes) && ((c["ski"] as? Bool) ?? false) == a!.ski
-                if !same { MLNOfflineStorage.shared.removePack(p, withCompletionHandler: nil); continue }
+                if !same { self.firstLook.remove(ObjectIdentifier(p)); MLNOfflineStorage.shared.removePack(p, withCompletionHandler: nil); continue }
                 let part = (c["part"] as? String) ?? ""
                 have[id, default: []].insert(part)
                 p.requestProgress()
                 // Unfinished copies carry on. One MapLibre hasn't reported on yet (every copy, just after the app starts)
                 // waits for that report (changed below): resuming a finished copy walks all of it again, its line
                 // reading "saving 0%" on an area already saved, after each start.
-                if p.state == .unknown { self.firstLook.insert(ObjectIdentifier(p)) } else if p.state == .inactive { self.resume(p, c) }
+                if p.state == .unknown {
+                    self.firstLook.insert(ObjectIdentifier(p))
+                    // No report within 10 s (MapLibre couldn't read the copy's state): it carries on all the same.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self, weak p] in
+                        guard let self = self, let p = p, p.state == .unknown, self.firstLook.remove(ObjectIdentifier(p)) != nil,
+                              let c = OfflinePacks.ctx(p), self.wanted.contains((c["id"] as? String) ?? "") else { return }
+                        self.resume(p, c)
+                    }
+                } else if p.state == .inactive { self.resume(p, c) }
             }
             for a in want {
                 let parts = ["main"] + (a.ski ? (6...10).map { "r\($0)" } : [])
