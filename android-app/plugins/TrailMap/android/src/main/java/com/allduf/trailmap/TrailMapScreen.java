@@ -453,7 +453,7 @@ final class TrailMapScreen extends FrameLayout {
     // The camera flies to a box (a searched place), a little less tilted in 3D.
     void fly(LatLng sw, LatLng ne) {
         if (map == null) return;
-        stopFollowing();
+        stopFollowingMe();
         CameraPosition c = map.getCameraForLatLngBounds(LatLngBounds.from(ne.getLatitude(), ne.getLongitude(), sw.getLatitude(), sw.getLongitude()),
             new int[] { dp(30), dp(90), dp(30), dp(110) });
         if (c == null) return;
@@ -592,7 +592,7 @@ final class TrailMapScreen extends FrameLayout {
         LocationComponent lc = map.getLocationComponent();
         lc.setCameraMode(lc.getCameraMode() == CameraMode.NONE ? CameraMode.TRACKING : CameraMode.NONE);
     }
-    private void stopFollowing() {
+    void stopFollowingMe() {
         if (located && map != null) { try { map.getLocationComponent().setCameraMode(CameraMode.NONE); } catch (Exception ignored) {} }
     }
 
