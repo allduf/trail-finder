@@ -137,7 +137,8 @@ final class TrailMapScreen extends FrameLayout {
         this.startZoom = zoom;
         this.startBearing = bearing;
         String b = "sathybrid".equals(base) ? "sat" : base;
-        if (threeD) this.base = this.winter && "winter".equals(b) ? "winter" : "sat";
+        // 3D opens in the flat map's style where it has it (Topo, Map), so the change to 3D shows no other map.
+        if (threeD) this.base = this.winter && "winter".equals(b) ? "winter" : listed(THREE_D, b) ? b : "sat";
         else this.base = listed(FLAT, b) ? b : "osm";
         features = threeD ? NativeLayers.make() : new ArrayList<>();
         setBackgroundColor(PAPER);
@@ -305,6 +306,13 @@ final class TrailMapScreen extends FrameLayout {
     private void ready(MapLibreMap m) {
         if (left) return;
         map = m;
+        mapView.addOnDidFinishRenderingMapListener((fully) -> {
+            Style st = map.getStyle();
+            if (!fully || onReady == null || st == null || !st.isFullyLoaded()) return;
+            Runnable r = onReady;
+            onReady = null;
+            r.run();
+        });
         placeMapMarks();
         if (threeD) {
             map.setMaxPitchPreference(80);
@@ -376,12 +384,17 @@ final class TrailMapScreen extends FrameLayout {
         addDashLayers(style);
         for (NativeLayer f : features) { try { f.added(style, this); } catch (Exception ignored) {} }
         showMe(style);
-        // 3D opens flat where the flat map was, then tilts in (as the web 3D map does).
-        if (threeD && !tilted) {
-            tilted = true;
-            map.animateCamera(CameraUpdateFactory.tiltTo(TILT), 1200);
-        }
     }
+    // 3D opens flat where the flat map was, then tilts in (as the web 3D map does), once it shows (TrailMapPlugin.open).
+    void tiltIn() {
+        if (!threeD || tilted || left || map == null) return;
+        tilted = true;
+        map.animateCamera(CameraUpdateFactory.tiltTo(TILT), 1200);
+    }
+    // A feature that sets the camera itself first (a Flyover): no tilt in after it.
+    void noTiltIn() { tilted = true; }
+    // The first frame of the same spot as the page's flat map, in the loaded style (open() then shows this screen).
+    Runnable onReady;
 
     // In 3D the trails go just under the place names, so names stay readable over them.
     private void put(Style style, Layer l) {

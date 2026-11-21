@@ -46,10 +46,10 @@ final class NativeFlyover implements NativeLayer, TrailMapScreen.TouchWatcher {
     @Override
     public void added(Style style, TrailMapScreen screen) {
         if (this.screen != screen) { this.screen = screen; screen.watchTouches(this); }
-        // The screen tilts in for 1.2 s when it first opens: the flight starts after that, unless the map was touched.
+        // The screen shows and tilts in when it first opens: the flight starts after that, unless the map was touched.
         if (pendingPts != null && !waiting) {
             waiting = true;
-            main.postDelayed(() -> { if (!waiting) return; waiting = false; start(); }, 1400);
+            main.postDelayed(() -> { if (!waiting) return; waiting = false; start(); }, 1600);
         }
     }
 
@@ -90,6 +90,7 @@ final class NativeFlyover implements NativeLayer, TrailMapScreen.TouchWatcher {
         leg = 0;
         heading = turn(0, bearing(at(0), at(AHEAD)), 1);
         screen.stopFollowingMe();
+        screen.noTiltIn();
         map.cancelTransitions();
         map.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().target(at(0)).zoom(ZOOM).tilt(PITCH).bearing(heading).build()));
         flying = true;

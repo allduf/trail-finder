@@ -75,7 +75,19 @@ public class TrailMapPlugin extends Plugin {
             s.onStart();
             s.onResume();
             watchBack(a, true);
-            s.animate().alpha(1).setDuration(250).withEndAction(call::resolve).start();
+            // Seamless from the flat map (as on the iPhone): the screen stays unseen over the page's flat map (it takes the
+            // touches all the same) until its own map has drawn the same spot, then shows in a quick fade and (3D) tilts
+            // up from flat. At most 2.5 s (no signal, slow tiles).
+            boolean[] shown = { false };
+            Runnable show = () -> {
+                if (shown[0]) return;
+                shown[0] = true;
+                s.onReady = null;
+                if (s.isLeft()) { call.resolve(); return; }
+                s.animate().alpha(1).setDuration(180).withEndAction(() -> { s.tiltIn(); call.resolve(); }).start();
+            };
+            s.onReady = show;
+            s.postDelayed(show, 2500);
         });
     }
 
