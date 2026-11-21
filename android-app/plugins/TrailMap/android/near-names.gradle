@@ -7,22 +7,26 @@
 // downloaded file itself, checked by its sha256 in build.gradle, is left as it is). Every byte stays where it was: the
 // new text is shorter and padded with spaces.
 //   - upright names and pictures grow at most NEAR_MAX times near the camera; names lying flat on the ground
-//     (u_pitch_with_map) and names placed along a line or with variable anchors (MapLibre places those on the processor
-//     at full size; their label plane matrix is the identity) keep MapLibre's 4 times;
+//     (u_pitch_with_map) and names placed along a line or with variable anchors (u_is_along_line, u_is_variable_anchor:
+//     MapLibre places those on the processor at full size) keep MapLibre's 4 times;
 //   - upright dots scaled with the map stop at NEAR_MAX times.
-// The text must read exactly as in the MapLibre pinned in build.gradle: 3 name shaders and 1 dot shader in each
-// library, or the build stops, so a MapLibre update can't drop this quietly. test/near-names.mjs compiles the changed
-// shaders with Khronos' GLSL compiler in the pull request check. Applied from android/app/build.gradle, where the
-// libraries are put together.
+// Unlike the iPhone's, this text can't fall back to MapLibre's own while the app runs, so it only uses what MapLibre's
+// own shaders already do there (their bool fields with || and ?:, clamp, min, gl_Position read back). The text must read
+// exactly as in the MapLibre pinned in build.gradle: 3 name shaders that have those fields and 1 dot shader in each
+// library, or the build stops, so a MapLibre update can't drop this quietly. In the pull request check,
+// test/near-names.mjs compiles the changed shaders with Khronos' GLSL compiler, and the simulator opens native 3D with a
+// name and a dot (test/phone-check.sh fails on a shader that doesn't compile). Applied from android/app/build.gradle,
+// where the libraries are put together.
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 def NEAR_MAX = "1.25"   // NEAR_MAX in map3d.js, nearMax in NativeNearNames.swift
 def NAMES = Pattern.compile("clamp\\(\\s*0\\.5 \\+ 0\\.5 \\* distance_ratio,\\s*0\\.0, // Prevents oversized near-field " +
         "symbols in pitched/overzoomed tiles\\s*4\\.0\\);")
-// A label plane matrix that leaves a point where it is: MapLibre's identity (names along a line, variable anchors).
-def NAMES_TO = "clamp(0.5+0.5*distance_ratio,0.0,(u_pitch_with_map||u_label_plane_matrix*vec4(1,2,4,1)==vec4(1,2,4,1))?4.0:" +
+def NAMES_TO = "clamp(0.5+0.5*distance_ratio,0.0,(u_pitch_with_map||u_is_along_line||u_is_variable_anchor)?4.0:" +
         NEAR_MAX + ");"
+// The fields NAMES_TO reads, in the name shader's own SymbolDrawableUBO.
+def NAMES_NEED = ["bool u_pitch_with_map;", "bool u_is_along_line;", "bool u_is_variable_anchor;"]
 // An upright dot's size on the screen is u_camera_to_center_distance / w times its size in the middle of the view.
 def DOTS = Pattern.compile("if \\(u_scale_with_map\\) \\{\\s*gl_Position\\.xy \\+= extrude \\* \\(radius \\+ stroke_width\\) \\* " +
         "u_extrude_scale \\* u_camera_to_center_distance;\\s*\\} else \\{")
@@ -33,21 +37,31 @@ def DOTS_TO = "if(u_scale_with_map){gl_Position.xy+=extrude*(radius+stroke_width
 ext.trailMapNearNames = { File so ->
     // One char per byte both ways, so the file comes back the same apart from the changed text.
     String text = new String(so.bytes, "ISO-8859-1")
-    def swap = { String from, Pattern pattern, String to ->
+    // The whole shader (one C string) around a place in the library.
+    def shaderAt = { String from, int at ->
+        int end = from.indexOf("\u0000", at)
+        from.substring(from.lastIndexOf("\u0000", at) + 1, end < 0 ? from.length() : end)
+    }
+    def swap = { String from, Pattern pattern, String to, List need ->
         Matcher m = pattern.matcher(from)
         StringBuffer out = new StringBuffer()
         int n = 0
         while (m.find()) {
             String old = m.group()
             if (to.length() > old.length()) throw new GradleException("near-names: the new text is longer than MapLibre's in " + so)
+            String shader = shaderAt(from, m.start())
+            if (!need.every { shader.contains(it) }) {
+                throw new GradleException("near-names: a MapLibre shader in " + so + " lacks one of " + need +
+                        ". A new MapLibre? Update near-names.gradle.")
+            }
             m.appendReplacement(out, Matcher.quoteReplacement(to + " " * (old.length() - to.length())))
             n++
         }
         m.appendTail(out)
         [out.toString(), n]
     }
-    def (afterNames, names) = swap(text, NAMES, NAMES_TO)
-    def (afterDots, dots) = swap(afterNames, DOTS, DOTS_TO)
+    def (afterNames, names) = swap(text, NAMES, NAMES_TO, NAMES_NEED)
+    def (afterDots, dots) = swap(afterNames, DOTS, DOTS_TO, [])
     boolean done = names == 0 && dots == 0 && text.count(NAMES_TO) == 3 && text.count(DOTS_TO) == 1
     if (!done && (names != 3 || dots != 1)) {
         throw new GradleException("near-names: MapLibre's shaders in " + so + " don't read as expected (" + names +

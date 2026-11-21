@@ -9,7 +9,8 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const NAMES_TO = "clamp(0.5+0.5*distance_ratio,0.0,(u_pitch_with_map||u_label_plane_matrix*vec4(1,2,4,1)==vec4(1,2,4,1))?4.0:1.25);";
+const NAMES_TO = "clamp(0.5+0.5*distance_ratio,0.0,(u_pitch_with_map||u_is_along_line||u_is_variable_anchor)?4.0:1.25);";
+const NAMES_NEED = ["bool u_pitch_with_map;", "bool u_is_along_line;", "bool u_is_variable_anchor;"];   // the fields it reads
 const DOTS_TO = "min(u_camera_to_center_distance,1.25*gl_Position.w);}else{";
 let failed = 0;
 const check = (ok, what) => { console.log((ok ? "ok      " : "FAILED  ") + what); if (!ok) failed++; };
@@ -36,14 +37,20 @@ for (const file of process.argv.slice(2)) {
   check(prelude.length === 1, `${name}: MapLibre's vertex prelude found`);
   check(names.length === 3 && names.every((s) => s.split(NAMES_TO).length === 2 && !/4\.0\);/.test(s)),
     `${name}: the 3 name shaders are changed (${names.length} found)`);
+  check(names.length === 3 && names.every((s) => NAMES_NEED.every((f) => s.includes(f))), `${name}: the name shaders have the fields the change reads`);
   check(dots.length === 1 && dots[0].includes(DOTS_TO), `${name}: the dot shader is changed (${dots.length} found)`);
   if (!glslang || prelude.length !== 1) continue;
+  // MapLibre makes a paint property that is the same for every feature a uniform, with a define (HAS_UNIFORM_u_...,
+  // src/mln/shaders/gl/shader_group_gl.hpp), so each shader is compiled with none of them and with all of them.
   [...names, ...dots].forEach((body, n) => {
-    const src = join(dir, `${name}-${n}.vert`);
-    writeFileSync(src, "#version 300 es\n#define DEVICE_PIXEL_RATIO 2.0\n" + prelude[0] + body, "latin1");
-    let said = "";
-    try { execFileSync("glslangValidator", ["-S", "vert", src], { encoding: "utf8" }); } catch (e) { said = String(e.stdout || e.message).slice(-600); }
-    check(said === "", `${name}: ${n < names.length ? "name shader " + (n + 1) : "dot shader"} compiles as OpenGL ES 3.0 ${said}`);
+    const uniforms = [...new Set(body.match(/\bHAS_UNIFORM_u_\w+/g) || [])];
+    for (const defines of uniforms.length ? [[], uniforms] : [[]]) {
+      const src = join(dir, `${name}-${n}-${defines.length}.vert`);
+      writeFileSync(src, "#version 300 es\n#define DEVICE_PIXEL_RATIO 2.0\n" + defines.map((d) => `#define ${d}\n`).join("") + prelude[0] + body, "latin1");
+      let said = "";
+      try { execFileSync("glslangValidator", ["-S", "vert", src], { encoding: "utf8" }); } catch (e) { said = String(e.stdout || e.message).slice(-600); }
+      check(said === "", `${name}: ${n < names.length ? "name shader " + (n + 1) : "dot shader"}${defines.length ? " with its paint as uniforms" : ""} compiles as OpenGL ES 3.0 ${said}`);
+    }
   });
 }
 console.log(failed ? `${failed} native 3D names checks FAILED` : "All native 3D names checks passed");

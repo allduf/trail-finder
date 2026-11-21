@@ -325,7 +325,7 @@ if let device = device, let nameLine = nameLine, let dotLine = dotLine, let queu
             if judged == 0 { notJudged(kind, n, said) }
         }
     } else {
-        print("::notice title=Native 3D names check::No Metal device and no Metal compiler on this Mac, so the compile and size part was skipped: \(trial.said.prefix(300))")
+        print("::warning title=Native 3D names check::No Metal device and no Metal compiler on this Mac, so the compile and size part was skipped: \(trial.said.prefix(300))")
     }
 }
 
