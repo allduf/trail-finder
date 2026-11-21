@@ -1,0 +1,1 @@
+3D map: peak, place and trail names and map dots close to the camera stay near their normal size, instead of growing several times bigger and running off the screen. ||| Carte 3D : les noms de sommets, de lieux et de sentiers, et les points de la carte, près de la caméra gardent à peu près leur taille normale, au lieu de devenir plusieurs fois plus grands et de sortir de l'écran.

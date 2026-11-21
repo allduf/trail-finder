@@ -2959,6 +2959,72 @@
       const render = gl._render;
       if (typeof render === "function") gl._render = function () { if (!on && box.hidden) { this._frameRequest = null; return this; } return render.apply(this, arguments); };
     }
+    // Names and dots close to the camera stay near their normal size (alex's recording 2026-11-21 at Wedge Mountain:
+    // "Wedge NW Couloir", "Wedge Mountain 2903 m" and "Parkhurst Mountain 2494 m" about 3 times their size at the bottom
+    // of a tilted view, one running off the screen). MapLibre draws an upright name bigger the nearer it is than the
+    // middle of the view, up to 4 times ("perspective_ratio" in its symbol shaders), and no style property changes that.
+    // Here those names grow at most NEAR_MAX times; farther ones still get smaller as before, so distance still reads.
+    // Names lying flat on the ground (u_pitch_with_map) and names written along a line (u_is_along_line, letters set out
+    // one by one at the full size) are left as they were. A name that MapLibre moves off its spot (trail-names' "text-
+    // variable-anchor-offset": above, below, left or right of its point) is moved by the full size on the processor, so
+    // that move is shrunk the same way here, back towards the spot, or the smaller name would drift away from its line
+    // (code review). MapLibre still keeps the room a near name would have taken at full size free of other names.
+    // Upright dots ("dots", scaled with the map) grew without any limit, as many times as they are nearer than the
+    // middle: they stop at NEAR_MAX too, so a hut's name 0.6 em under its dot stays clear of it (code review).
+    // Changed in the shader text this map's own graphics context compiles, before its first picture. A MapLibre whose
+    // shaders read differently is left as it is, with a warning in the console.
+    {
+      const NEAR_MAX = 1.25, CAP = NEAR_MAX.toFixed(2);
+      const SIZE = "highp float perspective_ratio=clamp(0.5+0.5*distance_ratio,0.0,4.0);";
+      const SIZE_TO = "highp float tf_full=0.5+0.5*distance_ratio;highp float perspective_ratio=clamp(tf_full,0.0," +
+        `u_pitch_with_map || u_is_along_line ? 4.0 : ${CAP});`;
+      // Where MapLibre puts a moved name: its spot on the screen plus the move, in screen pixels (a_projected_pos). The
+      // spot is found again from projectedPoint and u_coord_matrix (screen pixels to the picture: a scale and a shift).
+      const MOVE = "if (u_is_along_line || u_is_variable_anchor) {projected_pos=vec4(a_projected_pos.xy,ele,1.0);}";
+      const MOVE_TO = "if (u_is_along_line || u_is_variable_anchor) {projected_pos=vec4(a_projected_pos.xy,ele,1.0);" +
+        "if (u_is_variable_anchor && !u_is_along_line && !u_pitch_with_map && tf_full > perspective_ratio) {" +
+        "vec2 tf_spot=(projectedPoint.xy/projectedPoint.w-u_coord_matrix[3].xy)/vec2(u_coord_matrix[0][0],u_coord_matrix[1][1]);" +
+        "projected_pos.xy=tf_spot+(a_projected_pos.xy-tf_spot)*(perspective_ratio/tf_full);}}";
+      // A dot's size on the screen is u_camera_to_center_distance / w times its size in the middle of the view.
+      const DOT = "if (u_scale_with_map) {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*u_camera_to_center_distance;}";
+      const DOT_TO = `if (u_scale_with_map) {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*min(u_camera_to_center_distance,${CAP}*gl_Position.w);}`;
+      const warned = new Set();
+      const warn = (why) => { if (!warned.has(why)) { warned.add(why); console.warn(`3D map: ${why}; names and dots near the camera grow as before`); } };
+      try {
+        const wgl = gl.painter && gl.painter.context && gl.painter.context.gl;
+        if (!wgl || typeof wgl.shaderSource !== "function" || typeof wgl.compileShader !== "function") warn("no graphics context to change");
+        else {
+          const shaderSource = wgl.shaderSource, compileShader = wgl.compileShader;
+          const changed = new WeakMap();   // shader -> MapLibre's own text, until it compiles
+          wgl.shaderSource = function (shader, text) {
+            const own = text;
+            if (typeof text === "string" && text.includes("perspective_ratio")) {
+              if (text.includes(SIZE) && text.includes(MOVE)) text = text.replace(SIZE, SIZE_TO).replace(MOVE, MOVE_TO);
+              else warn("MapLibre's name shaders read differently");
+            } else if (typeof text === "string" && text.includes("u_scale_with_map")) {
+              if (text.includes(DOT)) text = text.replace(DOT, DOT_TO);
+              else warn("MapLibre's dot shader reads differently");
+            }
+            if (text !== own) changed.set(shader, own); else changed.delete(shader);
+            return shaderSource.call(this, shader, text);
+          };
+          // A graphics driver that refuses the changed text gets MapLibre's own back, so names and dots are still drawn
+          // (bigger near the camera, as before) instead of none at all (code review). MapLibre asks whether the shader
+          // compiled right after this, so the check here waits no longer than it already did.
+          wgl.compileShader = function (shader) {
+            const own = changed.get(shader);
+            compileShader.call(this, shader);
+            if (own === undefined) return;
+            changed.delete(shader);
+            if (!this.getShaderParameter(shader, this.COMPILE_STATUS) && !this.isContextLost()) {
+              warn("the changed shaders didn't compile on this device");
+              shaderSource.call(this, shader, own);
+              compileShader.call(this, shader);
+            }
+          };
+        }
+      } catch (e) { console.warn("3D map: names and dots near the camera grow as before", e); }
+    }
     // How sharp the photos are, near and far (alex, 2026-10-18: "it lag" and "i dont like the resolution make it
     // better"). The photos come one zoom deeper than MapLibre would pick for their size (tileSize 128 below), so
     // up close they're as sharp as the screen, and the far ones get a little softer with distance (6 zoom levels
