@@ -658,7 +658,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     if (blob) viewUrl = URL.createObjectURL(blob);
     const when = new Date(p.created).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     viewer.innerHTML = `${viewUrl ? `<div class="sp-photo"><img alt="${esc(p.name)}" src="${viewUrl}"></div>` : ""}
-      <h2 data-pin-line>${hasKinds(sportOf(p)) ? iconOf(p) + " " : ""}${esc(p.name)}</h2>
+      <h2 ${hasKinds(sportOf(p)) ? "data-pin-line" : "data-no-line"}>${hasKinds(sportOf(p)) ? iconOf(p) + " " : ""}${esc(p.name)}</h2>
       ${hasKinds(sportOf(p)) && tagsOf(p).length > 1 ? `<div class="sp-tagline" data-pin-line>${tagsOf(p).map((k) => kindOf({ kind: k }, sportOf(p))).filter(Boolean).map((d) => `<span>${d[2]} ${esc(d[1])}</span>`).join("")}</div>`
         : hasKinds(sportOf(p)) && kindOf(p) ? `<p class="sp-meta">${esc(kindOf(p)[1])}</p>` : ""}
       ${p.kind === "catch" && p.catch ? catchFacts(p.catch) : ""}

@@ -200,7 +200,9 @@
       t.innerHTML = draw(name, "1.2em");
       t.content.firstChild.classList.add("tf-pin-line");
       n.parentNode.insertBefore(t.content.firstChild, n);
-      n.data = rest.replace(/^\s+/, rest.trim() ? "\u00a0" : "");
+      // A space after the drawing, unless the pin lays its parts out with a gap already (flex or grid: \u26f7 resort label).
+      const flex = rest.trim() && /flex|grid/.test(getComputedStyle(n.parentElement).display);
+      n.data = rest.replace(/^\s+/, rest.trim() && !flex ? "\u00a0" : "");
     }
   };
   const pinRoots = (root) => {
