@@ -22,7 +22,7 @@
   if (!map || !window.L || !document.getElementById("skiPane")) return;
   // MTB has pins too (alex, from Outmap's waypoints): a jump, water, a hidden entrance. Long-press the map or
   // "📍 Save a spot" under My trails; MTB pins show whenever there are some, with no map button.
-  const sportNow = () => (document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : document.body.classList.contains("sport-hike") ? "hike" : "mtb");
+  const sportNow = () => (document.body.classList.contains("sport-ski") ? "ski" : document.body.classList.contains("sport-hunt") ? "hunt" : document.body.classList.contains("sport-fish") ? "fish" : document.body.classList.contains("sport-hike") ? "hike" : document.body.classList.contains("sport-moto") ? "moto" : "mtb");
   const sportOf = (p) => p.sport || "ski";
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const isSki = () => !!sportNow();   // a sport with saved points (Skiing, Hunting or Fishing)
@@ -55,7 +55,11 @@
   let pinsOn = false;
   try { pinsOn = localStorage.getItem("tf:skiPoints") === "true"; } catch {}
   const isMtb = () => sportNow() === "mtb";
-  const shown = () => isSki() && (pinsOn || isMtb());
+  // Adventure moto has its own spots (deep phone test 2026-11-21: it showed MTB's, with "a jump, a hidden entrance"),
+  // called spots and shown whenever there are some, like MTB's. Spots saved in ADV before stay with MTB.
+  const isMoto = () => sportNow() === "moto";
+  const spotWords = () => isMtb() || isMoto();
+  const shown = () => isSki() && (pinsOn || spotWords());
 
   // ---------- storage ----------
   const dbP = new Promise((resolve, reject) => {
@@ -209,9 +213,9 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     <div class="sp-filt" id="spFilt" role="group" aria-label="Show only" hidden></div>
     <ul class="sk-list sp-list" id="spList"></ul>`;
   const skiPane = document.getElementById("skiPane");
-  // The list sits under the chips of whichever sport is on (Skiing's or Hunting's panel).
+  // The list sits under the chips of whichever sport is on (Skiing's or Hunting's panel); MTB and ADV keep it under My trails.
   function placeBox() {
-    const at = isMtb() ? document.getElementById("wantList") : isHunt() ? document.getElementById("hnCond") : isFish() ? document.getElementById("fsHatch") : document.getElementById("skChips");
+    const at = isMtb() || isMoto() ? document.getElementById("wantList") : isHunt() ? document.getElementById("hnCond") : isFish() ? document.getElementById("fsHatch") : document.getElementById("skChips");
     if (at) { if (at.nextElementSibling !== box) at.after(box); } else if (!box.parentNode) skiPane.append(box);
   }
   placeBox();
@@ -257,10 +261,10 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
   function renderList() {
     $("spCount").textContent = points.length ? `Your points (${points.length})` : "Your points";
     const list = $("spList");
-    $("spCount").textContent = isMtb() ? (points.length ? `📍 Your spots (${points.length})` : "📍 Your spots") : $("spCount").textContent;
-    $("spNew").textContent = isMtb() ? "📍 Save a spot" : "📍 Save a point";
+    $("spCount").textContent = spotWords() ? (points.length ? `📍 Your spots (${points.length})` : "📍 Your spots") : $("spCount").textContent;
+    $("spNew").textContent = spotWords() ? "📍 Save a spot" : "📍 Save a point";
     paintFilt();
-    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : sportNow() === "hike" ? `<li class="sk-hint">Save the spots of your hikes: a viewpoint, water, a campsite, where to park. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map.</li>`; return; }
+    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isMoto() ? `<li class="sk-hint">Save the spots of your rides: a viewpoint, fuel, a campsite, where to park. Only you see them. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : sportNow() === "hike" ? `<li class="sk-hint">Save the spots of your hikes: a viewpoint, water, a campsite, where to park. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map.</li>`; return; }
     const sorted = [...visible()].sort((a, b) => b.created - a.created);
     list.innerHTML = sorted.map((p, i) => {
       const u = p.thumb || p.photo ? thumbUrl(p) : "";
@@ -409,9 +413,9 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     paintTags();
     draftPhoto = undefined;
     idFor = null; $("spfId").hidden = true; $("spfId").innerHTML = "";
-    const mtb = p ? sportOf(p) === "mtb" : isMtb();
-    $("spfTitle").textContent = mtb ? (p ? "Edit spot" : "New spot") : p ? "Edit point" : "New point";
-    $("spfName").placeholder = mtb ? "Like “Gap jump” or “Creek water”" : isHunt() ? "Like “North stand”" : isFish() ? "Like “Tailout below the bridge”" : sportNow() === "hike" ? "Like “Lunch spot with a view”" : "Like “Skin track start”";
+    const mtb = p ? sportOf(p) === "mtb" : isMtb(), moto = p ? sportOf(p) === "moto" : isMoto();
+    $("spfTitle").textContent = mtb || moto ? (p ? "Edit spot" : "New spot") : p ? "Edit point" : "New point";
+    $("spfName").placeholder = mtb ? "Like “Gap jump” or “Creek water”" : moto ? "Like “Viewpoint above the lake”" : isHunt() ? "Like “North stand”" : isFish() ? "Like “Tailout below the bridge”" : sportNow() === "hike" ? "Like “Lunch spot with a view”" : "Like “Skin track start”";
     $("spfName").value = p ? p.name : (preset && preset.name) || "";
     $("spfDesc").value = p ? p.note || "" : (preset && preset.note) || "";
     $("spfMsg").textContent = p ? "" : `At ${where.lat.toFixed(5)}, ${where.lon.toFixed(5)}`;
@@ -973,7 +977,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     const go = `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(5)},${lon.toFixed(5)}`;
     el.innerHTML = `<b>📍 ${esc(name || "Spot shared with you")}</b><button type="button" class="tfs-x" aria-label="Close">✕</button>
       <small>${name ? "Shared with you · " : ""}${lat.toFixed(5)}, ${lon.toFixed(5)}</small>
-      <div class="tfs-row">${sp === "moto" ? "" : `<button type="button" class="tfs-save">★ Save to my points</button>`}<a class="tfs-go" href="${go}" target="_blank" rel="noopener">Directions</a></div>`;
+      <div class="tfs-row"><button type="button" class="tfs-save">★ Save to my points</button><a class="tfs-go" href="${go}" target="_blank" rel="noopener">Directions</a></div>`;
     el.querySelector(".tfs-x").addEventListener("click", closeShared);
     const sv = el.querySelector(".tfs-save");
     if (sv) sv.addEventListener("click", () => { el.remove(); setPins(true); edit(null, { lat, lon }, { kind, name, note: "Shared with me" }); });
