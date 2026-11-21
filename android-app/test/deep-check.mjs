@@ -81,8 +81,15 @@ async function js(expr) {
   if (res.result && res.result.exceptionDetails) throw new Error(String(res.result.exceptionDetails.exception && res.result.exceptionDetails.exception.description || res.result.exceptionDetails.text).split("\n")[0]);
   return res.result && res.result.result && res.result.result.value;
 }
-// The app is the one on screen: the window with the focus is ours (with the keyboard up too: mFocusedApp).
-const front = () => { try { const d = adb("shell dumpsys window displays"); return /mFocusedApp=[^\n]*com\.allduf\.trailfinder/.test(d) || /mCurrentFocus=[^\n]*com\.allduf\.trailfinder/.test(d); } catch { return false; } };
+// The app is the one on screen: any resumed-activity line names it (the first line can be another display's).
+const front = () => {
+  try {
+    const lines = adb("shell dumpsys activity activities").split("\n").filter((l) => /ResumedActivity/.test(l));
+    if (lines.some((l) => l.includes(APP))) return true;
+    console.log("    (not in front: " + lines.map((l) => l.trim()).join(" / ").slice(0, 300) + ")");
+    return false;
+  } catch { return false; }
+};
 const crashes = () => { try { return adb("logcat -d -b crash").trim(); } catch { return ""; } };
 let crashSeen = "";
 async function relaunch() {
@@ -162,15 +169,22 @@ async function fingerTap(sel) {
   return "";
 }
 let topPx = null;
+// Where the web view's top is on the screen: a tap on the map, and where the page saw it.
 async function webTop(r) {
   if (topPx != null) return topPx;
+  topPx = 0;
   try {
-    const d = adb("shell dumpsys window windows");
-    const m = d.match(/com\.allduf\.trailfinder\/com\.allduf\.trailfinder\.MainActivity[\s\S]*?mFrame=\[(\d+),(\d+)\]/);
-    topPx = m ? +m[2] : 0;
-  } catch { topPx = 0; }
+    await js(`window.__tapY = null; addEventListener("touchstart", (e) => { window.__tapY = e.touches[0].clientY; }, { capture: true, once: true })`);
+    const y = Math.round(innerMid(r));
+    adb(`shell input tap 20 ${y}`);
+    await sleep(800);
+    const cy = await js("window.__tapY");
+    if (cy != null) topPx = Math.round(y - cy * r.dpr);
+  } catch {}
+  console.log(`    (web view top: ${topPx} px)`);
   return topPx;
 }
+const innerMid = (r) => r.ih * r.dpr * 0.45;
 
 // Native 3D screen: its own buttons (Android views), from the screen's layout.
 function nativeButtons() {
@@ -189,7 +203,8 @@ function nativeButtons() {
     return out;
   } catch { return []; }
 }
-const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml"); return adb("shell cat /sdcard/ui.xml"); } catch { return ""; } };
+// The top screen's views (the native 3D map is a MapLibre MapView over the web view).
+const webViewShows = () => { try { const t = adb(`shell dumpsys activity top`); const i = t.indexOf(APP); return i >= 0 ? t.slice(i) : t; } catch { return ""; } };
 
 (async () => {
   try { adb("logcat -c -b crash"); } catch {}
@@ -205,6 +220,7 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     if (!front()) { await relaunch(); return "Back on the welcome closed the app"; }
     return "";
   }, 2000);
+  await webTop(await js(`({ dpr: devicePixelRatio, ih: innerHeight })`));
   const info = await js(`({ dpr: devicePixelRatio, w: innerWidth, h: innerHeight, ua: navigator.userAgent, keys: window.tfNative ? "yes" : "no" })`).catch(() => ({}));
   console.log(JSON.stringify(info));
 
@@ -288,11 +304,11 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     const r = await fingerTap("#btn3d");
     if (r) return r;
     await sleep(2500);
-    if (await agree()) { console.log("    (agreed to the trip sheet, tapping 3D again)"); await sleep(1500); if (!/MapView|SurfaceView|TextureView/.test(webViewShows()) && !(await js(`!!document.querySelector("#btn3d.on")`))) await fingerTap("#btn3d"); }
+    if (await agree()) { console.log("    (agreed to the trip sheet, tapping 3D again)"); await sleep(1500); if (!/maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows()) && !(await js(`!!document.querySelector("#btn3d.on")`))) await fingerTap("#btn3d"); }
     await sleep(12000);
     const web = await js(`!!document.querySelector(".is3d") || !!document.querySelector("#btn3d.on")`);
     const ui = webViewShows();
-    native = /MapView|SurfaceView|TextureView/.test(ui) && !web;
+    native = /maplibre[\w.]*MapView|TrailMapScreen/.test(ui) && !web;
     console.log(`    3D opened as: ${native ? "native" : web ? "web 3D" : "nothing?"}`);
     return native || web ? "" : "neither native nor web 3D opened";
   }, 1000);
@@ -302,7 +318,7 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     for (const b of btns.slice(0, 16)) {
       if (/back|close|retour/i.test(b.label)) continue;
       await step(`Native 3D › ${b.label}`, async () => {
-        if (!/MapView|SurfaceView|TextureView/.test(webViewShows())) { await fingerTap("#btn3d"); await sleep(12000); }
+        if (!/maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows())) { await fingerTap("#btn3d"); await sleep(12000); }
         adb(`shell input tap ${b.x} ${b.y}`);
         await sleep(3500);
         return "";
@@ -313,17 +329,17 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
       await backOut(`after native ${b.label}`);
     }
     await step("Native 3D: fingers (pan, pinch-free zoom tap)", async () => {
-      if (!/MapView|SurfaceView|TextureView/.test(webViewShows())) { await fingerTap("#btn3d"); await sleep(12000); }
+      if (!/maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows())) { await fingerTap("#btn3d"); await sleep(12000); }
       adb("shell input swipe 700 1400 400 1000 600"); await sleep(1500);
       adb("shell input swipe 400 1000 800 1600 600"); await sleep(1500);
       return "";
     }, 3000);
     await step("Back closes native 3D", async () => {
       await js(`window.__tmEv = []`);
-      for (let i = 0; i < 3 && /MapView|SurfaceView|TextureView/.test(webViewShows()); i++) await key("KEYCODE_BACK", 2000);
+      for (let i = 0; i < 3 && /maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows()); i++) await key("KEYCODE_BACK", 2000);
       if (!front()) return "Back closed the app";
       const ev = await js(`window.__tmEv`).catch(() => []);
-      return /MapView|SurfaceView|TextureView/.test(webViewShows()) ? "native 3D still showing after 3 Backs" : ev.length ? "" : "no 'closed' event to the page";
+      return /maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows()) ? "native 3D still showing after 3 Backs" : ev.length ? "" : "no 'closed' event to the page";
     });
   } else {
     await step("3D off", async () => { await click("#btn3d"); return ""; }, 3000);
@@ -335,11 +351,11 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     if (!has) return "no Native 3D (test) button in Layers";
     await click("#native3dBtn");
     await sleep(2500);
-    if (await agree()) { await sleep(1000); if (!/MapView|SurfaceView|TextureView/.test(webViewShows())) { await click("#layersBtn"); await sleep(500); await click("#native3dBtn"); } }
+    if (await agree()) { await sleep(1000); if (!/maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows())) { await click("#layersBtn"); await sleep(500); await click("#native3dBtn"); } }
     await sleep(12000);
-    return /MapView|SurfaceView|TextureView/.test(webViewShows()) ? "" : "native 3D didn't open";
+    return /maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows()) ? "" : "native 3D didn't open";
   }, 500);
-  for (let i = 0; i < 3 && /MapView|SurfaceView|TextureView/.test(webViewShows()); i++) await key("KEYCODE_BACK", 2000);
+  for (let i = 0; i < 3 && /maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows()); i++) await key("KEYCODE_BACK", 2000);
   await backOut("after native 3D (test)");
 
   // ---------- away and back ----------
@@ -416,7 +432,7 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
     await backOut("sign-in");
 
     await step("Save a spot (long press on the map)", async () => {
-      const r = await js(`(() => { const m = document.getElementById("map"); const b = m.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, dpr: devicePixelRatio }; })()`);
+      const r = await js(`(() => { const m = document.getElementById("map"); const b = m.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, dpr: devicePixelRatio, ih: innerHeight }; })()`);
       const off = await webTop(r);
       adb(`shell input swipe ${Math.round(r.x * r.dpr)} ${Math.round(r.y * r.dpr + off)} ${Math.round(r.x * r.dpr)} ${Math.round(r.y * r.dpr + off)} 900`);
       await sleep(2000);
@@ -445,9 +461,9 @@ const webViewShows = () => { try { adb("shell uiautomator dump /sdcard/ui.xml");
       await click("#layersBtn"); await sleep(500);
       await click("#native3dBtn");
       await sleep(12000);
-      return /MapView|SurfaceView|TextureView/.test(webViewShows()) ? "" : "native 3D didn't open with no signal";
+      return /maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows()) ? "" : "native 3D didn't open with no signal";
     }, 1000);
-    for (let i = 0; i < 3 && /MapView|SurfaceView|TextureView/.test(webViewShows()); i++) await key("KEYCODE_BACK", 2000);
+    for (let i = 0; i < 3 && /maplibre[\w.]*MapView|TrailMapScreen/.test(webViewShows()); i++) await key("KEYCODE_BACK", 2000);
     await step("No signal: the page still answers", async () => {
       await backOut("offline");
       await click("#tabbar [data-nav=saved]");
