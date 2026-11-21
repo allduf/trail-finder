@@ -869,11 +869,22 @@ const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const s
 const PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
 const shortTitle = (t, p) => (t.split("-").length <= 8 ? t : PARKS[val(p?.owner?.value)]
   || (val(p?.owner?.value) === "avalanche-canada" || !p?.owner ? "Avalanche Canada early season bulletin (all of BC)" : `${text(p.owner.display) || "Avalanche"} forecast`));
+// Each day's date: Avalanche Canada gives a time in UTC and the day's name. BC's and Parks Canada's bulletins are issued
+// at 4 PM Pacific (00:00 UTC), so their UTC date is the next day ("2026-01-16T00:00:00Z", "Thursday" is Thursday
+// January 15): the date within a day of it that falls on the named day. Same as winter.js acDay().
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+function dayDate(iso, label) {
+  iso = String(iso || "").slice(0, 10);
+  const w = String(label || "").trim().toLowerCase().match(/^[a-z]+/), wd = w ? WEEKDAYS.indexOf(w[0]) : -1;
+  if (wd < 0 || !/^\d{4}-\d\d-\d\d$/.test(iso)) return iso;
+  for (const k of [0, -1, 1]) { const t = new Date(iso + "T12:00:00Z"); t.setUTCDate(t.getUTCDate() + k); if (t.getUTCDay() === wd) return t.toISOString().slice(0, 10); }
+  return iso;
+}
 function normalizeForecast(p) {
   const r = p.report || p;
   const days = (r.dangerRatings || []).map((d) => {
-    const rt = d.ratings || d;
-    return { date: val(d.date).slice(0, 10) || val(d.date?.value).slice(0, 10), label: text(d.date?.display || d.date), alp: level(rt.alp), tln: level(rt.tln), btl: level(rt.btl) };
+    const rt = d.ratings || d, label = text(d.date?.display || d.date);
+    return { date: dayDate(val(d.date).slice(0, 10) || val(d.date?.value).slice(0, 10), label), label, alp: level(rt.alp), tln: level(rt.tln), btl: level(rt.btl) };
   });
   const problems = (r.problems || []).map((pr) => {
     const d = pr.data || pr;
@@ -891,6 +902,8 @@ function normalizeForecast(p) {
     highlights: text(r.highlights).slice(0, 1500), confidence: text(r.confidence?.rating), summaries,
     advice: (r.terrainAndTravelAdvice || []).map(text).filter(Boolean).slice(0, 8),
     days, problems,
+    // Avalanche Canada's early season bulletin: its ratings say "earlyseason" (no danger level), as winter.js acForecast().
+    early: (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(text(r.title)),
   };
 }
 // The API sometimes gives an area's id as its name.

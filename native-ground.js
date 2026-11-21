@@ -30,12 +30,17 @@
     for (const g of Object.values(reg())) if (g.key && isOn(g)) { try { const k = g.key(); if (k) out.push(k); } catch {} }
     return out;
   }
+  // The native map keeps the pictures on the phone between app opens, by their address, and shows a kept one before
+  // asking again (or instead, with no signal). A layer drawn from data that changes (keep: false: the avalanche
+  // forecast, new snow...) counts its versions from 0 at each page load, so the same address could bring back
+  // yesterday's picture: this page load's own mark goes in front of its version.
+  const OPEN = Date.now().toString(36);
   function state() {
     const layers = [];
     for (const [id, g] of Object.entries(reg())) {
       if (!isOn(g)) continue;
       let v = "0"; try { v = String(g.ver ? g.ver() : 0); } catch {}
-      layers.push({ id, v: v.replace(/[^\w.-]/g, ""), min: g.min || 0, max: g.max || 14, op: g.opacity || 1, z: g.z || 0, credit: g.credit || "", keep: !!g.keep });
+      layers.push({ id, v: (g.keep ? v : OPEN + "." + v).replace(/[^\w.-]/g, ""), min: g.min || 0, max: g.max || 14, op: g.opacity || 1, z: g.z || 0, credit: g.credit || "", keep: !!g.keep });
     }
     return JSON.stringify({ layers, keys: keys() });
   }

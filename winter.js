@@ -1419,13 +1419,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return { c: off ? off.ates.cls : Math.max(c, T.terrainClass(sum).c), official: off ? off.ates : null, lo, hi, top, ...sum };
   }
   // The forecast for a spot on a day: { r: the highest rating from lo to hi m (0 = none), band, area, d: the day },
-  // or null when there's no forecast there (or it has expired).
-  function dangerAt(lat, lon, lo, hi, dayIdx = day) {
+  // or null when there's no forecast there (or it has expired). The day: the one shown on the map (dayOf, the same
+  // date everywhere), or dayIdx, a day by its place in this area's own list.
+  function dangerAt(lat, lon, lo, hi, dayIdx) {
     const a = avy || example ? areaAt(lat, lon) : null, f = a && a.forecast;
     if (!f || !f.days || !f.days.length) return null;
     if (!example && f.validUntil && new Date(f.validUntil) < new Date()) return null;
-    const d = f.days[Math.min(dayIdx, f.days.length - 1)];
-    return { ...T.dangerIn(d, a.bands, lo, hi), area: a, d };
+    const d = dayIdx == null ? dayOf(f) : f.days[Math.min(dayIdx, f.days.length - 1)];
+    return d ? { ...T.dangerIn(d, a.bands, lo, hi), area: a, d } : null;
   }
   function riskOf(g) {
     const t = groupTerrain(g);
@@ -1817,18 +1818,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const at = pt || (info && info.pts && info.pts[0] ? [info.pts[0].lat, info.pts[0].lon] : null), site = at ? avySite(at[0], at[1]) : AVY_SITE.ca;
     const link = siteLink(site);
     if (!data) return `<h4>Avalanche</h4><p class="sk-note">${avyErr ? `The avalanche forecast isn't on the site yet. ${link}` : "Loading the avalanche forecast…"}</p>`;
-    const f = area && area.forecast, d = f && dayOf(f);
+    // Every day of the bulletin is in its table (the day shown on the map may not be one of them).
+    const f = area && area.forecast, d = f && f.days && f.days.length;
     const rated = f && f.days?.some((x) => x.alp || x.tln || x.btl);
     let html = `<h4>Avalanche${f ? `: ${esc(f.title || area.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
-    else html += staleWarn();
+    else html += staleWarn(f);
     if (!f || !d) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
     else {
-      const expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
+      const expired = fcExpired(f);
       const on = info ? bandKm(info, area.bands) : null;
       // Today in words, later days as the number only, so three days fit across a phone.
       const chip = (r, short) => `<span class="av-chip" title="${DANGER[r].label}" style="background:${DANGER[r].color};color:${r >= 4 ? "#fff" : "#1a1a1a"}">${short ? r || "–" : DANGER[r].label}</span>`;
-      if (expired) html += `<div class="av-warn">This forecast has expired. Check ${site.host} for the latest.</div>`;
+      if (expired) html += expiredWarn(f, site);
       if (rated) {
         html += `<table class="sk-avt"><tr><th></th>${f.days.map((x) => `<th>${esc((x.label || x.date || "").slice(0, 3))}</th>`).join("")}</tr>
           ${BANDS.map(([b, n]) => `<tr class="${on && on[b] < 0.05 ? "off" : ""}"><th>${n}${on ? `<span class="sk-note">${on[b] >= 0.05 ? `${on[b].toFixed(1)} km of the route` : "not on the route"}</span>` : ""}</th>${f.days.map((x, j) => `<td>${chip(x[b], j > 0)}</td>`).join("")}</tr>`).join("")}</table>`;
@@ -2446,12 +2448,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 
     // Avalanche: the highest rating in the bands the route goes through that day, the light, the problems there.
     let avTile;
-    const dgList = (avy || example) ? (areaAt(info.top.lat, info.top.lon)?.forecast?.days || []) : [];
+    const fc = (avy || example) ? areaAt(info.top.lat, info.top.lon)?.forecast : null, dgList = (fc && fc.days) || [];
+    // The bulletin's own day for the day picked above, by its date (never another day's rating: in the evening the
+    // new bulletin starts tomorrow, so today has none).
     const fIdx = dgList.findIndex((x) => x.date === D.date);
-    const dg = fIdx >= 0 || (condDay === 0 && dgList.length) ? dangerAt(info.top.lat, info.top.lon, info.min, info.max, fIdx >= 0 ? fIdx : 0) : null;
+    const dg = fIdx >= 0 ? dangerAt(info.top.lat, info.top.lon, info.min, info.max, fIdx) : null;
     if (!avy && !example && !avyErr) avTile = tile("skAvy", CGREY, "Avalanche", "Loading…", []);
     else if (!dg || !dg.r) {
-      const none = !dgList.length ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : "No rating yet";
+      const none = !dgList.length || (condDay === 0 && fIdx < 0 && D.date < (dgList[0].date || "")) ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : fcExpired(fc) ? "Forecast expired" : "No rating yet";
       const site = avySite(info.top.lat, info.top.lon);
       avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? site.season : `Check ${site.host} before you go.` }]);
     } else {
@@ -2835,10 +2839,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
     const days = f && !expired && f.days ? f.days.map((d, j) => ({ d, j, ...dangerAt(top.lat, top.lon, lo, hi, j) })).filter((x) => x.r) : [];
     const bandName = (b) => (BANDS.find((x) => x[0] === b) || ["", ""])[1].toLowerCase();
-    const dayName = (d, j) => (j === 0 && d.date === new Date().toISOString().slice(0, 10) ? "Today" : d.label || d.date);
+    const dayName = (d) => (d.date && d.date === localDay() ? "Today" : d.label || d.date);
+    // The day shown on the map first (by its date), else this bulletin's first rated day, named.
+    const isNow = (x) => (dayDate && x.d.date ? x.d.date === dayDate : x.j === Math.min(day, f.days.length - 1));
     let head;
     if (days.length) {
-      const now = days.find((x) => x.j === Math.min(day, f.days.length - 1)) || days[0], l = T.light(now.r, cls.c), L0 = T.LIGHTS[l];
+      const now = days.find(isNow) || days[0], l = T.light(now.r, cls.c), L0 = T.LIGHTS[l];
       head = `<div class="sk-check" style="--c:${L0.color}"><b>${L0.label}</b><span>${esc(dayName(now.d, now.j))}: ${esc(DANGER[now.r].label.replace(/^\d /, ""))} in the ${bandName(now.band)} × ${cls.label} terrain</span></div>
         <p class="sk-note">${esc(L0.what)}</p>
         ${days.length > 1 ? `<ul class="sk-checkdays">${days.filter((x) => x !== now).map((x) => `<li>${esc(dayName(x.d, x.j))}: ${lightPill(T.light(x.r, cls.c))} <span class="sk-note">${esc(DANGER[x.r].label.replace(/^\d /, ""))}, ${bandName(x.band)}</span></li>`).join("")}</ul>` : ""}`;
@@ -2864,7 +2870,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // The card at the top: today's light (or the terrain class) as its coloured word, and Watch.
     const tg = $("skRcTag");
     if (tg) {
-      const L1 = days.length ? T.LIGHTS[T.light((days.find((x) => x.j === Math.min(day, f.days.length - 1)) || days[0]).r, cls.c)] : null;
+      const L1 = days.length ? T.LIGHTS[T.light((days.find(isNow) || days[0]).r, cls.c)] : null;
       tg.innerHTML = [L1 ? `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : "", classPill(cls.c, official ? "Official ATES rating" : ""),
         esc(kindLabel(r, TYPES[r.type] || TYPES.other)), diffPill(r.diff)].filter(Boolean).join(" · ");
     }
@@ -3381,12 +3387,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (avyLoading && !example) { try { await avyLoading; } catch {} }
     const a = avy || example ? areaAt(lat, lon) : null, f = a && a.forecast;
     const bands = a ? a.bands : DEFAULT_BANDS, expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
-    const d = f && f.days && f.days.length && !expired ? dayOf(f) || {} : null;
+    const live = !!(f && f.days && f.days.length && !expired), d = live ? dayOf(f) : null;
     // No forecast to weigh: the way is drawn from the terrain alone (ski-route.js "terrain"), and the card says why
     // (alex 2026-11-09). why: "early" only Avalanche Canada's early season bulletin (no ratings), "net" Avalanche Canada couldn't be reached and the saved copy has none for today, "off"
-    // no forecast area covers the spot, "norating" a forecast with no danger rating today, "none" none published today.
+    // no forecast area covers the spot, "noday" a forecast without the day shown on the map (another area's day
+    // picked), "norating" a forecast with no danger rating today, "none" none published today.
     if (!d || !(d.alp || d.tln || d.btl)) {
-      const why = !avy && !example ? "net" : !a ? "off" : f && (f.early || /early.?season/i.test(f.title || "")) ? "early" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
+      const why = !avy && !example ? "net" : !a ? "off" : f && (f.early || /early.?season/i.test(f.title || "")) ? "early" : live && !d ? "noday" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
       const area = (f && f.title) || (a && a.name) || "";
       return { r: {}, mask: {}, bands, none: true, why, area: area.length <= 40 ? area : "" };
     }
@@ -3401,6 +3408,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       off: "No avalanche forecast area covers this spot.",
       early: "Avalanche Canada has only its early season bulletin here, which gives no danger ratings. Their daily forecasts start about late November.",
       norating: `${who}'s forecast${av.area ? ` for ${av.area}` : ""} gives no danger rating today.`,
+      noday: `${who}'s forecast${av.area ? ` for ${av.area}` : ""} has no rating for the day shown on the map.`,
       none: `${who} hasn't published a forecast${av.area ? ` for ${av.area}` : " for this area"} today.${off}` }[av.why] || "There's no avalanche forecast here today.";
   }
   // Today's weather signs for the safest way (ski-route.js wxF): Open-Meteo at the alpine height (the forecast's alpine
@@ -3888,8 +3896,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const where = `${bandN} here (${band === "alp" ? `above ~${fmtM(bands.hi)}` : band === "tln" ? `~${fmtM(bands.lo)} to ${fmtM(bands.hi)}` : `below ~${fmtM(bands.lo)}`})`;
     let html = `<h4>Avalanche danger${f ? `: ${esc(f.title || a.name)}` : ""}</h4>`;
     if (example) html += `<div class="av-warn">EXAMPLE, not a real forecast.</div>`;
-    else html += staleWarn();
-    const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
+    else html += staleWarn(f);
+    const expired = fcExpired(f);
     if (!f || !f.days || !f.days.length || expired) return html + `<p class="sk-note">${where}.</p><p>No avalanche forecast here right now${expired ? " (the last one has expired)" : ""}. ${site.season} ${link}</p>`;
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
     if (r && g.slope >= 25) {
@@ -4235,10 +4243,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       .sort((a, b) => a.km - b.km).slice(0, 2);
   }
 
-  map.on("moveend", () => { if (sport === "ski") { renderList(); renderForecast(); } });
+  // A move to a forecast starting on another day draws everything again for that day; otherwise the list and the card.
+  map.on("moveend", () => { if (sport !== "ski") return; const was = dayDate; if (syncDay() !== was) refreshAvy(); else { renderList(); renderForecast(); } });
 
   // ---------- avalanche forecast ----------
-  let avy = null, avyLoading = null, avyErr = "", example = false, day = 0, avyAt = 0;
+  let avy = null, avyLoading = null, avyErr = "", example = false, day = 0, avyAt = 0, pickDate = "", dayDate = "";   // the day shown: see syncDay()
   // Most accurate possible (alex 2026-11-09): the forecasts are read LIVE from Avalanche Canada's own forecast service
   // (open to any site) each time the app opens and when it comes back after 10 minutes, so a new or updated bulletin
   // shows at once. data/avalanche.json (area outlines + a saved copy of the forecasts, rebuilt hourly in season) is
@@ -4248,6 +4257,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     .replace(/<(br|\/p|\/li)\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
     .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
   const acVal = (v) => (v == null ? "" : typeof v === "object" ? String(v.value ?? v.display ?? "") : String(v));
+  // Each day's date: Avalanche Canada gives a time in UTC and the day's name. BC's and Parks Canada's bulletins are
+  // issued at 4 PM Pacific (00:00 UTC), so their UTC date is the next day ("2026-01-16T00:00:00Z", "Thursday" is
+  // Thursday January 15): the date within a day of it that falls on the named day. A name that isn't a weekday (Japan's
+  // "Today") leaves the date as it is. Same as scripts/build-winter.mjs dayDate().
+  const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  function acDay(iso, label) {
+    iso = String(iso || "").slice(0, 10);
+    const w = String(label || "").trim().toLowerCase().match(/^[a-z]+/), wd = w ? WEEKDAYS.indexOf(w[0]) : -1;
+    if (wd < 0 || !/^\d{4}-\d\d-\d\d$/.test(iso)) return iso;
+    for (const k of [0, -1, 1]) { const t = new Date(iso + "T12:00:00Z"); t.setUTCDate(t.getUTCDate() + k); if (t.getUTCDay() === wd) return t.toISOString().slice(0, 10); }
+    return iso;
+  }
   const AC_LEVELS = { low: 1, moderate: 2, considerable: 3, high: 4, extreme: 5 };
   function acLevel(r) {
     if (r && typeof r === "object" && r.rating) r = r.rating;
@@ -4263,8 +4284,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function acForecast(p, old) {
     const r = p.report || p;
     const days = (r.dangerRatings || []).map((d) => {
-      const rt = d.ratings || d;
-      return { date: acVal(d.date).slice(0, 10) || acVal(d.date?.value).slice(0, 10), label: acText(d.date?.display || d.date), alp: acLevel(rt.alp), tln: acLevel(rt.tln), btl: acLevel(rt.btl) };
+      const rt = d.ratings || d, label = acText(d.date?.display || d.date);
+      return { date: acDay(acVal(d.date).slice(0, 10) || acVal(d.date?.value).slice(0, 10), label), label, alp: acLevel(rt.alp), tln: acLevel(rt.tln), btl: acLevel(rt.btl) };
     });
     const problems = (r.problems || []).map((pr) => {
       const d = pr.data || pr;
@@ -4282,11 +4303,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   // Put Avalanche Canada's live bulletins into the areas (matched by area id; the title stays the saved one). A live
   // bulletin replaces the saved one unless the saved one was issued later. Areas with no live bulletin keep theirs.
-  async function avyLive() {
+  // Each bulletin keeps when it was last read live (liveAt: how old it is, for the "saved copy" warning). quiet (read
+  // again while the map stays open): the map is only drawn again when a bulletin changed.
+  const avySig = () => JSON.stringify((avy?.areas || []).map((a) => a.forecast && { ...a.forecast, liveAt: 0, allDays: 0 }));
+  async function avyLive(quiet) {
     const r = await fetch(AVCAN, { cache: "no-store", signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined });   // never hold the map up long
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const all = await r.json(), list = Array.isArray(all) ? all : all.products || all.data || [];
     if (!avy) return;
+    const before = quiet ? avySig() : "", wasStale = quiet && avy.areas.some((a) => a.forecast && avyStale(a.forecast)), now = Date.now();
     let n = 0;
     for (const p of list) {
       if (!p || !(p.report || p.dangerRatings)) continue;
@@ -4295,22 +4320,26 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const a = avy.areas.find((x) => x.id === String(p.area?.id ?? ""));
       if (!a) continue;
       const f = acForecast(p, a.forecast);
-      if (a.forecast && a.forecast.issued && f.issued && Date.parse(f.issued) < Date.parse(a.forecast.issued)) continue;
+      if (a.forecast && a.forecast.issued && f.issued && Date.parse(f.issued) < Date.parse(a.forecast.issued)) { a.forecast.liveAt = now; continue; }   // the saved one is newer: still current
       if (a.forecast && a.forecast.title) f.title = a.forecast.title;
       else f.title = acText(p.report?.title) || a.name;
+      f.liveAt = now;
       a.forecast = f; n++;
     }
     avy = prepAreas(avy);
-    avy.liveAt = Date.now();
-    avyAt = Date.now();
-    refreshAvy();
+    avy.liveAt = now;
+    avyAt = now;
+    if (!quiet || wasStale || avySig() !== before) refreshAvy();
     return n;
   }
+  // A new day (the app back after midnight, or left open on the map): past days dropped, a day picked before today
+  // forgotten, the example's days made again.
+  function newDay() { trimDays(avy); exampleCache = null; refreshAvy(); }
   // Back in the app: past days dropped after midnight, and the forecasts read again when over 10 minutes old, so a
   // phone left open overnight never keeps showing yesterday's bulletin.
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible" || !avy) return;
-    if (trimmedFor !== localDay()) { trimDays(avy); refreshAvy(); }
+    if (trimmedFor !== localDay()) newDay();
     if (Date.now() - avyAt > 10 * 60000 && !avyLoading) {
       avyLoading = fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then((d) => { avy = prepAreas(d); avyAt = Date.now(); refreshAvy(); }, () => {})
@@ -4318,10 +4347,28 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         .finally(() => { avyLoading = null; });
     }
   });
-  // Stale = not read live from Avalanche Canada and the saved copy is over 12 hours old (no signal, or the hourly
-  // rebuild stopped): the cards say so.
-  const avyStale = () => !example && avy && !avy.liveAt && avy.builtAt && Date.now() - Date.parse(avy.builtAt) > 12 * 3600e3;
-  const staleWarn = () => avyStale() ? `<div class="av-warn">Saved copy from ${esc(new Date(avy.builtAt).toLocaleString("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit" }))}: a newer forecast may be out. Check avalanche.ca before you go.</div>` : "";
+  // Left open on the map (a phone on the dash, a laptop all day): the same at midnight, and Avalanche Canada read again
+  // every 30 minutes while its forecast is on screen in Skiing, so an updated bulletin shows without leaving the app.
+  let avyTry = 0;
+  setInterval(() => {
+    if (!avy || document.visibilityState !== "visible") return;
+    if (trimmedFor !== localDay()) newDay();
+    if (sport === "ski" && !example && !avyLoading && (avyOn || !$("avCard").hidden) && Date.now() - Math.max(avyAt, avyTry) > 30 * 60000) {
+      avyTry = Date.now();
+      avyLoading = avyLive(true).catch(() => {}).finally(() => { avyLoading = null; });
+    }
+  }, 60000);
+  // Stale = a bulletin last read over 12 hours ago: not read live from Avalanche Canada (no signal, or not in its live
+  // list) and the saved copy is that old (the hourly rebuild stopped), or read live and the app left open offline
+  // since. Per bulletin (f), or the whole forecast without one: the cards say so, with that time.
+  const avyAge = (f) => (f ? f.liveAt : avy && avy.liveAt) || Date.parse((avy && avy.builtAt) || "") || 0;
+  const avyStale = (f) => !example && !!avy && avyAge(f) > 0 && Date.now() - avyAge(f) > 12 * 3600e3;
+  const whenFmt = (t, o) => new Date(t).toLocaleString(window.tfLang && window.tfLang.lang === "fr" ? "fr-CA" : "en-CA", o);
+  const staleWarn = (f) => avyStale(f) ? `<div class="av-warn">Saved copy from ${esc(whenFmt(avyAge(f), { weekday: "short", hour: "numeric", minute: "2-digit" }))}: a newer forecast may be out. Check avalanche.ca before you go.</div>` : "";
+  // An expired bulletin (past Avalanche Canada's "valid until": no signal for a while, or not updated): still readable
+  // on the cards, said plainly with that time, and no slope colours from it (alex 2026-11-21).
+  const fcExpired = (f) => !example && !!f && !!f.validUntil && new Date(f.validUntil) < new Date();
+  const expiredWarn = (f, site) => `<div class="av-warn">This forecast expired ${esc(whenFmt(f.validUntil, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}: the slopes are no longer coloured. Check ${site.host} for the latest.</div>`;
   // Only today and later: Avalanche Canada's bulletins list a few days from the day they were issued, so the first
   // day can be yesterday (alex 2026-11-09: "no mistakes are allowed"). Each day's "date" is its local date; a day
   // without a date (none so far) is kept. Run again when the app comes back after midnight.
@@ -4333,7 +4380,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     (d.areas || []).forEach((a) => {
       const f = a.forecast;
       if (!f || !f.days) return;
-      if (!f.allDays) f.allDays = f.days;
+      // Each date on its named day, once (a saved copy made before acDay() has the UTC dates).
+      if (!f.allDays) { f.allDays = f.days; f.allDays.forEach((x) => { if (x.date) x.date = acDay(x.date, x.label); }); }
       f.days = f.allDays.filter((x) => !x.date || x.date >= today);
     });
   }
@@ -4387,7 +4435,25 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     }
     return best;
   }
-  const dayOf = (f) => f && f.days && (f.days[Math.min(day, f.days.length - 1)] || null);
+  // The day shown is a date, the same one on the whole map and in every card: bulletins can start on different days
+  // (one issued this afternoon for tomorrow beside one still on today), and a day by its place in each list mixed them.
+  // pickDate: a day picked on the card or asked for (a tour "tomorrow"), until it's past. Otherwise the first day of the
+  // forecast in the middle of the map (or the nearest one). An area without that date shows nothing for it, never
+  // another day's rating. Days without a date (none so far) go by their place in the list (day).
+  function syncDay() {
+    const data = example ? exampleData() : avy;
+    if (!data) return dayDate;
+    if (pickDate && pickDate < localDay()) pickDate = "";
+    if (pickDate) return (dayDate = pickDate);
+    const c = map.getCenter(), at = areaAt(c.lat, c.lng), f = at && at.forecast && at.forecast.days && at.forecast.days.length ? at.forecast : !example && nearestArea(c.lat, c.lng)?.a.forecast;
+    const x = f && f.days[Math.min(day, f.days.length - 1)];
+    return (dayDate = (x && x.date) || "");
+  }
+  const dayOf = (f) => {
+    if (!f || !f.days || !f.days.length) return null;
+    if (dayDate && f.days.every((x) => x.date)) return f.days.find((x) => x.date === dayDate) || null;
+    return f.days[Math.min(day, f.days.length - 1)] || null;
+  };
   const hasForecasts = () => (avy?.areas || []).some((a) => a.forecast && a.forecast.days?.length);
 
   // A made-up forecast to try the shading out of season, clearly marked as an example.
@@ -4396,7 +4462,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (exampleCache) return exampleCache;
     const box = (s, w, n, e) => [s, w, s, e, n, e, n, w, s, w];
     const today = new Date();
-    const dayN = (i) => { const d = new Date(today); d.setDate(d.getDate() + i); return { date: d.toISOString().slice(0, 10), label: d.toLocaleDateString(undefined, { weekday: "long" }) }; };
+    const dayN = (i) => { const d = new Date(today); d.setDate(d.getDate() + i); return { date: d.toLocaleDateString("en-CA"), label: d.toLocaleDateString(undefined, { weekday: "long" }) }; };
     const fc = (title, days, problems) => ({ title, url: "https://avalanche.ca/map", issued: today.toISOString(), validUntil: "", highlights: "Example only. This is not a real forecast.", days, problems, summaries: {} });
     return (exampleCache = prepAreas({ example: true, areas: [
       { id: "ex-s2s", name: "Sea to Sky (example)", rings: [box(49.25, -124.0, 50.62, -122.55)], forecast: fc("Sea to Sky (example)",
@@ -4445,6 +4511,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const card = $("avCard");
     card.hidden = !(sport === "ski" && (avyOn || shown.has("tour")) && $("skDetail").hidden);   // a route's details have their own
     if (card.hidden) return;
+    const was = dayDate;
+    if (syncDay() !== was) { refreshAvy(); return; }   // another day to show: the map too (refreshAvy draws this card)
     if (!avy && !example && !avyErr) loadAvy();
     if (!minData && !minErr && !minLoading) loadMin().then(renderForecast);
     const data = example ? exampleData() : avy;
@@ -4462,7 +4530,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Outside every forecast area (Whitehorse: Avalanche Canada covers the White Pass only, fix list item 45,
     // 2026-11-02): the nearest forecast, how far, its rating today, and riders' reports near the spot.
     if (!area) {
-      const nb = nearestArea(c.lat, c.lng), nd = nb && dayOf(nb.a.forecast), r = nd ? Math.max(nd.alp || 0, nd.tln || 0, nd.btl || 0) : 0;
+      // Its rating only when the day shown is today (the words say "today").
+      const nb = nearestArea(c.lat, c.lng), nd = nb && dayOf(nb.a.forecast), r = nd && nd.date === localDay() ? Math.max(nd.alp || 0, nd.tln || 0, nd.btl || 0) : 0;
       const reps = minData ? (minData.reports || []).filter((m) => map.distance([m.lat, m.lon], c) <= 40000) : [];
       const seen = reps.filter((m) => m.av && m.av.seen).length;
       const days = (minData && minData.days) || 14, nm = nb ? (nb.a.forecast.title || nb.a.name) : "";
@@ -4473,15 +4542,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         "Read the snow yourself."].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join(" ") + ` <a href="https://avalanche.ca/map" target="_blank" rel="noopener">Check avalanche.ca</a>`;
       return short("", msg);
     }
-    if (!f || !f.days?.length) return short(esc(area.name), "No forecast for this area right now.");
-    const d = dayOf(f), expired = !example && f.validUntil && new Date(f.validUntil) < new Date();
+    // Avalanche Canada's early season bulletin stays readable when its days are past (it's valid for weeks).
+    const early = !!f && (f.early || /early.?season/i.test(f.title || ""));
+    if (!f || (!f.days?.length && !early)) return short(esc(area.name), "No forecast for this area right now.");
+    const d = dayOf(f), expired = fcExpired(f);
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || f.days.some((x) => x.alp || x.tln || x.btl);
     const band = (b, n) => { const r = d[b] || 0, x = DANGER[r]; return `<div class="av-band" style="--c:${x.color};--t:${r >= 4 ? "#fff" : "#1a1a1a"}"><b>${esc(x.label.replace(/^\d /, ""))}</b><span>${n}</span></div>`; };
+    // The day is always named (one day too: the native 3D card shows it), pressed when it's the one shown.
     card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast.</div>` : ""}
-      ${expired ? `<div class="av-warn">This forecast has expired. Check ${site.host}.</div>` : staleWarn()}
+      ${expired ? expiredWarn(f, site) : staleWarn(f)}
       ${top(esc(f.title || area.name))}
-      ${rated ? `${f.days.length > 1 ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>` : ""}
-      <div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>`
+      ${rated ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>
+      ${d ? `<div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>` : `<p class="av-line">This bulletin has no rating for that day.</p>`}`
         : `<p class="av-line">No danger ratings yet: it's early season.</p>`}
       <div id="avWx">${cardWeather(c, area.bands.hi)}</div>
       <details id="avMore"${avMore ? " open" : ""}><summary>${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</summary>
@@ -4497,7 +4569,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${janNote(f)}<p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
       </details>
       <div class="av-foot">${shade}${example ? `<button type="button" class="av-pill" id="avExOff">Hide example</button>` : rated ? "" : `<button type="button" class="av-pill" id="avEx">Example</button>`}<a class="av-pill" href="${esc(f.url || site.url)}" target="_blank" rel="noopener">${site.host} ↗</a></div>`;
-    card.querySelectorAll(".av-days button").forEach((b) => b.addEventListener("click", () => { day = +b.dataset.d; refreshAvy(); }));
+    card.querySelectorAll(".av-days button").forEach((b) => b.addEventListener("click", () => { const x = f.days[+b.dataset.d]; if (x && x.date) pickDate = x.date; else day = +b.dataset.d; refreshAvy(); }));
     $("avMore").addEventListener("toggle", (e) => { avMore = e.currentTarget.open; });
     const off = $("avExOff"); if (off) off.addEventListener("click", () => { example = false; refreshAvy(); });
     bindEx();
@@ -4573,19 +4645,57 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // keep }, and "tf:ground" when one goes on or off or is drawn again.
   const groundAdd = (id, g) => { (window.tfGround = window.tfGround || {})[id] = g; };
   const groundChanged = () => window.dispatchEvent(new Event("tf:ground"));
+  // Web Mercator: where a longitude and a latitude are in tiles (fractions) at zoom z.
+  const lonTile = (lon, z) => ((lon + 180) / 360) * 2 ** z;
+  const latTile = (lat, z) => { const r = (lat * Math.PI) / 180; return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z; };
   async function paint(z, x, y) {
     const data = example ? exampleData() : avy;
     const out = new ImageData(256, 256);
     if (!data) return out;
-    // Which forecast area each 16 px block is in.
-    const B = 16, areas = new Array(B * B);
+    // The forecast areas reaching into the tile, in the order areaAt() reads them (the first one holding a point is
+    // its area), each with the day shown (none once its bulletin has expired, alex 2026-11-21) and, for the point
+    // tests, only its outline's edges level with the tile (the others can't change inPoly's answer here).
+    const tN = tileLat(y, z), tS = tileLat(y + 1, z), tW = tileLon(x, z), tE = tileLon(x + 1, z), near = [];
+    for (const a of data.areas) {
+      if (!a.box || a.box[0] > tN || a.box[2] < tS || a.box[1] > tE || a.box[3] < tW) continue;
+      const rings = a.polys.map((p) => {
+        const r = [];
+        for (let i = 0, j = p.length - 1; i < p.length; j = i++) if (Math.max(p[i][0], p[j][0]) >= tS && Math.min(p[i][0], p[j][0]) <= tN) r.push(p[i][0], p[i][1], p[j][0], p[j][1]);
+        return r;
+      });
+      near.push({ a, d: fcExpired(a.forecast) ? null : dayOf(a.forecast), rings });
+    }
+    if (!near.some((n) => n.d)) return out;
+    const inRing = (lat, lon, r) => {   // inPoly() on the kept edges, the very same sums
+      let inside = false;
+      for (let i = 0; i < r.length; i += 4) { const ay = r[i], ax = r[i + 1], by = r[i + 2], bx = r[i + 3]; if ((ay > lat) !== (by > lat) && lon < ((bx - ax) * (lat - ay)) / (by - ay) + ax) inside = !inside; }
+      return inside;
+    };
+    const areaOf = (lat, lon) => { for (const n of near) if (lat >= n.a.box[0] && lat <= n.a.box[2] && lon >= n.a.box[1] && lon <= n.a.box[3] && n.rings.some((r) => inRing(lat, lon, r))) return n; return null; };
+    // Each 16 px block takes the area of its middle, unless an outline crosses it: there each pixel finds its own
+    // (a block's middle used to colour up to 16 px past the line with the neighbour's rating). Points along every
+    // edge, at most 6 px apart and straight in latitude and longitude as inPoly() takes them, mark the blocks within
+    // 4 px of them.
+    const B = 16, MIX = 1, cells = new Array(B * B).fill(null), cross = new Uint8Array(B * B);
+    for (const n of near) for (const r of n.rings) for (let i = 0; i < r.length; i += 4) {
+      const ay = r[i], ax = r[i + 1], by = r[i + 2], bx = r[i + 3];
+      if (Math.max(ax, bx) < tW || Math.min(ax, bx) > tE) continue;
+      const steps = Math.ceil(Math.hypot(lonTile(bx, z) - lonTile(ax, z), latTile(by, z) - latTile(ay, z)) * 256 / 6) + 1;
+      for (let t = 0; t <= steps; t++) {
+        const px = (lonTile(ax + ((bx - ax) * t) / steps, z) - x) * 256, py = (latTile(ay + ((by - ay) * t) / steps, z) - y) * 256;
+        if (px < -4 || px > 260 || py < -4 || py > 260) continue;
+        for (const qy of [py - 4, py + 4]) for (const qx of [px - 4, px + 4]) {
+          const cx = Math.floor(qx / (256 / B)), cy = Math.floor(qy / (256 / B));
+          if (cx >= 0 && cx < B && cy >= 0 && cy < B) cross[cy * B + cx] = 1;
+        }
+      }
+    }
     let any = false;
     for (let by = 0; by < B; by++) for (let bx = 0; bx < B; bx++) {
-      const lat = tileLat(y + (by + 0.5) / B, z), lon = tileLon(x + (bx + 0.5) / B, z);
-      const a = data.areas.find((a) => a.box && lat >= a.box[0] && lat <= a.box[2] && lon >= a.box[1] && lon <= a.box[3] && a.polys.some((p) => inPoly(lat, lon, p)));
-      const d = a && dayOf(a.forecast);
-      areas[by * B + bx] = d ? { a, d } : null;
-      if (d) any = true;
+      const b = by * B + bx;
+      if (cross[b]) { cells[b] = MIX; any = true; continue; }
+      const n = areaOf(tileLat(y + (by + 0.5) / B, z), tileLon(x + (bx + 0.5) / B, z));
+      if (n && n.d) { cells[b] = n; any = true; }
     }
     if (!any) return out;
     const E = await dem(z, x, y), o = out.data, thr = minSlope(E.z), k = 25 / thr;
@@ -4593,7 +4703,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const lat = tileLat(y + (py + 0.5) / 256, z), m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** z);
       const y0 = py > 0 ? py - 1 : py, y1 = py < 255 ? py + 1 : py;
       for (let px = 0; px < 256; px++) {
-        const cell = areas[(py >> 4) * B + (px >> 4)];
+        let cell = cells[(py >> 4) * B + (px >> 4)];
         if (!cell) continue;
         const i = py * 256 + px, e = E[i];
         if (e < 0) continue;
@@ -4601,6 +4711,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         const dzdx = (E[py * 256 + x1] - E[py * 256 + x0]) / ((x1 - x0) * m), dzdy = (E[y1 * 256 + px] - E[y0 * 256 + px]) / ((y1 - y0) * m);
         const slope = (Math.atan(Math.hypot(dzdx, dzdy)) * 180) / Math.PI * k;
         if (slope < 25) continue;
+        if (cell === MIX && !((cell = areaOf(lat, tileLon(x + (px + 0.5) / 256, z))) && cell.d)) continue;
         const { a, d } = cell;
         const band = e >= a.bands.hi ? "alp" : e >= a.bands.lo ? "tln" : "btl", r = d[band];
         if (!r) continue;
@@ -5295,6 +5406,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   document.getElementById("layersBtn")?.addEventListener("click", () => { if (sport === "ski") makeThumbs(); });
 
   function refreshAvy() {
+    syncDay();   // the day to show (the map may have moved to a forecast starting on another day)
     ver++;
     const want = sport === "ski" && avyOn;
     if (want && !avy && !example) loadAvy();
@@ -5598,7 +5710,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const d = f.days[0];
       if (!d.date || d.date !== localDay()) return { none: "forecast", area: a.name };
       const band = (b) => ({ r: d[b] || 0, label: DANGER[d[b] || 0].label, color: DANGER[d[b] || 0].color });
-      return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(),
+      return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(f),
         bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
     },
     // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded).
@@ -5687,7 +5799,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // A tour asked for a day ("tomorrow", ask.js): the forecast of that day, for the less exposed way and the map.
       if (o && o.date) (avy || example ? Promise.resolve() : loadAvy()).then(() => {
         const ar = areaAt(pts[0][0], pts[0][1]), f = ar && ar.forecast, i = f && f.days ? f.days.findIndex((d) => d.date === o.date) : -1;
-        if (i >= 0 && i !== day) { day = i; refreshAvy(); plan.path = null; planChanged(); }
+        if (i >= 0) { pickDate = o.date; if (o.date !== dayDate) { refreshAvy(); plan.path = null; planChanged(); } }
       }).catch(() => {});
       if (window.tfSnapTo) setTimeout(() => window.tfSnapTo("half"), 0);
       if (window.tfPanelScrollTo) setTimeout(() => window.tfPanelScrollTo($("skPlan")), 50);

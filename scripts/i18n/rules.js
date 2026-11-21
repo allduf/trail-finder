@@ -143,6 +143,7 @@
     // winter.js noFcWhy: why a Less exposed way has no avalanche forecast in it
     [/^(Avalanche Canada|The Japan Avalanche Network) hasn't published a forecast for (.+) today\.(?: (.+))?$/, function (m, w, a, x) { return (w === "Avalanche Canada" ? "Avalanche Canada" : "Le Japan Avalanche Network") + " n'a pas publié de bulletin pour " + (a === "this area" ? "ce secteur" : a) + " aujourd'hui." + (x ? " " + tt(x) : ""); }],
     [/^(Avalanche Canada|The Japan Avalanche Network)'s forecast(?: for (.+))? gives no danger rating today\.$/, function (m, w, a) { return "Le bulletin " + (w === "Avalanche Canada" ? "d'Avalanche Canada" : "du Japan Avalanche Network") + (a ? " pour " + a : "") + " ne donne aucun niveau de danger aujourd'hui."; }],
+    [/^(Avalanche Canada|The Japan Avalanche Network)'s forecast(?: for (.+))? has no rating for the day shown on the map\.$/, function (m, w, a) { return "Le bulletin " + (w === "Avalanche Canada" ? "d'Avalanche Canada" : "du Japan Avalanche Network") + (a ? " pour " + a : "") + " n'a pas de cote pour le jour affiché sur la carte."; }],
     [/^📂 Or open a saved tour \((\d+)\)$/, "📂 Ou ouvrir une sortie enregistrée ($1)"],
     [/^Delete "(.+)"\?$/, "Supprimer « $1 »?"],
     [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops
@@ -234,6 +235,8 @@
     [/^In the ski area \((\d+)\)$/, "Dans la station ($1)"],
     [/^Backcountry: no ski patrol \((\d+)\)$/, "Hors-piste : pas de patrouille ($1)"],
     [/^Issued (.+), for the middle of the map\.$/, "Publié le $1, pour le centre de la carte."],
+    [/^This forecast expired (.+): the slopes are no longer coloured\. Check (.+) for the latest\.$/, "Ce bulletin a expiré le $1 : les pentes ne sont plus colorées. Consultez $2 pour le plus récent."],
+    [/^Saved copy from (.+): a newer forecast may be out\. Check avalanche\.ca before you go\.$/, "Copie enregistrée du $1 : un bulletin plus récent peut être paru. Consultez avalanche.ca avant de partir."],
     [/^Avalanche: (.+)$/, function (m, a) { return "Avalanche : " + tw(a); }],
     [/^Seasons in (.+)$/, "Saisons en $1"],
     [/^Limited entry hunts in (.+): (\d+) · best odds (.+)$/, "Chasses à tirage en $1 : $2 · meilleures chances $3"],
