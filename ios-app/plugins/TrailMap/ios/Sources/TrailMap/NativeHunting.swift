@@ -150,7 +150,7 @@ final class NativeHunting: NativeLayer {
                 self.glass = glass
                 self.pics = pics
                 // Only a style this feature has set up (added(to:) runs again for a new one, with what's here now).
-                guard let style = self.screen?.mapLibreView.style ?? style, style.layer(withIdentifier: "hn-fill") != nil else { return }
+                guard let style = self.screen?.readyStyle, style.layer(withIdentifier: "hn-fill") != nil else { return }
                 for k in NativeHunting.shapes { (style.source(withIdentifier: "hn-" + k) as? MLNShapeSource)?.shape = shapes[k] }
                 self.showGlass(style)
                 self.showPics(style)

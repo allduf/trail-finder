@@ -35,7 +35,7 @@
   let packs = {}, timer = 0;
   const sync = () => {
     if (!admin() || !TrailMap.offline) return;
-    const areas = load().filter((a) => a.d3).map((a) => ({ id: a.id, box: a.box, ...(a.boxes ? { boxes: a.boxes } : {}), ski: (a.sport || (a.ski ? "ski" : "mtb")) === "ski" }));
+    const areas = load().filter((a) => a.d3).map((a) => ({ id: a.id, box: a.box, ...(a.boxes ? { boxes: a.boxes } : {}), ski: (a.sport || (a.ski ? "ski" : "mtb")) === "ski", sharp: +a.dz >= 15 }));
     TrailMap.offline({ areas }).then((r) => { packs = (r && r.areas) || {}; paint(); }).catch(() => {});
   };
   const later = (ms) => { clearTimeout(timer); timer = setTimeout(sync, ms); };

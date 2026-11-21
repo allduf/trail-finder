@@ -42,6 +42,26 @@
   }
   // A route's corridor (moto.js): small boxes along the line, the tiles they share counted once.
   const corridorCount = (boxes) => { const seen = new Set(); for (const b of boxes) for (const r of tileRanges(b, 0, MAX_Z)) for (let x = r.x0; x <= r.x1; x++) for (let y = r.y0; y <= r.y1; y++) seen.add(r.z + "/" + x + "/" + y); return seen.size; };
+  // How much one save may hold (alex 2026-11-21: "same quality off line", then "can we base a max size?"): the
+  // recommended square is the biggest one that fits BUDGET at full detail (heights to zoom 15, 1.5 m a pixel, and in
+  // Skiing the sharpened Winter photos). "Bigger" lets the square grow up to MAX_TILES, one big valley, and the detail
+  // up close drops a step each time the full-detail size passes BUDGET again (heights 3 m, 6 m, then 12 m as before).
+  // Sizes are estimates from tiles measured near Whistler (Mapterhorn ~100 KB, ~80 KB at zoom 15). alex 2026-11-21:
+  // "i think user will mostly save on wifi": 300 MB recommended (about a 35 km square at full detail), and Bigger up
+  // to twice that (BIG_MAX).
+  const BUDGET = 300e6, BIG_MAX = 2 * BUDGET;
+  const DEM_KB = (z) => (z >= 15 ? 80 : 100);
+  function sizeAt(box, dz, sport, d3) {
+    let kb = countTiles(tileRanges(box, 0, MAX_Z)) * TILE_KB;
+    if (d3) {
+      for (const r of tileRanges(box, 6, dz)) kb += countTiles([r]) * DEM_KB(r.z);
+      if (sport === "ski") kb += countTiles(tileRanges(box, 11, 14)) * 7 + (dz >= 15 ? countTiles(tileRanges(box, 15, 15)) * 5 : 0);
+    }
+    return kb * 1e3;
+  }
+  const detailFor = (box, sport, d3) => { if (!d3) return 12; for (const z of [15, 14, 13]) if (sizeAt(box, z, sport, d3) <= BUDGET) return z; return 12; };
+  const METRES = { 15: "1.5", 14: "3", 13: "6", 12: "12" };
+  const lessDetail = (dz, sport) => `heights every ${METRES[dz]} m up close instead of 1.5 m${sport === "ski" ? ", Winter photos less sharp" : ""}`;
   const zonesIn = (box) => (window.tfZones || []).filter((z) => z.box[0] < box[2] && z.box[2] > box[0] && z.box[1] < box[3] && z.box[3] > box[1]);
   const dataUrls = (box) => [...zonesIn(box).flatMap((z) => DATA.map((d) => `data/${d}-${z.id}.json`)), "data/fires.json", "data/motor-closures.json", ...(window.tfMotoOffline ? window.tfMotoOffline() : [])]
     .map((u) => new URL(u, location.href).href);
@@ -63,7 +83,7 @@
     hike: "the map, hiking trails and their heights (to plan a hike with no signal), trailheads and huts",
   };
   const none = { data: [], tiles: [] };
-  async function extras(box, sport, d3, huntLayers) {
+  async function extras(box, sport, d3, huntLayers, dz) {
     const parts = [];
     // Hunting's and Fishing's files load with their sport (winter.js): an area saved there, deleted from MTB, needs them.
     if ((sport === "hunt" || sport === "fish" || sport === "hike") && window.tfLoadSport) await window.tfLoadSport(sport).catch(() => {});
@@ -71,13 +91,13 @@
     if (sport === "ski" && window.tfSkiOffline) parts.push(window.tfSkiOffline(box));
     if (sport === "hunt" && window.tfHuntOffline) parts.push(window.tfHuntOffline(box, huntLayers));
     if (sport === "fish" && window.tfFishOffline) parts.push(window.tfFishOffline(box));
-    const d = d3 && window.tf3dOffline ? await window.tf3dOffline(box, sport).catch(() => null) : null;
+    const d = d3 && window.tf3dOffline ? await window.tf3dOffline(box, sport, dz).catch(() => null) : null;
     if (d) parts.push(d);
     return { data: [...new Set(parts.flatMap((p) => p.data))], tiles: [...new Set(parts.flatMap((p) => p.tiles))],
       hunt: parts.find((p) => p.layers) || null, d3: d };
   }
   // Rough sizes for the estimate: one tile of each kind.
-  const tileKB = (u) => (/mapterhorn/.test(u) ? 100 : /elevation-tiles/.test(u) ? 60 : /trail-finder-winter/.test(u) ? 7 : 30);
+  const tileKB = (u) => (/mapterhorn\.com\/15\//.test(u) ? 80 : /mapterhorn/.test(u) ? 100 : /trailfinder-sharp/.test(u) ? 5 : /elevation-tiles/.test(u) ? 60 : /trail-finder-winter/.test(u) ? 7 : 30);
   const D3_KEY = "tf-offline-3d";
   const want3d = () => { try { return localStorage.getItem(D3_KEY) !== "0"; } catch { return true; } };
   const viewBox = () => { const b = map.getBounds().pad(0.1);   // a margin, as the vector map draws a little past the screen
@@ -107,7 +127,9 @@
 .offline-card .off-state.ok .bar, .offline-card .off-state.bad .bar { display: none; }
 .offline-card li .ok { display: block; color: #1f8a4c; font-size: .8rem; font-weight: 600; }
 .off-frame .box-bar .btn.primary { flex: 1.8; }
+.off-frame .box-bar [data-sq-big] { padding-left: 6px; padding-right: 6px; }
 .off-frame .box-tip.too-big { color: #b42318; font-weight: 600; }
+.off-frame .box-tip.less { color: #b54708; font-weight: 600; }
 .offline-card ul { list-style: none; margin: 8px 0 0; padding: 0; border-top: 1px solid var(--line); }
 .offline-card li { display: flex; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
 .offline-card li div { flex: 1; min-width: 0; }
@@ -245,7 +267,7 @@
     save.disabled = !navigator.onLine;
     const zones = zonesIn(box);
     est.textContent = `${tiles.toLocaleString()} map tiles${zones.length ? " plus trails and roads for " + zones.map((z) => z.name).join(", ") : ""}…`;
-    const sport = sportNow(), x = await extras(box, sport, $("[data-3d]").checked);
+    const sport = sportNow(), d3on = $("[data-3d]").checked, dz = detailFor(box, sport, d3on), x = await extras(box, sport, d3on, undefined, dz);
     const data = (await Promise.all([...dataUrls(box), ...x.data].map(headSize))).reduce((a, b) => a + b, 0);
     if (my !== estToken) return;
     const more = x.tiles.reduce((n, u) => n + tileKB(u), 0) * 1e3, d = x.d3;
@@ -255,7 +277,7 @@
       moto: " Moto: gas, camping, hot springs and ferries." }[sport] || "";
     est.textContent = `About ${mb(tiles * TILE_KB * 1e3 + data + more)}: ${tiles.toLocaleString()} map tiles` +
       (zones.length ? ` plus ${sport === "mtb" ? "trails and forest roads" : "trails, roads and tracks"} for ${zones.map((z) => z.name).join(", ")}.` : ". This area is outside the trail data region, so only the map is saved.") + kind +
-      (d ? ` 3D: ${d.heights.toLocaleString()} terrain tiles${d.photos ? ` and ${d.photos.toLocaleString()} winter photos` : ""} (about ${mb(d.tiles.reduce((n, u) => n + tileKB(u), 0) * 1e3)}).` : "") +
+      (d ? ` 3D: ${d.heights.toLocaleString()} terrain tiles${d.photos ? ` and ${d.photos.toLocaleString()} winter photos` : ""} (about ${mb(d.tiles.reduce((n, u) => n + tileKB(u), 0) * 1e3)}), ${dz >= 15 ? "full detail" : `bigger than recommended, so less detail: ${lessDetail(dz, sport)}`}.` : "") +
       (navigator.onLine ? "" : " You're offline: connect to save it.");
   }
   map.on("moveend", () => { if (!card.hidden && !busy) { estimate(); if (!$("[data-name]").dataset.typed) $("[data-name]").value = suggestName(); } });
@@ -265,8 +287,8 @@
     const areas = load();
     drawOutlines();
     $("[data-saved-h]").hidden = !areas.length;
-    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
-${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
+    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
+${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-finish="${a.id}">Try again</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
     const use = $("[data-use]");
     use.textContent = "";
     if (navigator.storage && navigator.storage.estimate) {
@@ -336,9 +358,10 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
         // A file that doesn't exist (404: no winter photo, no fine heights or no map tile there) has nothing to save, so
         // it never counts as missing; before 2026-10-30 only the 3D ones were let off, and an area could stay
         // "Not finished" for good over a file no server has.
-        if (res) bytes += size || await cache.match(u).then((m) => (m ? m.blob() : null)).then((b) => (b ? b.size : 0), () => 0);
+        let got = 0;
+        if (res) { got = size || await cache.match(u).then((m) => (m ? m.blob() : null)).then((b) => (b ? b.size : 0), () => 0); bytes += got; }
         else if (!optional && !gone) failed.push(u);
-        if (onDone) onDone();
+        if (onDone) onDone(got);
       }
     }
     await Promise.all(Array.from({ length: 6 }, worker));
@@ -369,27 +392,35 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   const frame = document.createElement("div");
   frame.className = "box-frame off-frame"; frame.hidden = true;
   frame.innerHTML = `<div class="box-sq">${["nw", "ne", "sw", "se"].map((c) => `<button type="button" class="box-h" data-c="${c}" aria-label="Drag this corner to change the square"><i></i></button>`).join("")}</div>
-    <div class="box-bar" role="group" aria-label="Square to save"><span class="box-tip" data-sq-tip>Move the map, or drag a corner</span><button type="button" class="btn" data-sq-x>Cancel</button><button type="button" class="btn primary" data-sq-go>✓ Save this square</button></div>`;
+    <div class="box-bar" role="group" aria-label="Square to save"><span class="box-tip" data-sq-tip>Move the map, or drag a corner</span><button type="button" class="btn" data-sq-big aria-pressed="false">Bigger</button><button type="button" class="btn" data-sq-x>Cancel</button><button type="button" class="btn primary" data-sq-go>✓ Save this square</button></div>`;
   document.querySelector(".mapwrap").append(frame);
   L.DomEvent.disableClickPropagation(frame.querySelector(".box-bar"));
   const sq = frame.querySelector(".box-sq"), sqPos = { l: 0, t: 0, r: 0, b: 0 }, sqTip = frame.querySelector("[data-sq-tip]"), sqGo = frame.querySelector("[data-sq-go]");
+  const sqBig = frame.querySelector("[data-sq-big]");
   const styleSq = () => Object.assign(sq.style, { left: sqPos.l + "px", top: sqPos.t + "px", width: sqPos.r - sqPos.l + "px", height: sqPos.b - sqPos.t + "px" });
   const placeSq = () => { styleSq(); sqSize(); };
   // The square never gets bigger than one save can hold (alex 2026-10-31: "make so the square can't be bigger"):
   // dragging a corner out stops at the limit, and zooming the map out shrinks the square on screen so it keeps
   // covering no more ground than allowed. anchor: the point that stays put ([x, y] on screen).
+  // Since 2026-11-21 the limit is the recommended size (BUDGET at full detail, with "3D map too" ticked), or with
+  // Bigger on, MAX_TILES as before.
   const SQ_MIN = 70;
-  let atMax = false;
+  let atMax = false, bigger = false;
   const sqTiles = () => countTiles(tileRanges(sqBox(), 0, MAX_Z));
+  const sqOver = () => {   // how far over the limit the square is (1 = right at it)
+    const box = sqBox(), n = countTiles(tileRanges(box, 0, MAX_Z)) / MAX_TILES, d3 = $("[data-3d]").checked;
+    if (!d3) return n;
+    return bigger ? Math.max(n, sizeAt(box, 12, sportNow(), true) / BIG_MAX) : Math.max(n, sizeAt(box, 15, sportNow(), true) / BUDGET);
+  };
   function fitSq(anchor) {
     atMax = false;
     for (let i = 0; i < 8; i++) {
-      const n = sqTiles();
-      if (n <= MAX_TILES) break;
+      const n = sqOver();
+      if (n <= 1) break;
       atMax = true;
       const w = sqPos.r - sqPos.l, h = sqPos.b - sqPos.t;
       if (w <= SQ_MIN + 1 && h <= SQ_MIN + 1) break;   // as small as it goes: zoom in to save
-      const f = Math.max(Math.sqrt(MAX_TILES / n) * 0.985, SQ_MIN / Math.max(w, h)), [ax, ay] = anchor;
+      const f = Math.max(Math.sqrt(1 / n) * 0.985, SQ_MIN / Math.max(w, h)), [ax, ay] = anchor;
       sqPos.l = ax - (ax - sqPos.l) * f; sqPos.r = ax + (sqPos.r - ax) * f;
       sqPos.t = ay - (ay - sqPos.t) * f; sqPos.b = ay + (sqPos.b - ay) * f;
     }
@@ -462,11 +493,19 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
         fitSq([cx, cy]);
         sqShrunk = atMax || (sqShrunk && Math.max(sqPos.r - sqPos.l, sqPos.b - sqPos.t) < sqSide() - 1);
       }
-      const tiles = sqTiles(), big = tiles > MAX_TILES;
+      const box = sqBox(), tiles = countTiles(tileRanges(box, 0, MAX_Z)), big = tiles > MAX_TILES;
+      const sport = sportNow(), d3 = $("[data-3d]").checked, dz = detailFor(box, sport, d3), size = mb(sizeAt(box, dz, sport, d3));
+      const about = size.replace(/^u/, "U").replace(/^(\d)/, "About $1");
       sqTip.classList.toggle("too-big", big);
+      sqBig.hidden = !d3;
       sqTip.textContent = big ? "Zoom in to save: from this far out, even the smallest square is too much"
-        : atMax ? `Biggest square allowed (${mb(tiles * TILE_KB * 1e3).replace(/^(\d)/, "about $1")} of map)`
-        : `${mb(tiles * TILE_KB * 1e3).replace(/^u/, "U").replace(/^(\d)/, "About $1")} of map. Move the map, or drag a corner`;
+        : !d3 ? (atMax ? `Biggest square allowed (${size.replace(/^(\d)/, "about $1")} of map)` : `${about} of map. Move the map, or drag a corner`)
+        : dz < 15 ? `${about}. Bigger than recommended, so less detail: ${lessDetail(dz, sport)}`
+        : atMax && !bigger ? `Recommended size, full detail (${size.replace(/^(\d)/, "about $1")}). Bigger saves more ground with less detail`
+        : atMax ? `Biggest square allowed (${size.replace(/^(\d)/, "about $1")})`
+        : `${about}, full detail. Move the map, or drag a corner`;
+      if (bigger && !big && !atMax && dz >= 15) sqTip.textContent = `${about}, full detail. Zoom out or drag a corner for more ground`;
+      sqTip.classList.toggle("less", !big && d3 && dz < 15);
       sqGo.disabled = big || !navigator.onLine;
     });
   }
@@ -476,6 +515,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     document.body.classList.toggle("box-on", on);
     if (!busy) card.hidden = on;   // out of the way while picking, back when done
     const gl = window.trailMap3d;
+    if (on) { bigger = false; sqBig.setAttribute("aria-pressed", "false"); sqBig.textContent = "Bigger"; }
     if (on) { map.on("move", sqSize); if (gl) gl.on("move", sqSize); requestAnimationFrame(() => requestAnimationFrame(startSq)); }
     else { map.off("move", sqSize); if (gl) gl.off("move", sqSize); }
   }
@@ -504,6 +544,16 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     h.addEventListener("click", (e) => e.stopPropagation());
   });
   frame.querySelector("[data-sq-x]").addEventListener("click", () => sqMode(false));
+  // Bigger: the square may pass the recommended size (it grows to fill the screen, up to one big valley), with less
+  // detail up close; tapped again, back to the recommended size.
+  sqBig.addEventListener("click", () => {
+    bigger = !bigger;
+    sqBig.setAttribute("aria-pressed", String(bigger));
+    sqBig.classList.toggle("primary", false);
+    sqBig.textContent = bigger ? "Smaller" : "Bigger";
+    sqShrunk = true;   // sqSize grows it back toward the full screen square, then fits it to the new limit
+    sqSize();
+  });
   sqGo.addEventListener("click", () => {
     const b = sqBox();
     sqMode(false);
@@ -583,6 +633,47 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
   setTimeout(libsTopUp, 25000);
   window.addEventListener("online", () => setTimeout(libsTopUp, 5000));
 
+  // Leaving the app while a save runs (alex 2026-11-21): the phone may pause it, and closing the app stops it. A
+  // notification on the phone itself (no server) says so a few seconds after the app goes to the background, and is
+  // taken back if the app comes back first. Only when notifications are already allowed: it never asks for them.
+  const CAP = window.Capacitor;
+  const LN = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (!CAP.isPluginAvailable || CAP.isPluginAvailable("LocalNotifications"))
+    ? (CAP.registerPlugin ? CAP.registerPlugin("LocalNotifications") : (CAP.Plugins || {}).LocalNotifications) : null;
+  const LEFT_ID = 734115;
+  // Keeps the save going while you switch to another app: Android shows a "Saving offline map" notification meanwhile,
+  // iPhone gives the extra time it allows a finishing task (TrailGps.keepGoing, app builds from 2026-11-21; older ones
+  // say no and nothing changes).
+  const GPS = CAP && CAP.isNativePlatform && CAP.isNativePlatform() && (!CAP.isPluginAvailable || CAP.isPluginAvailable("TrailGps"))
+    ? (CAP.registerPlugin ? CAP.registerPlugin("TrailGps") : (CAP.Plugins || {}).TrailGps) : null;
+  let keptPct = -1, keptOk = false;   // keptOk: this app build has keepGoing (Android then shows its own notification)
+  function keepGoing(on, name, pct) {
+    if (!GPS || !GPS.keepGoing) return;
+    if (on && keptPct >= 0 && pct - keptPct < 5 && pct < 100) return;   // the notification moves in 5% steps
+    keptPct = on ? pct : -1;
+    try { GPS.keepGoing(on ? { on, title: tr("Saving offline map"), text: `${name}: ${pct}%` } : { on }).then((r) => { if (on) keptOk = !!(r && r.running); }, () => {}); } catch {}
+  }
+  // A page reloaded mid-save (an update, a crash) has no save running: nothing kept going for it.
+  if (GPS && GPS.keepGoing) try { GPS.keepGoing({ on: false }).catch(() => {}); } catch {}
+  const tr = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
+  function leftNotice(on) {
+    if (!LN) return;
+    try {
+      if (!on) { LN.cancel({ notifications: [{ id: LEFT_ID }] }).catch(() => {}); return; }
+      if (keptOk && CAP.getPlatform && CAP.getPlatform() === "android") return;   // it keeps going there, with its own notification
+      LN.checkPermissions().then((p) => {
+        if (!p || p.display !== "granted" || !busy) return;
+        return LN.schedule({ notifications: [{ id: LEFT_ID, title: tr("Offline map not finished"),
+          body: `${savingName || ""}: ${tr("the save may pause while Trail Finder isn't open. Open the app to finish it.")}`,
+          schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true } }] });
+      }).catch(() => {});
+    } catch {}
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!busy) return;
+    leftNotice(document.hidden);
+    if (!document.hidden && busy.wake) busy.wake();   // the phone drops the screen lock when the app is left
+  });
+
   const needAccount = () => (window.tfAccount && window.tfAccount.require ? window.tfAccount.require("Saving maps for no signal needs a free account. Sign in or create one, and the save starts right after.") : Promise.resolve(true));
   // Save (or finish saving) an area. Anything downloaded goes in the list, even when the save is stopped or some
   // files never come, so it can always be finished or deleted from there. auto: a try no one tapped (autoFinish).
@@ -600,15 +691,27 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
     showState("", `Saving ${name}…`, "Getting the map style…", 0, stop);
     tell(name);
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    // The screen stays on while saving: a phone that locks itself pauses the save.
+    let lock = null;
+    const wake = async () => { try { if (navigator.wakeLock && (!lock || lock.released)) lock = await navigator.wakeLock.request("screen"); } catch {} };
+    await wake();
+    if (busy) busy.wake = wake;
     let sources = null, bytes = 0, failed = [];
     const old0 = id && load().find((x) => x.id === id), sport = old0 ? sportOf(old0) : sportNow(), d3 = old0 ? !!old0.d3 : $("[data-3d]").checked;
-    const ext = await extras(box, sport, d3, old0 ? old0.huntLayers : undefined), huntLayers = ext.hunt ? ext.hunt.layers : undefined;
-    const record = () => {
+    const dz = old0 ? +old0.dz || 12 : detailFor(box, sport, d3);
+    const ext = await extras(box, sport, d3, old0 ? old0.huntLayers : undefined, dz), huntLayers = ext.hunt ? ext.hunt.layers : undefined;
+    // partial: while the save runs (alex 2026-11-21, "can the app continue to download an offline map if you quit the
+    // app?"): the area is in the list from the start as not finished, so a save cut short by leaving or closing the
+    // app is picked up by itself the next time it opens (autoFinish), instead of vanishing from the list.
+    const isNew = !id;
+    let runBytes = 0;   // bytes saved so far, file by file (for the list while it saves)
+    const record = (partial) => {
       if (!sources) return;
+      if (partial && busy.replace) return;   // a cabin trip's new square: the old save stays listed until this one is in
       const areas = load(), old = areas.find((x) => x.id === id);
-      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes, at: Date.now(), sport, ski: sport === "ski", d3, ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes: partial ? Math.max(bytes, runBytes) : bytes, at: Date.now(), sport, ski: sport === "ski", d3, ...(d3 ? { dz } : {}), ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
       if (old) { delete old.missing; delete old.missingUrls; }
-      if (failed.length || busy.stop) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
+      if (failed.length || busy.stop || partial) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
       if (old) Object.assign(old, entry); else areas.push(entry);
       id = entry.id;
       save(areas);
@@ -623,10 +726,15 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       const total = tiles.length + data.length + parts.extra.length + LIBS.length + ext.tiles.length;
       let done = 0, shown = 0;
       busy.left = total;
-      const tick = () => {
+      record(true);
+      keepGoing(true, name, 0);
+      const tick = (size) => {
+        runBytes += size || 0;
         done++; busy.left = total - done; busy.pct = Math.floor((100 * done) / total);
+        if (done % 250 === 0) record(true);
         if (busy.pct === shown && done < total) return;
         shown = busy.pct;
+        keepGoing(true, name, busy.pct);
         showState("", `Saving ${name}… ${busy.pct}%`, `${done.toLocaleString()} of ${total.toLocaleString()} files. Keep the app open until it says Saved.`, busy.pct, stop);
       };
       for (const [urls, optional] of [[[...LIBS, ...parts.extra]], [data, true], [tiles], [ext.tiles]]) {   // a zone may not have every kind of file
@@ -650,11 +758,18 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
       const retry = sources && id ? `<button class="btn primary" type="button" data-retry="${esc(id)}">Try again now</button>` : "";
       if (e.message === "Stopped") showState("bad", "Not saved yet: stopped", `Tap Try again to pick up where it left off, or Delete ${name} below.`, null, retry);
       else if (failed.length) showState("bad", `⚠ Not saved yet: ${files(failed.length)} missing`, `Missing: ${whatsMissing(failed)}. The rest is saved. It tries again by itself when you have signal.`, null, retry);
-      else showState("bad", "⚠ Not saved", `${sources ? "The save stopped" : "Couldn't reach the map"} (${e.message}). Try again with signal.`, null, retry);
+      else {
+        showState("bad", "⚠ Not saved", `${sources ? "The save stopped" : "Couldn't reach the map"} (${e.message}). Try again with signal.`, null, retry);
+        // A new area that failed outright (storage full, say) leaves no half entry to be retried on its own.
+        if (isNew && id) { save(load().filter((x) => x.id !== id)); id = undefined; }
+      }
     }
     // A cabin trip saved again with a new square: the old save under its name goes once the new one is in the list,
     // finished or not (its tiles the new one shares stay).
     if (busy.replace && id) for (;;) { const areas = load(), o = areas.find((x) => x.name === name && x.id !== id); if (!o) break; await remove(o, areas).catch(() => {}); if (load().includes(o) || load().some((x) => x.id === o.id)) break; }
+    if (lock) lock.release().catch(() => {});
+    leftNotice(false);
+    keepGoing(false);
     busy = null; savingName = null;
     if (drawn) setDrawn(null);   // the square is in the list now (Try again uses its own box)
     tell(name);
@@ -738,7 +853,7 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
 
   // Every file an area saved, except the sports' data files (small and shared by every area).
   async function urlsOf(x) {
-    const k = await extras(x.box, sportOf(x), x.d3, x.huntLayers);
+    const k = await extras(x.box, sportOf(x), x.d3, x.huntLayers, +x.dz || 12);
     return [...x.sources.flatMap((s) => [...tileUrls(s, x.box, x.boxes)]), ...dataUrls(x.box), ...k.tiles];
   }
   // hunting.js keeps these when it deletes one of its own saves.
@@ -746,12 +861,16 @@ ${a.missing ? `<button type="button" data-finish="${a.id}">Try again</button>` :
 
   // ---------- with no connection ----------
   // Open on the saved map style when there's no signal and an area is saved.
+  // Topo with no signal: the saved map with elevation lines from the saved heights (contours.js), as close to Topo as
+  // can be saved (OpenTopoMap's own pictures can't be bulk-downloaded).
+  const contourForce = (on) => { if (window.tfContourForce) window.tfContourForce("offline-flat", on); };
   function goOffline() {
     if (!load().length || !window.tfSetBasemap) return;
     const sel = document.getElementById("basemap");
+    if (sel && sel.value === "topo") contourForce(true);
     if (sel && sel.value !== "vector") window.tfSetBasemap("vector", false);
   }
   if (!navigator.onLine) goOffline();
   window.addEventListener("offline", () => { goOffline(); estimate(); });
-  window.addEventListener("online", () => estimate());
+  window.addEventListener("online", () => { contourForce(false); estimate(); });
 })();
