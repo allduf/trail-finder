@@ -59,7 +59,7 @@ final class NativeAvalanche: NativeLayer {
             box.addSubview(stack)
             box.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(toggle)))
             screen.view.addSubview(box)
-            let g = screen.view.safeAreaLayoutGuide
+            let g = screen.mapArea   // inside the map: clear of a tool's bar from the page (NativeTools.swift)
             NSLayoutConstraint.activate([
                 stack.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 10),
                 stack.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -10),
