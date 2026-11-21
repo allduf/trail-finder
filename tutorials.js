@@ -74,9 +74,12 @@ dialog.tut .tut-sub { color: var(--muted); font-size: .88rem; line-height: 1.3; 
     return dlg;
   }
   const head = (title, back) => `<div class="tut-top">${back ? `<button type="button" class="tut-back" aria-label="All tutorials"><span aria-hidden="true">‹</span><span>Tutorials</span></button>` : ""}<h2 id="tutTitle">${esc(title)}</h2><button type="button" class="tut-x" aria-label="Close">✕</button></div>`;
+  // The sport you're in and the whole app's videos only (deep phone test 2026-11-21: Hunting listed Skiing's videos).
+  const mine = (t) => t.sport === "all" || t.sport === curSport();
+  const hasFor = () => LIST.some(mine);
   function showList() {
-    // the sport you're in first, then the rest in the Sport button's order
-    const order = Object.keys(SPORTS).sort((a, b) => (b === curSport()) - (a === curSport()));
+    // the sport you're in first, then the whole app; a feature's own Watch how still opens any video
+    const order = [curSport(), "all"].filter((s, i, a) => SPORTS[s] && a.indexOf(s) === i);
     const groups = order.map((s) => [s, LIST.filter((t) => t.sport === s)]).filter(([, l]) => l.length);
     dlg.innerHTML = head("Tutorials") + groups.map(([s, l]) => `<h3>${line(SPORTS[s][1], 14)}${esc(SPORTS[s][0])}</h3><ul>${l.map((t) => `<li><button type="button" class="tut-row" data-tut="${esc(t.id)}">
       <span class="tut-pic">${t.poster ? `<img src="${esc(t.poster)}" alt="" loading="lazy" decoding="async">` : ""}<span class="tut-play">${line("▶", 26)}</span></span>
@@ -89,7 +92,7 @@ dialog.tut .tut-sub { color: var(--muted); font-size: .88rem; line-height: 1.3; 
     if (!t) { showList(); return; }
     // preload="auto" only now that it was tapped; playsinline keeps it in the card on iPhones (the ⤢ in its controls
     // still goes full screen).
-    dlg.innerHTML = head(t.title, LIST.length > 1) + `<video controls playsinline preload="auto" ${t.poster ? `poster="${esc(t.poster)}" ` : ""}src="${esc(t.src)}"></video><p class="tut-sub">${esc(t.sub)}</p>`;
+    dlg.innerHTML = head(t.title, LIST.some((x) => mine(x) && x.id !== t.id)) + `<video controls playsinline preload="auto" ${t.poster ? `poster="${esc(t.poster)}" ` : ""}src="${esc(t.src)}"></video><p class="tut-sub">${esc(t.sub)}</p>`;
     dlg.scrollTop = 0;
     const v = dlg.querySelector("video");
     const p = v.play();   // a tap started this, so phones let it play with sound
@@ -115,7 +118,12 @@ dialog.tut .tut-sub { color: var(--muted); font-size: .88rem; line-height: 1.3; 
     open(b.dataset.tutOpen || undefined);
   }, true);
   // How it works' own button (index.html #about): shown once there is a video, with the same line ▶.
+  // Shown in the sports that have a video.
   const ab = document.querySelector("#about .about-tut");
-  if (ab && LIST.length) { ab.hidden = false; ab.querySelector("button").insertAdjacentHTML("afterbegin", line("▶", 18)); }
-  window.tfTutorials = { list: LIST, open, button };
+  if (ab && LIST.length) {
+    ab.querySelector("button").insertAdjacentHTML("afterbegin", line("▶", 18));
+    const sync = () => { ab.hidden = !hasFor(); };
+    sync(); window.addEventListener("tf:sport", () => setTimeout(sync));
+  }
+  window.tfTutorials = { list: LIST, open, button, hasFor };
 })();

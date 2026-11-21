@@ -1,0 +1,2 @@
+Avalanche: forecast days now line up with Avalanche Canada's own dates in every card, slope colours stop right at the forecast region edges, and an expired forecast no longer colours the slopes. ||| Avalanche : les jours des bulletins correspondent maintenant aux dates d'Avalanche Canada dans chaque carte, les couleurs des pentes s'arrêtent juste aux limites des régions de prévision, et un bulletin expiré ne colore plus les pentes.
+Forecast expired ||| Bulletin expiré
