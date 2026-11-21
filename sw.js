@@ -120,6 +120,14 @@ async function savedFirst(req) {
   const hit = await (await caches.open(OFFLINE)).match(req.url, { ignoreVary: true });
   return hit || fetch(req);
 }
+// Their lists of squares (blocks.json, sharp.json) change when the photos are rebuilt: the network first, and the copy
+// saved with an area only with no signal. Before 2026-11-21 nothing answered them offline, so with no signal the saved
+// Winter photos weren't shown (the lists came back empty).
+async function savedIfNoNet(req) {
+  // A weak signal can hang instead of failing: the saved copy after 4 s.
+  try { return await Promise.race([fetch(req), new Promise((_, no) => setTimeout(() => no(new Error("slow")), 4000))]); }
+  catch (err) { const hit = await (await caches.open(OFFLINE)).match(req.url, { ignoreVary: true }); if (hit) return hit; throw err; }
+}
 
 // Map pictures kept on the phone after they're seen, so the map is there at once when the app opens again and the 3D
 // ground isn't blank or blurry for 1-3 s while tiles just seen come again (alex 2026-10-30). Each kind has its own
@@ -178,6 +186,7 @@ self.addEventListener("fetch", (e) => {
   if (tile) e.respondWith(tileFirst(req, tile, e).catch(() => fetch(req)));
   else if (url.origin === self.location.origin && (url.searchParams.has("v") || url.pathname.includes("/vendor/"))) e.respondWith(cacheFirst(req));
   else if ((url.origin === self.location.origin || /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev|trailfinder-sharp-\d+\.pages\.dev|trailfinder-sharpca-\d+\.pages\.dev|trailfinder-wide-\d+\.pages\.dev)$/.test(url.hostname)) && /\/trail-finder-(winter2?|summer|wide)\//.test(url.pathname) && !url.pathname.endsWith(".json")) e.respondWith(savedFirst(req));
+  else if (url.origin !== self.location.origin && /^(allduf\.github\.io|trailfinder-winter2?\.netlify\.app|trailfinder-w[12]-\d+\.pages\.dev|trailfinder-summer(-15)?\.pages\.dev|trailfinder-sharpmid\.pages\.dev|trailfinder-sharp-\d+\.pages\.dev|trailfinder-sharpca-\d+\.pages\.dev|trailfinder-wide-\d+\.pages\.dev)$/.test(url.hostname) && /\/trail-finder-(winter2?|summer|wide)\/[^/]+\.json$/.test(url.pathname)) e.respondWith(savedIfNoNet(req));
   else if (url.origin === self.location.origin) e.respondWith(networkFirst(req, e));
   else if (STATIC_HOSTS.includes(url.hostname)) e.respondWith(cacheFirst(req));
   else if (url.hostname === "tiles.openfreemap.org") e.respondWith(openFreeMap(req));

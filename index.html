@@ -5750,7 +5750,8 @@ out body;`;
     if (setHome(ll, true)) homeMoved(true);
     if (!you.dot) {
       you.ring = L.circle(ll, { radius: acc, color: "#2b7de9", weight: 1, opacity: 0.5, fillColor: "#2b7de9", fillOpacity: 0.12, interactive: false }).addTo(youLayer);
-      you.dot = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b7de9", fillOpacity: 1 }).bindTooltip("You are here", { direction: "top", offset: [0, -8] }).addTo(youLayer);
+      // tfYou: left out of the iPhone's native 3D map, which shows your location itself (native-map.js).
+      you.dot = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b7de9", fillOpacity: 1, tfYou: true }).bindTooltip("You are here", { direction: "top", offset: [0, -8] }).addTo(youLayer);
       you.shown = ll;
     } else moveDot(ll, acc);
     if (you.onFirst) { const f = you.onFirst; you.onFirst = null; f(ll); }

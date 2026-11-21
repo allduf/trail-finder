@@ -31,7 +31,10 @@ final class NativeOffline: NativeLayer {
         apply(style)
         // Right after the app starts, MapLibre may still be reading its list of saved packs: draw again once it's in.
         if !online && MLNOfflineStorage.shared.packs == nil {
-            OfflinePacks.shared.withPacks { [weak self, weak style] _ in if let s = style { self?.apply(s) } }
+            OfflinePacks.shared.withPacks { [weak self, weak style] _ in
+                // Only the style still showing (a new base map may have come meanwhile; it draws this again itself).
+                if let s = style, s === self?.screen?.readyStyle { self?.apply(s) }
+            }
         }
     }
 
@@ -43,7 +46,8 @@ final class NativeOffline: NativeLayer {
             let b = ((a["box"] as? [Any]) ?? []).compactMap(num)
             return b.count == 4 ? (b, (a["label"] as? String) ?? "") : nil
         }
-        if let s = style ?? self.style { apply(s) }
+        // Only the style showing now, once loaded: while a new base map loads, its added(to:) draws this when it's in.
+        if let s = style ?? self.style, s === screen?.readyStyle { apply(s) }
     }
 
     private func apply(_ style: MLNStyle) {
@@ -56,7 +60,8 @@ final class NativeOffline: NativeLayer {
         guard off else { return }
 
         // The saved ground: under Winter's photos when they're there, else right under the trails.
-        let under = style.layer(withIdentifier: "wide") ?? screen?.trailsBottomLayer()
+        // From this same style: a layer from another one can't be inserted below (MapLibre stops the app).
+        let under = style.layer(withIdentifier: "wide") ?? style.layer(withIdentifier: "tf-line")
         let put = { (l: MLNStyleLayer) in if let u = under { style.insertLayer(l, below: u) } else { style.addLayer(l) } }
         let bg = MLNBackgroundStyleLayer(identifier: "tf-off-bg")
         bg.backgroundColor = NSExpression(forConstantValue: UIColor(red: 0xdf / 255.0, green: 0xe5 / 255.0, blue: 0xd2 / 255.0, alpha: 1))
@@ -186,8 +191,10 @@ final class OfflinePacks: NSObject {
     private var wanted: Set<String> = []       // the areas the page last asked for
     private var observing = false
     private var notifyQueued = false
+    private var firstLook: Set<ObjectIdentifier> = []   // copies asked for their state (unknown until MapLibre reports)
 
-    struct Area { let id: String; let boxes: [[Double]]; let ski: Bool }
+    // sharp: saved at full detail on the page (dz 15): the sharpened Winter photos come too.
+    struct Area { let id: String; let boxes: [[Double]]; let ski: Bool; let sharp: Bool }
 
     func withPacks(_ fn: @escaping ([MLNOfflinePack]) -> Void) {
         let st = MLNOfflineStorage.shared
@@ -227,7 +234,7 @@ final class OfflinePacks: NSObject {
             guard let id = a["id"] as? String, !id.isEmpty else { return nil }
             var boxes = OfflinePacks.boxes(a["boxes"])
             if boxes.isEmpty { let b = ((a["box"] as? [Any]) ?? []).compactMap(num); if b.count == 4 { boxes = [b] } }
-            return boxes.isEmpty ? nil : Area(id: id, boxes: boxes, ski: (a["ski"] as? Bool) ?? false)
+            return boxes.isEmpty ? nil : Area(id: id, boxes: boxes, ski: (a["ski"] as? Bool) ?? false, sharp: (a["sharp"] as? Bool) ?? false)
         }
         withPacks { [weak self] _ in
             guard let self = self else { return }
@@ -236,12 +243,23 @@ final class OfflinePacks: NSObject {
             var have: [String: Set<String>] = [:]
             for (p, c) in self.ours {
                 let id = (c["id"] as? String) ?? "", a = byId[id]
-                let same = a != nil && OfflinePacks.sameBoxes(OfflinePacks.boxes(c["boxes"]), a!.boxes) && ((c["ski"] as? Bool) ?? false) == a!.ski
-                if !same { MLNOfflineStorage.shared.removePack(p, withCompletionHandler: nil); continue }
+                let same = a != nil && OfflinePacks.sameBoxes(OfflinePacks.boxes(c["boxes"]), a!.boxes) && ((c["ski"] as? Bool) ?? false) == a!.ski && ((c["sharp"] as? Bool) ?? false) == a!.sharp
+                if !same { self.firstLook.remove(ObjectIdentifier(p)); MLNOfflineStorage.shared.removePack(p, withCompletionHandler: nil); continue }
                 let part = (c["part"] as? String) ?? ""
                 have[id, default: []].insert(part)
                 p.requestProgress()
-                if p.state != .complete && p.state != .active { self.resume(p, c) }
+                // Unfinished copies carry on. One MapLibre hasn't reported on yet (every copy, just after the app starts)
+                // waits for that report (changed below): resuming a finished copy walks all of it again, its line
+                // reading "saving 0%" on an area already saved, after each start.
+                if p.state == .unknown {
+                    self.firstLook.insert(ObjectIdentifier(p))
+                    // No report within 10 s (MapLibre couldn't read the copy's state): it carries on all the same.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self, weak p] in
+                        guard let self = self, let p = p, p.state == .unknown, self.firstLook.remove(ObjectIdentifier(p)) != nil,
+                              let c = OfflinePacks.ctx(p), self.wanted.contains((c["id"] as? String) ?? "") else { return }
+                        self.resume(p, c)
+                    }
+                } else if p.state == .inactive { self.resume(p, c) }
             }
             for a in want {
                 let parts = ["main"] + (a.ski ? (6...10).map { "r\($0)" } : [])
@@ -261,7 +279,11 @@ final class OfflinePacks: NSObject {
 
     private func resume(_ p: MLNOfflinePack, _ c: [String: Any]) {
         guard let style = OfflinePacks.style(c) else { return }
-        let go = { self.putStyle(style, p.region.styleURL) { ok in if ok && p.state != .invalid { p.resume() } } }
+        let go = {
+            // Deleted meanwhile (Winter's lists take a moment to load): any message to a deleted copy stops the app.
+            guard p.state != .invalid else { return }
+            self.putStyle(style, p.region.styleURL) { ok in if ok && p.state != .invalid { p.resume() } }
+        }
         // Winter photo addresses need WinterTiles as MapLibre's URL rewriter (set by its load), fresh from their sites.
         if (c["ski"] as? Bool) ?? false { WinterTiles.shared.load { ok in if ok && WinterTiles.shared.fresh { go() } } } else { go() }
     }
@@ -274,7 +296,7 @@ final class OfflinePacks: NSObject {
             let go = {
                 for part in parts {
                     let key = a.id + "/" + part
-                    let c: [String: Any] = ["tf": "offline", "id": a.id, "part": part, "boxes": a.boxes, "ski": a.ski, "tmpl": tmpl]
+                    let c: [String: Any] = ["tf": "offline", "id": a.id, "part": part, "boxes": a.boxes, "ski": a.ski, "sharp": a.sharp, "tmpl": tmpl]
                     guard let style = OfflinePacks.style(c), let region = OfflinePacks.region(a, part, styleBase: OfflinePacks.styleBase),
                           let ctxData = try? JSONSerialization.data(withJSONObject: c) else { self.creating.remove(key); continue }
                     self.putStyle(style, region.styleURL) { ok in
@@ -322,13 +344,23 @@ final class OfflinePacks: NSObject {
         if part == "main" {
             guard let t = c["tmpl"] as? String else { return nil }
             sources["ofm"] = ["type": "vector", "tiles": [t], "minzoom": 0, "maxzoom": 14]
+            // Heights to zoom 12, as native 3D asks for them with signal too (NativeBaseStyles.swift "dem"): the copy matches
+            // what the screen shows. Deeper heights here wait for native 3D itself to go deeper.
             sources["dem"] = ["type": "raster-dem", "encoding": "terrarium", "tileSize": 512, "maxzoom": 12, "tiles": [demTiles]]
-            if ski { sources["winter"] = winter }
+            if ski {
+                sources["winter"] = winter
+            }
+            if ski && ((c["sharp"] as? Bool) ?? false) {
+                // Saved at full detail on the page (dz 15): the sharpened Winter photos too (zooms 11-15, ~5 KB each), as native 3D shows them online (WinterTiles
+                // "sharp"): close up the saved ground looks as it does with signal (alex 2026-11-21: "same quality off line").
+                sources["sharp"] = ["type": "raster", "tileSize": 256, "minzoom": 11, "maxzoom": 15, "tiles": ["https://\(WinterTiles.host)/s/{z}/{x}/{y}"]]
+            }
         } else if ski { sources["winter"] = winter } else { return nil }
         var layers: [[String: Any]] = [["id": "bg", "type": "background"]]
         if sources["ofm"] != nil { layers.append(["id": "water", "type": "fill", "source": "ofm", "source-layer": "water"]) }
         if sources["dem"] != nil { layers.append(["id": "shade", "type": "hillshade", "source": "dem"]) }
         if sources["winter"] != nil { layers.append(["id": "winter", "type": "raster", "source": "winter"]) }
+        if sources["sharp"] != nil { layers.append(["id": "sharp", "type": "raster", "source": "sharp"]) }
         return ["version": 8, "sources": sources, "layers": layers]
     }
 
@@ -391,6 +423,9 @@ final class OfflinePacks: NSObject {
     // At most once a second to the page.
     @objc private func changed(_ n: Notification) {
         DispatchQueue.main.async {
+            // A copy's first report since sync asked: it carries on if unfinished and still wanted.
+            if let p = n.object as? MLNOfflinePack, p.state != .unknown, self.firstLook.remove(ObjectIdentifier(p)) != nil, p.state == .inactive,
+               let c = OfflinePacks.ctx(p), self.wanted.contains((c["id"] as? String) ?? "") { self.resume(p, c) }
             if self.notifyQueued { return }
             self.notifyQueued = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {

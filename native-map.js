@@ -18,6 +18,8 @@
 // drawn by one piece of code (avalanche-exact). The native screen's "Layers" button goes to the web 3D map at the same
 // spot with its Layers open, for turning those on. Other ways into 3D (a tour, a plan, the app reopening in 3D) keep
 // opening the web 3D map. Only alex for now; the "(test)" label goes once friends have tried it.
+// Since 2026-11-21 (alex: the last step of the plan), on an iPhone app build that draws everything natively, native 3D
+// is the only 3D map for everyone, with no "(test)" label and no web 3D map (FULL, tfNative3d below).
 (() => {
   "use strict";
   const C = window.Capacitor, map = window.tfLeaflet, L = window.L;
@@ -36,9 +38,9 @@
   btn3d.title = "Try the 3D map drawn by the iPhone itself (photos and trails only): does it turn and tilt smoother?";
   btn3d.textContent = "Native 3D (test)";
   tools.after(btn, btn3d);
-  const adminNow = () => { try { return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
-  btn.hidden = btn3d.hidden = !adminNow();
-  window.addEventListener("tf:admin", () => { btn.hidden = btn3d.hidden = !adminNow(); });
+  const isAdmin = () => { try { return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
+  btn.hidden = btn3d.hidden = !isAdmin();
+  window.addEventListener("tf:admin", () => { btn.hidden = btn3d.hidden = !isAdmin(); });
   const css = document.createElement("style");
   css.textContent = "body.sport-alt #nativeMapBtn, #nativeMapBtn[hidden], #native3dBtn[hidden] { display: none !important; }";   // 2D: MTB only; both alex only
   document.head.append(css);
@@ -85,6 +87,8 @@
     onDetails(fn) { if (typeof fn === "function") detailFns.push(fn); },
     // has(key): this app build draws that feature itself (TrailMap.features; older builds have no such call).
     has: (key) => !!nativeKeys && nativeKeys.has(String(key)),
+    // full(): this iPhone's app build draws everything natively, so native 3D is its only 3D map (no web 3D on it).
+    full: () => fullNative(),
     // moveWait(ms): how long the page waits after the native map moves before sending the trails again (500 ms); a
     // Flyover moves it every second, so it waits longer meanwhile. Nothing: back to 500.
     moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
@@ -92,8 +96,16 @@
     hit: (i) => hits[i] || null,
   };
   const detailFns = [];
-  let nativeKeys = null, moveWait = 500;
-  try { Promise.resolve(TrailMap.features()).then((r) => { nativeKeys = new Set((r && r.keys) || []); }, () => { nativeKeys = new Set(); }); } catch { nativeKeys = new Set(); }
+  let nativeKeys = null, moveWait = 500, keysWait = [];
+  const keysIn = (k) => { nativeKeys = k; const w = keysWait; keysWait = []; w.forEach((f) => { try { f(); } catch {} }); };
+  try { Promise.resolve(TrailMap.features()).then((r) => keysIn(new Set((r && r.keys) || [])), () => keysIn(new Set())); } catch { keysIn(new Set()); }
+  // Native 3D for every iPhone tester, and no web 3D map on the iPhone (alex 2026-11-21, the last step of the native 3D
+  // plan): only on an app build that draws every 3D feature itself (these keys, NativeLayers.all). Older builds keep the
+  // web 3D map (and alex's own "native for viewing" as before) until they're updated. Android keeps the web 3D map.
+  const FULL = ["avy", "fish", "flyover", "ground", "hunt", "moto", "offline", "pins", "radar", "search", "smoke", "tools"];
+  const ios = !!(C.getPlatform && C.getPlatform() === "ios");
+  const fullNative = () => ios && !!nativeKeys && FULL.every((k) => nativeKeys.has(k));
+  const nativeOn = () => isAdmin() || fullNative();
   const ll = (p) => [Math.round(p.lng * 1e5) / 1e5, Math.round(p.lat * 1e5) / 1e5];
   // Leaflet dashes are in pixels, MapLibre's in line widths; round-capped dots (unofficial trails) stay dots.
   // In 3D, lines are a little bolder than on the flat map and dots closer together, as on the web 3D map (map3d.js
@@ -129,7 +141,9 @@
       return hidden.get(name);
     };
     map.eachLayer((l) => {
-      if (!(l instanceof L.Path) || paneHidden(l.options) || (skips.length && skipped(l))) return;
+      // tfYou: the flat map's own location dot (index.html). The native map draws yours itself, on the ground and moving
+      // smoothly; a copy here was a second dot left behind, and changed the trails each fix (sent again every second).
+      if (!(l instanceof L.Path) || l.options.tfYou || paneHidden(l.options) || (skips.length && skipped(l))) return;
       const bb = l.getBounds ? l.getBounds() : L.latLngBounds([l.getLatLng()]);
       if (!bb.isValid() || !near.intersects(bb) || l instanceof L.Circle) return;   // circles (radius rings) aren't trails
       const o = l.options, tap = o.interactive !== false && l.listens("click");
@@ -162,8 +176,19 @@
     };
   }
 
-  // Trails come and go on the flat map as it follows (zones loading, names redrawn): sent once it settles.
-  function send() { pending = 0; if (open) TrailMap.update(snapshot()).catch(() => {}); }
+  // Trails come and go on the flat map as it follows (zones loading, names redrawn): sent once it settles. Only when
+  // they changed: the native map redoes its whole trail index for each one sent (on the iPhone's main thread), and most
+  // moves and layer changes leave the trails around the view as they were.
+  let sent = "";
+  const keyOf = (s) => s.lines + "\n" + s.dots + "\n" + s.dashes;
+  function send() {
+    pending = 0;
+    if (!open) return;
+    const s = snapshot(), k = keyOf(s);
+    if (k === sent) return;
+    sent = k;
+    TrailMap.update(s).catch(() => { sent = ""; });
+  }
   const later = (ms) => { if (open) { clearTimeout(pending); pending = setTimeout(send, ms); } };
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path && !(skips.length && skipped(e.layer))) later(400); });
 
@@ -171,7 +196,7 @@
   const follow = (e) => map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false });
   TrailMap.addListener("moved", (e) => { if (!open) return; follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
-    open = false; clearTimeout(pending); moveWait = 500;
+    open = false; clearTimeout(pending); moveWait = 500; sent = "";
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
     if (!e.details) return;
@@ -196,8 +221,10 @@
     const winter = threeD && document.body.classList.contains("sport-ski");
     // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
-    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snapshot() })
-      .then(() => true, () => { open = false; return false; });
+    const snap = snapshot();
+    sent = keyOf(snap);
+    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snap })
+      .then(() => true, () => { open = false; sent = ""; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -216,6 +243,7 @@
   const huntPicsNative = () => { try { return localStorage.getItem("tf-native-huntpics") === "1"; } catch { return false; } };
   TrailMap.addListener("huntPics", () => { try { localStorage.setItem("tf-native-huntpics", "1"); } catch {} });   // here: hunting.js may not be loaded yet
   const webOnly = () => {
+    if (fullNative()) return false;   // every layer is drawn natively on this build
     // Avalanche: native 3D only once this phone's build has shown its avalanche card (native-avalanche.js, "tf-native-avy").
     if ((tf("avy", false) === true || pressed("avyBtn")) && !(groundNative() && avyNative())) return true;
     const ground = groundNative();
@@ -236,14 +264,29 @@
   // it's open; false (now, or if it couldn't open) means the web 3D map is the one (not alex, a web-only layer on,
   // already in 3D).
   window.tfNative.view = (at) => {
-    if (open || !adminNow() || map.getContainer().classList.contains("is3d") || webOnly()) return Promise.resolve(false);
+    if (open || !nativeOn() || map.getContainer().classList.contains("is3d") || webOnly()) return Promise.resolve(false);
     if (at && isFinite(at.lat) && isFinite(at.lon)) map.setView([at.lat, at.lon], Math.round((at.zoom || 13) + 1), { animate: false });
     return openNative(true);
+  };
+  // map3d.js asks here before it builds the web 3D map (set3d). On a full native build it never does: a tap on 3D, a
+  // tilt, a tour or route that wants 3D opens native 3D instead; the 3D a sport opens on by itself (Skiing, or the app
+  // reopening in 3D) stays on the flat map, one tap away (native 3D covers the whole screen). While this build's keys
+  // aren't known yet (a moment after the app opens), the 3D a sport opens on waits for them: retry() asks again.
+  let bypass = false;
+  window.tfNative3d = {
+    claim(auto, retry) {
+      if (!ios || bypass) return false;
+      if (!nativeKeys) { if (typeof retry === "function") keysWait.push(retry); return true; }
+      if (!fullNative() || webOnly()) return false;
+      // The native screen couldn't open (no app screen to show it on): the web 3D map this once, never nothing.
+      if (!auto && !open) openNative(true).then((ok) => { if (ok || typeof retry !== "function") return; bypass = true; try { retry(); } finally { bypass = false; } });
+      return true;
+    },
   };
   const map3d = document.getElementById("btn3d");
   if (map3d) map3d.addEventListener("click", (e) => {
     // Only a real tap, going from the flat map into 3D: other scripts click this button to open the web 3D map.
-    if (!e.isTrusted || open || !adminNow() || map.getContainer().classList.contains("is3d") || webOnly()) return;
+    if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || webOnly()) return;
     e.stopImmediatePropagation(); e.preventDefault();
     openNative(true);
   }, true);
@@ -276,6 +319,7 @@
   TrailMap.addListener("closed", (e) => {
     if (toWeb) { toWeb = false; if (map3d && !map.getContainer().classList.contains("is3d")) map3d.click(); return; }
     if (!e.layers || !map3d) return;
+    if (fullNative()) { const lb = document.getElementById("layersBtn"); if (lb && lmenu && lmenu.hidden) lb.click(); return; }   // no web 3D here
     if (!map.getContainer().classList.contains("is3d")) map3d.click();
     const layers = document.getElementById("layersBtn");
     if (layers) setTimeout(() => { if (!lmenu || lmenu.hidden) layers.click(); }, 600);
