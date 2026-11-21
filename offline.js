@@ -286,13 +286,14 @@
   // Areas saved in 3D with less detail than now fits them (before 2026-11-21 every save stopped at 12 m heights and
   // the plain Winter photos; alex's airplane-mode video 2026-11-21: blurry snow up close): the detail they can get, or 0.
   // Full detail fetches only the closer files: the saved ones are skipped.
-  const upTo = (a) => { if (!a.d3 || a.missing) return 0; const z = detailFor(a.box, sportOf(a), true); return z > (+a.dz || 12) ? z : 0; };
+  // Not for a route's corridor (boxes): sized by its whole rectangle, it would fetch far more than the corridor.
+  const upTo = (a) => { if (!a.d3 || a.missing || a.boxes || !navigator.onLine) return 0; const z = detailFor(a.box, sportOf(a), true); return z > (+a.dz || 12) ? z : 0; };
   async function renderList() {
     const areas = load();
     drawOutlines();
     $("[data-saved-h]").hidden = !areas.length;
-    $("[data-list]").innerHTML = areas.map((a) => `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}</div>
-${upTo(a) && !(busy && a.name === savingName) ? `<span class="muted">${esc(lessDetail(+a.dz || 12, sportOf(a)).replace(/^h/, "H"))}</span>` : ""}${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-finish="${a.id}">Try again</button>` : upTo(a) && !busy ? `<button type="button" data-up="${a.id}">Full detail</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`).join("");
+    $("[data-list]").innerHTML = areas.map((a) => { const up = upTo(a); return `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}${a.d3 && (+a.dz || 12) < 15 && !(busy && a.name === savingName) ? `<span class="muted" style="display:block">${esc(lessDetail(+a.dz || 12, sportOf(a)).replace(/^h/, "H"))}</span>` : ""}</div>
+${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-finish="${a.id}">Try again</button>` : up && !busy ? `<button type="button" data-up="${a.id}">${up >= 15 ? "Full detail" : "More detail"}</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`; }).join("");
     const use = $("[data-use]");
     use.textContent = "";
     if (navigator.storage && navigator.storage.estimate) {
@@ -713,8 +714,11 @@ ${upTo(a) && !(busy && a.name === savingName) ? `<span class="muted">${esc(lessD
     const record = (partial) => {
       if (!sources) return;
       if (partial && busy.replace) return;   // a cabin trip's new square: the old save stays listed until this one is in
+      // An upgrade to more detail (wantDz): the saved map already works offline, so it stays as it was until the closer
+      // files are all in; one cut short is just tapped again.
+      if (wantDz && (partial || failed.length || busy.stop)) return;
       const areas = load(), old = areas.find((x) => x.id === id);
-      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes: partial ? Math.max(bytes, runBytes) : bytes, at: Date.now(), sport, ski: sport === "ski", d3, ...(d3 ? { dz } : {}), ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
+      const entry = { id: id || Date.now().toString(36), name, box, sources, bytes: partial ? Math.max(bytes, runBytes) : bytes, at: wantDz && old && old.at ? old.at : Date.now(), sport, ski: sport === "ski", d3, ...(d3 ? { dz, dz0: old ? +old.dz0 || +old.dz || 12 : dz } : {}), ring: 1, ...(huntLayers ? { huntLayers } : {}), ...(boxes ? { boxes } : {}) };
       if (old) { delete old.missing; delete old.missingUrls; }
       if (failed.length || busy.stop || partial) { entry.missing = Math.max(1, failed.length + busy.left); if (failed.length) entry.missingUrls = failed.slice(0, 20); }
       if (old) Object.assign(old, entry); else areas.push(entry);
