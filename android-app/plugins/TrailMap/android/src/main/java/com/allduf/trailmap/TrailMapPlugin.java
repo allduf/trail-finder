@@ -1,7 +1,11 @@
 package com.allduf.trailmap;
 
 import android.app.Activity;
+import android.graphics.Color;
+import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.ComponentActivity;
 import com.getcapacitor.JSArray;
@@ -40,6 +44,8 @@ public class TrailMapPlugin extends Plugin {
         boolean threeD = Boolean.TRUE.equals(call.getBoolean("threeD", false)), winter = Boolean.TRUE.equals(call.getBoolean("winter", false));
         boolean fr = "fr".equals(call.getString("lang"));
         String lines = call.getString("lines", ""), dots = call.getString("dots", ""), dashes = call.getString("dashes", "");
+        // under: the page's buttons, menus and cards stay on top, this map behind the web view (TrailMapScreen under).
+        String underData = call.getString("under");
         Map<String, String> extra = new HashMap<>();
         JSObject layers = call.getObject("layers", new JSObject());
         if (layers != null) for (Iterator<String> it = layers.keys(); it.hasNext(); ) {
@@ -58,9 +64,11 @@ public class TrailMapPlugin extends Plugin {
             }
             ViewGroup host = a.findViewById(android.R.id.content);
             if (host == null) { call.reject("No screen to show the map on"); return; }
+            WebView web = getBridge() != null ? getBridge().getWebView() : null;
+            boolean under = underData != null && threeD && web != null && web.getParent() instanceof ViewGroup;
             TrailMapScreen s;
             try {
-                s = new TrailMapScreen(a, this::fromScreen, lat, lon, zoom, bearing, base, threeD, winter, esri, fr);
+                s = new TrailMapScreen(a, this::fromScreen, lat, lon, zoom, bearing, base, threeD, winter, esri, fr, under);
             } catch (Throwable t) {
                 // The map engine couldn't start on this phone (no 3D graphics support): the page keeps its own map.
                 Throwable c = t.getCause() != null ? t.getCause() : t;
@@ -70,11 +78,24 @@ public class TrailMapPlugin extends Plugin {
             s.setData(lines, dots, dashes);
             for (Map.Entry<String, String> e : extra.entrySet()) s.setLayer(e.getKey(), e.getValue());
             screen = s;
-            s.setAlpha(0);
-            host.addView(s, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            if (under) {
+                // Behind the web view, which turns see-through where its map was (the page hides its flat map once open
+                // answers); a touch where the page shows nothing of its own comes to this map (passTouches).
+                ViewGroup parent = (ViewGroup) web.getParent();
+                parent.addView(s, parent.indexOfChild(web), new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                android.graphics.drawable.Drawable bg = web.getBackground();
+                webBg = bg instanceof android.graphics.drawable.ColorDrawable ? ((android.graphics.drawable.ColorDrawable) bg).getColor() : Color.parseColor("#f2efe7");
+                web.setBackgroundColor(Color.TRANSPARENT);
+                passTouches(web, s);
+                if (underData != null) s.setLayer("under", underData);
+            } else {
+                s.setAlpha(0);
+                host.addView(s, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            }
             s.onStart();
             s.onResume();
-            watchBack(a, true);
+            // Under the page, Back is the page's (it closes its own sheets and cards first, then this map: native.js).
+            if (!under) watchBack(a, true);
             // Seamless from the flat map (as on the iPhone): the screen stays unseen over the page's flat map (it takes the
             // touches all the same) until its own map has drawn the same spot, then shows in a quick fade and (3D) tilts
             // up from flat. At most 2.5 s (no signal, slow tiles).
@@ -84,6 +105,13 @@ public class TrailMapPlugin extends Plugin {
                 shown[0] = true;
                 s.onReady = null;
                 if (s.isLeft()) { call.resolve(); return; }
+                if (s.under) {   // the page hides its flat map once this answers (under: true), then the tilt
+                    JSObject r = new JSObject();
+                    r.put("under", true);
+                    call.resolve(r);
+                    s.postDelayed(s::tiltIn, 150);
+                    return;
+                }
                 s.animate().alpha(1).setDuration(180).withEndAction(() -> { s.tiltIn(); call.resolve(); }).start();
             };
             s.onReady = show;
@@ -91,10 +119,38 @@ public class TrailMapPlugin extends Plugin {
         });
     }
 
+    // A touch on the web view where the page shows nothing of its own goes to the map under it, for the whole gesture.
+    private boolean routing = false;
+    private int webBg = 0xfff2efe7;   // the web view's own background, put back after (capacitor.config.json's by default)
+    private void passTouches(WebView web, TrailMapScreen s) {
+        routing = false;
+        web.setOnTouchListener((v, e) -> {
+            if (s.isLeft()) { routing = false; return false; }
+            int act = e.getActionMasked();
+            if (act == MotionEvent.ACTION_DOWN) routing = s.mapTakes(e.getX(), e.getY());   // the page's grid is in its own pixels
+            if (!routing) return false;
+            MotionEvent c = MotionEvent.obtain(e);
+            c.offsetLocation(v.getLeft() - s.getLeft(), v.getTop() - s.getTop());
+            s.dispatchTouchEvent(c);
+            c.recycle();
+            if (act == MotionEvent.ACTION_UP || act == MotionEvent.ACTION_CANCEL) routing = false;
+            return true;
+        });
+    }
+    // The web view as it was, once the map under it goes.
+    private void unpass() {
+        WebView web = getBridge() != null ? getBridge().getWebView() : null;
+        if (web == null) return;
+        web.setOnTouchListener(null);
+        web.setBackgroundColor(webBg);
+        routing = false;
+    }
+
     // Events from the screen to the page; "closed" also lets the page have its Back button again.
     private void fromScreen(String name, JSObject data) {
         notifyListeners(name, data);
         if ("closed".equals(name)) {
+            if (screen != null && screen.under) unpass();
             closing = screen;
             screen = null;
             Activity a = getActivity();
@@ -173,7 +229,7 @@ public class TrailMapPlugin extends Plugin {
     @Override protected void handleOnPause() { if (screen != null) screen.onPause(); }
     @Override protected void handleOnStop() { if (screen != null) screen.onStop(); }
     @Override protected void handleOnDestroy() {
-        if (screen != null) { screen.destroy(); screen = null; }
+        if (screen != null) { if (screen.under) unpass(); screen.destroy(); screen = null; }
         if (closing != null) { closing.destroy(); closing = null; }
         if (back != null) { back.remove(); back = null; }
     }

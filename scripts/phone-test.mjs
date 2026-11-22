@@ -327,8 +327,12 @@ function appStandIn({ platform, keys, admin, photos }) {
   const ok = (v) => Promise.resolve(v);
   const TrailMap = {
     features: () => ok({ keys }),
-    open: (o) => { tm.opens.push(o); return tm.fail ? Promise.reject(new Error("No screen to show the map on")) : ok(); },
-    update: () => ok(), layer: () => ok(), close: () => ok(), offline: () => ok({ areas: {} }),
+    // A build that reports "under" opens under the page when asked (and says so), as TrailMapPlugin does.
+    open: (o) => { tm.opens.push(o); return tm.fail ? Promise.reject(new Error("No screen to show the map on")) : ok(o.under && keys.includes("under") ? { under: true } : undefined); },
+    update: () => ok(), offline: () => ok({ areas: {} }),
+    layer: (o) => { (tm.layers = tm.layers || []).push(o); return ok(); },
+    // As the app: the screen goes, and says so.
+    close: () => { tm.closes = (tm.closes || 0) + 1; setTimeout(() => { const c = window.tfLeaflet.getCenter(); tm.fire("closed", { lat: c.lat, lon: c.lng, zoom: 12, bearing: 0, details: false, layers: false, open: -1 }); }, 0); return ok(); },
     addListener: (name, fn) => { (tm.on[name] = tm.on[name] || []).push(fn); return ok({ remove() {} }); },
   };
   // The app's other plugins: every call answers with nothing.
@@ -337,12 +341,12 @@ function appStandIn({ platform, keys, admin, photos }) {
     registerPlugin: (n) => (n === "TrailMap" ? TrailMap : other()), Plugins: { TrailMap } };
 }
 async function appBuild(kind) {
-  const label = { ios: "iPhone app", android: "Android app", web: "Website" }[kind];
+  const label = { ios: "iPhone app", iosu: "iPhone app, page over native 3D", android: "Android app", web: "Website" }[kind];
   const p = await phone(), { page } = p;
   // Anything that breaks outside a check (the page not loading) is one failed line, and the next build still runs.
   try {
-    const keys = kind === "ios" ? FIRST_FULL.keys : kind === "android" ? await androidKeys() : null;
-    await p.ctx.addInitScript(appStandIn, { platform: kind === "web" ? null : kind, keys, admin: kind === "android", photos: kind === "web" ? "live" : "sharp" });
+    const keys = kind === "ios" ? FIRST_FULL.keys : kind === "iosu" ? [...(await iosKeys())] : kind === "android" ? await androidKeys() : null;
+    await p.ctx.addInitScript(appStandIn, { platform: kind === "web" ? null : kind === "iosu" ? "ios" : kind, keys, admin: kind === "android" || kind === "iosu", photos: kind === "web" ? "live" : "sharp" });
     let n = 0;
     const check = async (name, fn) => {
       const before = p.errors.length;
@@ -426,6 +430,47 @@ async function appBuild(kind) {
         await flatWinter("back in Skiing");
         await nativeOpen("the 3D button back in Skiing", tap3d);
       });
+    } else if (kind === "iosu") {
+      // alex 2026-11-22: "i want to keep the same interface for both i never want the map to switch from web to native
+      // map". On the next iPhone build (it reports "under"), native 3D opens under the page: the page's own buttons stay
+      // on top, the 3D button reads "2D map" and goes back, a native tap opens the page's card.
+      await check("3D keeps the page's own buttons over native 3D", async () => {
+        await until(() => window.tfNative && window.tfNative.has && window.tfNative.has("under"), null, 8000).catch(() => {});
+        await nativeOpen("the 3D button", tap3d, true);
+        const o = await ev(() => window.__tm.opens[window.__tm.opens.length - 1]);
+        if (!o.under) throw new Error("native 3D was asked to open over the page, not under it");
+        const g = JSON.parse(o.under);
+        if (!(g.c > 0 && g.r > 0 && g.m.length === g.c * g.r)) throw new Error("the page's grid of its buttons is malformed");
+        await until(() => document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {});
+        const r = await ev(() => {
+          const out = [], b3 = document.getElementById("btn3d"), lb = document.getElementById("layersBtn");
+          if (!document.documentElement.classList.contains("tf-under")) out.push("the page didn't hide its flat map");
+          if (!/2D/.test(b3.textContent)) out.push(`the 3D button reads "${b3.textContent.trim()}", not 2D map`);
+          for (const el of [b3, lb]) {
+            const q = el.getBoundingClientRect(), x = q.left + q.width / 2, y = q.top + q.height / 2;
+            if (!el.contains(document.elementFromPoint(x, y))) out.push(`#${el.id} isn't on top`);
+          }
+          const tile = window.tfLeaflet.getPane("tilePane");
+          if (tile && getComputedStyle(tile).visibility !== "hidden") out.push("the flat map's pictures still show over native 3D");
+          return out.join(" · ");
+        });
+        if (r) throw new Error(r);
+        const g2 = await ev(() => { const l = (window.__tm.layers || []).filter((x) => x.key === "under").pop(); return l ? l.data : null; });
+        const grid = JSON.parse(g2 || o.under), at = await ev(() => { const q = document.getElementById("btn3d").getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; });
+        if (grid.m[Math.floor(at[1] / grid.s) * grid.c + Math.floor(at[0] / grid.s)] !== "0") throw new Error("the grid gives the 3D button's touches to the native map");
+        if (grid.m[Math.floor(grid.r / 2) * grid.c + Math.floor(grid.c / 2)] !== "1") throw new Error("the grid keeps the middle of the map from the native map");
+      });
+      await check("a tap on native 3D, then 2D map goes back", async () => {
+        await ev(() => { const c = window.tfLeaflet.getCenter(); window.__tm.fire("tap", { open: -1, tapLat: c.lat, tapLon: c.lng }); });
+        await wait(500);
+        await tap3d();
+        await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {});
+        if (await ev(() => document.documentElement.classList.contains("tf-under"))) throw new Error("2D map didn't go back to the flat map");
+        if (!(await ev(() => window.__tm.closes > 0))) throw new Error("2D map didn't close native 3D");
+        if (!(await ev(() => /3D/.test(document.getElementById("btn3d").textContent)))) throw new Error("the 3D button didn't come back");
+        await noWeb3d("2D map");
+        await flatWinter("after 2D map");
+      });
     } else if (kind === "android") {
       // Testers: the web 3D map (Android's native 3D is alex's only for now). friends.js keeps "tf-admin" for alex's
       // account only, so it's set again just before alex's tap.
@@ -455,7 +500,7 @@ async function appBuild(kind) {
   } finally { await p.ctx.close().catch(() => {}); }
 }
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
-for (const kind of ["ios", "android", "web"]) await appBuild(kind);
+for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 
 // The ride page (My rides, recording) on its own.
 {

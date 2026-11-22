@@ -113,6 +113,18 @@ final class TrailMapScreen extends FrameLayout {
     private LatLng pickedAt = new LatLng(0, 0);
     private String pickedFeature;
     private boolean left = false, tilted = false, located = false;
+    // ---------- under the page (alex 2026-11-22: "i want to keep the same interface for both i never want the map to
+    // switch from web to native map"), as on the iPhone (TrailMapScreen.under in TrailMapPlugin.swift) ----------
+    // The page's own buttons, menus, bottom bar and cards stay on top, as on the flat map; this map sits behind the web
+    // view and takes the touches where the page shows nothing (TrailMapPlugin passes them on, mapTakes). Its own Back,
+    // Layers, style and Me buttons and its trail card don't show: the page's do that. A trail tapped here opens the
+    // page's card ("tap"); Details on a feature's card opens on the page ("details") and this map stays. The page
+    // closes it (its 2D button, or Back once the page has nothing else to close).
+    final boolean under;
+    private float maskCell = 0;
+    private int maskCols = 0, maskRows = 0;
+    private byte[] maskBits = new byte[0];
+    private int uiTop = 0, uiBottom = 0;   // the page's rows of buttons, in px from the top and bottom
     private PointF lastTouch;      // where the finger last lifted: a tap's own spot (over the mountains, a spot worked back
     private long lastTouchAt = 0;  // from the map's tap can sit off the finger)
     private final List<NativeLayer> features;
@@ -125,8 +137,9 @@ final class TrailMapScreen extends FrameLayout {
     private final LinearLayout toolStack;
 
     TrailMapScreen(Activity activity, Events events, double lat, double lon, double zoom, double bearing, String base,
-                   boolean threeD, boolean winter, String esri, boolean fr) {
+                   boolean threeD, boolean winter, String esri, boolean fr, boolean under) {
         super(activity);
+        this.under = under;
         this.activity = activity;
         this.events = events;
         this.threeD = threeD;
@@ -169,6 +182,7 @@ final class TrailMapScreen extends FrameLayout {
 
         TextView back = pill("← Back", (v) -> leave(false, false, null));
         area.addView(back, at(Gravity.TOP | Gravity.START, 12, 8, 0, 0));
+        if (under) back.setVisibility(GONE);   // the page's own buttons do these
         TextView tag = new TextView(activity);
         tag.setText(threeD ? "Native 3D (test)" : "Native map (test)");
         tag.setTextColor(Color.WHITE);
@@ -177,6 +191,7 @@ final class TrailMapScreen extends FrameLayout {
         tag.setPadding(dp(10), dp(3), dp(10), dp(3));
         tag.setBackground(round(Color.argb(191, 20, 33, 26), 11));
         area.addView(tag, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 18, 0, 0));
+        if (under) tag.setVisibility(GONE);
         toolStack = new LinearLayout(activity);
         toolStack.setOrientation(LinearLayout.VERTICAL);
         toolStack.setGravity(Gravity.END);
@@ -194,6 +209,7 @@ final class TrailMapScreen extends FrameLayout {
         LinearLayout.LayoutParams rowAt = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         rowAt.setMargins(dp(12), 0, dp(12), dp(12));
         bottom.addView(row, rowAt);
+        if (under) row.setVisibility(GONE);
 
         // The trail card: name, colour, Details (opens the trail's details on the page) and ✕.
         card = new LinearLayout(activity);
@@ -262,7 +278,8 @@ final class TrailMapScreen extends FrameLayout {
     private int barLeft = 0, barRight = 0;
     // The phone's bars only where the map reaches the screen's edge (a tool's page bar may sit between).
     private void padArea() {
-        area.setPadding(barLeft, insetTop > 0 ? 0 : barTop, barRight, insetBottom > 0 ? 0 : barBottom);
+        if (under) area.setPadding(barLeft, Math.max(barTop, uiTop), barRight, Math.max(barBottom, uiBottom));   // between the page's rows
+        else area.setPadding(barLeft, insetTop > 0 ? 0 : barTop, barRight, insetBottom > 0 ? 0 : barBottom);
         if (map != null) placeMapMarks();
     }
 
@@ -271,6 +288,7 @@ final class TrailMapScreen extends FrameLayout {
     private int insetTop = 0, insetBottom = 0;
     private boolean aside = false;
     void setToolInsets(float top, float bottom) {
+        if (under) return;   // the tool's bar is on the page, over this map: nothing to make room for
         float h = heightDp();
         if (h <= 0) return;
         float t = Math.max(0, Math.min(top, h * 0.6f)), b = Math.max(0, Math.min(bottom, h * 0.75f));
@@ -287,6 +305,7 @@ final class TrailMapScreen extends FrameLayout {
     }
     // A dialog of the page's is open (or there's no room for a map): the screen steps aside until it's answered.
     void stepAside(boolean on) {
+        if (under) return;   // the page's dialog is over this map already
         if (aside == on) return;
         aside = on;
         animate().cancel();
@@ -303,8 +322,8 @@ final class TrailMapScreen extends FrameLayout {
     }
     // MapLibre's compass under Back, its credits (ⓘ) at the bottom left, above the phone's bar.
     private void placeMapMarks() {
-        map.getUiSettings().setCompassMargins(0, barTop + dp(64), dp(14), 0);
-        map.getUiSettings().setAttributionMargins(dp(6), 0, 0, barBottom + dp(6));
+        map.getUiSettings().setCompassMargins(0, (under ? Math.max(barTop, uiTop) + dp(8) : barTop + dp(64)), dp(14), 0);
+        map.getUiSettings().setAttributionMargins(dp(6), 0, 0, (under ? Math.max(barBottom, uiBottom) : barBottom) + dp(6));
     }
 
     // ---------- the map ----------
@@ -464,6 +483,7 @@ final class TrailMapScreen extends FrameLayout {
     // ---------- the native 3D features (NativeLayers.java) ----------
     void setLayer(String key, String data) {
         if ("base".equals(key)) { setBase(data); return; }
+        if ("under".equals(key)) { applyUnder(data); return; }
         for (NativeLayer f : features) {
             if (!f.key().equals(key)) continue;
             Style style = map == null ? null : map.getStyle();
@@ -566,6 +586,20 @@ final class TrailMapScreen extends FrameLayout {
         }
         // Beside every trail and dot: a feature's own card for that spot (a slope's avalanche card, NativeAvalanche).
         if (any == null) for (NativeLayer f : features) if (f.emptyTap(point, this)) { showCard(null); return true; }
+        if (under) {
+            // The page's own card, as a tap on its flat map there (or none: the page closes what it had open).
+            showCard(null);
+            Feature f = dot != null ? dot : numbered != null ? numbered : any;
+            JSObject e = new JSObject();
+            e.put("open", f == null ? -1 : num(f, "i"));
+            e.put("tapLat", point.getLatitude());
+            e.put("tapLon", point.getLongitude());
+            float d = getResources().getDisplayMetrics().density;   // where on the screen, in the page's CSS pixels
+            e.put("x", (p.x + mapView.getLeft() + getLeft()) / d);
+            e.put("y", (p.y + mapView.getTop() + getTop()) / d);
+            events.send("tap", e);
+            return true;
+        }
         showCard(dot != null ? dot : numbered != null ? numbered : any);
         return true;
     }
@@ -681,6 +715,20 @@ final class TrailMapScreen extends FrameLayout {
     // extra: a feature's own keys for the page ("closed").
     void leave(boolean details, boolean layers, Map<String, Object> extra) {
         if (left) return;
+        // Under the page, Details (a card's, or a feature's own link such as the avalanche card's full forecast) opens on
+        // the page over this map, which stays.
+        if (under && (details || (extra != null && !extra.isEmpty()))) {
+            JSObject e = camera();
+            e.put("details", details && card.getVisibility() == VISIBLE && cardDetails.getVisibility() == VISIBLE);
+            if (extra != null) for (Map.Entry<String, Object> x : extra.entrySet()) e.put(x.getKey(), x.getValue());
+            e.put("open", picked);
+            e.put("tapLat", pickedAt.getLatitude());
+            e.put("tapLon", pickedAt.getLongitude());
+            if (pickedFeature != null && e.getBool("details")) e.put("feature", pickedFeature);
+            events.send("details", e);
+            showCard(null);
+            return;
+        }
         left = true;
         JSObject e = camera();
         e.put("details", details && card.getVisibility() == VISIBLE && cardDetails.getVisibility() == VISIBLE);
@@ -694,6 +742,45 @@ final class TrailMapScreen extends FrameLayout {
         animate().alpha(0).setDuration(200).withEndAction(this::destroy).start();
     }
     boolean isLeft() { return left; }
+
+    // The page's grid: { s: cell size (dp), c: columns, r: rows, m: "0101…" row by row (1: map), t, b: its rows of
+    // buttons from the top and bottom (dp), cam: { lat, lon, zoom, bearing } where the page moved its map (a search, a card),
+    // me: true (the page's My location: follow you), back: true (Back with nothing of the page's open) }.
+    void applyUnder(String json) {
+        if (!under) return;
+        try {
+            org.json.JSONObject o = new org.json.JSONObject(json);
+            if (o.has("m") && o.optInt("c") > 0 && o.optInt("r") > 0) {
+                String m = o.optString("m");
+                byte[] bits = new byte[m.length()];
+                for (int i = 0; i < bits.length; i++) bits[i] = (byte) (m.charAt(i) == '1' ? 1 : 0);
+                maskCell = (float) o.optDouble("s", 10); maskCols = o.optInt("c"); maskRows = o.optInt("r"); maskBits = bits;
+            }
+            if (o.has("t") && o.has("b")) {
+                int t = dp((int) Math.round(o.optDouble("t"))), b = dp((int) Math.round(o.optDouble("b")));
+                if (t != uiTop || b != uiBottom) { uiTop = t; uiBottom = b; padArea(); }
+            }
+            org.json.JSONObject cam = o.optJSONObject("cam");
+            if (cam != null && map != null && !left) {
+                stopFollowingMe();
+                CameraPosition now = map.getCameraPosition();
+                CameraPosition.Builder c = new CameraPosition.Builder(now)
+                    .target(new LatLng(cam.getDouble("lat"), cam.getDouble("lon"))).zoom(cam.getDouble("zoom"));
+                if (cam.has("bearing")) c.bearing(cam.getDouble("bearing"));
+                map.animateCamera(CameraUpdateFactory.newCameraPosition(c.build()), 600);
+            }
+            if (o.optBoolean("me") && map != null && !left) locate();   // the page's My location: follow you
+            if (o.optBoolean("back") && !left) { if (cardShown()) hideCard(); else leave(false, false, null); }   // Back
+        } catch (Exception ignored) {}
+    }
+    // Whether the page shows nothing of its own at this point (in the web view's px): the map's touch.
+    boolean mapTakes(float x, float y) {
+        float d = getResources().getDisplayMetrics().density;
+        if (maskCell <= 0 || maskBits.length == 0) { float h = getHeight() / d, yy = y / d; return yy > 110 && yy < h - 170; }
+        int c = (int) (x / d / maskCell), r = (int) (y / d / maskCell);
+        if (c < 0 || r < 0 || c >= maskCols || r >= maskRows || r * maskCols + c >= maskBits.length) return false;
+        return maskBits[r * maskCols + c] == 1;
+    }
 
     private JSObject camera() {
         JSObject o = new JSObject();

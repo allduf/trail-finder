@@ -61,5 +61,6 @@ enum NativeLayers {
         { NativePins() },
         { NativeSearch() },
         { NativeTools() },
+        { NativeUnder() },       // NativeUnder.swift: the page's own buttons over native 3D (this build can)
     ]
 }
