@@ -107,7 +107,13 @@
     hit: (i) => hits[i] || null,
     // backOut(): Android's Back with nothing of the page's left to close (native.js): native 3D under the page closes its
     // own card if one shows, else goes back to the flat map (true), as the 2D button does.
-    backOut: () => { if (!open || !under) return false; TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {}); return true; },
+    // On the one map (Winter, below): flat is the 2D map, so Back goes on as on the flat map; tipped, Back tips it down.
+    backOut: () => {
+      if (!open || !under) return false;
+      if (canFlat() && !cardUp && !tipped) return false;
+      if (canFlat() && !cardUp && oneMap()) { tip(false); return true; }
+      TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {}); return true;
+    },
   };
   const detailFns = [];
   let nativeKeys = null, moveWait = 500, keysWait = [];
@@ -308,6 +314,8 @@
     return { s: GRID, c, r, m, t: t < 0 ? 0 : (t + 1) * GRID, b: b < 0 ? 0 : h - b * GRID };
   }
   let under = false, gridKey = "", gridT = 0, gridObs = null, saved = [];
+  // tipped: the native map under the page is in 3D (the 3D button reads "2D map"); false on the one map seen from above.
+  let tipped = true, flatOpening = false, tipOnOpen = false;
   const sendGrid = () => {
     gridT = 0;
     if (!under || !open) return;
@@ -329,8 +337,8 @@
     saved = [];
     for (let e = mapEl; e; e = e.parentElement) { saved.push([e, e.style.background]); e.style.background = "transparent"; }
     if (b3) {
-      b3Was = { t: b3.textContent, ti: b3.title, p: b3.getAttribute("aria-pressed"), on: b3.classList.contains("on") };
-      b3.textContent = "▭ 2D map"; b3.title = "Back to the flat map"; b3.setAttribute("aria-pressed", "true"); b3.classList.remove("on");   // the same dark button as on the flat map (alex 2026-11-21: "Why is not the same?")
+      b3Was = { h: b3.innerHTML, ti: b3.title, p: b3.getAttribute("aria-pressed"), on: b3.classList.contains("on") };
+      b3Label();
     }
     gridObs = new MutationObserver((recs) => { if (recs.some((r) => !ownMap(r.target))) gridSoon(); });
     gridObs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "hidden", "style", "open"] });
@@ -339,6 +347,15 @@
     document.addEventListener("transitionend", gridSoon, true);
     document.addEventListener("animationend", gridSoon, true);
     sendGrid();
+  }
+  // The 3D button over the native map: "2D map" while it's tipped into 3D, its own "3D" while seen from above (the one map).
+  // The same dark button as on the flat map either way (alex 2026-11-21: "Why is not the same?").
+  function b3Label() {
+    if (!b3 || !b3Was) return;
+    const t = (x) => (window.tfLang && window.tfLang.t ? window.tfLang.t(x) : x);
+    if (tipped) { b3.textContent = "▭ " + t("2D map"); b3.title = t("Back to the flat map"); b3.setAttribute("aria-pressed", "true"); }
+    else { b3.innerHTML = b3Was.h; b3.title = b3Was.ti; b3.setAttribute("aria-pressed", "false"); }
+    b3.classList.remove("on");
   }
   function leaveUnder() {
     if (!under) return;
@@ -352,7 +369,7 @@
     saved = [];
     document.documentElement.classList.remove("tf-under");
     if (b3 && b3Was) {
-      b3.textContent = b3Was.t; b3.title = b3Was.ti; b3.setAttribute("aria-pressed", b3Was.p || "false"); b3.classList.toggle("on", b3Was.on);
+      b3.innerHTML = b3Was.h; b3.title = b3Was.ti; b3.setAttribute("aria-pressed", b3Was.p || "false"); b3.classList.toggle("on", b3Was.on);
       b3Was = null;
     }
   }
@@ -381,12 +398,12 @@
   window.addEventListener("tf:sport", () => {
     if (!under || !open) return;
     const sel = (document.getElementById("basemap") || {}).value || "osm";
-    setTimeout(() => { if (under && open) TrailMap.layer({ key: "base", data: baseFor((document.getElementById("basemap") || {}).value || sel) }).catch(() => {}); }, 0);
+    setTimeout(() => { if (under && open && !(canFlat() && !tipped && !oneMap())) TrailMap.layer({ key: "base", data: baseFor((document.getElementById("basemap") || {}).value || sel) }).catch(() => {}); }, 0);
   });
 
-  function openNative(threeD) {
+  function openNative(threeD, flat = false) {
     const close = document.getElementById("lmClose");
-    if (close) close.click();
+    if (close && !flat) close.click();
     const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm";
     open = true; open3d = threeD; nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 };
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
@@ -402,8 +419,22 @@
     // Under the page on a build that can (above); older builds don't know "under" and open over the page. alex only for
     // its first build (no iPhone to try it on before): everyone once alex has checked it on the phone.
     const und = threeD && isAdmin() && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
-    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...(und ? { under: und } : {}), ...snap })
-      .then((r) => { if (und && open && r && r.under) enterUnder(); return true; }, () => { open = false; sent = ""; return false; });
+    tipped = !flat; flatOpening = flat;
+    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...(und ? { under: und } : {}), ...(flat ? { flat: true } : {}), ...snap })
+      .then((r) => {
+        flatOpening = false;
+        if (und && open && r && r.under) {
+          enterUnder();
+          if (flat) { flatFails = 0; if (tipOnOpen) tip(true); }
+          tipOnOpen = false;
+          return true;
+        }
+        tipOnOpen = false;
+        // The one map must be under the page (never a native screen over it): anything else closes again, and after
+        // twice the page's own flat map stays for this visit.
+        if (flat && open) { flatFails++; TrailMap.close().catch(() => {}); return false; }
+        return true;
+      }, () => { open = false; sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -447,6 +478,17 @@
   // then the web 3D map opens as before and nothing goes missing, and "Native 3D (test)" in Layers opens it to try.
   const drawsAll = () => !android || (!!nativeKeys && [...feats.keys()].every((k) => nativeKeys.has(k)));
   window.tfNative.view = (at) => {
+    if (open && under && canFlat() && !tipped) {   // the one map: tipped up where asked, in one move
+      let cam = null;
+      if (at && isFinite(at.lat) && isFinite(at.lon)) {
+        following = true;
+        try { map.setView([at.lat, at.lon], Math.round((at.zoom || 13) + 1), { animate: false }); } finally { following = false; }
+        cam = { lat: at.lat, lon: at.lon, zoom: at.zoom || 12 };
+        nativeAt = { lat: at.lat, lon: at.lon, zoom: cam.zoom, fz: map.getZoom() };
+      }
+      tip(true, cam);
+      return Promise.resolve(true);
+    }
     if (open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return Promise.resolve(false);
     if (at && isFinite(at.lat) && isFinite(at.lon)) map.setView([at.lat, at.lon], Math.round((at.zoom || 13) + 1), { animate: false });
     return openNative(true);
@@ -462,6 +504,10 @@
   const native3d = () => openNative(true).then((ok) => { if (!ok && window.tfToast) window.tfToast("3D didn't open. Try again in a moment."); return ok; });
   window.tfNative3d = {
     claim(auto, retry) {
+      // The one map: 3D tips it (also Skiing's own 3D at start, as the 3D it remembers), once it's open.
+      if (open && flatOpening) { tipOnOpen = true; return true; }
+      if (open && under && canFlat()) { if (!tipped) tip(true); return true; }
+      if (auto && !open && oneMap()) { tipOnOpen = true; return true; }
       if (!ios) return false;
       if (!nativeKeys) { if (typeof retry === "function") keysWait.push(retry); return true; }
       if (!fullNative() || webOnly()) return false;
@@ -473,9 +519,14 @@
   if (map3d) map3d.addEventListener("click", (e) => {
     // Only a real tap, going from the flat map into 3D: another script's click goes to map3d.js's set3d, which asks
     // claim() above (native 3D on a full native build, the web 3D map on older builds).
-    if (open && under) {   // "2D map" over native 3D under the page: a tap goes back to the flat map
+    if (open && !under && flatOpening) { e.stopImmediatePropagation(); e.preventDefault(); tipOnOpen = true; return; }   // still opening
+    if (open && under) {
       e.stopImmediatePropagation(); e.preventDefault();
-      if (e.isTrusted) TrailMap.close().catch(() => {});
+      // The one map seen from above: 3D (a tap, or another script asking for 3D) tips it up in place.
+      if (canFlat() && !tipped) { tip(true); return; }
+      // "2D map": on Winter it tips back down (the one map); on another style, back to the page's own flat map.
+      if (!e.isTrusted) return;
+      if (canFlat() && oneMap()) tip(false); else TrailMap.close().catch(() => {});
       return;
     }
     if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return;
@@ -518,6 +569,7 @@
       if (!open) return;
       if (webOnly()) { toWeb = true; TrailMap.close().catch(() => { toWeb = false; }); return; }
       const base = (document.getElementById("basemap") || {}).value;
+      if (under && canFlat() && !tipped && !oneMap()) return;   // the one map seen from above, off Winter: closes (below)
       if (base && (picked || base !== base0)) TrailMap.layer({ key: "base", data: base }).catch(() => {});
     });
     layersWatch.observe(lmenu, { attributes: true, attributeFilter: ["hidden"] });
@@ -541,6 +593,53 @@
     const layers = document.getElementById("layersBtn");
     if (layers) setTimeout(() => { if (!lmenu || lmenu.hidden) layers.click(); }, 600);
   });
+  // ---------- one map on Winter (alex 2026-11-22: "What to do think about having just one map? Using only the 3d map and
+  // the 2d view is the a top view of 3d? ... the transition between the 2d map and 3d when you tilt is not smooth", then
+  // "Can we just do that with the winter map for now?") ----------
+  // On an app build that can (TrailMap.features has "flat": NativeFlat.swift, NativeFlat.java), Skiing's 2D on Winter is
+  // the native map under the page seen straight down: the 3D button (or a tilt, a tour, another script asking for 3D)
+  // tips it up in place and "2D map" tips it back down, with no change of map. Two fingers sliding on it tilt it too (the
+  // native map's own gesture), and the button follows. Picking another style or sport, the page's own flat map comes
+  // back as before (in 3D, other styles stay on native 3D, as today). alex only first (as the page over native 3D was).
+  // If the native map can't open under the page, the page's own flat map stays.
+  let flatFails = 0, syncT = 0, cardUp = false;
+  function canFlat() { return !!nativeKeys && nativeKeys.has("under") && nativeKeys.has("flat"); }
+  function oneMap() {
+    return isAdmin() && canFlat() && flatFails < 2 && document.body.classList.contains("sport-ski") &&
+      (document.getElementById("basemap") || {}).value === "winter" && drawsAll() && !webOnly();
+  }
+  // cam: where to tip it (a tour or a route asking for 3D at its spot).
+  function tip(on, cam) {
+    tipped = on; b3Label(); camAt = Date.now();
+    setTimeout(b3Label, 0);   // after map3d.js's own button update, when it asked (claim)
+    TrailMap.layer({ key: "under", data: JSON.stringify({ tilt: on, ...(cam ? { cam } : {}) }) }).catch(() => {});
+  }
+  function oneMapSync() {
+    syncT = 0;
+    if (open) {
+      // Seen from above on a style that isn't Winter now: the page's own flat map, as before.
+      if (under && canFlat() && !tipped && !oneMap()) TrailMap.close().catch(() => {});
+      return;
+    }
+    if (!oneMap() || document.hidden || mapEl.classList.contains("is3d") || (lmenu && !lmenu.hidden)) return;
+    openNative(true, true);
+  }
+  const syncSoon = () => { clearTimeout(syncT); syncT = setTimeout(oneMapSync, 500); };
+  TrailMap.addListener("moved", (e) => {
+    if (!open || !under || !e || !isFinite(e.pitch) || !canFlat() || !oneMap()) return;
+    const t = e.pitch > 8;
+    if (t !== tipped) { tipped = t; b3Label(); }
+  });
+  TrailMap.addListener("closed", () => { tipped = true; cardUp = false; syncSoon(); });
+  TrailMap.addListener("card", (e) => { cardUp = !!(e && e.up); });   // Android's own card on the map (Back closes it first)
+  ["tf:sport", "tf:basemap", "tf:admin", "tf:map3d"].forEach((n) => window.addEventListener(n, syncSoon));
+  document.addEventListener("visibilitychange", syncSoon);
+  if (lmenu) new MutationObserver(syncSoon).observe(lmenu, { attributes: true, attributeFilter: ["hidden"] });
+  let was3d = mapEl.classList.contains("is3d");   // the web 3D map closing (older builds, Android's testers)
+  new MutationObserver(() => { const now = mapEl.classList.contains("is3d"); if (now !== was3d) { was3d = now; syncSoon(); } }).observe(mapEl, { attributes: true, attributeFilter: ["class"] });
+  keysWait.push(syncSoon);
+  if (nativeKeys) syncSoon();
+
   // A native map this page opened before it reloaded (the language switch, a sign-in, an update) stays on the phone,
   // under or over the new page, which doesn't know about it: it's closed now (the "closed" above moves the flat map to
   // where it was). Otherwise the next 3D went to that old map without opening it under the page, the page stayed over

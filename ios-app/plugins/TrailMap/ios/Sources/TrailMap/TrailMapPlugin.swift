@@ -52,6 +52,10 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
         // under: the page's buttons, menus and cards stay on top, this map under them (see TrailMapScreen.under). Only
         // with an app whose web view lets touches through to it (App/TFBridge.swift); otherwise the screen goes on top.
         let underData = call.getString("under")
+        // flat: open seen straight down, and stay so (no tilt in): the one map on Winter (alex 2026-11-22, "Can we just do
+        // that with the winter map for now?"), where 2D is this map from above and 3D only tips it (applyUnder "tilt").
+        // Only under the page: over it, a flat 3D map would cover the page's own flat map for nothing.
+        let flat = call.getBool("flat") ?? false
         var extra: [String: String] = [:]
         for (k, v) in call.getObject("layers") ?? [:] { if let t = v as? String { extra[k] = t } }
         DispatchQueue.main.async {
@@ -59,7 +63,9 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             guard let host = self.bridge?.viewController else { call.reject("No screen to show the map on"); return }
             let web = self.bridge?.webView
             let under = underData != nil && threeD && web?.responds(to: NSSelectorFromString("setTfUnderlay:")) == true
+            if flat && !under { call.reject("A flat map opens only under the page"); return }
             let s = TrailMapScreen(center: center, zoom: zoom, bearing: bearing, base: base, threeD: threeD, winter: winter, esri: esri, fr: fr, under: under)
+            if flat { s.noTiltIn() }
             s.onEvent = { [weak self] name, data in
                 self?.notifyListeners(name, data: data)
                 if name == "closed" { self?.screen = nil }
@@ -302,7 +308,18 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             uiTop = max(0, CGFloat(t)); uiBottom = max(0, CGFloat(b))
             if isViewLoaded { layoutArea() }
         }
-        if isViewLoaded, let cam = o["cam"] as? [String: Any], let lat = (cam["lat"] as? NSNumber)?.doubleValue,
+        // The page's 3D / 2D button on the one map: tips this map up into 3D, or back down to straight above, at the spot
+        // asked (cam) when there is one (a tour shown in 3D), in one move.
+        if isViewLoaded, let t = o["tilt"] as? Bool {
+            tilted = true
+            var at: (CLLocationCoordinate2D, Double)?
+            if let cam = o["cam"] as? [String: Any], let lat = (cam["lat"] as? NSNumber)?.doubleValue,
+               let lon = (cam["lon"] as? NSNumber)?.doubleValue, let z = (cam["zoom"] as? NSNumber)?.doubleValue {
+                at = (CLLocationCoordinate2D(latitude: lat, longitude: lon), z)
+                map.userTrackingMode = .none
+            }
+            pitchTo(t ? TrailMapScreen.tilt : 0, at: at)
+        } else if isViewLoaded, let cam = o["cam"] as? [String: Any], let lat = (cam["lat"] as? NSNumber)?.doubleValue,
            let lon = (cam["lon"] as? NSNumber)?.doubleValue, let z = (cam["zoom"] as? NSNumber)?.doubleValue {
             endTilt()
             map.userTrackingMode = .none
@@ -625,7 +642,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
 
     private func camera() -> [String: Any] {
         let c = map.centerCoordinate
-        return ["lat": c.latitude, "lon": c.longitude, "zoom": map.zoomLevel, "bearing": map.direction]
+        return ["lat": c.latitude, "lon": c.longitude, "zoom": map.zoomLevel, "bearing": map.direction, "pitch": map.camera.pitch]
     }
 
     // ---------- the map styles ----------
@@ -708,18 +725,29 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // A finger on the map, a Flyover, a search or the Me button stops it where it is; a camera set some other way
     // during those 1.2 s should call endTilt() first.
     private var tiltLink: CADisplayLink?
-    private var tiltFrom: (at: CFTimeInterval, pitch: CGFloat, center: CLLocationCoordinate2D, zoom: Double, heading: CLLocationDirection)?
+    private var tiltFrom: (at: CFTimeInterval, pitch: CGFloat, to: CGFloat, length: Double, center: CLLocationCoordinate2D, zoom: Double, heading: CLLocationDirection)?
     func tiltIn() {
         guard threeD, !tilted, !left else { return }
         tilted = true
+        pitchTo(TrailMapScreen.tilt)
+    }
+    // Tips the map to this pitch in place, the same way (the one map's 3D and 2D, applyUnder "tilt"). A full tilt takes
+    // 1.2 s, a part of one less.
+    // at: a new middle and zoom to tip at (the map goes there first).
+    func pitchTo(_ to: CGFloat, at: (CLLocationCoordinate2D, Double)? = nil) {
+        guard threeD, !left else { return }
+        endTilt(quiet: true)
+        if let a = at { map.setCenter(a.0, zoomLevel: a.1, animated: false) }
+        let from = map.camera.pitch, length = max(0.35, 1.2 * Double(abs(to - from)) / Double(TrailMapScreen.tilt))
+        if abs(to - from) < 0.5 { onEvent?("moved", camera()); return }
         // Following you (Record, Compass): the middle is yours, so only the tilt is eased, as before.
         if map.userTrackingMode != .none {
             let now = map.camera
-            let cam = MLNMapCamera(lookingAtCenter: now.centerCoordinate, fromDistance: now.viewingDistance, pitch: TrailMapScreen.tilt, heading: now.heading)
-            map.setCamera(cam, withDuration: 1.2, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
+            let cam = MLNMapCamera(lookingAtCenter: now.centerCoordinate, fromDistance: now.viewingDistance, pitch: to, heading: now.heading)
+            map.setCamera(cam, withDuration: length, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
             return
         }
-        tiltFrom = (CACurrentMediaTime(), map.camera.pitch, map.centerCoordinate, map.zoomLevel, map.direction)
+        tiltFrom = (CACurrentMediaTime(), from, to, length, map.centerCoordinate, map.zoomLevel, map.direction)
         let link = CADisplayLink(target: TiltStep(self), selector: #selector(TiltStep.step))
         if #available(iOS 15.0, *) { link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60) }
         link.add(to: .main, forMode: .common)
@@ -729,10 +757,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // Stops the tilt where it is (a Flyover or a search setting the camera itself; a finger on the map).
     // A feature that sets the camera itself as the screen opens (a Flyover): no tilt in at all, now or later.
     func noTiltIn() { tilted = true; endTilt() }
-    func endTilt() {
+    func endTilt(quiet: Bool = false) {
         guard tiltLink != nil else { return }
         tiltLink?.invalidate(); tiltLink = nil; tiltFrom = nil
-        if !left { onEvent?("moved", camera()) }   // the page's flat map follows once, where the tilt ended
+        if !left && !quiet { onEvent?("moved", camera()) }   // the page's flat map follows once, where the tilt ended
     }
     func mapView(_ mapView: MLNMapView, regionWillChangeWith reason: MLNCameraChangeReason, animated: Bool) {
         let finger = !reason.isDisjoint(with: TrailMapScreen.byFinger)
@@ -748,10 +776,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
                                                           .gestureZoomOut, .gestureOneFingerZoom, .gestureTilt]
     fileprivate func tiltStep() {
         guard let f = tiltFrom, !left else { endTilt(); return }
-        let t = min(1, (CACurrentMediaTime() - f.at) / 1.2)
+        let t = min(1, (CACurrentMediaTime() - f.at) / f.length)
         let e = t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2   // ease in and out
         let cam = map.camera
-        cam.pitch = f.pitch + (TrailMapScreen.tilt - f.pitch) * CGFloat(e)
+        cam.pitch = f.pitch + (f.to - f.pitch) * CGFloat(e)
         stepping = true
         map.setCamera(cam, animated: false)
         map.setCenter(f.center, zoomLevel: f.zoom, direction: f.heading, animated: false)   // keeps the new tilt

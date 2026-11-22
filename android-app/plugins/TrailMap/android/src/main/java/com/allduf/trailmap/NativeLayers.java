@@ -15,6 +15,7 @@ final class NativeLayers {
         NativeFishing::new,                    // NativeFishing.java: Fishing fills, names, spot, water, Crown land, depth pictures
         NativeFishing.Creeks::new,             // NativeFishing.java: Fishing creeks from further away
         NativeFishing.Depth::new,              // NativeFishing.java: Fishing lake depth lines and soundings
+        NativeFlat::new,                       // NativeFlat.java: the one map on Winter (opens flat, tips to 3D and back)
         NativeFlyover::new,                    // NativeFlyover.java: a ski tour's Flyover
         NativeGround::new,                     // NativeGround.java: ground layers the page paints (slope, sun, snow, avalanche colours...)
         NativeHunting::new,                    // NativeHunting.java: Hunting fills, zone names, cone, rings, glassing, pictures

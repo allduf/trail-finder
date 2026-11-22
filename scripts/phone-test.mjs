@@ -442,68 +442,103 @@ async function appBuild(kind) {
       });
     } else if (kind === "iosu") {
       // alex 2026-11-22: "i want to keep the same interface for both i never want the map to switch from web to native
-      // map". On the next iPhone build (it reports "under"), native 3D opens under the page: the page's own buttons stay
-      // on top, the 3D button reads "2D map" and goes back, a native tap opens the page's card.
-      await check("3D keeps the page's own buttons over native 3D", async () => {
-        await until(() => window.tfNative && window.tfNative.has && window.tfNative.has("under"), null, 8000).catch(() => {});
-        await nativeOpen("the 3D button", tap3d, true);
-        const o = await ev(() => window.__tm.opens[window.__tm.opens.length - 1]);
-        if (!o.under) throw new Error("native 3D was asked to open over the page, not under it");
+      // map", then one map on Winter ("Can we just do that with the winter map for now?"). On the next iPhone build (it
+      // reports "under" and "flat"), Skiing's 2D on Winter is native 3D under the page seen from above: the page's own
+      // buttons stay on top, 3D tips it up in place and "2D map" tips it down, a native tap opens the page's card, and
+      // another style brings back the page's own flat map (3D there is native 3D under the page, as before).
+      const lastTilt = () => ev(() => { const l = (window.__tm.layers || []).filter((x) => x.key === "under" && /"tilt"/.test(x.data)).pop(); return l ? JSON.parse(l.data).tilt : null; });
+      const b3Text = () => ev(() => document.getElementById("btn3d").textContent.trim());
+      const isUnder = () => ev(() => document.documentElement.classList.contains("tf-under"));
+      await check("Winter's 2D is the native map seen from above, under the page's own buttons", async () => {
+        await until(() => window.tfNative && window.tfNative.has && window.tfNative.has("flat"), null, 8000).catch(() => {});
+        await until(() => window.__tm.opens.length > 0 && document.documentElement.classList.contains("tf-under"), null, 8000).catch(() => {});
+        const o = await ev(() => window.__tm.opens[0] || null);
+        if (!o) throw new Error("Winter's 2D didn't open the native map");
+        if (!o.flat || !o.under || !o.threeD || o.base !== "winter") throw new Error(`the native map opened ${JSON.stringify({ flat: o.flat, under: !!o.under, threeD: o.threeD, base: o.base })}, not flat under the page on Winter`);
+        if (!(await isUnder())) throw new Error("the page didn't hide its flat map");
+        if (/2D/.test(await b3Text())) throw new Error("the 3D button reads 2D map on the map seen from above");
         const g = JSON.parse(o.under);
         if (!(g.c > 0 && g.r > 0 && g.m.length === g.c * g.r)) throw new Error("the page's grid of its buttons is malformed");
-        await until(() => document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {});
+        await noWeb3d("Winter's 2D");
+      });
+      await check("3D tips the one map up in place, 2D map tips it back down", async () => {
+        const n0 = await opens();
+        await tap3d(); await wait(400);
+        if ((await lastTilt()) !== true) throw new Error("3D didn't tip the native map up");
+        if (!/2D/.test(await b3Text())) throw new Error(`the 3D button reads "${await b3Text()}", not 2D map`);
         const r = await ev(() => {
           const out = [], b3 = document.getElementById("btn3d"), lb = document.getElementById("layersBtn");
-          if (!document.documentElement.classList.contains("tf-under")) out.push("the page didn't hide its flat map");
-          if (!/2D/.test(b3.textContent)) out.push(`the 3D button reads "${b3.textContent.trim()}", not 2D map`);
           for (const el of [b3, lb]) {
             const q = el.getBoundingClientRect(), x = q.left + q.width / 2, y = q.top + q.height / 2;
             if (!el.contains(document.elementFromPoint(x, y))) out.push(`#${el.id} isn't on top`);
           }
           const tile = window.tfLeaflet.getPane("tilePane");
-          if (tile && getComputedStyle(tile).visibility !== "hidden") out.push("the flat map's pictures still show over native 3D");
+          if (tile && getComputedStyle(tile).visibility !== "hidden") out.push("the flat map's pictures still show over the native map");
           return out.join(" · ");
         });
         if (r) throw new Error(r);
-        const g2 = await ev(() => { const l = (window.__tm.layers || []).filter((x) => x.key === "under").pop(); return l ? l.data : null; });
-        const grid = JSON.parse(g2 || o.under), at = await ev(() => { const q = document.getElementById("btn3d").getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; });
-        if (grid.m[Math.floor(at[1] / grid.s) * grid.c + Math.floor(at[0] / grid.s)] !== "0") throw new Error("the grid gives the 3D button's touches to the native map");
-        if (grid.m[Math.floor(grid.r / 2) * grid.c + Math.floor(grid.c / 2)] !== "1") throw new Error("the grid keeps the middle of the map from the native map");
-      });
-      await check("a tap on native 3D, then 2D map goes back", async () => {
+        const g = JSON.parse(await ev(() => { const l = (window.__tm.layers || []).filter((x) => x.key === "under" && /"m"/.test(x.data)).pop(); return l ? l.data : window.__tm.opens[0].under; }));
+        const at = await ev(() => { const q = document.getElementById("btn3d").getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; });
+        if (g.m[Math.floor(at[1] / g.s) * g.c + Math.floor(at[0] / g.s)] !== "0") throw new Error("the grid gives the 3D button's touches to the native map");
+        if (g.m[Math.floor(g.r / 2) * g.c + Math.floor(g.c / 2)] !== "1") throw new Error("the grid keeps the middle of the map from the native map");
         await ev(() => { const c = window.tfLeaflet.getCenter(); window.__tm.fire("tap", { open: -1, tapLat: c.lat, tapLon: c.lng }); });
         await wait(500);
+        await tap3d(); await wait(400);
+        if ((await lastTilt()) !== false) throw new Error("2D map didn't tip the native map back down");
+        if (/2D/.test(await b3Text())) throw new Error("the 3D button didn't come back");
+        if (await opens() !== n0 || (await ev(() => window.__tm.closes)) > 0) throw new Error("the map was swapped, not tipped");
+        if (!(await isUnder())) throw new Error("the page's own flat map came back");
+        await noWeb3d("3D on the one map");
+      });
+      await check("a tilt by fingers on the native map turns the button", async () => {
+        const c = await ev(() => { const c = window.tfLeaflet.getCenter(); return { lat: c.lat, lon: c.lng, zoom: window.tfLeaflet.getZoom() - 1, bearing: 0 }; });
+        await ev((c) => window.__tm.fire("moved", { ...c, pitch: 45 }), c); await wait(200);
+        if (!/2D/.test(await b3Text())) throw new Error("tilted by fingers, the button doesn't read 2D map");
+        await ev((c) => window.__tm.fire("moved", { ...c, pitch: 0 }), c); await wait(200);
+        if (/2D/.test(await b3Text())) throw new Error("flat again, the button still reads 2D map");
+      });
+      await check("another style: the page's own flat map, its 3D native under the page", async () => {
+        await ev(() => { const s = document.getElementById("basemap"); s.value = "topo"; s.dispatchEvent(new Event("change")); });
+        await until(() => !document.documentElement.classList.contains("tf-under"), null, 5000).catch(() => {});
+        if (await isUnder()) throw new Error("Topo picked: the native map seen from above stayed");
+        const n0 = await opens();
         await tap3d();
-        await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {});
-        if (await ev(() => document.documentElement.classList.contains("tf-under"))) throw new Error("2D map didn't go back to the flat map");
-        if (!(await ev(() => window.__tm.closes > 0))) throw new Error("2D map didn't close native 3D");
-        if (!(await ev(() => /3D/.test(document.getElementById("btn3d").textContent)))) throw new Error("the 3D button didn't come back");
-        await noWeb3d("2D map");
-        await flatWinter("after 2D map");
+        await until((n) => window.__tm.opens.length > n && document.documentElement.classList.contains("tf-under"), n0, 5000).catch(() => {});
+        const o = await ev(() => window.__tm.opens[window.__tm.opens.length - 1]);
+        if (await opens() === n0 || o.flat || !o.under) throw new Error("3D on Topo didn't open native 3D under the page");
+        const c0 = await ev(() => window.__tm.closes);
+        await tap3d();
+        await until((c) => window.__tm.closes > c && !document.documentElement.classList.contains("tf-under"), c0, 5000).catch(() => {});
+        if (await isUnder()) throw new Error("2D map on Topo didn't go back to the page's flat map");
+        await ev(() => { const s = document.getElementById("basemap"); s.value = "winter"; s.dispatchEvent(new Event("change")); });
+        await until(() => document.documentElement.classList.contains("tf-under") && window.__tm.opens[window.__tm.opens.length - 1].flat, null, 5000).catch(() => {});
+        if (!(await isUnder())) throw new Error("Winter again: the one map didn't come back");
+        await noWeb3d("another style");
       });
       // The app's native map outlives a page reload (the language switch reloads): the new page closes the one left
-      // open, so 3D opens under it again (alex 2026-11-22: after switching to French, 3D and the tilt did nothing).
-      await check("after a reload with native 3D left open, 3D opens under the page again", async () => {
+      // open, then Winter's one map opens under it again (alex 2026-11-22: after switching to French, 3D and the tilt did nothing).
+      await check("after a reload with the native map left open, it opens under the page again", async () => {
         await ev(() => sessionStorage.setItem("tmLeft", "1"));
         await page.reload();
         await until(() => window.__tm && window.tfLeaflet && document.getElementById("btn3d"), null, 20_000);
         await until(() => window.__tm.closes > 0, null, 5000).catch(() => {});
         if (!(await ev(() => window.__tm.closes > 0))) throw new Error("the new page didn't close the native map left open");
-        await wait(1500);
-        await tap3d();
-        await until(() => document.documentElement.classList.contains("tf-under"), null, 5000).catch(() => {});
-        if (!(await ev(() => document.documentElement.classList.contains("tf-under")))) throw new Error("3D didn't open under the page after the reload");
-        await tap3d();
-        await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {});
+        await until(() => document.documentElement.classList.contains("tf-under"), null, 8000).catch(() => {});
+        if (!(await isUnder())) throw new Error("the one map didn't open under the page after the reload");
+        await tap3d(); await wait(400);
+        if ((await lastTilt()) !== true) throw new Error("3D didn't tip the native map after the reload");
       });
     } else if (kind === "android") {
       // Testers: the web 3D map (Android's native 3D is alex's only for now). friends.js keeps "tf-admin" for alex's
       // account only, so it's set again just before alex's tap.
       await check("testers' 3D (web) opens on Winter", async () => {
         await ev(() => localStorage.removeItem("tf-admin"));
+        // alex's one map on Winter (this stand-in starts as alex) closes first: a tester never has it.
+        if (await ev(() => window.__tm.screen)) { await back(); await wait(1200); }
+        const n0 = await opens();
         await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {});   // Skiing opens in 3D here
         if (!(await web3d())) { await tap3d(); await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {}); }
-        if (await opens()) { await back(); throw new Error("a tester's 3D opened native 3D"); }
+        if (await opens() !== n0) { await back(); throw new Error("a tester's 3D opened native 3D"); }
         if (!(await web3d())) throw new Error("3D didn't open");
         const on = await photos3d();
         if (on !== "Winter") throw new Error(`the web 3D map opened on ${on}, not Winter`);
