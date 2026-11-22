@@ -26,6 +26,8 @@ geotiff 2.1.3's JPEG reader (the three module files above, same folders as in th
 
 Still loaded from cdn.jsdelivr.net at a fixed version: tesseract.js 5.1.1 (Photo find text reading: its worker, the 3-4 MB reading engine and the English data), too large to copy here for now. Photo find is open only to alex and friends (PF_PUBLIC).
 
+Loaded from challenges.cloudflare.com on purpose: Cloudflare Turnstile's api.js (the person check in the sign-in box, account.js `CAPTCHA_KEY`). Cloudflare serves it only from its own address and changes it without notice, so it can't be copied here. It loads only once the sign-in box opens, and only when a site key is set.
+
 ## iPhone app (ios-app/), not served by the site
 
 The iPhone app's TrailMap plugin (ios-app/plugins/TrailMap) gets MapLibre Native as a ready-built framework that Xcode downloads and checks against this sha256 (Swift Package Manager refuses it if one byte differs). Since 2026-11-16 it is a community build with 3D mountains, because the official MapLibre Native has none yet (maplibre-native issue #252). It is **not an official MapLibre release**. Only the alex-only "Native map (test)" and "Native 3D (test)" screens use it.

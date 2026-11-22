@@ -107,6 +107,8 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 ## Libraries
 - New libraries are copied into `vendor/` (never loaded from a CDN) with their package, version and sha256
   added to `vendor/SOURCES.md`.
+- One exception (alex 2026-11-21): Cloudflare Turnstile (the person check at sign-in) loads from
+  challenges.cloudflare.com, because Cloudflare serves it only from there. It is noted in `vendor/SOURCES.md`.
 
 ## Every user-facing change
 1. Never set a version number by hand. Script tags in `index.html`, `ride.html`, `usage.html` and `sw.js` say

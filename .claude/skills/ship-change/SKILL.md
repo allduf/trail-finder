@@ -19,7 +19,7 @@ description: Use when making any user-facing change to the Trail Finder app and 
 6. French for every new text, including the What's new line: a new `scripts/i18n/fr-<short-name>.txt`
    (`English ||| French`, one per line). Try it with `node scripts/i18n/build.mjs` (`i18n-fr.js` is not in git).
 7. Guard calls into other scripts' new functions (`window.x && window.x.fn ? ... : null`).
-8. New libraries go in `vendor/` with package, version and sha256 in `vendor/SOURCES.md`. Never a CDN.
+8. New libraries go in `vendor/` with package, version and sha256 in `vendor/SOURCES.md`. Never a CDN (one exception: Cloudflare Turnstile, see `vendor/SOURCES.md`).
 9. Run `node scripts/wording-check.mjs` and `node scripts/stamp.mjs --check`. Take before and after screenshots
    (`phone-screenshots`).
 10. Open the pull request. The required check is "phone". It merges on its own once ready and checks pass, one

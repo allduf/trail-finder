@@ -87,6 +87,8 @@ dialog.acct #acctCode { font-size: 1.3rem; letter-spacing: .25em; text-align: ce
 .acct-nudge .acct-row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
 .acct-nudge button { margin: 0; min-height: 40px; line-height: 1.2; font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
 .acct-nudge button.go { background: var(--accent); color: var(--accent-fg, #fff); border-color: transparent; }
+dialog.acct .acct-cap { margin: 0 0 4px; }
+dialog.acct .acct-cap:empty { display: none; }
 dialog.acct label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
 dialog.acct .acct-out-row { justify-content: space-between; align-items: center; }
 .acct-toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 3000; width: min(420px, calc(100vw - 32px)); box-sizing: border-box; background: var(--panel, #fff); color: var(--fg, #111); border: 1px solid var(--line, #ccc); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 30px rgba(0,0,0,.25); font-size: .92rem; }`;
@@ -103,7 +105,8 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   <input type="email" id="acctEmail" placeholder="you@example.com" autocomplete="email" required>
   <label for="acctPass">Password</label>
   <span class="acct-pw"><input type="password" id="acctPass" autocomplete="current-password" minlength="6"><button type="button" class="acct-eye" aria-label="Show password" aria-pressed="false"></button></span>
-  <p id="acctPassTip" hidden>At least 6 characters. Pick a new one, not your email password.</p>
+  <p id="acctPassTip" hidden>At least 8 characters. Pick a new one, not your email password.</p>
+  <div id="acctCaptcha" class="acct-cap"></div>
   <p class="acct-msg" id="acctMsg" role="status"></p>
   <div class="acct-row"><button type="button" data-close>Not now</button><button type="submit" class="go" id="acctSend">Sign in</button></div>
   <div class="acct-alt"><button type="button" id="acctNew">New here? Create an account</button><button type="button" id="acctHave" hidden>Already have an account? Sign in</button><button type="button" id="acctLink">Forgot password? Email me a code</button></div>
@@ -134,7 +137,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     <input type="email" id="acctNewEmail" autocomplete="email">
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetEmail">Change email</button></div>
     <label for="acctNewPass">New password</label>
-    <span class="acct-pw"><input type="password" id="acctNewPass" autocomplete="new-password" minlength="6" placeholder="At least 6 characters"><button type="button" class="acct-eye" aria-label="Show password" aria-pressed="false"></button></span>
+    <span class="acct-pw"><input type="password" id="acctNewPass" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"><button type="button" class="acct-eye" aria-label="Show password" aria-pressed="false"></button></span>
     <div class="acct-row" style="margin-bottom:12px"><button type="button" id="acctSetPass">Save password</button></div>
     <label>Your data</label>
     <div class="acct-row" style="margin-bottom:12px;justify-content:flex-start"><button type="button" id="acctExport">Download my data</button></div>
@@ -203,6 +206,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       if (hasToken()) resume();
     }
     if (!box.open) box.showModal();
+    if (!api.user) capReady();   // the person check loads only once the sign-in box is open
   }
   // The box opened while this device still has its sign-in, but the library hasn't (re)loaded it yet, often because
   // it couldn't reach the account with no signal. Try once more instead of asking for the password again.
@@ -246,10 +250,12 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     q("acctSend").textContent = nu ? "Create account" : "Sign in";
     q("acctPass").autocomplete = nu ? "new-password" : "current-password";
     q("acctPass").placeholder = nu ? "Pick a password" : "";
+    q("acctPass").minLength = nu ? 8 : 6;   // passwords made before 2026-11-22 can be 6 or 7 long
+    if (box.open) capReady();
     q("acctPassTip").hidden = !nu;
     q("acctNew").hidden = nu; q("acctHave").hidden = !nu; q("acctLink").hidden = nu;
     q("acctCodeBox").hidden = true;
-    say("");
+    say(capAsk ? CAP_TAP : "");
   }
   function showSettings(on) {
     q("acctMenu").hidden = on; q("acctSettings").hidden = !on; q("acctDelBox").hidden = true;
@@ -329,6 +335,58 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     window.dispatchEvent(new CustomEvent("tf:account", { detail: user }));
   }
 
+  // Person check (security check 2026-11-21): Cloudflare Turnstile on sign-in, new account and email code, so scripts
+  // can't guess passwords or make accounts in bulk. Off while CAPTCHA_KEY is empty. The site key is public, like the
+  // database key above; the secret key is only in Supabase (Authentication, Attack Protection). Cloudflare serves
+  // api.js only from its own address, so it can't be copied into vendor/. The sign-in is sent even when no answer came:
+  // Supabase decides, so a phone that can't show the check still signs in while CAPTCHA is off there. Before CAPTCHA is
+  // switched on in Supabase, check the box answers in the iPhone app (app-bound domains, Info.plist) and Android app.
+  const CAPTCHA_KEY = "0x4AAAAAAGMqoQ4EVOz5RF2w";   // widget "Trail Finder sign-in" (alex 2026-11-21), trailfinderapp.ca + www
+  const CAP_TAP = "Tick the box above to show you're a person.";
+  const CAP_MSG = "Couldn't check that you're a person. Wait a moment and try again. If it keeps happening, write to trailfinder.help@outlook.com.";
+  let capLoad = null, capId = null, capToken = null, capAsk = false, capTapAt = 0, capWait = [];
+  function capReady() {
+    if (!CAPTCHA_KEY) return Promise.resolve();
+    if (!capLoad) capLoad = new Promise((ok, no) => {
+      if (window.turnstile) return ok();
+      const s = document.createElement("script");
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.async = true;
+      s.onload = ok; s.onerror = () => { capLoad = null; no(new Error("person check didn't load")); };
+      document.head.appendChild(s);
+    });
+    return capLoad.then(() => {
+      if (capId != null || !window.turnstile) return;
+      // Each answer works once: it goes to the first sign-in waiting for one, or is kept for the next. An error ends every wait.
+      const done = (t) => { if (!t) { capToken = null; capWait.slice().forEach((f) => f(null)); } else if (capWait.length) capWait[0](t); else capToken = t; };
+      capId = window.turnstile.render(q("acctCaptcha"), {
+        sitekey: CAPTCHA_KEY, appearance: "interaction-only", size: "flexible", "refresh-expired": "auto",
+        callback: (t) => { capAsk = false; done(t); }, "expired-callback": () => { capToken = null; },
+        "error-callback": () => { capAsk = false; done(null); return true; },
+        // Cloudflare wants a tap this time: the box shows itself, and the sign-in waits for it.
+        "before-interactive-callback": () => { capAsk = true; if (capWait.length) say(CAP_TAP); },
+        "after-interactive-callback": () => { capAsk = false; capTapAt = Date.now(); },
+      });
+    }).catch(() => {});
+  }
+  // A fresh answer for one sign-in call (each answer works once), or null after an error, or 12 seconds with no answer
+  // (2 minutes while the box waits for a tap).
+  async function captcha() {
+    if (!CAPTCHA_KEY) return null;
+    await capReady();
+    if (!window.turnstile || capId == null) return null;
+    if (!capToken && capAsk) say(CAP_TAP);
+    let t = capToken;
+    capToken = null;
+    if (!t) t = await new Promise((ok) => {
+      const t0 = Date.now(), end = (v) => { clearInterval(iv); const i = capWait.indexOf(end); if (i >= 0) capWait.splice(i, 1); ok(v); };
+      // Just ticked: the answer follows within a few seconds, so keep waiting for it.
+      const iv = setInterval(() => { const now = Date.now(); if (now - t0 > 120000 || (now - t0 > 12000 && !capAsk && now - capTapAt > 8000)) end(null); }, 500);
+      capWait.push(end);
+    });
+    try { window.turnstile.reset(capId); } catch {}
+    return t;
+  }
+  const withCap = (t, o = {}) => (t ? { ...o, captchaToken: t } : o);
   function say(text, err) { const m = q("acctMsg"); m.textContent = text; m.className = "acct-msg" + (err ? " err" : ""); }
   async function creds() {
     const email = q("acctEmail").value.trim(), password = q("acctPass").value;
@@ -345,9 +403,11 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     const c = await creds(); if (!c) return;
     if (!c.password) { say("Type your password. No account yet? Tap \u201cNew here? Create an account\u201d.", true); q("acctPass").focus(); return; }
     q("acctSend").disabled = true; say("Signing in…");
-    const { error } = await api.client.auth.signInWithPassword(c);
+    const cap = await captcha();
+    const { error } = await api.client.auth.signInWithPassword({ ...c, options: withCap(cap) });
     q("acctSend").disabled = false;
     if (!error) box.close();
+    else if (/captcha/i.test(error.message)) say(CAP_MSG, true);
     else if (/invalid/i.test(error.message)) say("Wrong email or password. New here? Tap Create an account below.", true);
     else if (/not confirmed/i.test(error.message)) say("This account isn't confirmed yet. Tap \u201cForgot password? Email me a code\u201d to get in.", true);
     else say(error.message, true);
@@ -356,13 +416,15 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   q("acctHave").addEventListener("click", () => { setMode("in"); q("acctEmail").focus(); });
   async function createAccount() {
     const c = await creds(); if (!c) return;
-    if (c.password.length < 6) { say("Pick a password of at least 6 characters.", true); q("acctPass").focus(); return; }
+    if (c.password.length < 8) { say("Pick a password of at least 8 characters.", true); q("acctPass").focus(); return; }
     q("acctSend").disabled = true; say("Creating your account…");
-    const { data, error } = await api.client.auth.signUp({ ...c, options: { emailRedirectTo: redirect() } });
+    const cap = await captcha();
+    const { data, error } = await api.client.auth.signUp({ ...c, options: withCap(cap, { emailRedirectTo: redirect() }) });
     q("acctSend").disabled = false;
     // An email that already has an account: no error, but a user with no identities (or "already registered").
     const taken = (error && /already|registered|exists/i.test(error.message)) || (!error && data.user && data.user.identities && !data.user.identities.length);
-    if (taken) { setMode("in"); say("You already have an account with this email. Type your password and tap Sign in.", false); q("acctPass").focus(); }
+    if (error && /captcha/i.test(error.message)) say(CAP_MSG, true);
+    else if (taken) { setMode("in"); say("You already have an account with this email. Type your password and tap Sign in.", false); q("acctPass").focus(); }
     else if (error) say(/sending|email.*(send|deliver)|smtp/i.test(error.message) ? "We couldn't send the email to finish your account just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com." : /rate|seconds/i.test(error.message) ? "Too many tries just now. Wait a minute and try again." : error.message, true);
     else if (data.session) { box.close(); toast("Your account is ready. You're signed in."); }
     else { codeFor(c.email); say(`Almost done: we emailed a code to ${c.email}. Type it below (or tap the link in the email).`); }
@@ -374,9 +436,12 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   }
   q("acctLink").addEventListener("click", async () => {
     const c = await creds(); if (!c) return;
-    say("Sending…");
-    const { error } = await api.client.auth.signInWithOtp({ email: c.email, options: { emailRedirectTo: redirect() } });
-    if (error) say(/rate|seconds/i.test(error.message) ? "Too many emails just now. Wait a minute and try again." : /sending|smtp/i.test(error.message) ? "We couldn't send the email just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com." : error.message, true);
+    q("acctLink").disabled = true; say("Sending…");
+    const cap = await captcha();
+    const { error } = await api.client.auth.signInWithOtp({ email: c.email, options: withCap(cap, { emailRedirectTo: redirect() }) });
+    q("acctLink").disabled = false;
+    if (error && /captcha/i.test(error.message)) say(CAP_MSG, true);
+    else if (error) say(/rate|seconds/i.test(error.message) ? "Too many emails just now. Wait a minute and try again." : /sending|smtp/i.test(error.message) ? "We couldn't send the email just now. Try again in a few minutes. If it keeps happening, write to trailfinder.help@outlook.com." : error.message, true);
     else { codeFor(c.email); say(`We emailed a code to ${c.email}. Type it below. Once you're in, you can set a new password under Account → Settings.`); }
   });
   // Sign in with the code from the email (alex 2026-11-03). The iPhone app can't catch email links (they open Safari,
@@ -413,7 +478,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   q("acctSetPass").addEventListener("click", async () => {
     hidePasses();
     const pw = q("acctNewPass").value;
-    if (pw.length < 6) { answer("acctSetPass", "Passwords need at least 6 characters.", true); q("acctNewPass").focus(); return; }
+    if (pw.length < 8) { answer("acctSetPass", "Passwords need at least 8 characters.", true); q("acctNewPass").focus(); return; }
     q("acctSetPass").disabled = true;
     const { error } = await api.client.auth.updateUser({ password: pw });
     q("acctSetPass").disabled = false;
