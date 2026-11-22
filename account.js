@@ -11,7 +11,7 @@
 
   // Settings saved to the account: the tf:* localStorage keys the pages remember.
   // Not "map3d": 3D turned on at a computer would open a phone straight into 3D, which can run it out of memory.
-  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "want", "folders", "notify", "notifyRead", "toride", "riddenMap", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
+  const SETTINGS = ["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "satNames", "nearKm", "track", "nameNear", "mode", "nameZone", "want", "folders", "notify", "notifyRead", "toride", "riddenMap", "loamAlert", "loamNew", "loamRide", "loamArea", "notifyNew", "planGone", "planSaved", "recentTrails", "myFinds", "shareOn", "shareKey", "sharePast", "shareFrom", "sharePlaces", "newsSeen",
     // What each sport saves (alex 2026-10-30: trips, spots and pins on the account in every sport). Pins and tracks have
     // their own tables (ski-points.js, ride.html); these are the lists kept in localStorage. listGone comes first: the
     // lists' merges read it.
@@ -560,7 +560,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // Saved and folders were still there). They stay in the account and come back on the next sign-in. Map look (style,
   // sport, area, colours) stays, it isn't personal. Rides and pins that never went to the account (a Strava archive
   // kept on this device, or saved here before signing in) stay too: removing them would lose them for good.
-  const PREFS = new Set(["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "nearKm", "track", "nameNear", "mode", "nameZone", "toride", "riddenMap", "newsSeen"]);
+  const PREFS = new Set(["months", "colorBy", "allTrails", "prime", "zone", "basemap4", "satNames", "nearKm", "track", "nameNear", "mode", "nameZone", "toride", "riddenMap", "newsSeen"]);
   // Personal things kept only on the device (not in SETTINGS): Strava link, pending reports/grades, alerts already
   // seen, the home spot, the friends' live groups looked at, route drafts, the friend/admin flags, notifications.
   const DEVICE_PERSONAL = ["strava", "stravaFolder", "stravaPending", "stravaState", "stravaReady", "stravaAsked", "liveGroups", "liveName", "caHome",

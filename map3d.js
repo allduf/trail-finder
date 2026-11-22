@@ -3194,7 +3194,7 @@
     let photos = "sharp";
     // The 3D ground goes with the flat map's style (alex 2026-11-17: "can it stay in the same layer and tilt it", "can we
     // have all those mode in 3d?"): Map, ADV topo (Adventure moto) and Topo are those maps over the mountains; Satellite
-    // and Sat + names are the photos (Summer, or Live if picked), Winter is Winter. The maps aren't kept as the sport's
+    // (with or without names) is the photos (Summer, or Live if picked), Winter is Winter. The maps aren't kept as the sport's
     // 3D photos ("3dPhotosBy"): going back to Satellite gives the photos picked before.
     const flatStyle = () => (document.getElementById("basemap") || {}).value;
     const MAPS = { osm: "map", advtopo: "adv", topo: "topo" };
@@ -3351,11 +3351,13 @@
     // A photo button while the flat map is on Topo moves the flat map to the photos too (Satellite, or Winter in
     // Skiing), so both maps stay on one style and leaving 3D doesn't jump back to Topo.
     const offTopo = (k) => { if (MAPS[flatStyle()] && window.tfSetBasemap) window.tfSetBasemap(k, true); };
-    sumBtn.addEventListener("click", () => { offTopo("sat"); setPhotos("sharp"); });
+    // Satellite with or without names, as the Names switch in Layers has it (index.html satPick).
+    const satKey = () => (window.tfSatPick ? window.tfSatPick() : "sathybrid");
+    sumBtn.addEventListener("click", () => { offTopo(satKey()); setPhotos("sharp"); });
     winBtn.addEventListener("click", () => { offTopo("winter"); setPhotos("winter"); });
-    liveBtn.addEventListener("click", () => { offTopo(ski() ? "winter" : "sat"); setPhotos("live"); });
+    liveBtn.addEventListener("click", () => { offTopo(ski() ? "winter" : satKey()); setPhotos("live"); });
     topoBtn.addEventListener("click", () => { if (window.tfSetBasemap) window.tfSetBasemap("topo", true); setPhotos("topo"); });
-    // Map style in Layers, picked while in 3D: Topo is Topo here too; Satellite, Sat + names and Winter are the photos.
+    // Map style in Layers, picked while in 3D: Topo is Topo here too; Satellite and Winter are the photos.
     document.getElementById("lmTiles")?.addEventListener("click", (e) => {
       const b = e.target.closest("[data-base]");
       if (!b || !on) return;

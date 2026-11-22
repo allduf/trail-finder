@@ -1,0 +1,4 @@
+Names ||| Noms
+Town, road, lake and peak names on the flat map's photos ||| Noms des villes, routes, lacs et sommets sur les photos de la carte plane
+Town, road, lake and peak names over the satellite photos ||| Noms des villes, routes, lacs et sommets sur les photos satellite
+Map style: Satellite and Sat + names are now one Satellite style, with names on top. A Names switch under it takes them off for a clear look at the ground. ||| Style de carte : Satellite et Sat + noms ne font plus qu'un seul style Satellite, avec les noms par-dessus. Un interrupteur Noms juste en dessous les retire pour mieux voir le terrain.
