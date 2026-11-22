@@ -2869,6 +2869,22 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       else if (what === "log") openLog();
       else if (what === "trips") openTrips();
     },
+    // The iPhone's native 3D map (native-moto.js): what web 3D draws for Moto (sync3d), as plain data. roads: the dirt
+    // roads layer is on; road and track: their colours for your bike (the far tiles use the same two); ften: BC's forest
+    // roads as a map image address; pts: the stops around the view, [lat, lon, kind, colour, name]. null outside Moto.
+    native3d: () => {
+      if (!isMoto()) return null;
+      const cap = capOf(cur()), on = shown.has("roads");
+      return { roads: on, road: FIT[fitOf(2, cap)][1], track: FIT[fitOf(3, cap)][1], ften: on ? ftenTiles(ftenSld()) : "",
+        pts: (sentPts = pts3d.slice()).map((x) => [x.p[0], x.p[1], x.k, PT[x.k].c, x.p[2] || PT[x.k].name]) };
+    },
+    // "Details" on a stop's card there: that stop's card here (true when one is at that spot).
+    openPointAt: (lat, lon) => {
+      // The stops last sent there (the page's own list follows its smaller view): the card's spot is the stop's own.
+      const x = sentPts.concat(pts3d).find((o) => Math.abs(o.p[0] - lat) < 1e-6 && Math.abs(o.p[1] - lon) < 1e-6);
+      if (x) openPoint(x.k, x.p);
+      return !!x;
+    },
   };
   // The Moto trip (moto-trip.js, on trip-core.js): the bikes, gas, camps, routes and cards it builds from.
   // A route as one of the trip's lines (ls: its points), and one line planned again here (turns, surfaces, Ride it).
@@ -2908,22 +2924,6 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     openSpot: (lat, lon) => { map.setView([lat, lon], Math.max(map.getZoom(), 12)); setSpot(lat, lon, "tap"); toPanel(); },
     cellNear: async (lat, lon) => { const c = await loadCell(); return c ? cellNear(lat, lon) : null; },
     showCard, toPanel, hint, getJ, postJ, OVERPASS,
-    // The iPhone's native 3D map (native-moto.js): what web 3D draws for Moto (sync3d), as plain data. roads: the dirt
-    // roads layer is on; road and track: their colours for your bike (the far tiles use the same two); ften: BC's forest
-    // roads as a map image address; pts: the stops around the view, [lat, lon, kind, colour, name]. null outside Moto.
-    native3d: () => {
-      if (!isMoto()) return null;
-      const cap = capOf(cur()), on = shown.has("roads");
-      return { roads: on, road: FIT[fitOf(2, cap)][1], track: FIT[fitOf(3, cap)][1], ften: on ? ftenTiles(ftenSld()) : "",
-        pts: (sentPts = pts3d.slice()).map((x) => [x.p[0], x.p[1], x.k, PT[x.k].c, x.p[2] || PT[x.k].name]) };
-    },
-    // "Details" on a stop's card there: that stop's card here (true when one is at that spot).
-    openPointAt: (lat, lon) => {
-      // The stops last sent there (the page's own list follows its smaller view): the card's spot is the stop's own.
-      const x = sentPts.concat(pts3d).find((o) => Math.abs(o.p[0] - lat) < 1e-6 && Math.abs(o.p[1] - lon) < 1e-6);
-      if (x) openPoint(x.k, x.p);
-      return !!x;
-    },
   };
   // Offline maps (offline.js) saved in Moto keep the gas, camping and hot spring lists too.
   window.tfMotoOffline = () => (isMoto() ? [...["fuel", "camp", "hot", "ferry"].map((k) => `ca/moto/${k}.json`), "data/moto-cell.json", "data/moto-routes.json", "data/moto-models.json"] : []);
