@@ -216,7 +216,12 @@
     try { map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false }); } finally { following = false; }
     nativeAt = { lat: e.lat, lon: e.lon, zoom: e.zoom, fz: map.getZoom() };   // fz: the zoom the flat map could reach
   };
-  TrailMap.addListener("moved", (e) => { if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
+  // movedAt: when the native map last moved. A tap that comes with a move, or just after one (a short drag read as a
+  // tap too, a touch that stops a fling) is not a tap on what's there: it opened a spot's or a pin's page while the
+  // map was being moved (alex 2026-11-22: "When you navigate on the map often the page pops up").
+  let movedAt = 0;
+  const justMoved = () => Date.now() - movedAt < 450;
+  TrailMap.addListener("moved", (e) => { movedAt = Date.now(); if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
     open = false; clearTimeout(pending); moveWait = 500; sent = "";
     leaveUnder();
@@ -226,10 +231,10 @@
   });
   // Under the page (below): Details on a native card opens here while the native map stays; a trail tapped there opens
   // the page's own card, as a tap on the flat map.
-  TrailMap.addListener("details", (e) => { if (open && e) openDetails(e); });
+  TrailMap.addListener("details", (e) => { if (open && e && !(under && justMoved())) openDetails(e); });
   let quietUntil = 0;
   TrailMap.addListener("tap", (e) => {
-    if (!open || !e) return;
+    if (!open || !e || justMoved()) return;
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     // A popup opens where the finger is: the flat map (hidden) is moved so that spot is under it, and its own moves
     // for the next moment (a popup making room for itself) aren't sent back to the native map.

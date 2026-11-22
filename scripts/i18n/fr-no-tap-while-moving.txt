@@ -1,0 +1,1 @@
+Moving the map no longer opens a spot or pin by accident: a touch that stops the map or comes right after a move is ignored. ||| Déplacer la carte n'ouvre plus un endroit ou un repère par erreur : un toucher qui arrête la carte ou qui suit tout juste un déplacement est ignoré.

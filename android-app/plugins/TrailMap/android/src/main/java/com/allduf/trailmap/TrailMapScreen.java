@@ -347,7 +347,13 @@ final class TrailMapScreen extends FrameLayout {
         } else {
             map.getUiSettings().setTiltGesturesEnabled(false);
         }
-        map.addOnCameraIdleListener(() -> { if (!left) events.send("moved", camera()); });
+        map.addOnCameraIdleListener(() -> {
+            if (fingerMoving) { fingerMoving = false; fingerMovedAt = android.os.SystemClock.uptimeMillis(); }
+            if (!left) events.send("moved", camera());
+        });
+        map.addOnCameraMoveStartedListener((reason) -> {
+            if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) { fingerMoving = true; fingerMovedAt = android.os.SystemClock.uptimeMillis(); }
+        });
         map.addOnMapClickListener(this::tapped);
         // Winter waits for its lists of photo squares (a moment, once a session): Satellite until then.
         if ("winter".equals(base) && !WinterTiles.shared.ready()) { setStyle("sat"); showStyle(); }
@@ -554,8 +560,14 @@ final class TrailMapScreen extends FrameLayout {
 
     // ---------- taps ----------
     // A tap on a trail or a dot shows its card; a tap anywhere else closes it. Dots win: they sit on the trails.
+    // A move by finger, going on or just ended: a tap then is part of moving the map (a short drag also read as a tap,
+    // a touch that stops a fling), not a tap on what's there (alex 2026-11-22: "When you navigate on the map often the
+    // page pops up").
+    private boolean fingerMoving = false;
+    private long fingerMovedAt = 0;
     private boolean tapped(LatLng point) {
         if (map == null || left) return false;
+        if (fingerMoving || android.os.SystemClock.uptimeMillis() - fingerMovedAt < 300) return true;   // eaten, nothing opens
         PointF p = lastTouch != null && android.os.SystemClock.uptimeMillis() - lastTouchAt < 1000 ? lastTouch : map.getProjection().toScreenLocation(point);
         float r = dp(22);
         RectF box = new RectF(p.x - r, p.y - r, p.x + r, p.y + r);
