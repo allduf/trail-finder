@@ -344,14 +344,14 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   const CAPTCHA_KEY = "0x4AAAAAAGMqoQ4EVOz5RF2w";   // widget "Trail Finder sign-in" (alex 2026-11-21), trailfinderapp.ca + www
   const CAP_TAP = "Tick the box above to show you're a person.";
   const CAP_MSG = "Couldn't check that you're a person. Wait a moment and try again. If it keeps happening, write to trailfinder.help@outlook.com.";
-  let capLoad = null, capId = null, capToken = null, capAsk = false, capTapAt = 0, capWait = [];
+  let capLoad = null, capId = null, capToken = null, capAsk = false, capTapAt = 0, capWait = [], capErr = "";
   function capReady() {
     if (!CAPTCHA_KEY) return Promise.resolve();
     if (!capLoad) capLoad = new Promise((ok, no) => {
       if (window.turnstile) return ok();
       const s = document.createElement("script");
       s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; s.async = true;
-      s.onload = ok; s.onerror = () => { capLoad = null; no(new Error("person check didn't load")); };
+      s.onload = ok; s.onerror = () => { capLoad = null; capErr = "didn't load"; no(new Error("person check didn't load")); };
       document.head.appendChild(s);
     });
     return capLoad.then(() => {
@@ -360,8 +360,8 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       const done = (t) => { if (!t) { capToken = null; capWait.slice().forEach((f) => f(null)); } else if (capWait.length) capWait[0](t); else capToken = t; };
       capId = window.turnstile.render(q("acctCaptcha"), {
         sitekey: CAPTCHA_KEY, appearance: "interaction-only", size: "flexible", "refresh-expired": "auto",
-        callback: (t) => { capAsk = false; done(t); }, "expired-callback": () => { capToken = null; },
-        "error-callback": () => { capAsk = false; done(null); return true; },
+        callback: (t) => { capAsk = false; capErr = ""; done(t); }, "expired-callback": () => { capToken = null; },
+        "error-callback": (code) => { capAsk = false; capErr = `error ${code || "?"}`; done(null); return true; },
         // Cloudflare wants a tap this time: the box shows itself, and the sign-in waits for it.
         "before-interactive-callback": () => { capAsk = true; if (capWait.length) say(CAP_TAP); },
         "after-interactive-callback": () => { capAsk = false; capTapAt = Date.now(); },
@@ -370,10 +370,18 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   }
   // A fresh answer for one sign-in call (each answer works once), or null after an error, or 12 seconds with no answer
   // (2 minutes while the box waits for a tap).
+  // Each sign-in reports how the check went in the usage log (only when the person shares how the app is used), so
+  // alex can see it works on iPhone and Android before and after CAPTCHA is on: "sign-in check: answer" or why not.
+  const capLog = (what, t0) => { try { const a = ["speed", `sign-in check: ${what}`, Date.now() - t0]; window.tfUse ? window.tfUse(...a) : (window.tfUseQ = window.tfUseQ || []).push(a); } catch {} };
   async function captcha() {
+    const t0 = Date.now(), t = await captchaWait();
+    if (CAPTCHA_KEY) capLog(t ? "answer" : capErr || (capAsk ? "waiting for a tap" : "no answer"), t0);
+    return t;
+  }
+  async function captchaWait() {
     if (!CAPTCHA_KEY) return null;
     await capReady();
-    if (!window.turnstile || capId == null) return null;
+    if (!window.turnstile || capId == null) { capErr = capErr || "didn't start"; return null; }
     if (!capToken && capAsk) say(CAP_TAP);
     let t = capToken;
     capToken = null;
