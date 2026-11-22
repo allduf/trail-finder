@@ -153,7 +153,7 @@
   // (the card gives the pin's own spot), not by its number: the page redraws some pins after every move (huts,
   // webcams), and the numbers sent last may not be the ones the native screen showed. Once the flat map has settled
   // where the native one was. The searched place's pin has no Details (nd): a tap on it here takes it away.
-  const tappable = (l) => l instanceof L.Marker && l.options.icon && l.options.interactive !== false && !l.options.draggable && (l.listens("click") || l.getPopup());
+  const tappable = (l) => l instanceof L.Marker && l.options.icon && !l.options.tfYou && l.options.interactive !== false && !l.options.draggable && (l.listens("click") || l.getPopup());
   N.addLayer("pins", pins, (n, latlng) => setTimeout(() => {
     let best = null, bd = 3e-5;
     map.eachLayer((l) => {
