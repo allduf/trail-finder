@@ -1,5 +1,5 @@
 // Keeps the privacy page's promise (privacy.html "How long we keep it"): how-the-app-is-used events and phones (usage.js)
-// and visit-count device codes (visitors.js) older than one year, shared trips a year after their last change, and shared
+// and visit-count device codes (visitors.js) older than one year, shared trips two years after their last change, and shared
 // ride lines, Join the test emails and feedback notes older than two years are deleted. Run each morning by app-errors.yml.
 // Run: SUPABASE_SECRET_KEY=... node scripts/usage-cleanup.mjs   (DRY=1 only counts)
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://fohdmserpbkurcvcrbbb.supabase.co";
@@ -14,7 +14,7 @@ const jobs = [
   ["tf_use_devices", `last_seen=lt.${yearAgo.toISOString()}`, "a year"],          // phones not seen for a year (their events go with them)
   ["tf_visits", `last_seen=lt.${day(yearAgo)}`, "a year"],
   ["tf_visit_days", `day=lt.${day(yearAgo)}`, "a year"],
-  ["shared_trips", `updated_at=lt.${yearAgo.toISOString()}`, "a year"],        // a group's trip, a year after its last change
+  ["shared_trips", `updated_at=lt.${twoYears.toISOString()}`, "2 years"],      // a group's trip, two years after its last change (alex 2026-11-21)
   ["shared_rides", `created_at=lt.${twoYears.toISOString()}`, "2 years"],
   ["tf_join", `created_at=lt.${twoYears.toISOString()}`, "2 years"],
   ["tf_feedback", `created_at=lt.${twoYears.toISOString()}`, "2 years"],
