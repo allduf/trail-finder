@@ -219,9 +219,10 @@
   // movedAt: when the native map last moved. A tap that comes with a move, or just after one (a short drag read as a
   // tap too, a touch that stops a fling) is not a tap on what's there: it opened a spot's or a pin's page while the
   // map was being moved (alex 2026-11-22: "When you navigate on the map often the page pops up").
-  let movedAt = 0;
+  // Moves this page asked for (a search, a card, Me: camAt) don't count.
+  let movedAt = 0, camAt = 0;
   const justMoved = () => Date.now() - movedAt < 450;
-  TrailMap.addListener("moved", (e) => { movedAt = Date.now(); if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
+  TrailMap.addListener("moved", (e) => { if (Date.now() - camAt > 2500) movedAt = Date.now(); if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
     open = false; clearTimeout(pending); moveWait = 500; sent = "";
     leaveUnder();
@@ -369,6 +370,7 @@
     if (nativeAt && Math.abs(map.getZoom() - (nativeAt.fz != null ? nativeAt.fz : nativeAt.zoom + 1)) < 0.75 &&
         map.latLngToContainerPoint([nativeAt.lat, nativeAt.lon]).distanceTo(map.latLngToContainerPoint(c)) < 40) return;
     nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, fz: map.getZoom() };
+    camAt = Date.now();
     TrailMap.layer({ key: "under", data: JSON.stringify({ cam: { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 } }) }).catch(() => {});
   });
   // The map style: Layers' pick, or a new sport's own (Skiing's Winter), goes to the native map.
@@ -525,6 +527,7 @@
   if (locBtn) locBtn.addEventListener("click", (e) => {
     if (!open || !under) return;
     e.stopImmediatePropagation(); e.preventDefault();
+    camAt = Date.now();
     TrailMap.layer({ key: "under", data: JSON.stringify({ me: true }) }).catch(() => {});
   }, true);
   const lbtn = document.getElementById("layersBtn");
