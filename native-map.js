@@ -324,7 +324,7 @@
     for (let e = mapEl; e; e = e.parentElement) { saved.push([e, e.style.background]); e.style.background = "transparent"; }
     if (b3) {
       b3Was = { t: b3.textContent, ti: b3.title, p: b3.getAttribute("aria-pressed"), on: b3.classList.contains("on") };
-      b3.textContent = "▭ 2D map"; b3.title = "Back to the flat map"; b3.setAttribute("aria-pressed", "true"); b3.classList.add("on");
+      b3.textContent = "▭ 2D map"; b3.title = "Back to the flat map"; b3.setAttribute("aria-pressed", "true"); b3.classList.remove("on");   // the same dark button as on the flat map (alex 2026-11-21: "Why is not the same?")
     }
     gridObs = new MutationObserver((recs) => { if (recs.some((r) => !ownMap(r.target))) gridSoon(); });
     gridObs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "hidden", "style", "open"] });

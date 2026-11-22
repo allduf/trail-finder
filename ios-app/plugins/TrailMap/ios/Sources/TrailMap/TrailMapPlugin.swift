@@ -366,7 +366,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let locate = pill("◎ Me", #selector(locateTapped))
         styled(styleBtn, styleTitle(), #selector(styleTapped))
         [back, tag, locate, styleBtn].forEach { view.addSubview($0) }
-        if under { [back, tag, locate, styleBtn].forEach { $0.isHidden = true } }   // the page's own buttons do these
+        if under { [back, tag, locate, styleBtn, toolStack].forEach { $0.isHidden = true } }   // the page's own buttons do these (its search bar and Tools too: no Search or Tools pills over the page, alex 2026-11-21 "Why is not the same?")
         if threeD && !under {
             let layers = pill("☰ Layers", #selector(layersTapped))
             view.addSubview(layers)
