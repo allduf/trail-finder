@@ -39,7 +39,7 @@ createServer(async (req, res) => {
     if (path === "sw.js") b = Buffer.from("");
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }).end(b);
   } catch { return live(); }
-}).listen(8091, "127.0.0.1");
+}).listen(+(process.env.PORT || 8091), "127.0.0.1");
 
 // The keys each app build reports (as phone-test.mjs reads them from the native sources).
 async function iosKeys() {
@@ -106,6 +106,36 @@ const INVENTORY = `(() => {
   return { ...out, nLines: count(u.lines), nDots: count(u.dots), sig, native: !!(window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen()), web3d: !!document.querySelector("#map.is3d") };
 })()`;
 
+// ---------- verdicts (written after each sport, so a stopped run keeps what it saw) ----------
+function write() {
+  const rows = [];
+for (const r of report) {
+  if (!r.before || !r.after) continue;
+  const b = r.before, a = r.after;
+  // "other:<pane>" are the canvas renderers the lines are drawn on (their lines are counted): not pictures.
+  const web = { paths: a.paths - b.paths, markers: a.markers - b.markers, rasters: a.rasters.filter((x) => !b.rasters.includes(x) && !/^other:/.test(x)) };
+  const sent = { lines: a.nLines - b.nLines, dots: a.nDots - b.nDots, feats: Object.keys(a.sig).filter((k) => a.sig[k] !== b.sig[k]) };
+  const webGain = web.paths > 0 || web.markers > 0 || web.rasters.length > 0;
+  const nativeGain = sent.lines > 0 || sent.dots > 0 || sent.feats.length > 0;
+  let verdict = "same";
+  if (webGain && !nativeGain) verdict = "MISSING in native 3D";
+  else if (web.rasters.length && !sent.feats.length) verdict = "pictures missing in native 3D";
+  else if (web.markers > 0 && !sent.feats.includes("pins") && !sent.feats.some((k) => k !== "pins") && sent.dots <= 0) verdict = "pins missing in native 3D";
+  else if (!webGain && !nativeGain) verdict = "nothing here (both)";
+  rows.push({ platform: r.platform, sport: r.sport, layer: r.layer, id: r.id, verdict, web, sent, errs: r.errs, web3d: a.web3d, native: a.native });
+}
+writeFileSync(join(OUT, `audit${process.env.PART || ""}.json`), JSON.stringify({ report, rows }, null, 1));
+const md = ["# Layer audit: website vs native 3D", ""];
+for (const p of PLATFORMS) for (const s of SPORTS) {
+  md.push(`## ${p} · ${s}`, "", "| Layer | Verdict | Website gained | Sent to native 3D |", "|---|---|---|---|");
+  for (const r of rows.filter((x) => x.platform === p && x.sport === s)) {
+    md.push(`| ${r.layer} | ${r.verdict}${r.web3d ? " (web 3D open!)" : ""}${r.errs.length ? " · errors: " + r.errs.join("; ").slice(0, 120) : ""} | ${r.web.paths} lines, ${r.web.markers} pins${r.web.rasters.length ? ", pictures: " + r.web.rasters.join(", ") : ""} | ${r.sent.lines} lines, ${r.sent.dots} dots${r.sent.feats.length ? ", " + r.sent.feats.join(", ") : ""} |`);
+  }
+  md.push("");
+}
+writeFileSync(join(OUT, `audit${process.env.PART || ""}.md`), md.join("\n"));
+
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const report = [];
 const browser = await chromium.launch();
@@ -117,7 +147,7 @@ for (const platform of PLATFORMS) {
     const page = await ctx.newPage();
     const errs = [];
     page.on("pageerror", (e) => errs.push(String(e.message).split("\n")[0]));
-    await page.goto("http://127.0.0.1:8091/index.html", { waitUntil: "load" }).catch(() => {});
+    await page.goto(`http://127.0.0.1:${process.env.PORT || 8091}/index.html`, { waitUntil: "load" }).catch(() => {});
     await sleep(6000);
     await page.evaluate(() => { document.querySelectorAll("dialog[open]").forEach((d) => d.close()); const at = { mtb: [50.105, -122.96, 14], ski: [50.08, -122.88, 13], hike: [50.105, -122.96, 13], fish: [50.12, -122.95, 13], hunt: [50.2, -122.9, 12], moto: [50.0, -123.1, 12] }[document.getElementById("sport").value] || [50.11, -122.95, 13]; window.tfLeaflet.setView([at[0], at[1]], at[2], { animate: false }); }).catch(() => {});
     await sleep(5000);
@@ -165,36 +195,9 @@ for (const platform of PLATFORMS) {
       await sleep(1200);
     }
     await ctx.close();
+    write();
   }
 }
 await browser.close();
 
-// ---------- verdicts ----------
-const rows = [];
-for (const r of report) {
-  if (!r.before || !r.after) continue;
-  const b = r.before, a = r.after;
-  // "other:<pane>" are the canvas renderers the lines are drawn on (their lines are counted): not pictures.
-  const web = { paths: a.paths - b.paths, markers: a.markers - b.markers, rasters: a.rasters.filter((x) => !b.rasters.includes(x) && !/^other:/.test(x)) };
-  const sent = { lines: a.nLines - b.nLines, dots: a.nDots - b.nDots, feats: Object.keys(a.sig).filter((k) => a.sig[k] !== b.sig[k]) };
-  const webGain = web.paths > 0 || web.markers > 0 || web.rasters.length > 0;
-  const nativeGain = sent.lines > 0 || sent.dots > 0 || sent.feats.length > 0;
-  let verdict = "same";
-  if (webGain && !nativeGain) verdict = "MISSING in native 3D";
-  else if (web.rasters.length && !sent.feats.length) verdict = "pictures missing in native 3D";
-  else if (web.markers > 0 && !sent.feats.includes("pins") && !sent.feats.some((k) => k !== "pins") && sent.dots <= 0) verdict = "pins missing in native 3D";
-  else if (!webGain && !nativeGain) verdict = "nothing here (both)";
-  rows.push({ platform: r.platform, sport: r.sport, layer: r.layer, id: r.id, verdict, web, sent, errs: r.errs, web3d: a.web3d, native: a.native });
-}
-writeFileSync(join(OUT, "audit.json"), JSON.stringify({ report, rows }, null, 1));
-const md = ["# Layer audit: website vs native 3D", ""];
-for (const p of PLATFORMS) for (const s of SPORTS) {
-  md.push(`## ${p} · ${s}`, "", "| Layer | Verdict | Website gained | Sent to native 3D |", "|---|---|---|---|");
-  for (const r of rows.filter((x) => x.platform === p && x.sport === s)) {
-    md.push(`| ${r.layer} | ${r.verdict}${r.web3d ? " (web 3D open!)" : ""}${r.errs.length ? " · errors: " + r.errs.join("; ").slice(0, 120) : ""} | ${r.web.paths} lines, ${r.web.markers} pins${r.web.rasters.length ? ", pictures: " + r.web.rasters.join(", ") : ""} | ${r.sent.lines} lines, ${r.sent.dots} dots${r.sent.feats.length ? ", " + r.sent.feats.join(", ") : ""} |`);
-  }
-  md.push("");
-}
-writeFileSync(join(OUT, "audit.md"), md.join("\n"));
-console.log(md.join("\n"));
 process.exit(0);

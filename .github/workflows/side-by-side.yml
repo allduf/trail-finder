@@ -81,6 +81,12 @@ jobs:
           xcrun simctl status_bar booted override --time 9:41 || true
       - name: Side-by-side steps
         run: PLATFORM=ios node scripts/side-by-side/run.mjs
+      - name: The app's crash reports, if it crashed
+        if: always()
+        run: |
+          mkdir -p "out/ios-$TF_LANG/crashes"
+          find ~/Library/Logs/DiagnosticReports -name 'App*' -newer ios-app/package.json -exec cp {} "out/ios-$TF_LANG/crashes/" \; 2>/dev/null || true
+          for f in out/ios-$TF_LANG/crashes/*; do [ -f "$f" ] && { echo "::group::$f"; head -c 20000 "$f"; echo "::endgroup::"; }; done; true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
