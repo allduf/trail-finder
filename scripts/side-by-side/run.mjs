@@ -91,6 +91,14 @@ createServer(async (req, res) => {
   let path, file;
   try { path = decodeURIComponent(u.pathname).replace(/^\/+/, "") || "index.html"; file = normalize(join(root, path)); }
   catch { res.writeHead(400).end(); return; }
+  // Data files: the live site's (the data jobs keep them on the site-data branch; main's copies can be old, e.g.
+  // data/app-build.json said build 32 and showed "New version of the app" on the iPhone simulator).
+  if (/^data\//.test(path)) {
+    try {
+      const r = await fetch(LIVE + path + (u.search || ""));
+      if (r.ok) { res.writeHead(200, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer())); return; }
+    } catch {}
+  }
   try {
     const rel = relative(root, file);
     if (!file.startsWith(root) || /^(\.git|\.github|scripts|supabase|ios-app|android-app|out|node_modules)(\/|$)/.test(rel)) throw new Error("not served");
