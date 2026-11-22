@@ -211,7 +211,7 @@ const OPEN = `(() => { const vis = (e) => e.getClientRects().length > 0 && getCo
   return o; })()`;
 const CLOSE_IOS = `(() => {
   const vis = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden";
-  const CL = /^(×|✕|✖|x|close|fermer|done|ok|terminé|back|retour|‹|←|not now|pas maintenant|cancel|annuler)$/i;
+  const CL = /^(×|✕|✖|x|close|fermer|done|ok|terminé|back|retour|‹|←|not now|pas maintenant|cancel|annuler|got it|compris|later|plus tard)$/i;
   const pick = (root) => [...root.querySelectorAll("button, [role=button], a")].filter(vis).find((b) => CL.test((b.getAttribute("aria-label") || b.textContent || "").trim()) || /close|dismiss/i.test(b.className + " " + (b.dataset ? Object.keys(b.dataset).join(" ") : "")));
   const dlg = [...document.querySelectorAll("dialog[open]")].pop();
   if (dlg) { const b = pick(dlg); if (b) { b.click(); return "button"; } dlg.close(); return "no close button in " + ((dlg.className || dlg.id) + "").split(" ")[0]; }
