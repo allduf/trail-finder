@@ -802,9 +802,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // stays. Signed-in devices keep their own layers.
   const signedIn = (() => { try { return Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch { return false; } })();
   const GUEST_START = ["tour", "snowmobile"];
-  const SKI_START = signedIn ? ["tour", "park"] : GUEST_START;
-  let shown = new Set(store.get("skiLayers2", SKI_START));
-  if (!signedIn && !store.get("skiGuest", false)) {
+  // alex 2026-11-22 (one starting set, "yes"): a device signed in before its first Skiing visit gets the same set too.
+  // Layers already saved on a signed-in device stay.
+  const SKI_START = GUEST_START;
+  const savedSki = store.get("skiLayers2", null);
+  let shown = new Set(savedSki || SKI_START);
+  if ((!signedIn || !savedSki) && !store.get("skiGuest", false)) {
     shown = new Set(GUEST_START);
     try { ["tf:skiCams", "tf:skiLifts", "tf:skiSlack"].forEach((k) => localStorage.setItem(k, "true")); } catch {}
     store.set("avy", false); avyOn = false;
