@@ -14,7 +14,7 @@
   const flip = (v) => {
     if (v === now()) return;
     save(v);
-    const go = () => { if (window.tfAccount && window.tfAccount.signingOut) setTimeout(go, 300); else location.reload(); };
+    const go = () => { if (window.tfAccount && window.tfAccount.signingOut) setTimeout(go, 300); else (window.tfReload || (() => location.reload()))(); };
     go();
   };
   // alex (tf_is_admin) gets More → Friends on this device: "tf-admin" = "1", asked after each sign-in.

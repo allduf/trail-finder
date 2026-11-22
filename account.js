@@ -633,7 +633,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     lsSet(DEVICE, null); lsSet(LAST_EMAIL, null);
     try { sessionStorage.setItem("tf:signedOut", "1"); } catch {}
     // A fresh start, so nothing of the account is left in the open page either.
-    location.reload();
+    (window.tfReload || (() => location.reload()))();
   }
   // Right after a sign-out: say what happened, once.
   try {
@@ -949,7 +949,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     if (changed.length) window.dispatchEvent(new CustomEvent("tf:settings-synced", { detail: changed }));
     // The map page reads most settings once at start, so on the first sync after opening it reloads to show the
     // account's settings. Later syncs never reload (the rider is using the page); lists like saved routes update live.
-    if (first && changed.some((k) => !LIVE.has(k)) && document.documentElement.dataset.accountReload === "settings") location.reload();
+    if (first && changed.some((k) => !LIVE.has(k)) && document.documentElement.dataset.accountReload === "settings") (window.tfReload || (() => location.reload()))();
     if (saveErr) { syncSay({ error: saveErr }); return false; }
     syncSay({ at: Date.now(), error: "", routes: jparse(out.planSaved, []).length });
     return true;

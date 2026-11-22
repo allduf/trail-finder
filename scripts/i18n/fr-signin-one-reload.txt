@@ -1,0 +1,1 @@
+iPhone and Android apps: signing in no longer shows "No connection" for a moment. ||| Applications iPhone et Android : la connexion au compte n'affiche plus « Pas de connexion » un instant.

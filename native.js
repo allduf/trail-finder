@@ -137,7 +137,7 @@
     if (to === location.href) return;
     if (u.pathname.replace(/index\.html$/, "") !== location.pathname.replace(/index\.html$/, "")) { location.href = to; return; }
     history.replaceState(history.state, "", location.pathname + u.search + u.hash);
-    location.reload();
+    (window.tfReload || (() => location.reload()))();
   };
   if (LinkApp && LinkApp.addListener) {
     try { LinkApp.addListener("appUrlOpen", (e) => open(e && e.url, false)); } catch {}
