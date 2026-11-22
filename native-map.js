@@ -468,11 +468,12 @@
   const groundNative = () => { try { return localStorage.getItem("tf-native-ground") === "1" || (android && !!nativeKeys && nativeKeys.has("ground")); } catch { return false; } };
   const avyNative = () => { try { return localStorage.getItem("tf-native-avy") === "1" || (android && !!nativeKeys && nativeKeys.has("avy")); } catch { return false; } };
   // Hunting's picture layers the same way ("tf-native-huntpics": NativeHunting.swift says "huntPics" in any sport's native 3D).
-  const huntPicsNative = () => { try { return localStorage.getItem("tf-native-huntpics") === "1"; } catch { return false; } };
+  const huntPicsNative = () => { try { return localStorage.getItem("tf-native-huntpics") === "1" || (android && !!nativeKeys && nativeKeys.has("hunt")); } catch { return false; } };
   TrailMap.addListener("huntPics", () => { try { localStorage.setItem("tf-native-huntpics", "1"); } catch {} });   // here: hunting.js may not be loaded yet
   const webOnly = () => {
     if (fullNative()) return false;   // every layer is drawn natively on this build
-    // Avalanche: native 3D only once this phone's build has shown its avalanche card (native-avalanche.js, "tf-native-avy").
+    // Avalanche: native 3D only once this phone's build has shown its avalanche card (native-avalanche.js, "tf-native-avy"),
+    // or, on Android, once the build lists "avy" and "ground" (avyNative, groundNative above).
     if ((tf("avy", false) === true || pressed("avyBtn")) && !(groundNative() && avyNative())) return true;
     const ground = groundNative();
     if (!ground && ["contourBtn", "shadeBtn"].some(pressed)) return true;

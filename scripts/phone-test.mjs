@@ -613,7 +613,7 @@ async function appBuild(kind) {
       await check("alex's native 3D opens with avalanche on, on a fresh install", () => nativeOpen("the 3D button with avalanche on", async () => {
         await ev(() => { localStorage.setItem("tf-admin", "1"); localStorage.removeItem("tf-native-ground"); localStorage.removeItem("tf-native-avy"); localStorage.setItem("tf:avy", "true"); });
         await tap3d();
-      }));
+      }).finally(() => ev(() => localStorage.removeItem("tf:avy")).catch(() => {})));
     } else {
       await check("3D photos are Winter (Live picked there before)", async () => {
         await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {});
