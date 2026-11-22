@@ -821,8 +821,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         guard let f = features.first(where: { $0.key == key }) else { return }
         f.setData(data, style: isViewLoaded && styleReady ? map.style : nil)
     }
-    // The lowest trail layer: a feature drawn under the trails inserts its layers below this one.
-    func trailsBottomLayer() -> MLNStyleLayer? { styleReady ? map.style?.layer(withIdentifier: "tf-line") : nil }
+    // The lowest trail layer: a feature drawn under the trails inserts its layers below this one. The filled areas
+    // (tf-fill) count: they stay over ground pictures and radar, as the flat map's areas do.
+    func trailsBottomLayer() -> MLNStyleLayer? { styleReady ? (map.style?.layer(withIdentifier: "tf-fill") ?? map.style?.layer(withIdentifier: "tf-line")) : nil }
     // The style a feature may change now: the one showing, once it has loaded (nil while a new one loads).
     var readyStyle: MLNStyle? { isViewLoaded && styleReady ? map.style : nil }
     var mapLibreView: MLNMapView { map }

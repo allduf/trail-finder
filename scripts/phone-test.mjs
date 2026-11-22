@@ -506,14 +506,14 @@ async function appBuild(kind) {
         await until(() => document.querySelectorAll(".mt-pin").length > 0, null, 30_000).catch(() => {});
         const pins = await ev(() => document.querySelectorAll(".mt-pin").length);
         if (!(await ev(() => !!(window.tfMoto && typeof window.tfMoto.native3d === "function")))) throw new Error("tfMoto.native3d is missing: native 3D gets nothing for Moto");
-        // Filled areas (Where you can't ride, red at 12 %) go filled too, as on the flat map (builds from 2026-11-22 draw
-        // tf-fill): one such area is put on the flat map here, so the check doesn't wait on the parks data.
-        await ev(() => { const c = window.tfLeaflet.getCenter(); window.__tfFillTest = L.polygon([[c.lat - 0.05, c.lng - 0.05], [c.lat - 0.05, c.lng + 0.05], [c.lat + 0.05, c.lng]], { color: "#e03131", weight: 2, fillColor: "#e03131", fillOpacity: 0.12, interactive: false }).addTo(window.tfLeaflet); });
-        const n0 = await opens();
-        await tap3d();
-        await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
-        const o = await ev((c) => { const x = window.__tm.opens[c]; return x ? { moto: (x.layers || {}).moto || null, fills: JSON.parse(x.lines || "{}").features.filter((f) => f.properties.fa === 0.12 && f.properties.fc === "#e03131" && f.geometry.type === "MultiPolygon").length } : null; }, n0);
         try {
+          // Filled areas (Where you can't ride, red at 12 %) go filled too, as on the flat map (builds from 2026-11-22 draw
+          // tf-fill): one such area is put on the flat map here, so the check doesn't wait on the parks data.
+          await ev(() => { const c = window.tfLeaflet.getCenter(); window.__tfFillTest = L.polygon([[c.lat - 0.05, c.lng - 0.05], [c.lat - 0.05, c.lng + 0.05], [c.lat + 0.05, c.lng]], { color: "#e03131", weight: 2, fillColor: "#e03131", fillOpacity: 0.12, interactive: false }).addTo(window.tfLeaflet); });
+          const n0 = await opens();
+          await tap3d();
+          await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+          const o = await ev((c) => { const x = window.__tm.opens[c]; return x ? { moto: (x.layers || {}).moto || null, fills: (JSON.parse(x.lines || "{}").features || []).filter((f) => f.properties.fa === 0.12 && f.properties.fc === "#e03131" && f.geometry.type === "MultiPolygon").length } : null; }, n0);
           if (!o) throw new Error("3D didn't open native 3D in Moto");
           if (!o.moto) throw new Error("native 3D opened with no Moto layer (no stops, no roads)");
           const d = JSON.parse(o.moto);

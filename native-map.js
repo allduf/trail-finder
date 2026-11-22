@@ -175,7 +175,7 @@
       // A filled area (Where you can't ride, hunting zones...) goes as a polygon with its fill (fc, fa): builds from
       // 2026-11-22 fill it as the flat map does (tf-fill); older ones draw its outline only, as before.
       const fa = l instanceof L.Polygon && o.fill !== false ? (o.fillOpacity == null ? 0.2 : +o.fillOpacity) : 0;
-      const stroke = !!o.stroke && o.opacity > 0;
+      const stroke = !!o.stroke && o.opacity > 0 && o.weight !== 0;   // weight 0: no outline (Moto's cell signal squares)
       if (!stroke && !(fa > 0)) return;
       let lls = l.getLatLngs();
       if (!lls.length) return;
@@ -184,7 +184,9 @@
       if (fa > 0) {
         // Leaflet: one ring [LatLng], one area [[LatLng]] (outer ring, then holes), or several [[[LatLng]]].
         const polys = !Array.isArray(lls[0]) ? [[lls]] : !Array.isArray(lls[0][0]) ? [lls] : lls;
-        const coords = polys.map((rings) => rings.map((r) => r.map(ll)).filter((r) => r.length > 2).map((r) => { r.push(r[0]); return r; })).filter((p) => p.length);
+        // An area whose outer ring is too short is left out whole (a hole must never become the filled part).
+        const coords = polys.filter((rings) => rings.length && rings[0].length > 2)
+          .map((rings) => rings.filter((r) => r.length > 2).map((r) => { const c = r.map(ll); c.push(c[0]); return c; }));
         if (!coords.length) return;
         if (d) dashes.add(d);
         lines.push({ type: "Feature", geometry: { type: "MultiPolygon", coordinates: coords }, properties: { ...base, fc: o.fillColor || o.color || "#3388ff", fa: Math.min(1, fa) } });

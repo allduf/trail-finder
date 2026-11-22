@@ -509,8 +509,9 @@ final class TrailMapScreen extends FrameLayout {
         for (NativeLayer f : NativeLayers.make()) out.add(f.key());
         return out;
     }
-    // The lowest trail layer: a feature drawn under the trails adds its layers below this one.
-    String trailsBottomLayer() { return "tf-line"; }
+    // The lowest trail layer: a feature drawn under the trails adds its layers below this one. The filled areas
+    // (tf-fill, added with tf-line) count: they stay over ground pictures and radar, as the flat map's areas do.
+    String trailsBottomLayer() { return "tf-fill"; }
     MapLibreMap mapLibre() { return map; }
     // Where a feature's own labels go: the screen inside the phone's bars (its children are laid out by gravity).
     FrameLayout mapArea() { return area; }
