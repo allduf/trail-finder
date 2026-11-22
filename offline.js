@@ -575,8 +575,14 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   // Escape (and Android's Back, native.js) closes the square to pick, then the card itself: Back on the card put the
   // Android app away (side-by-side test 2026-11-22).
   document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || (e.target.closest && e.target.closest("input, select, textarea"))) return;
-    if (!frame.hidden) sqMode(false); else if (!card.hidden) open(false);
+    if (e.key !== "Escape") return;
+    if (!frame.hidden) { sqMode(false); return; }
+    if (card.hidden || e.defaultPrevented || (e.target.closest && e.target.closest("input, select, textarea"))) return;
+    // Only when it's the top thing open: one Escape (one Back) closes one thing.
+    const lm = document.getElementById("layersMenu"), about = document.getElementById("about");
+    if (document.querySelector("dialog[open]") || (lm && !lm.hidden) || (about && !about.hidden) || document.querySelector(".detail-open")) return;
+    open(false);
+    e.preventDefault();
   });
   window.addEventListener("resize", () => { if (!frame.hidden) startSq(); });
   function setDrawn(b) {
