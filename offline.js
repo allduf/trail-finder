@@ -572,7 +572,12 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     setDrawn(b);
     saveArea(b, $("[data-name]").value.trim() || suggestName());
   });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !frame.hidden) sqMode(false); });
+  // Escape (and Android's Back, native.js) closes the square to pick, then the card itself: Back on the card put the
+  // Android app away (side-by-side test 2026-11-22).
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || (e.target.closest && e.target.closest("input, select, textarea"))) return;
+    if (!frame.hidden) sqMode(false); else if (!card.hidden) open(false);
+  });
   window.addEventListener("resize", () => { if (!frame.hidden) startSq(); });
   function setDrawn(b) {
     drawn = b;

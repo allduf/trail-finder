@@ -5661,12 +5661,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     whenStyle(gl, apply);
   }
   window.addEventListener("tf:map3d", syncHeat3d);
+  // The phone's native 3D map draws the same pictures (native-ground.js asks for them by tile), as the web 3D map does
+  // above (alex 2026-11-22: what works on the website must work on the phone too).
+  groundAdd("skiheat", { paint: (z, x, y) => (heat ? paintHeat(z, x, y) : null), on: () => sport === "ski" && shown.has("heat") && !!heat,
+    ver: () => String(heatVer), min: 7, max: 16, opacity: 0.85, z: 345, credit: "Ski heatmap: OpenStreetMap public GPS traces", keep: true });
+  let heatGround = false;
   function refreshHeat() {
     const want = sport === "ski" && shown.has("heat");
     if (want && !heat && !heatErr) loadHeat();
     if (want && heat) { if (!map.hasLayer(heatGrid)) heatGrid.addTo(map); else heatGrid.redraw(); }
     else if (map.hasLayer(heatGrid)) map.removeLayer(heatGrid);
     syncHeat3d();
+    const g = want && !!heat;
+    if (g !== heatGround || g) { heatGround = g; groundChanged(); }   // native 3D: on, off, or the traces just came in
   }
 
   // ---------- your ski tours (rides saved in Record ride, ride.html) ----------

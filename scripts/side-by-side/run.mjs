@@ -154,7 +154,9 @@ const phone = {
   crashed() {
     if (web) return "";
     if (PLATFORM === "ios") { const pid = tryp(`xcrun simctl spawn booted launchctl list | grep UIKitApplication:${APP}`).trim().split(/\s+/)[0]; return /^\d+$/.test(pid || "") ? "" : "the app isn't running"; }
-    if (!/ResumedActivity[^\n]*com\.allduf\.trailfinder/.test(tryp("adb shell dumpsys activity activities"))) return "the app went to the background";
+    // Asked twice, a second apart, filtered on the phone: the whole dump can come back cut or empty mid-transition.
+    const front = () => /com\.allduf\.trailfinder/.test(tryp("adb shell \"dumpsys activity activities | grep -E 'ResumedActivity|topResumedActivity'\""));
+    if (!front() && (execSync("sleep 1"), !front())) return "the app went to the background";
     const c = tryp("adb logcat -d -b crash").trim();
     return c && c !== phone._c ? ((phone._c = c), "APP CRASHED: " + (c.match(/(?:Exception|Error|signal)[^\n]*/) || [c.slice(-160)])[0].slice(0, 200)) : "";
   },
