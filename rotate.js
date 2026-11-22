@@ -441,6 +441,22 @@
     if (map.touchZoom && map.touchZoom.enabled()) L.DomUtil.addClass(map._container, "leaflet-touch-zoom");
     // iPhones also zoom the page on their own "gesture" events unless told no.
     ["gesturestart", "gesturechange"].forEach((t) => map._container.addEventListener(t, (e) => e.preventDefault()));
+    // A touch that stops the map still gliding after a swipe, or comes right after a pinch, is part of moving the map,
+    // not a tap on what's there: its click is dropped, so no spot or pin opens (alex 2026-11-22: "When you navigate on
+    // the map often the page pops up"). A drag's own click Leaflet already drops.
+    let stopTap = 0, pinchEnd = 0, most = 0;
+    map._container.addEventListener("touchstart", (e) => {
+      most = Math.max(most, e.touches.length);
+      stopTap = e.touches.length === 1 && ((map._panAnim && map._panAnim._inProgress) || map._animatingZoom || Date.now() - pinchEnd < 350) ? Date.now() : 0;
+    }, { capture: true, passive: true });
+    map._container.addEventListener("touchend", (e) => {
+      if (most > 1) pinchEnd = Date.now();
+      if (!e.touches.length) most = 0;
+    }, { capture: true, passive: true });
+    map._container.addEventListener("click", (e) => {
+      if (e.target.closest && e.target.closest(".leaflet-control")) return;   // the map's own buttons always work
+      if (stopTap && Date.now() - stopTap < 800) { stopTap = 0; e.stopImmediatePropagation(); e.preventDefault(); }
+    }, true);
     map.createPane = function (name, container) { return createPane.call(this, name, container || this._rotatePane); };
     mouseRotate(map);
     glTrack(map);
