@@ -4,7 +4,7 @@ name: Side by side
 # each go through the first open (terms, welcome, notifications prompt), sign-in, then every sport: every tab and card,
 # Layers, the 3D button (native 3D), recording, and a native offline copy; in English and in French.
 # scripts/side-by-side/run.mjs drives both phones the same way; pair.py puts the matching screenshots side by side and
-# lists what differs ("side-by-side-<lang>" artifact: differences.md, index.html, pairs/). Never fails: it reports.
+# lists what differs ("side-by-side" artifact, side-by-side-<lang> folders: differences.md, index.html, pairs/). Never fails: it reports.
 # Run it from Actions > Side by side > Run workflow (any branch).
 on:
   # A pull request that changes this test runs it, so a change to it is seen working before it's merged.

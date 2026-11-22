@@ -7,12 +7,12 @@
 // page (/__sbs.js) that runs what this script asks and answers (no DevTools needed, so both phones are driven the same
 // way). Screenshots come from the simulator itself (simctl / adb), so native screens (3D, system prompts) show too.
 // Every step writes a screenshot named by the step (the same name on both phones) and what the page showed then
-// (buttons, open cards, script errors, sideways scrolling) to out/<platform>-<lang>/steps.json. pair.mjs compares them.
+// (buttons, open cards, script errors, sideways scrolling) to out/<platform>-<lang>/steps.json. pair.py compares them.
 // Never fails: what it found is in the steps.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { writeFileSync, mkdirSync, appendFileSync } from "node:fs";
-import { join, extname, normalize } from "node:path";
+import { join, extname, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
@@ -20,7 +20,7 @@ import { execSync } from "node:child_process";
 const PLATFORM = ["ios", "web"].includes(process.env.PLATFORM) ? process.env.PLATFORM : "android";
 const LANG = process.env.TF_LANG === "fr" ? "fr" : "en";
 const APP = "com.allduf.trailfinder";
-const SPORTS = (process.env.SPORTS || "mtb,ski,hike,fish,hunt,moto").split(",");
+const SPORTS = (process.env.SPORTS || "mtb,ski,hike,fish,hunt,moto").split(",").map((x) => x.trim()).filter(Boolean);
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
 const OUT = join(process.cwd(), "out", `${PLATFORM}-${LANG}`);
 mkdirSync(join(OUT, "shots"), { recursive: true });
@@ -92,7 +92,8 @@ createServer(async (req, res) => {
   try { path = decodeURIComponent(u.pathname).replace(/^\/+/, "") || "index.html"; file = normalize(join(root, path)); }
   catch { res.writeHead(400).end(); return; }
   try {
-    if (!file.startsWith(root) || /^(\.git|\.github|scripts|supabase|ios-app|android-app|out)\//.test(path)) throw new Error("not served");
+    const rel = relative(root, file);
+    if (!file.startsWith(root) || /^(\.git|\.github|scripts|supabase|ios-app|android-app|out|node_modules)(\/|$)/.test(rel)) throw new Error("not served");
     let data = await readFile(file);
     if (extname(file) === ".html") data = Buffer.from(String(data).replace(/<head([^>]*)>/i, `<head$1><script src="/__sbs.js"></script>`));
     // The service worker would keep old copies between runs: not in this test.
@@ -104,7 +105,7 @@ createServer(async (req, res) => {
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   }
-}).listen(8080, "0.0.0.0");
+}).listen(8080, "127.0.0.1");   // the iPhone simulator and adb reverse both come in on the runner's own loopback
 const NETWORK = /Failed to fetch|NetworkError|network error|aborted|AbortError|ERR_|Load failed|status of [45]\d\d|AJAXError|Failed to load resource|tile|WebGL|GL_|Unrecognized feature|Access-Control|CORS|Error injecting safe area CSS|cancelled|The network connection was lost|could not connect/i;
 
 // What this script asks the page: an expression (a promise is waited for).
@@ -140,7 +141,8 @@ const phone = {
   back() { if (!ios) tryp("adb shell input keyevent KEYCODE_BACK"); },
   crashed() {
     if (web) return "";
-    if (ios) return /Running|\d+/.test(tryp(`xcrun simctl spawn booted launchctl list | grep UIKitApplication:${APP}`)) ? "" : "the app isn't running";
+    if (PLATFORM === "ios") { const pid = tryp(`xcrun simctl spawn booted launchctl list | grep UIKitApplication:${APP}`).trim().split(/\s+/)[0]; return /^\d+$/.test(pid || "") ? "" : "the app isn't running"; }
+    if (!/ResumedActivity[^\n]*com\.allduf\.trailfinder/.test(tryp("adb shell dumpsys activity activities"))) return "the app went to the background";
     const c = tryp("adb logcat -d -b crash").trim();
     return c && c !== phone._c ? ((phone._c = c), "APP CRASHED: " + (c.match(/(?:Exception|Error|signal)[^\n]*/) || [c.slice(-160)])[0].slice(0, 200)) : "";
   },
@@ -148,11 +150,12 @@ const phone = {
 
 // ---------- steps ----------
 const steps = [];
+const save = (extra = {}) => { try { writeFileSync(join(OUT, "steps.json"), JSON.stringify({ platform: PLATFORM, lang: LANG, steps, ...extra }, null, 1)); } catch {} };
 let sport = "start";
 const slug = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 // Bars and sheets over the map with their own close or Cancel button (Plan a route, a square to pick or save, ...).
 const CLOSERS = ".plan-x, #boxCancel, [data-sq-x], [aria-label=Close]:not(#lmClose), [aria-label=Fermer]:not(#lmClose)";
-// What the page shows now, the same way on both phones: so pair.mjs can list what differs.
+// What the page shows now, the same way on both phones: so pair.py can list what differs.
 const STATE = `(() => {
   const vis = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden" && !e.closest("[hidden]");
   const txt = (e) => (e.getAttribute("aria-label") || e.textContent || e.title || "").replace(/\\s+/g, " ").trim().slice(0, 50);
@@ -187,9 +190,10 @@ async function step(name, fn, settle = 1500) {
   await phone.shot(join(OUT, "shots", file));
   if (state && boxes.length > b0) state.boxes = boxes.slice(b0);
   steps.push({ key, name: `${NAMES[sport] || "Start"} › ${name}`, ok: !problems.length, problems, shot: file, state });
+  save();   // as it goes: a job stopped at its time limit still leaves what it saw
   console.log(`${problems.length ? "✗" : "✓"} ${key}${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
 }
-const click = (sel, i = 0) => js(`(() => { const b = document.querySelectorAll(${JSON.stringify(sel)})[${i}]; if (!b) return "not found: ${sel.replace(/"/g, "'")}"; b.scrollIntoView({ block: "center" }); b.click(); return ""; })()`);
+const click = (sel, i = 0) => js(`(() => { const b = document.querySelectorAll(${JSON.stringify(sel)})[${i}]; if (!b) return "not found: ${sel.replace(/"/g, "'")}"; b.scrollIntoView({ block: "center" }); b.click(); return ""; })()`).catch((e) => `couldn't tap ${sel}: ${e.message}`);
 // Close what's open, the way each phone does: Android's Back button; on the iPhone the page's own close button (a
 // person can't press Back there), else Escape, else the Map tab. Records when an iPhone card had no close button.
 const OPEN = `(() => { const vis = (e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden" && !e.closest("[hidden], dialog:not([open])");
@@ -218,7 +222,7 @@ async function closeAll(what) {
     const o = await jsq(OPEN, []);
     if (!o || !o.length) return;
     if (ios) { const r = await jsq(CLOSE_IOS, ""); if (r && /^no close/.test(r)) iosNoClose.push(`${what}: ${r}`); await sleep(900); }
-    else { phone.back(); await sleep(1100); }
+    else { phone.back(); await sleep(1100); if (phone.crashed()) { iosNoClose.push(`${what}: Android Back put the app in the background`); phone.launch(); await pageUp(); } }
   }
   // Still open: whatever it takes, so the next step starts clean.
   await jsq(`(() => { document.querySelectorAll("dialog[open]").forEach((d) => d.close()); const m = document.querySelector("#tabbar [data-nav=map]"); if (m) m.click(); })()`);
@@ -283,7 +287,7 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   // Sign-in box (no real sign-in: the person check and a real account are not for a test).
   await step("Sign-in box", async () => { const r = await jsq(`window.tfAccount && window.tfAccount.open ? (window.tfAccount.open(), "") : "no sign-in box (tfAccount.open)"`, "page didn't answer"); await sleep(1500); return r; });
   await step("Sign-in box: email typed", async () => {
-    const r = await jsq(`(() => { const i = [...document.querySelectorAll("dialog[open] input[type=email], dialog[open] input")].find((x) => x.offsetParent); if (!i) return "no email field"; i.focus(); i.value = "test@example.com"; i.dispatchEvent(new Event("input", { bubbles: true })); return ""; })()`, "page didn't answer");
+    const r = await jsq(`(() => { const i = [...document.querySelectorAll("dialog[open] input[type=email], dialog[open] input")].find((x) => x.offsetParent); if (!i) return "no email field"; i.focus(); i.value = "test" + String.fromCharCode(64) + "example.com"; i.dispatchEvent(new Event("input", { bubbles: true })); return ""; })()`, "page didn't answer");
     return r;
   });
   await closeAll("sign-in");
@@ -352,7 +356,7 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
       if (await agree()) { await sleep(1500); if (!(await jsq(`window.tfNative && window.tfNative.isOpen()`, false)) && !(await jsq(`!!document.querySelector("#map.is3d")`, false))) await tap("#btn3d"); }
       await sleep(12000);
       const s = await jsq(`({ n: !!(window.tfNative && window.tfNative.isOpen()), w: !!document.querySelector("#map.is3d") })`, {});
-      if (ios && s.w) return "the web 3D map opened on the iPhone";
+      if (PLATFORM === "ios" && s.w) return "the web 3D map opened on the iPhone";
       return s.n ? "" : s.w ? "web 3D opened (not native 3D)" : "3D didn't open";
     }, 1500);
     await step("3D turned and tilted", async () => {
@@ -397,6 +401,8 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   await step("Offline copy of a small area (native)", async () => {
     const draws = await jsq(`window.tfNative && window.tfNative.has ? window.tfNative.has("offline") : "no tfNative"`, "page didn't answer");
     if (draws !== true) return `this build doesn't save native offline copies (${draws})`;
+    // native-offline.js sends the saved areas (none here) 30 s after a page load: past that first, so it can't drop this one.
+    await sleep(35000);
     await jsq(`window.__off = null; (() => { const T = Capacitor.Plugins.TrailMap; T.addListener("offlinePacks", (r) => { window.__off = r; }); })()`);
     await jsq(`Capacitor.Plugins.TrailMap.offline({ areas: [{ id: "sbs", box: [50.10, -122.97, 50.12, -122.94], ski: false, sharp: false }] }).then((r) => JSON.stringify(r))`);
     let last = "";
@@ -407,10 +413,10 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   await step("Offline maps card", async () => { await click("#tabbar [data-nav=saved]"); await sleep(1000); const r = await jsq(`(() => { const b = [...document.querySelectorAll("#hub [data-hub]")].find((x) => /offline|hors ligne/i.test(x.textContent)); if (!b) return "no Offline maps in Saved"; b.click(); return ""; })()`, "page didn't answer"); return r; }, 2000);
   await closeAll("offline");
 
-  if (iosNoClose.length) steps.push({ key: "all/ios-no-close-button", name: "iPhone cards with no close button", ok: false, problems: [...new Set(iosNoClose)], shot: "", state: null });
+  if (iosNoClose.length) steps.push({ key: "all/close-problems", name: "Cards that would not close (iPhone: no close button; Android: Back left the app)", ok: false, problems: [...new Set(iosNoClose)], shot: "", state: null });
   writeFileSync(join(OUT, "steps.json"), JSON.stringify({ platform: PLATFORM, lang: LANG, steps }, null, 1));
   const bad = steps.filter((s) => !s.ok);
-  const md = `## ${ios ? "iPhone" : "Android"} (${LANG}): ${bad.length} problem(s) in ${steps.length} steps\n\n` + bad.map((s) => `- ${s.name}: ${s.problems.join(" · ")}`).join("\n") + "\n";
+  const md = `## ${{ ios: "iPhone", android: "Android", web: "Browser" }[PLATFORM]} (${LANG}): ${bad.length} problem(s) in ${steps.length} steps\n\n` + bad.map((s) => `- ${s.name}: ${s.problems.join(" · ")}`).join("\n") + "\n";
   writeFileSync(join(OUT, "summary.md"), md);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
   console.log(md);
