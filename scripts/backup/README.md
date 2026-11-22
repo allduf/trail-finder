@@ -13,6 +13,9 @@ usage) and every stored photo, and keeps it 30 days in a private Cloudflare R2 b
   ids or contents.
 - **30 days.** Older copies are deleted each night, and an R2 rule (set-up step 1.4) deletes them after 30 days even if the job
   stops running. The privacy page says 30 days: change `KEEP_DAYS`, the R2 rule and the privacy page together.
+- **Never past the free 10 GB without asking.** Before each upload the job adds up the bucket. If it would go over
+  `MAX_GB` (8 GB), it saves nothing and fails, so GitHub emails alex, who decides (alex 2026-11-21). Also set a
+  Cloudflare email alert: Notifications, Add, Usage Based Billing, R2 storage, 8 GB.
 - **Checked every night.** After encrypting, the job opens the file again, checks a checksum of every file inside,
   uploads it, and reads it back from R2 to make sure the copy there is the same.
 - **Tested.** `bash scripts/backup/test/run.sh` builds a throwaway database from `supabase/*.sql` with made-up

@@ -23,6 +23,7 @@ concurrency:
 
 env:
   R2_BUCKET: trailfinder-backups
+  MAX_GB: 8   # stop before R2's free 10 GB (see the upload step)
   R2_ENDPOINT: https://9ad76bdf11abb4440ad064451cf06d9a.r2.cloudflarestorage.com   # same Cloudflare account as pages.yml
   KEEP_DAYS: "30"   # the privacy page says 30 days: change both together
   AWS_DEFAULT_REGION: auto
@@ -85,7 +86,7 @@ jobs:
         run: |
           file="$(bash scripts/backup/backup.sh | tail -1)"
           echo "file=$file" >> "$GITHUB_OUTPUT"
-      - name: Upload to the private R2 bucket, read it back, delete copies older than 30 days
+      - name: Delete copies older than 30 days, check the free 10 GB, upload to the private R2 bucket, read it back
         if: steps.secrets.outputs.ready == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -95,10 +96,6 @@ jobs:
           set -euo pipefail
           s3() { aws s3 "$@" --endpoint-url "$R2_ENDPOINT" --only-show-errors; }
           name="$(basename "$FILE")"
-          s3 cp "$FILE" "s3://$R2_BUCKET/nightly/$name"
-          s3 cp "s3://$R2_BUCKET/nightly/$name" "$RUNNER_TEMP/readback.gpg"
-          cmp -s "$FILE" "$RUNNER_TEMP/readback.gpg" || { echo "::error::The copy in R2 does not match."; exit 1; }
-          echo "Saved and read back from R2."
           cutoff="$(date -u -d "-$KEEP_DAYS days" +%F)"
           all="$(aws s3 ls "s3://$R2_BUCKET/nightly/" --endpoint-url "$R2_ENDPOINT" | awk '{print $4}' | grep -E '^tf-backup-[0-9-]{10}\.tgz\.gpg$' || true)"
           kept="$(echo "$all" | grep -c . || true)"
@@ -107,4 +104,19 @@ jobs:
             if [[ "$d" < "$cutoff" ]]; then s3 rm "s3://$R2_BUCKET/nightly/$n"; kept=$((kept-1)); fi
           done
           echo "Copies older than $KEEP_DAYS days deleted; $kept nightly copies kept."
+          # Never past R2's free 10 GB without alex deciding (alex 2026-11-21: "ask me before paying anything"):
+          # over MAX_GB the job stops before uploading and fails, so GitHub emails alex. Tonight's copy replaces one
+          # of the same date, so that one isn't counted twice. An empty box lists nothing and aws exits 1; any other error stops the job.
+          list="$(aws s3 ls "s3://$R2_BUCKET/" --recursive --endpoint-url "$R2_ENDPOINT")" || { rc=$?; [ "$rc" -eq 1 ] || exit "$rc"; list=""; }
+          used="$(printf '%s\n' "$list" | awk -v skip="nightly/$name" '$4 != skip { t += $3 } END { print t + 0 }')"
+          size="$(stat -c %s "$FILE")"
+          if (( used + size > MAX_GB * 1024 * 1024 * 1024 )); then
+            echo "::error::The backup box would go over $MAX_GB GB (R2 is free up to 10 GB), so tonight's copy was not saved. Nothing was charged. Decide: keep fewer days (KEEP_DAYS) or allow more (MAX_GB)."
+            exit 1
+          fi
+          echo "Room checked: $(( (used + size) / 1024 / 1024 )) MB of $MAX_GB GB."
+          s3 cp "$FILE" "s3://$R2_BUCKET/nightly/$name"
+          s3 cp "s3://$R2_BUCKET/nightly/$name" "$RUNNER_TEMP/readback.gpg"
+          cmp -s "$FILE" "$RUNNER_TEMP/readback.gpg" || { echo "::error::The copy in R2 does not match."; exit 1; }
+          echo "Saved and read back from R2."
           rm -f "$FILE" "$RUNNER_TEMP/readback.gpg"
