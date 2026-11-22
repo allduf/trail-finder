@@ -2,6 +2,7 @@ import CoreLocation
 import Foundation
 import MapLibre
 import UIKit
+import UIKit.UIGestureRecognizerSubclass
 
 // Two-finger measure in native 3D (alex 2026-11-21, "small extras"): hold two fingers still on the map for a moment
 // and a line joins them, with the straight-line distance between the two spots of ground under them. Slide the fingers
@@ -44,10 +45,12 @@ final class NativeFingers: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         label.clipsToBounds = true
         overlay.addSubview(label)
         m.addSubview(overlay)
-        let g = UILongPressGestureRecognizer(target: self, action: #selector(pressed(_:)))
+        let g = TwoFingerHold(target: self, action: #selector(pressed(_:)))
         g.numberOfTouchesRequired = 2
-        g.minimumPressDuration = 0.45
-        g.allowableMovement = 12      // fingers that move are a pinch, a twist or a tilt: the map's own
+        // It showed while moving the map (alex 2026-11-22: "it appears when I don't really want to see it"): both
+        // fingers must come down together (a second finger added to a pan never counts) and stay still most of a second.
+        g.minimumPressDuration = 0.9
+        g.allowableMovement = 8       // fingers that move are a pinch, a twist or a tilt: the map's own
         g.delegate = self
         g.cancelsTouchesInView = false   // the map's own gestures end normally; they're switched off while measuring
         g.delaysTouchesEnded = false
@@ -62,6 +65,7 @@ final class NativeFingers: NSObject, NativeLayer, UIGestureRecognizerDelegate {
 
     // Held next to the map's own gestures: it only starts when the fingers stay still, and then the map holds still.
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+    func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool { (g as? TwoFingerHold)?.together ?? true }
 
     @objc private func pressed(_ g: UILongPressGestureRecognizer) {
         guard let m = map else { return }
@@ -132,4 +136,22 @@ final class NativeFingers: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         }
         return String(format: m < 10000 ? "%.2f km" : "%.1f km", m / 1000)
     }
+}
+
+// A two-finger hold that knows whether both fingers came down together (within 0.25 s).
+private final class TwoFingerHold: UILongPressGestureRecognizer {
+    private var down = 0
+    private var firstAt: TimeInterval = 0
+    private(set) var together = false
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        for t in touches {
+            if down == 0 { firstAt = t.timestamp; together = false }
+            else if down == 1 { together = t.timestamp - firstAt <= 0.25 }
+            down += 1
+        }
+        super.touchesBegan(touches, with: event)
+    }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { down = max(0, down - touches.count); super.touchesEnded(touches, with: event) }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) { down = max(0, down - touches.count); super.touchesCancelled(touches, with: event) }
+    override func reset() { super.reset(); down = 0; together = false }
 }

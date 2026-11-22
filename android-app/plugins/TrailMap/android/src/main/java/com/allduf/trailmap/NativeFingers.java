@@ -28,7 +28,10 @@ import org.maplibre.android.maps.UiSettings;
 // held, nothing is sent back, and nothing changes the map's own data. The map keeps getting every touch (its gestures
 // are only switched off while measuring).
 final class NativeFingers implements NativeLayer, TrailMapScreen.TouchWatcher {
-    private static final long HOLD_MS = 550;    // past MapLibre's own two-finger tap, as the iPhone and the web
+    // It showed while moving the map (alex 2026-11-22: "it appears when I don't really want to see it"): both fingers
+    // must come down together (a second finger added to a pan never counts) and stay still most of a second.
+    private static final long HOLD_MS = 900, TOGETHER_MS = 250;
+    private long firstAt = 0;
     private TrailMapScreen screen;
     private Drawing drawing;
     private String line = "straight line";
@@ -71,14 +74,15 @@ final class NativeFingers implements NativeLayer, TrailMapScreen.TouchWatcher {
             if (act == MotionEvent.ACTION_POINTER_UP || act == MotionEvent.ACTION_UP || act == MotionEvent.ACTION_CANCEL) end();
             return;
         }
-        if (act == MotionEvent.ACTION_POINTER_DOWN && e.getPointerCount() == 2) {
+        if (act == MotionEvent.ACTION_DOWN) firstAt = e.getEventTime();
+        if (act == MotionEvent.ACTION_POINTER_DOWN && e.getPointerCount() == 2 && e.getEventTime() - firstAt <= TOGETHER_MS) {
             a0 = new PointF(e.getX(0), e.getY(0));
             b0 = new PointF(e.getX(1), e.getY(1));
             main.removeCallbacks(start);
             main.postDelayed(start, HOLD_MS);
         } else if (act == MotionEvent.ACTION_MOVE && a0 != null && e.getPointerCount() >= 2) {
             // Fingers that move are a pinch, a twist or a tilt: the map's own.
-            float tol = screen.dp(12);
+            float tol = screen.dp(8);
             if (Math.hypot(e.getX(0) - a0.x, e.getY(0) - a0.y) > tol || Math.hypot(e.getX(1) - b0.x, e.getY(1) - b0.y) > tol) cancel();
         } else if (act != MotionEvent.ACTION_MOVE && act != MotionEvent.ACTION_DOWN) {
             cancel();
