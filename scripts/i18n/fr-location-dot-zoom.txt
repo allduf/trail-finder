@@ -1,0 +1,1 @@
+Your blue location dot stays on your spot and keeps its size while you zoom in and out. ||| Votre point bleu de position reste à votre endroit et garde sa taille quand vous zoomez.
