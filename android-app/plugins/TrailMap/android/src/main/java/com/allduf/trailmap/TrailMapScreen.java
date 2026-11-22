@@ -528,6 +528,9 @@ final class TrailMapScreen extends FrameLayout {
         cardSub.setVisibility(sub == null || sub.isEmpty() ? GONE : VISIBLE);
         cardSwatch.setBackground(round(colour(colour, Color.GRAY), 4));
         card.setVisibility(VISIBLE);
+        // Under the page, a tapped webcam, pin or stop opens its page right away, with no small card first (alex
+        // 2026-11-22: "Just open the page"). One with no details keeps its card.
+        if (under && details) leave(true, false, null);
     }
     // A feature's own button, top right across from Back; added once, kept across style changes.
     void addToolButton(String title, Runnable handler) {

@@ -829,6 +829,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         cardSub.isHidden = (sub ?? "").isEmpty
         cardSwatch.backgroundColor = TrailMapScreen.color(colour) ?? .gray
         card.isHidden = false
+        // Under the page, a tapped webcam, pin or stop opens its page right away, with no small card first (alex
+        // 2026-11-22: "We dont need to have that step... Just open the page"). One with no details keeps its card.
+        if under && details { leave(details: true) }
     }
     // A feature's own button, top right across from Back (3D only; the weather captions sit under Back); added once, kept across style changes.
     func addToolButton(_ title: String, handler: @escaping () -> Void) {
