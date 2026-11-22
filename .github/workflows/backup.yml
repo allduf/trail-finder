@@ -106,8 +106,9 @@ jobs:
           echo "Copies older than $KEEP_DAYS days deleted; $kept nightly copies kept."
           # Never past R2's free 10 GB without alex deciding (alex 2026-11-21: "ask me before paying anything"):
           # over MAX_GB the job stops before uploading and fails, so GitHub emails alex. Tonight's copy replaces one
-          # of the same date, so that one isn't counted twice. An empty box lists nothing (and aws then exits 1).
-          used="$({ aws s3 ls "s3://$R2_BUCKET/" --recursive --endpoint-url "$R2_ENDPOINT" || true; } | awk -v skip="nightly/$name" '$4 != skip { t += $3 } END { print t + 0 }')"
+          # of the same date, so that one isn't counted twice. An empty box lists nothing and aws exits 1; any other error stops the job.
+          list="$(aws s3 ls "s3://$R2_BUCKET/" --recursive --endpoint-url "$R2_ENDPOINT")" || { rc=$?; [ "$rc" -eq 1 ] || exit "$rc"; list=""; }
+          used="$(printf '%s\n' "$list" | awk -v skip="nightly/$name" '$4 != skip { t += $3 } END { print t + 0 }')"
           size="$(stat -c %s "$FILE")"
           if (( used + size > MAX_GB * 1024 * 1024 * 1024 )); then
             echo "::error::The backup box would go over $MAX_GB GB (R2 is free up to 10 GB), so tonight's copy was not saved. Nothing was charged. Decide: keep fewer days (KEEP_DAYS) or allow more (MAX_GB)."
