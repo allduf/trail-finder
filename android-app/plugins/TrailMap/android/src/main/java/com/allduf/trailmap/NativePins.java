@@ -1,6 +1,11 @@
 package com.allduf.trailmap;
 
+import static org.maplibre.android.style.expressions.Expression.coalesce;
+import static org.maplibre.android.style.expressions.Expression.eq;
 import static org.maplibre.android.style.expressions.Expression.get;
+import static org.maplibre.android.style.expressions.Expression.neq;
+import static org.maplibre.android.style.expressions.Expression.toColor;
+import static org.maplibre.android.style.expressions.Expression.toNumber;
 import static org.maplibre.android.style.expressions.Expression.literal;
 import static org.maplibre.android.style.expressions.Expression.step;
 import static org.maplibre.android.style.expressions.Expression.stop;
@@ -37,17 +42,21 @@ import org.maplibre.geojson.Point;
 // s (what it is, the card's second line), k (which picture: cam, hut, park, saved, search, ski, pin), c (its colour),
 // r (minus how much it matters: a bigger one keeps its place when pins would overlap), nd: 1 for no Details, img (the
 // picture's name, "tfpin:kind:#rrggbb").
+// Since 2026-11-22 (alex: "What are those point?", every pin looked the same here) a pin can carry its own picture, drawn
+// by the page from its flat map pin (pk: its name, pic: the picture as base64 PNG at 2x, on the first pin with it), and a
+// riding area's name (words on the flat map, no pin) comes as t: 1, drawn as words only (lb: the words, tc: colour, ts:
+// size). A picture that can't be read here shows the app's own square for that pin instead. As the iPhone.
 // A tap shows the usual card with Details: that goes back to the page and opens the pin's own card there. The pictures
 // are the page's line icons (line-icons.js) in white on a rounded square of the pin's colour, as on the iPhone.
 final class NativePins implements NativeLayer {
-    private static final String SOURCE = "tf-pins", LAYER = "tf-pins";
+    private static final String SOURCE = "tf-pins", LAYER = "tf-pins", NAMES = "tf-pin-names";
     private static final int INK = Color.rgb(20, 33, 26);
     private String data = "{\"type\":\"FeatureCollection\",\"features\":[]}";
     private final Set<String> made = new HashSet<>();   // pictures already on the current style
     private TrailMapScreen screen;
 
     @Override public String key() { return "pins"; }
-    @Override public List<String> tapLayers() { return Collections.singletonList(LAYER); }
+    @Override public List<String> tapLayers() { return java.util.Arrays.asList(LAYER, NAMES); }
 
     @Override
     public void added(Style style, TrailMapScreen screen) {
@@ -56,7 +65,7 @@ final class NativePins implements NativeLayer {
         style.addSource(new GeoJsonSource(SOURCE, data));
         addPictures(style);
         SymbolLayer l = new SymbolLayer(LAYER, SOURCE).withProperties(
-            PropertyFactory.iconImage(get("img")),
+            PropertyFactory.iconImage(coalesce(get("pk"), get("img"))),
             PropertyFactory.iconAllowOverlap(false),
             PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
             PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_VIEWPORT),
@@ -73,7 +82,21 @@ final class NativePins implements NativeLayer {
             PropertyFactory.textMaxWidth(9f),
             // Names from zoom 13 (the flat map's 14), like the trail names; pins at every zoom the page shows them.
             PropertyFactory.textOpacity(step(zoom(), literal(0), stop(13, 1))));
+        l.setFilter(neq(coalesce(get("t"), literal(0)), literal(1)));
         style.addLayer(l);   // over the trails and names: pins sit on top, as on the web 3D map
+        // Names with no pin (riding areas): words in their own colour and size, as on the flat map.
+        SymbolLayer w = new SymbolLayer(NAMES, SOURCE).withProperties(
+            PropertyFactory.textField(get("lb")),
+            PropertyFactory.textFont(new String[] { "Noto Sans Bold" }),
+            PropertyFactory.textSize(toNumber(coalesce(get("ts"), literal(12)))),
+            PropertyFactory.textColor(toColor(coalesce(get("tc"), literal("#1f4a33")))),
+            PropertyFactory.textHaloColor(Color.WHITE),
+            PropertyFactory.textHaloWidth(1.8f),
+            PropertyFactory.textLetterSpacing(0.04f),
+            PropertyFactory.textPitchAlignment(Property.TEXT_PITCH_ALIGNMENT_VIEWPORT),
+            PropertyFactory.symbolSortKey(get("r")));
+        w.setFilter(eq(coalesce(get("t"), literal(0)), literal(1)));
+        style.addLayer(w);
     }
 
     @Override
@@ -105,6 +128,25 @@ final class NativePins implements NativeLayer {
         if (feats == null || screen == null) return;
         for (int n = 0; n < feats.length(); n++) {
             JSONObject p = feats.optJSONObject(n) == null ? null : feats.optJSONObject(n).optJSONObject("properties");
+            // The pin's own picture from the page.
+            String pk = p == null ? "" : p.optString("pk", ""), pic = p == null ? "" : p.optString("pic", "");
+            if (!pk.isEmpty() && !made.contains(pk)) {
+                String own = p.optString("img", "");
+                String[] op = own.split(":", 3);
+                // Not here yet, or unreadable: the app's own square until it comes.
+                if (style.getImage(pk) == null && op.length == 3) style.addImage(pk, picture(screen.getResources(), op[1], op[2]));
+                if (!pic.isEmpty()) try {
+                    byte[] raw = android.util.Base64.decode(pic, android.util.Base64.DEFAULT);
+                    Bitmap bm = android.graphics.BitmapFactory.decodeByteArray(raw, 0, raw.length);
+                    if (bm != null) {
+                        // Drawn at 2x: sized for this screen.
+                        float k = screen.getResources().getDisplayMetrics().density / 2f;
+                        if (Math.abs(k - 1) > 0.05f) bm = Bitmap.createScaledBitmap(bm, Math.max(1, Math.round(bm.getWidth() * k)), Math.max(1, Math.round(bm.getHeight() * k)), true);
+                        style.addImage(pk, bm);
+                        made.add(pk);
+                    }
+                } catch (Exception ignored) {}
+            }
             String img = p == null ? "" : p.optString("img", "");
             if (img.isEmpty() || made.contains(img)) continue;
             made.add(img);

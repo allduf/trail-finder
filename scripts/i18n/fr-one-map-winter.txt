@@ -1,0 +1,1 @@
+Phone app, Skiing on the Winter map (trial): 2D is the 3D map seen from above, so going to 3D just tips it up smoothly. ||| App mobile, ski sur la carte Hiver (essai) : la 2D est la carte 3D vue du dessus, alors passer en 3D l'incline simplement en douceur.

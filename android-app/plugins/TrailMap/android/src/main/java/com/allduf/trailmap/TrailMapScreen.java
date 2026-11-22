@@ -431,6 +431,15 @@ final class TrailMapScreen extends FrameLayout {
     }
     // A feature that sets the camera itself first (a Flyover): no tilt in after it.
     void noTiltIn() { tilted = true; }
+    // Tips the map to this pitch in place (the one map's 3D and 2D, applyUnder "tilt"): a full tilt in 1.2 s, part of one less.
+    void pitchTo(double to) {
+        if (!threeD || left || map == null) return;
+        tilted = true;
+        double from = map.getCameraPosition().tilt;
+        int ms = (int) Math.max(350, 1200 * Math.abs(to - from) / TILT);
+        if (Math.abs(to - from) < 0.5) { events.send("moved", camera()); return; }
+        map.animateCamera(CameraUpdateFactory.tiltTo(to), ms);
+    }
     // The first frame of the same spot as the page's flat map, in the loaded style (open() then shows this screen).
     Runnable onReady;
 
@@ -542,6 +551,7 @@ final class TrailMapScreen extends FrameLayout {
         cardSub.setVisibility(sub == null || sub.isEmpty() ? GONE : VISIBLE);
         cardSwatch.setBackground(round(colour(colour, Color.GRAY), 4));
         card.setVisibility(VISIBLE);
+        cardSaid(true);
         // Under the page, a tapped webcam, pin or stop opens its page right away, with no small card first (alex
         // 2026-11-22: "Just open the page"). One with no details keeps its card.
         if (under && details) leave(true, false, null);
@@ -632,13 +642,24 @@ final class TrailMapScreen extends FrameLayout {
         pickedFeature = null;
         cardSub.setVisibility(GONE);
         cardDetails.setVisibility(VISIBLE);
-        if (f == null) { picked = -1; card.setVisibility(GONE); return; }
+        if (f == null) { picked = -1; card.setVisibility(GONE); cardSaid(false); return; }
         picked = num(f, "i");
         String name = str(f, "n");
         cardName.setText(name.isEmpty() ? "Unnamed trail" : name);
         String c = f.geometry() instanceof Point ? str(f, "f") : str(f, "c");
         cardSwatch.setBackground(round(colour(c, Color.GRAY), 4));
         card.setVisibility(VISIBLE);
+        cardSaid(true);
+    }
+    // Under the page: whether this map's own card shows ("card" { up }), so the page's Back closes it first on the one map,
+    // where Back otherwise goes on as on the flat map (native-map.js backOut).
+    private boolean cardWas = false;
+    private void cardSaid(boolean up) {
+        if (!under || up == cardWas) return;
+        cardWas = up;
+        JSObject e = new JSObject();
+        e.put("up", up);
+        send("card", e);
     }
     void hideCard() { showCard(null); }
     boolean cardShown() { return card.getVisibility() == VISIBLE; }
@@ -785,6 +806,20 @@ final class TrailMapScreen extends FrameLayout {
                 if (t != uiTop || b != uiBottom) { uiTop = t; uiBottom = b; padArea(); }
             }
             org.json.JSONObject cam = o.optJSONObject("cam");
+            // The page's 3D / 2D button on the one map: tips this map up into 3D or down to straight above, at the spot
+            // asked (cam) when there is one (a tour shown in 3D), in one move.
+            if (o.has("tilt") && map != null && !left) {
+                double to = o.optBoolean("tilt") ? TILT : 0;
+                if (cam == null) { pitchTo(to); }
+                else {
+                    stopFollowingMe();
+                    tilted = true;
+                    CameraPosition.Builder c = new CameraPosition.Builder(map.getCameraPosition())
+                        .target(new LatLng(cam.getDouble("lat"), cam.getDouble("lon"))).zoom(cam.getDouble("zoom")).tilt(to);
+                    map.animateCamera(CameraUpdateFactory.newCameraPosition(c.build()), 1200);
+                }
+                cam = null;
+            }
             if (cam != null && map != null && !left) {
                 stopFollowingMe();
                 CameraPosition now = map.getCameraPosition();
@@ -793,7 +828,7 @@ final class TrailMapScreen extends FrameLayout {
                 if (cam.has("bearing")) c.bearing(cam.getDouble("bearing"));
                 map.animateCamera(CameraUpdateFactory.newCameraPosition(c.build()), 600);
             }
-            if (o.optBoolean("me") && map != null && !left) locate();   // the page's My location: follow you
+            if (o.optBoolean("me") && map != null && !left) locate();   // the page's My location: follow you   // the page's My location: follow you
             if (o.optBoolean("back") && !left) { if (cardShown()) hideCard(); else leave(false, false, null); }   // Back
         } catch (Exception ignored) {}
     }
@@ -816,6 +851,7 @@ final class TrailMapScreen extends FrameLayout {
         o.put("lat", c.target != null ? c.target.getLatitude() : start.getLatitude());
         o.put("lon", c.target != null ? c.target.getLongitude() : start.getLongitude());
         o.put("zoom", c.zoom);
+        o.put("pitch", c.tilt);
         o.put("bearing", c.bearing);
         return o;
     }
