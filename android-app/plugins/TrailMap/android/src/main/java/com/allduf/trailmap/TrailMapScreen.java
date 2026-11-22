@@ -3,6 +3,7 @@ package com.allduf.trailmap;
 import static org.maplibre.android.style.expressions.Expression.all;
 import static org.maplibre.android.style.expressions.Expression.eq;
 import static org.maplibre.android.style.expressions.Expression.get;
+import static org.maplibre.android.style.expressions.Expression.gt;
 import static org.maplibre.android.style.expressions.Expression.has;
 import static org.maplibre.android.style.expressions.Expression.interpolate;
 import static org.maplibre.android.style.expressions.Expression.linear;
@@ -56,6 +57,7 @@ import org.maplibre.android.maps.MapView;
 import org.maplibre.android.maps.Style;
 import org.maplibre.android.maps.TerrainLoadMode;
 import org.maplibre.android.style.layers.CircleLayer;
+import org.maplibre.android.style.layers.FillLayer;
 import org.maplibre.android.style.layers.Layer;
 import org.maplibre.android.style.layers.LineLayer;
 import org.maplibre.android.style.layers.Property;
@@ -387,6 +389,11 @@ final class TrailMapScreen extends FrameLayout {
         style.addSource(new GeoJsonSource("tf-dots", dots));
         // The ground is draped over the heights (a little taller than life, like the web 3D map).
         if (threeD && style.getSource("dem") != null) style.setTerrain(new Terrain("dem", 1.15f));
+        // Filled areas (native-map.js: polygons with fc, fa), see-through as on the flat map, under every trail line.
+        put(style, new FillLayer("tf-fill", "tf-lines").withFilter(all(has("fa"), gt(get("fa"), literal(0)))).withProperties(
+            PropertyFactory.fillColor(toColor(get("fc"))),
+            PropertyFactory.fillOpacity(get("fa")),
+            PropertyFactory.fillAntialias(false)));
         put(style, line("tf-line", ""));
         CircleLayer dot = new CircleLayer("tf-dots", "tf-dots").withProperties(
             PropertyFactory.circleRadius(get("r")),

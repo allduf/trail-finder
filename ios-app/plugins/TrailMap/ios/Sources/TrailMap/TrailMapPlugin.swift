@@ -671,6 +671,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         // In 3D the trails go just under the place names (NativeBaseStyles.swift), so names stay readable over them.
         let names = style.layer(withIdentifier: TrailMapScreen.firstNameLayer)
         let put = { (l: MLNStyleLayer) in if let n = names { style.insertLayer(l, below: n) } else { style.addLayer(l) } }
+        // Filled areas (native-map.js: polygons with fc, fa), see-through as on the flat map, under every trail line.
+        let fill = MLNFillStyleLayer(identifier: "tf-fill", source: lines)
+        fill.predicate = NSPredicate(format: "fa != nil AND fa > 0")
+        fill.fillColor = NSExpression(forKeyPath: "fc")
+        fill.fillOpacity = NSExpression(forKeyPath: "fa")
+        fill.fillAntialiased = NSExpression(forConstantValue: false)
+        put(fill)
         put(lineLayer(id: "tf-line", source: lines, dash: ""))
         let dot = MLNCircleStyleLayer(identifier: "tf-dots", source: dots)
         dot.circleRadius = NSExpression(forKeyPath: "r")
