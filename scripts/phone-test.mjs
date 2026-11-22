@@ -527,6 +527,7 @@ async function appBuild(kind) {
         if (!(await isUnder())) throw new Error("the one map didn't open under the page after the reload");
         await tap3d(); await wait(400);
         if ((await lastTilt()) !== true) throw new Error("3D didn't tip the native map after the reload");
+        await tap3d(); await wait(400);   // back to the map seen from above: another sport then brings back the flat map
       });
       // Adventure moto's stops and roads reach native 3D (native-moto.js asks moto.js's tfMoto.native3d). They sat in the
       // wrong object for two days and the native map drew no gas, camps or hot springs (alex 2026-11-22: "Moto mode
