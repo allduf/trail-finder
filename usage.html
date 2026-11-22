@@ -789,7 +789,10 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
   // "Web · Chrome on Linux" at the test window sizes (17 to 19 Nov, about 50 devices, one visit of a few seconds each),
   // web previews at 600x800 that never tap anything, and the "console check" line.
   const TEST_SIZES = new Set(["430x932", "390x844", "393x852", "860x1280", "800x1400", "900x1400", "900x1280"]);
-  const isTestRun = (r) => /^Web · console check/.test(r.os || "") || (String(r.at) < "2026-11-20"
+  // And the side-by-side check's iPhone simulator (iOS 18.5 · iPhone17,2 at 440x956, a new device every run) from 22 Nov
+  // 2026 until usage.js skipped its localhost page: each run's restart read as an MTB "flat map" crash.
+  const isTestRun = (r) => /^Web · console check/.test(r.os || "") || (r.os === "iOS 18.5 · iPhone17,2" && r.screen === "440x956" && String(r.at) >= "2026-11-22" && String(r.at) < "2026-11-26")
+    || (String(r.at) < "2026-11-20"
     && ((/^Web · Chrome on Linux$/.test(r.os || "") && TEST_SIZES.has(r.screen)) || (/^Web · /.test(r.os || "") && r.screen === "600x800")));
   let showReview = false;
   const reviewDevices = () => new Set(rows.filter((r) => /sdk_gphone|emulator/i.test(r.os || "") || r.screen === "435x725" || isTestRun(r)).map((r) => r.device));
@@ -1070,7 +1073,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     const blankN = [...blank].filter((dev) => view === "all" || (view === "me") === meSet.has(dev)).length;
     const blankLine = blankN ? `<p class="muted" id="blankLine">${showBlank ? `Showing ${blankN} blank open${blankN === 1 ? "" : "s"} (one visit under a minute, nothing tapped).` : `${blankN} blank open${blankN === 1 ? "" : "s"} hidden: phones that opened the app once for under a minute and tapped nothing, mostly on days a new TestFlight build went out (likely Apple checking the build).`} <button type="button" class="btn" id="blankBtn">${showBlank ? "Hide them" : "Show them"}</button></p>` : "";
     const reviewN = [...review].filter((dev) => view === "all" || (view === "me") === meSet.has(dev)).length;
-    const reviewText = reviewN ? `${showReview ? `Showing ${reviewN} test and review device${reviewN === 1 ? "" : "s"}.` : `${reviewN} test and review device${reviewN === 1 ? "" : "s"} hidden: the Android emulator of the phone check, Google Play's review phones (screen 435x725, an old Android web viewer) and Trail Finder's own screenshot runs on the website, whose crashes, errors and slow loads aren't real people's.`} <button type="button" class="btn" data-review>${showReview ? "Hide them" : "Show them"}</button>` : "";
+    const reviewText = reviewN ? `${showReview ? `Showing ${reviewN} test and review device${reviewN === 1 ? "" : "s"}.` : `${reviewN} test and review device${reviewN === 1 ? "" : "s"} hidden: the Android emulator of the phone check, the iPhone simulator of the side-by-side check, Google Play's review phones (screen 435x725, an old Android web viewer) and Trail Finder's own screenshot runs on the website, whose crashes, errors and slow loads aren't real people's.`} <button type="button" class="btn" data-review>${showReview ? "Hide them" : "Show them"}</button>` : "";
     $("reviewLine").innerHTML = reviewText; $("reviewLine").hidden = !reviewText;
     const reviewLine = reviewText ? `<p class="muted">${reviewText}</p>` : "";
     $("people").innerHTML = blankLine + reviewLine + people.map((d) => {

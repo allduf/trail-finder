@@ -13,7 +13,10 @@
   // Android app's own test on GitHub (android-app/test/phone-check.mjs), which opens the pull request's website from
   // the runner at http://10.0.2.2:8080 and restarts the app on purpose. Its restarts read as crashes and its slow
   // simulator as slow opens on the usage page (2026-11-19: 2 "crashes" and a 12 s "slow" that were only tests).
-  if (navigator.webdriver || location.hostname === "10.0.2.2") { window.tfUse = () => {}; window.tfUseQ = []; return; }
+  // Also the side-by-side check (scripts/side-by-side/run.mjs, 2026-11-22): its iPhone simulator and Android emulator
+  // open http://localhost:8080 and the app is closed and opened again on purpose, so every run sent "MTB · flat map"
+  // crashes from a new device (25 that day, none a real person's). The real apps open https://trailfinderapp.ca.
+  if (navigator.webdriver || (location.protocol === "http:" && /^(10\.0\.2\.2|localhost|127\.0\.0\.1)$/.test(location.hostname))) { window.tfUse = () => {}; window.tfUseQ = []; return; }
   // Where it runs: "ios", "android" or "web" (the website, phone or computer).
   const native = !!(C && C.isNativePlatform && C.isNativePlatform());
   const plat = native ? ((C.getPlatform && C.getPlatform()) || "ios") : "web";
