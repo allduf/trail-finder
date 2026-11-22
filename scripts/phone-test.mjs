@@ -546,6 +546,34 @@ async function appBuild(kind) {
       });
       // The app's native map outlives a page reload (the language switch reloads): the new page closes the one left
       // open, then Winter's one map opens under it again (alex 2026-11-22: after switching to French, 3D and the tilt did nothing).
+      // alex 2026-11-22: "I switched from skiing to hiking and still see all the skiing layer plus hiking points". Leaving
+      // Skiing never leaves its Winter map on the native map: Hiking on its photos is the one map too (alex 2026-11-22,
+      // Summer for Hiking, Fishing and Hunting), on Hiking's style; MTB (not one map) gets the page's own flat map; tipped
+      // into 3D, native 3D stays (as in every sport) on the new sport's style.
+      await check("Skiing to Hiking or MTB: no Winter left on the native map", async () => {
+        // The native map's style now: the last base sent after an open, or that open's own.
+        const nativeBase = () => ev(() => {
+          const t = window.__tm, o = t.opens[t.opens.length - 1];
+          const after = (t.layers || []).slice(o && o.__n != null ? o.__n : 0).filter((x) => x.key === "base");
+          return after.length ? after[after.length - 1].data : o ? o.base : null;
+        });
+        await ev(() => { const t = window.__tm, op = t.open0 || (t.open0 = window.Capacitor.Plugins.TrailMap.open); window.Capacitor.Plugins.TrailMap.open = (o) => { o.__n = (t.layers || []).length; return op(o); }; });
+        const check1 = async (what, wantUnder) => {
+          await wait(2500);
+          const u = await isUnder(), b = await nativeBase();
+          if (wantUnder === false && u) throw new Error(`${what}: the native map seen from above stayed (on ${b})`);
+          if (wantUnder === true && !u) throw new Error(`${what}: the one map didn't open`);
+          if (u && b === "winter" && what !== "back in Skiing") throw new Error(`${what}: the native map is still on Skiing's Winter`);
+        };
+        await sport("hike"); await check1("Hiking", true);
+        await sport("mtb"); await check1("MTB", false);
+        await sport("ski"); await check1("back in Skiing", true);
+        if ((await nativeBase()) !== "winter") throw new Error(`back in Skiing the native map is on ${await nativeBase()}, not Winter`);
+        await tap3d(); await wait(400);
+        await sport("hike"); await check1("Hiking from Skiing's 3D", null);
+        await sport("ski"); await wait(1500);
+        if (await isUnder() && /2D/.test(await b3Text())) { await tap3d(); await wait(400); }
+      });
       await check("after a reload with the native map left open, it opens under the page again", async () => {
         await ev(() => sessionStorage.setItem("tmLeft", "1"));
         await page.reload();

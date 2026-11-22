@@ -440,7 +440,7 @@
         flatOpening = false;
         if (und && open && r && r.under) {
           enterUnder();
-          if (flat) { flatFails = 0; if (tipOnOpen) tip(true); }
+          if (flat) { flatFails = 0; if (tipOnOpen) tip(true); syncSoon(); }   // a sport or style picked while it opened
           tipOnOpen = false;
           return true;
         }
@@ -623,9 +623,16 @@
   // If the native map can't open under the page, the page's own flat map stays.
   let flatFails = 0, syncT = 0, cardUp = false;
   function canFlat() { return !!nativeKeys && nativeKeys.has("under") && nativeKeys.has("flat"); }
+  // Also Hiking, Fishing and Hunting on their summer photos (alex 2026-11-22: "it should be by default a satelite map like
+  // skiing using the 3d map for the 2d too", Summer, "but not mtb, leave mtb like it is now").
+  const ONE_SUMMER = ["sport-hike", "sport-fish", "sport-hunt"];
+  function oneMapStyle() {
+    const b = document.body.classList, sel = (document.getElementById("basemap") || {}).value;
+    if (b.contains("sport-ski")) return sel === "winter";
+    return ONE_SUMMER.some((c) => b.contains(c)) && (sel === "sat" || sel === "sathybrid");
+  }
   function oneMap() {
-    return isAdmin() && canFlat() && flatFails < 2 && document.body.classList.contains("sport-ski") &&
-      (document.getElementById("basemap") || {}).value === "winter" && drawsAll() && !webOnly();
+    return isAdmin() && canFlat() && flatFails < 2 && oneMapStyle() && drawsAll() && !webOnly();
   }
   // cam: where to tip it (a tour or a route asking for 3D at its spot).
   function tip(on, cam) {
@@ -636,7 +643,7 @@
   function oneMapSync() {
     syncT = 0;
     if (open) {
-      // Seen from above on a style that isn't Winter now: the page's own flat map, as before.
+      // Seen from above on a style or sport without the one map now: the page's own flat map, as before.
       if (under && canFlat() && !tipped && !oneMap()) TrailMap.close().catch(() => {});
       return;
     }
@@ -645,6 +652,8 @@
   }
   const syncSoon = () => { clearTimeout(syncT); syncT = setTimeout(oneMapSync, 500); };
   TrailMap.addListener("moved", (e) => {
+    // Seen from above off Skiing's Winter (a change it missed): the page's own flat map.
+    if (open && under && canFlat() && !tipped && !flatOpening && !oneMap()) { syncSoon(); return; }
     if (!open || !under || !e || !isFinite(e.pitch) || !canFlat() || !oneMap()) return;
     const t = e.pitch > 8;
     if (t !== tipped) { tipped = t; b3Label(); }
@@ -652,6 +661,13 @@
   TrailMap.addListener("closed", () => { tipped = true; cardUp = false; syncSoon(); });
   TrailMap.addListener("card", (e) => { cardUp = !!(e && e.up); });   // Android's own card on the map (Back closes it first)
   ["tf:sport", "tf:basemap", "tf:admin", "tf:map3d"].forEach((n) => window.addEventListener(n, syncSoon));
+  // The sport itself (the page's body class), however it changed: leaving Skiing never leaves its Winter map behind
+  // (alex 2026-11-22: "I switched from skiing to hiking and still see all the skiing layer plus hiking points").
+  let sportWas = document.body.className.match(/\bsport-\w+/g) || [];
+  new MutationObserver(() => {
+    const now = document.body.className.match(/\bsport-\w+/g) || [];
+    if (now.join() !== sportWas.join()) { sportWas = now; syncSoon(); }
+  }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   document.addEventListener("visibilitychange", syncSoon);
   if (lmenu) new MutationObserver(syncSoon).observe(lmenu, { attributes: true, attributeFilter: ["hidden"] });
   let was3d = mapEl.classList.contains("is3d");   // the web 3D map closing (older builds, Android's testers)
