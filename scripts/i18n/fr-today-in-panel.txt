@@ -1,0 +1,1 @@
+Today in each sport (new snow, weather, places near you, your saved places) is now a card in the sport's panel instead of a pop-up when the app opens. ||| Aujourd'hui dans chaque sport (neige fraîche, météo, endroits près de vous, vos endroits enregistrés) est maintenant une carte dans le panneau du sport plutôt qu'une fenêtre à l'ouverture de l'app.
