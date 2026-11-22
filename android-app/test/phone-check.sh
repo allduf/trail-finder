@@ -31,5 +31,5 @@ if timeout 30 adb logcat -d -v time | grep -iE -A4 "Mbgl.*failed to (compile|lin
 fi
 # A failed check: the app's crashes and the map engine's own lines in the log too (no artifact download needed).
 [ $status = 0 ] || grep -E "FATAL|Fatal signal|AndroidRuntime|MapLibre|Mbgl|backtrace|#0[0-9] pc" shots/logcat.txt | tail -60 || true
-[ $status = 0 ] && { node test/fgs-video.mjs || true; }
+[ $status = 0 ] && { node test/fgs-video.mjs || true; node test/fgs-save-video.mjs || true; }
 exit $status
