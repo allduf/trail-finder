@@ -1,0 +1,1 @@
+Phone app 3D map: each pin shows its own icon and shape, as on the flat map (lift bike parks, jump parks, pump tracks), and riding area names show as words. ||| Carte 3D de l'app mobile : chaque épingle montre sa propre icône et sa forme, comme sur la carte plate (parcs de vélo avec remontées, parcs de sauts, pump tracks), et les noms des secteurs de vélo s'affichent en mots.
