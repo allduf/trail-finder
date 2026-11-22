@@ -1,0 +1,1 @@
+Android: Back now closes the Offline maps card instead of leaving the app. ||| Android : le bouton Retour ferme maintenant la fiche Cartes hors ligne au lieu de quitter l'appli.

@@ -795,6 +795,14 @@ out center tags qt;`;
   });
   map.createPane("hikeSlope").style.zIndex = 380;
   const slopeLayer = new SlopeGrid({ pane: "hikeSlope", minZoom: 9, maxNativeZoom: 14, maxZoom: 18, opacity: 1 });
+  // The phone's native 3D map draws the same pictures (native-ground.js asks for them by tile), as Hunting's slope angle
+  // (alex 2026-11-22: what works on the website must work on the phone too). The colours stay this file's own.
+  (window.tfGround = window.tfGround || {})["hike-slope"] = {
+    paint: (z, x, y) => paintSlope(z, x, y), on: () => isHike() && shown.has("slope"),
+    ver: () => "1", min: 9, max: 14, opacity: 1, z: 355, credit: "Terrain: Mapzen Terrain Tiles", keep: true,
+    key: () => { const t = (x) => (window.tfLang && window.tfLang.t ? window.tfLang.t(x) : x);
+      return { t: t("Slope angle"), c: SLOPE_RGB.map((c) => "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("")), l: ["25-35°", "35-45°", t("Over 45°")] }; },
+  };
 
   // ---------- the layers list ----------
   function renderLayers() {
@@ -811,11 +819,14 @@ out center tags qt;`;
     store.set("hikeLayers", [...shown]);
     applyLayers();
   });
+  let groundOn = false;
   function applyLayers() {
     const on = isHike();
     const want = (l, yes) => { if (yes && !map.hasLayer(l)) l.addTo(map); else if (!yes && map.hasLayer(l)) map.removeLayer(l); };
     want(layer, on && shown.has("trails")); want(looseLayer, on && shown.has("trails"));
     want(placeLayer, on); want(nameLayer, on); want(slopeLayer, on && shown.has("slope")); want(planLayer, on);
+    const ground = on && shown.has("slope");
+    if (ground !== groundOn) { groundOn = ground; window.dispatchEvent(new Event("tf:ground")); }   // native 3D: on or off
     if (!on && plan.on) setPlanning(false);
     if (on && shown.has("sleep")) loadHuts();
     if (on && !keyCtl._map) keyCtl.addTo(map); else if (!on && keyCtl._map) keyCtl.remove();
