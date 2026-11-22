@@ -392,8 +392,9 @@
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
     const snap = snapshot();
     sent = keyOf(snap);
-    // Under the page on a build that can (above); older builds don't know "under" and open over the page.
-    const und = threeD && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
+    // Under the page on a build that can (above); older builds don't know "under" and open over the page. alex only for
+    // its first build (no iPhone to try it on before): everyone once alex has checked it on the phone.
+    const und = threeD && isAdmin() && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
     return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...(und ? { under: und } : {}), ...snap })
       .then((r) => { if (und && open && r && r.under) enterUnder(); return true; }, () => { open = false; sent = ""; return false; });
   }

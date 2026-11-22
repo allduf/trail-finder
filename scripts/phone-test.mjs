@@ -346,7 +346,7 @@ async function appBuild(kind) {
   // Anything that breaks outside a check (the page not loading) is one failed line, and the next build still runs.
   try {
     const keys = kind === "ios" ? FIRST_FULL.keys : kind === "iosu" ? [...(await iosKeys())] : kind === "android" ? await androidKeys() : null;
-    await p.ctx.addInitScript(appStandIn, { platform: kind === "web" ? null : kind === "iosu" ? "ios" : kind, keys, admin: kind === "android", photos: kind === "web" ? "live" : "sharp" });
+    await p.ctx.addInitScript(appStandIn, { platform: kind === "web" ? null : kind === "iosu" ? "ios" : kind, keys, admin: kind === "android" || kind === "iosu", photos: kind === "web" ? "live" : "sharp" });
     let n = 0;
     const check = async (name, fn) => {
       const before = p.errors.length;
