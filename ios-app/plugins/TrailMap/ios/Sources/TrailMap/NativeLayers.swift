@@ -51,6 +51,7 @@ enum NativeLayers {
         { NativeFishing() },        // NativeFishing.swift: Fishing fills, names, spot, water colours, Crown land, depth pictures
         { NativeFishCreeks() },     // NativeFishing.swift: creeks from further away
         { NativeFishDepth() },      // NativeFishing.swift: lake depth lines
+        { NativeFlat() },           // NativeFlat.swift: the one map on Winter (opens flat, tips to 3D and back)
         { NativeFlyover() },                        // NativeFlyover.swift: a ski tour's Flyover
         { NativeGround() },
         { NativeHunting() },

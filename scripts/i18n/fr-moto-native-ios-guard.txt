@@ -1,0 +1,1 @@
+iPhone app: 3D in Adventure moto no longer closes the app. Moto stops in 3D come back with the next app build. ||| Application iPhone : la 3D en moto d'aventure ne ferme plus l'appli. Les arrêts moto en 3D reviendront avec la prochaine version de l'appli.

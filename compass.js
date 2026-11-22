@@ -159,7 +159,7 @@
     const fix = (p) => { if (!S.on) return; S.you = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }; tellHunt(); soon(true); };
     const opts = { enableHighAccuracy: true, maximumAge: 2000, timeout: 30000 };
     // Where the blue dot is (index.html) until a fix comes, then a first fix right away; the watch keeps it moving.
-    const dot = window.tfNav && window.tfNav.youLayer && window.tfNav.youLayer.getLayers().find((l) => l instanceof L.CircleMarker);
+    const dot = window.tfNav && window.tfNav.youLayer && window.tfNav.youLayer.getLayers().find((l) => (l.options && l.options.tfYou) || l instanceof L.CircleMarker);
     if (dot) { const d = dot.getLatLng(); S.you = { lat: d.lat, lon: d.lng, acc: null }; tellHunt(); }
     navigator.geolocation.getCurrentPosition(fix, () => render(), opts);
     S.watch = navigator.geolocation.watchPosition(fix, () => render(), opts);

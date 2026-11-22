@@ -637,6 +637,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
 /* Tooltip */
 /* Base styles for the element that has a tooltip */
+/* Your location: a marker that keeps its size and spot while zooming (index.html showYou). */
+.tf-you { background: none; border: 0; }
+.tf-you i { display: block; box-sizing: border-box; width: 22px; height: 22px; border-radius: 50%; background: #2b7de9; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
 .leaflet-tooltip {
 	position: absolute;
 	padding: 6px;
@@ -2578,7 +2581,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
   const unoffTag = (why) => (globalThis.tfPub ? "" : `<span class="unoff-tag" title="${esc(why)}">Unofficial</span>`);   // never on the public map
   function unofficial(tags) {
     const out = [];
-    if (tags.informal === "yes") out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
+    // A rider who knows the trail says it's official (ratings.js HAND off, e.g. a signed trail): that beats informal=yes.
+    if (tags.informal === "yes" && !tags["tf:handoff"]) out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
     if (/^(no|private)$/.test(tags.access || "") && !/^(yes|designated|permissive)$/.test(tags.bicycle || "")) out.push(`Access is closed to the public (access=${tags.access}).`);
     if (/^(no|private)$/.test(tags.bicycle || "")) out.push(`Bikes are not allowed (bicycle=${tags.bicycle}).`);
     if (tags.mtb === "no") out.push("Marked as not for mountain bikes (mtb=no).");
@@ -2705,7 +2709,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   function pubSecret(tags, ll, id) {
     if (!globalThis.tfPub) return false;
     const R = globalThis.tfRatings, h = R && R.hand && ll ? R.hand([ll], tags, id) : null;
-    return !!(h && h.unoff) || unofficial(tags).length > 0;
+    return !!(h && h.unoff) || unofficial(h && h.off ? { ...tags, "tf:handoff": h.off } : tags).length > 0;
   }
   function classify(tags, routes, routeTypes = []) {
     const r = classifyTrail(tags, routes);
@@ -5760,6 +5764,8 @@ out body;`;
     you.ring.setRadius(acc);
     if (far || document.hidden) { you.shown = ll; you.dot.setLatLng(ll); you.ring.setLatLng(ll); return; }
     const step = (now) => {
+      // Mid-zoom the map is a stretched picture: the dot waits for it to settle (moving it then put it off your spot).
+      if (map._animatingZoom) { you.anim = requestAnimationFrame(step); return; }
       const k = Math.min(1, (now - t0) / GLIDE_MS);
       const p = L.latLng(from.lat + (ll.lat - from.lat) * k, from.lng + (ll.lng - from.lng) * k);
       you.shown = p; you.dot.setLatLng(p); you.ring.setLatLng(p);
@@ -5777,8 +5783,11 @@ out body;`;
     if (setHome(ll, true)) homeMoved(true);
     if (!you.dot) {
       you.ring = L.circle(ll, { radius: acc, color: "#2b7de9", weight: 1, opacity: 0.5, fillColor: "#2b7de9", fillOpacity: 0.12, interactive: false }).addTo(youLayer);
-      // tfYou: left out of the iPhone's native 3D map, which shows your location itself (native-map.js).
-      you.dot = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 3, fillColor: "#2b7de9", fillOpacity: 1, tfYou: true }).bindTooltip("You are here", { direction: "top", offset: [0, -8] }).addTo(youLayer);
+      // tfYou: left out of the iPhone's native 3D map, which shows your location itself (native-map.js, native-pins.js).
+      // A marker (its own spot on the screen, the same size at every zoom), not a drawn circle: a drawn circle grew,
+      // shrank and slid off your spot while zooming in and out (alex 2026-11-22: "My localization is moving when I zoom").
+      you.dot = L.marker(ll, { icon: L.divIcon({ className: "tf-you", html: "<i></i>", iconSize: [22, 22], iconAnchor: [11, 11] }), keyboard: false, zIndexOffset: 900, tfYou: true })
+        .bindTooltip("You are here", { direction: "top", offset: [0, -10] }).addTo(youLayer);
       you.shown = ll;
     } else moveDot(ll, acc);
     if (you.onFirst) { const f = you.onFirst; you.onFirst = null; f(ll); }

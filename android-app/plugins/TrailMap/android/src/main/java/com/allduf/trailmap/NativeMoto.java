@@ -95,7 +95,7 @@ final class NativeMoto implements NativeLayer {
 
     // ---------- drawing ----------
     private void draw(Style style) {
-        String under = style.getLayer("tf-line") != null ? "tf-line" : null;
+        String under = style.getLayer("tf-fill") != null ? "tf-fill" : style.getLayer("tf-line") != null ? "tf-line" : null;
         String now = on + "|" + road + "|" + track + "|" + ften;
         if (!Objects.equals(drawn, now)) {
             removeRoads(style);

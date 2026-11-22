@@ -46,6 +46,9 @@ public class TrailMapPlugin extends Plugin {
         String lines = call.getString("lines", ""), dots = call.getString("dots", ""), dashes = call.getString("dashes", "");
         // under: the page's buttons, menus and cards stay on top, this map behind the web view (TrailMapScreen under).
         String underData = call.getString("under");
+        // flat: opens seen straight down and stays so: the one map on Winter (alex 2026-11-22), where 2D is this map from
+        // above and 3D only tips it (applyUnder "tilt"). Only under the page. Same as the iPhone's.
+        boolean flat = Boolean.TRUE.equals(call.getBoolean("flat", false));
         Map<String, String> extra = new HashMap<>();
         JSObject layers = call.getObject("layers", new JSObject());
         if (layers != null) for (Iterator<String> it = layers.keys(); it.hasNext(); ) {
@@ -66,6 +69,7 @@ public class TrailMapPlugin extends Plugin {
             if (host == null) { call.reject("No screen to show the map on"); return; }
             WebView web = getBridge() != null ? getBridge().getWebView() : null;
             boolean under = underData != null && threeD && web != null && web.getParent() instanceof ViewGroup;
+            if (flat && !under) { call.reject("A flat map opens only under the page"); return; }
             TrailMapScreen s;
             try {
                 s = new TrailMapScreen(a, this::fromScreen, lat, lon, zoom, bearing, base, threeD, winter, esri, fr, under);
@@ -75,6 +79,7 @@ public class TrailMapPlugin extends Plugin {
                 call.reject("The native map couldn't start: " + c);
                 return;
             }
+            if (flat) s.noTiltIn();
             s.setData(lines, dots, dashes);
             for (Map.Entry<String, String> e : extra.entrySet()) s.setLayer(e.getKey(), e.getValue());
             screen = s;

@@ -10,17 +10,22 @@ import UIKit
 // A tap shows the usual card (name, what it is) with Details: that goes back to the page and opens the pin's own card
 // there, the same one a tap on the flat map opens (the live webcam, the hut's facts...). The searched place's pin (nd: 1)
 // has no Details.
+// Since 2026-11-22 (alex: "What are those point?", every pin looked the same here) a pin can carry its own picture, drawn
+// by the page from its flat map pin (pk: its name, pic: the picture as base64 PNG at 2x, on the first pin with it), and a
+// riding area's name (words on the flat map, no pin) comes as t: 1, drawn as words only (lb: the words, tc: colour, ts: size).
+// A picture that can't be read here shows the app's own square for that pin instead.
 // Lifts, trails and the dots under the MTB trailheads were already tappable here (TrailMapPlugin's trail card).
 final class NativePins: NativeLayer {
     let key = "pins"
     private static let source = "tf-pins"
     private static let layer = "tf-pins"
+    private static let names = "tf-pin-names"
     private var shape: MLNShape?
     private var round = 0
     private var made = Set<String>()       // pictures already on the current style
     private weak var screen: TrailMapScreen?
 
-    var tapLayers: [String] { [NativePins.layer] }
+    var tapLayers: [String] { [NativePins.layer, NativePins.names] }
 
     func added(to style: MLNStyle, screen: TrailMapScreen) {
         made = []
@@ -29,7 +34,8 @@ final class NativePins: NativeLayer {
         style.addSource(src)
         addPictures(style)
         let l = MLNSymbolStyleLayer(identifier: NativePins.layer, source: src)
-        l.iconImageName = NSExpression(forKeyPath: "img")
+        l.predicate = NSPredicate(format: "t == nil OR t != 1")
+        l.iconImageName = NSExpression(format: "mgl_coalesce({pk, img})")
         l.iconAllowsOverlap = NSExpression(forConstantValue: false)
         l.iconPitchAlignment = NSExpression(forConstantValue: "viewport")
         l.iconRotationAlignment = NSExpression(forConstantValue: "viewport")
@@ -47,6 +53,19 @@ final class NativePins: NativeLayer {
         // Names from zoom 13 (the flat map's 14), like the trail names; pins at every zoom the page shows them.
         l.textOpacity = NSExpression(format: "mgl_step:from:stops:($zoomLevel, 0, %@)", [13: 1])
         style.addLayer(l)   // over the trails and names: pins sit on top, as on the web 3D map
+        // Names with no pin (riding areas): words in their own colour and size, as on the flat map.
+        let w = MLNSymbolStyleLayer(identifier: NativePins.names, source: src)
+        w.predicate = NSPredicate(format: "t == 1")
+        w.text = NSExpression(forKeyPath: "lb")
+        w.textFontNames = NSExpression(forConstantValue: ["Noto Sans Bold"])
+        w.textFontSize = NSExpression(forKeyPath: "ts")
+        w.textColor = NSExpression(forKeyPath: "tc")
+        w.textHaloColor = NSExpression(forConstantValue: UIColor.white)
+        w.textHaloWidth = NSExpression(forConstantValue: 1.8)
+        w.textLetterSpacing = NSExpression(forConstantValue: 0.04)
+        w.textPitchAlignment = NSExpression(forConstantValue: "viewport")
+        w.symbolSortKey = NSExpression(forKeyPath: "r")
+        style.addLayer(w)
     }
 
     func setData(_ json: String, style: MLNStyle?) {
@@ -80,6 +99,17 @@ final class NativePins: NativeLayer {
     private func addPictures(_ style: MLNStyle) {
         guard let feats = (shape as? MLNShapeCollectionFeature)?.shapes else { return }
         for f in feats {
+            // The pin's own picture from the page.
+            if let pk = f.attribute(forKey: "pk") as? String, !made.contains(pk) {
+                if let pic = f.attribute(forKey: "pic") as? String, let d = Data(base64Encoded: pic), let im = UIImage(data: d, scale: 2) {
+                    made.insert(pk)
+                    style.setImage(im, forName: pk)
+                } else if style.image(forName: pk) == nil, let img = f.attribute(forKey: "img") as? String {
+                    // Not here yet, or unreadable: the app's own square until it comes.
+                    let parts = img.split(separator: ":", maxSplits: 2).map(String.init)
+                    if parts.count == 3 { style.setImage(NativePins.picture(kind: parts[1], colour: parts[2]), forName: pk) }
+                }
+            }
             guard let img = f.attribute(forKey: "img") as? String, !made.contains(img) else { continue }
             made.insert(img)
             let parts = img.split(separator: ":", maxSplits: 2).map(String.init)
