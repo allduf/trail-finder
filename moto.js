@@ -2572,7 +2572,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const fill = () => {
       const year = new Date().getFullYear(), yr = rides.filter((x) => new Date(x.start).getFullYear() === year);
       const tot = yr.reduce((s, x) => s + rideKm(x), 0), dirt = yr.reduce((s, x) => s + (rideDirt[x.id] || 0), 0);
-      el.innerHTML = `<header>${svg(IC.log)}<h3>My adventure rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
+      el.innerHTML = `<header>${svg(IC.log)}<h3>My adventure rides</h3><button type="button" class="mt-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header>
         ${rides.length ? `<div class="mt-stats"><div><b>${yr.length}</b><span>rides ${year}</span></div><div><b>${fmtKm(tot)}</b><span>ridden</span></div><div><b>${fmtKm(dirt)}</b><span>of dirt</span></div><div><b>${tot ? Math.round((100 * dirt) / tot) : 0}%</b><span>dirt</span></div></div>
         <ul class="mt-list">${rides.slice(0, 60).map((x) => { const km = rideKm(x), d = rideDirt[x.id], w = rideWx[x.id];
           return `<li style="--c:${ACC}"><button type="button" class="mt-go" data-ride="${esc(x.id)}"><b>${esc(x.title || new Date(x.start).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }))}</b><small>${new Date(x.start).toLocaleDateString()} · ${fmtH(rideSecs(x))}${d != null ? ` · ${fmtKm(d)} dirt` : ""}${w ? ` · ${w[0]}°C${w[1] >= 0.5 ? `, ${w[1]} mm rain` : ""}` : ""}</small><em>${fmtKm(km)}</em></button></li>`; }).join("")}</ul>`
@@ -2684,7 +2684,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const el = $("mtTrips");
     toPanel();
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
+    el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
     el.querySelector(".mt-x").onclick = closeTrips;
     showCard(el);
     await loadTrips();
@@ -2694,7 +2694,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   function renderTrips() {
     const el = $("mtTrips"), b = cur();
     if (el.hidden) return;
-    if (!trips) { el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">The route list isn't here yet: it comes with the next update.</p>`; el.querySelector(".mt-x").onclick = closeTrips; return; }
+    if (!trips) { el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">The route list isn't here yet: it comes with the next update.</p>`; el.querySelector(".mt-x").onclick = closeTrips; return; }
     const at = you ? [you.lat, you.lon] : (() => { const c = map.getCenter(); return [c.lat, c.lng]; })();
     let list = trips.map((t) => ({ t, d: kmBetween(at, t.start), fit: tripFits(t, b) }));
     if (tripFit) list = list.filter((x) => x.fit);
@@ -2706,7 +2706,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const byReg = regs.map((r) => ({ r, l: list.filter((x) => (x.t.region || "") === r.id) })).filter((x) => x.l.length);
     if (!tripFolders && byReg.length) tripFolders = new Set([byReg.slice().sort((x, y) => x.l[0].d - y.l[0].d)[0].r.id]);
     const row = ({ t, d }) => `<li style="--c:${FIT[fitOf(t.grade || 2, capOf(b))][1]}"><button type="button" class="mt-go" data-trip="${esc(t.id)}"><b>${g(t)}${esc(t.n)}</b><small>${esc((t.prov || "").toUpperCase())} · ${fmtKm(t.km || 0)}${t.dirtPct != null ? ` · ${t.dirtPct}% dirt` : ""}${t.best || t.season ? ` · ${esc(t.best || t.season)}` : ""}</small><em>${fmtKm(d)}</em></button></li>`;
-    el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
+    el.innerHTML = `<header>${svg(IC.trips)}<h3>ADV routes</h3><button type="button" class="mt-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header>
       ${open ? tripHtml(open, b)
       : `<div class="mt-chips"><button type="button" data-fit class="${tripFit ? "on" : ""}">Fits my bike</button><span class="mt-note" style="align-self:center">${list.length} of ${trips.length} routes</span></div>
         ${byReg.length ? byReg.map(({ r, l }) => `<details class="mt-fold mt-reg" data-reg="${esc(r.id)}"${tripFolders.has(r.id) ? " open" : ""}><summary>${svg(IC.trips, 14)} ${esc(r.n)} <small>${l.length} · ${fmtKm(l[0].d)} away</small></summary><ul class="mt-list">${l.map(row).join("")}</ul></details>`).join("")
