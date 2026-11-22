@@ -7,7 +7,7 @@
 // page (/__sbs.js) that runs what this script asks and answers (no DevTools needed, so both phones are driven the same
 // way). Screenshots come from the simulator itself (simctl / adb), so native screens (3D, system prompts) show too.
 // Every step writes a screenshot named by the step (the same name on both phones) and what the page showed then
-// (buttons, open cards, script errors, sideways scrolling) to out/<platform>-<lang>/steps.json. pair.py compares them.
+// (buttons, open cards, script errors, sideways scrolling) to out/<platform>-<lang>/steps-<TAG>.json. pair.py compares them.
 // Never fails: what it found is in the steps.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -23,6 +23,10 @@ const APP = "com.allduf.trailfinder";
 const SPORTS = (process.env.SPORTS || "mtb,ski,hike,fish,hunt,moto").split(",").map((x) => x.trim()).filter(Boolean);
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
 const OUT = join(process.cwd(), "out", `${PLATFORM}-${LANG}`);
+// One job can walk part of the sports (TAG names its files, so several jobs' results sit side by side); START=0 skips
+// the first open and sign-in (done by the job with START=1), and the offline steps run only in the MTB part.
+const TAG = (process.env.TAG || "all").replace(/[^a-z0-9-]/gi, "");
+const START = process.env.START !== "0";
 mkdirSync(join(OUT, "shots"), { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sh = (c, t = 60000) => execSync(c, { encoding: "utf8", shell: "/bin/bash", stdio: ["ignore", "pipe", "pipe"], timeout: t, maxBuffer: 64 << 20 });
@@ -158,7 +162,7 @@ const phone = {
 
 // ---------- steps ----------
 const steps = [];
-const save = (extra = {}) => { try { writeFileSync(join(OUT, "steps.json"), JSON.stringify({ platform: PLATFORM, lang: LANG, steps, ...extra }, null, 1)); } catch {} };
+const save = (extra = {}) => { try { writeFileSync(join(OUT, `steps-${TAG}.json`), JSON.stringify({ platform: PLATFORM, lang: LANG, steps, ...extra }, null, 1)); } catch {} };
 let sport = "start";
 const slug = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 // Bars and sheets over the map with their own close or Cancel button (Plan a route, a square to pick or save, ...).
@@ -194,7 +198,7 @@ async function step(name, fn, settle = 1500) {
   const state = await jsq(STATE, {});
   if (state && state.wide) problems.push(`page is ${state.wide} px wider than the screen`);
   problems.push(...pageErrors.slice(e0));
-  const file = `${String(steps.length + 1).padStart(3, "0")}-${key.replace("/", "-")}.png`;
+  const file = `${TAG}-${String(steps.length + 1).padStart(3, "0")}-${key.replace("/", "-")}.png`;
   await phone.shot(join(OUT, "shots", file));
   if (state && boxes.length > b0) state.boxes = boxes.slice(b0);
   steps.push({ key, name: `${NAMES[sport] || "Start"} › ${name}`, ok: !problems.length, problems, shot: file, state });
@@ -270,6 +274,7 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   // The app was just installed: a brand-new phone, set to the language itself (workflow), no tf:lang yet (any tf: key
   // means "used before" to the welcome).
   await sleep(4000);
+  if (START) {
   await step("First open: terms", () => "", 2500);
   await jsq(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); })()`);
   await step("Welcome 1: pick a sport", () => "", 2000);
@@ -299,6 +304,12 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
     return r;
   });
   await closeAll("sign-in");
+  } else {
+    await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:lang", ${JSON.stringify(LANG)}); location.reload(); })()`);
+    await sleep(4000); await pageUp();
+    await jsq(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); })()`);
+    await closeAll("start");
+  }
 
   for (const sp of SPORTS) {
     sport = sp;
@@ -406,6 +417,7 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   // Offline: a small native copy (2 km, Whistler), then native 3D with no signal is not possible on the iPhone
   // simulator (no airplane mode), so only the saving is compared.
   sport = "mtb";
+  if (SPORTS.includes("mtb")) {
   await step("Offline copy of a small area (native)", async () => {
     const draws = await jsq(`window.tfNative && window.tfNative.has ? window.tfNative.has("offline") : "no tfNative"`, "page didn't answer");
     if (draws !== true) return `this build doesn't save native offline copies (${draws})`;
@@ -420,17 +432,18 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   await jsq(`Capacitor.Plugins.TrailMap.offline({ areas: [] })`);
   await step("Offline maps card", async () => { await click("#tabbar [data-nav=saved]"); await sleep(1000); const r = await jsq(`(() => { const b = [...document.querySelectorAll("#hub [data-hub]")].find((x) => /offline|hors ligne/i.test(x.textContent)); if (!b) return "no Offline maps in Saved"; b.click(); return ""; })()`, "page didn't answer"); return r; }, 2000);
   await closeAll("offline");
+  }
 
-  if (iosNoClose.length) steps.push({ key: "all/close-problems", name: "Cards that would not close (iPhone: no close button; Android: Back left the app)", ok: false, problems: [...new Set(iosNoClose)], shot: "", state: null });
-  writeFileSync(join(OUT, "steps.json"), JSON.stringify({ platform: PLATFORM, lang: LANG, steps }, null, 1));
+  if (iosNoClose.length) steps.push({ key: `${TAG}/close-problems`, name: "Cards that would not close (iPhone: no close button; Android: Back left the app)", ok: false, problems: [...new Set(iosNoClose)], shot: "", state: null });
+  save();
   const bad = steps.filter((s) => !s.ok);
   const md = `## ${{ ios: "iPhone", android: "Android", web: "Browser" }[PLATFORM]} (${LANG}): ${bad.length} problem(s) in ${steps.length} steps\n\n` + bad.map((s) => `- ${s.name}: ${s.problems.join(" · ")}`).join("\n") + "\n";
-  writeFileSync(join(OUT, "summary.md"), md);
+  writeFileSync(join(OUT, `summary-${TAG}.md`), md);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
   console.log(md);
   process.exit(0);
 })().catch((e) => {
   console.log("✗ stopped: " + (e.stack || e));
-  writeFileSync(join(OUT, "steps.json"), JSON.stringify({ platform: PLATFORM, lang: LANG, steps, stopped: String(e.message || e) }, null, 1));
+  save({ stopped: String(e.message || e) });
   process.exit(0);
 });

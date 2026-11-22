@@ -11,11 +11,18 @@ os.makedirs(os.path.join(dest, "pairs"), exist_ok=True)
 
 
 def load(p):
-    f = os.path.join(root, f"{p}-{lang}", "steps.json")
-    if not os.path.exists(f):
+    # Every job's part (steps-<TAG>.json): the part with the first open first, then the sports in their usual order.
+    import glob
+    files = glob.glob(os.path.join(root, f"{p}-{lang}", "steps*.json"))
+    if not files:
         return None
-    with open(f) as fh:
-        return json.load(fh)
+    order = ["all", "mtb", "ski", "hike", "fish", "hunt", "moto"]
+    files.sort(key=lambda f: order.index(os.path.basename(f)[6:-5]) if os.path.basename(f)[6:-5] in order else 99)
+    steps = []
+    for f in files:
+        with open(f) as fh:
+            steps += json.load(fh).get("steps", [])
+    return {"steps": steps}
 
 
 ios, andr = load("ios"), load("android")
