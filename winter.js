@@ -2672,7 +2672,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const len = isRoute ? group.reduce((s, x) => s + km(x), 0) : 0;
     const card = isRoute ? `<div class="sk-rc">
         <img class="sk-rc-ph" id="skRcPh" alt="" hidden referrerpolicy="no-referrer">
-        <div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
+        <div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button><h3>${esc(title)}</h3></div>
         <div class="sk-rc-tag" id="skRcTag">${[esc(kindLabel(r, t)), diffPill(r.diff)].filter(Boolean).join(" · ")}</div>
         ${r.wb ? `<p class="sk-wbst" id="skWbSt"><span>Whistler Blackcomb today</span> <b>…</b></p>` : ""}
         ${isUphill(r) ? `<p class="sk-hint sk-up">⬆ ${esc(UP_ABOUT)}</p>` : r.walk ? `<p class="sk-hint">${esc(WALK_ABOUT)}</p>` : ""}
@@ -2686,7 +2686,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
         </div>
         <button type="button" class="sk-more-btn" id="skMoreBtn" aria-expanded="${moreOpen}" aria-controls="skMore">${moreOpen ? "Fewer details ▴" : "More details: avalanche check, slopes, forecast, weather ▾"}</button>
-      </div>` : `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart && !/^(parking|trailhead)$/.test(r.kind) ? `<div id="skHutPh" class="sk-hutphs"><p class="sk-note sk-hutph-none">Looking for photos of the hut…</p></div>` : ""}${isHut && !isStart ? bookHtml(r) : ""}`;
+      </div>` : `<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button><h3>${esc(title)}</h3></div>${isHut && !isStart && !/^(parking|trailhead)$/.test(r.kind) ? `<div id="skHutPh" class="sk-hutphs"><p class="sk-note sk-hutph-none">Looking for photos of the hut…</p></div>` : ""}${isHut && !isStart ? bookHtml(r) : ""}`;
     d.innerHTML = `${card}<div id="skMore"${isRoute && !moreOpen ? " hidden" : ""} class="sk-morebox">
       ${isHut && !isStart ? `<p class="sk-hint">${esc(HUT_ABOUT[r.kind] || HUT_ABOUT.basic_hut)}</p>` : ""}
       <dl><dt>Type</dt><dd>${esc(isStart ? t.label + " (start point only; see camptocamp for the route)" : isHut ? KIND[r.kind] || (r.kind || "hut").replace(/_/g, " ") : kindLabel(r, t))}</dd>
@@ -3270,7 +3270,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const el = $("skTours");
     if (!el || el.hidden) return;
     const l = tours();
-    el.innerHTML = `<div class="sk-tours-h"><b>Saved tours</b><button type="button" class="btn" data-tours="close" aria-label="Close">✕</button></div>
+    el.innerHTML = `<div class="sk-tours-h"><b>Saved tours</b><button type="button" class="btn" data-tours="close" data-back-close aria-label="Close">✕</button></div>
       ${l.length ? `<ul class="sk-tours">${l.map((t) => `<li><button type="button" class="sk-tour-open" data-open-tour="${esc(t.id)}"><b>${esc(t.n)}</b><small>${t.km != null ? `${t.km.toFixed(1)} km · ↑ ${fmtM(t.up)} · ` : ""}${t.safe ? `<span>less exposed way</span> · ` : ""}${tourDay(t.ed || t.at)}</small></button><button type="button" class="sk-tour-del" data-del-tour="${esc(t.id)}" aria-label="Delete this tour">✕</button></li>`).join("")}</ul>`
         : `<p>No saved tours yet. Each tour you plan is kept here.</p>`}
       <div class="sk-row"><button type="button" class="btn primary" data-tours="new">＋ Plan a new tour</button></div>`;
@@ -4048,7 +4048,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     spotLayer.addLayer(L.circleMarker([lat, lon], { radius: 9, color: "#fff", weight: 3, fillColor: "#e8590c", fillOpacity: 1, interactive: false }));
     if (!map.hasLayer(spotLayer)) spotLayer.addTo(map);
     el.hidden = false;
-    el.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "ski" }) : ""}<h3>📍 This spot</h3></div>
+    el.innerHTML = `<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "ski" }) : ""}<h3>📍 This spot</h3></div>
       <p class="sk-hint">${lat.toFixed(4)}, ${lon.toFixed(4)}</p>
       <div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
       <div class="sk-acts sk-spotacts"><button type="button" class="sk-act" data-act="safe">Less exposed way here</button><button type="button" class="sk-act" data-act="plan">✎ Plan a tour from here</button>${shown.has("slope") ? "" : `<button type="button" class="sk-act" data-act="slope">Show slope angles</button>`}</div>`;
@@ -4242,7 +4242,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function stationHtml(st, close) {
     const max = Math.max(1, ...st.days.filter((v) => v != null));
     const day = (i) => (i === st.days.length - 1 ? "now" : new Date(Date.parse(st.at) - (st.days.length - 1 - i) * 864e5).toLocaleDateString(undefined, { weekday: "narrow" }));
-    return `${close ? '<div><button type="button" class="sk-x" aria-label="Close">✕</button>' : "<div>"}<h3>❄ ${esc(st.name)}</h3></div>
+    return `${close ? '<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button>' : "<div>"}<h3>❄ ${esc(st.name)}</h3></div>
       <p class="sk-hint">Snow station at ${st.ele.toLocaleString()} m · read ${esc(when(st.at))}</p>
       <div class="sk-stats"><div><b>${cm(st.sd)}</b><span>snow</span></div><div><b>${plus(st.sd24)}</b><span>24 h</span></div><div><b>${plus(st.sd72)}</b><span>3 days</span></div><div><b>${st.ta == null ? "–" : Math.round(st.ta) + "°C"}</b><span>air now</span></div></div>
       ${st.days.length && st.days.some((v) => v) ? `<div class="sk-spark" aria-label="Snow depth over the last 7 days">${st.days.map((v) => `<span style="height:${v == null ? 0 : Math.max(2, (v / max) * 100)}%" title="${cm(v)}"></span>`).join("")}</div><div class="sk-days">${st.days.map((_, i) => `<span>${day(i)}</span>`).join("")}</div>` : ""}

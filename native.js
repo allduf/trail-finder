@@ -97,6 +97,19 @@
       // Later closers (a timer, a frame) are looked for once more, without the noisy [hidden] count.
       setTimeout(() => {
         if (steady() !== steady0) return;
+        // A sport's card still showing in the sheet (a hike, a bike trip, Saved tours, a moto stop): Back closes it before
+        // the app goes away (alex 2026-11-22: "Close the card first"). Only buttons marked data-back-close (never one that
+        // throws away a planned route), and only one that's on screen and on top where a finger would tap it.
+        const onTop = (b) => {
+          if (b.disabled || b.closest("[hidden], dialog, [inert], [aria-hidden='true']")) return false;
+          const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+          if (!r.width || x < 0 || y < 0 || x > innerWidth || y > innerHeight) return false;
+          const e = document.elementFromPoint(x, y);
+          return !!e && (e === b || b.contains(e));
+        };
+        // Not while a walk or route is being drawn (Hunting's Draw a walk: closing its trip card ends the drawing).
+        const x = /(^|\s)[\w]+-drawing(\s|$)/.test(document.body.className) ? null : [...document.querySelectorAll("[data-back-close]")].filter(onTop).pop();
+        if (x) { x.click(); return; }
         // Native 3D under the page (native-map.js): with nothing else to close, Back goes to the flat map.
         if (window.tfNative && window.tfNative.backOut && window.tfNative.backOut()) return;
         if (e && e.canGoBack && history.length > 1 && !/\/(index\.html)?$/.test(location.pathname)) history.back();

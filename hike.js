@@ -275,7 +275,8 @@ body:not(.sport-hike) .lm-hike, body:not(.sport-hike) .hk-mapkey, body.sport-hik
     setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(el); }, low ? 320 : 0);
   };
   const toPanel = () => { const t = document.querySelector('#tabbar [data-nav="hike"]'); if (phone() && t && t.getAttribute("aria-current") !== "true") t.click(); };
-  const closeX = (id) => `<button type="button" class="hk-x" data-close="${id}" aria-label="Close">${svg(IC.x, 16)}</button>`;
+  // data-back-close: Android's Back closes it (native.js); not Plan a hike, whose close ends the planning.
+  const closeX = (id) => `<button type="button" class="hk-x" data-close="${id}"${id === "hkPlan" ? "" : " data-back-close"} aria-label="Close">${svg(IC.x, 16)}</button>`;
   pane.addEventListener("click", (e) => {
     const c = e.target.closest("[data-close]");
     if (c) { $(c.dataset.close).hidden = true; if (c.dataset.close === "hkHike") select(null); if (c.dataset.close === "hkPlace") { curPlace = null; drawPlaces(); } if (c.dataset.close === "hkPlan") setPlanning(false); }

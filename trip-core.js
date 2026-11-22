@@ -1016,7 +1016,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
   function render() {
     const t = cur;
     if (!t) return;
-    card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${K.w.icon} ${esc(title(t))} <small>${esc(K.w.trip)}</small></h3></div>
+    card.innerHTML = `<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button><h3>${K.w.icon} ${esc(title(t))} <small>${esc(K.w.trip)}</small></h3></div>
       ${iamHtml(t)}
       <label class="tp-mine">Trip name<input type="text" data-set="name" maxlength="40" value="${esc(t.name || "")}" placeholder="${esc(K.namePh(t))}" autocomplete="off"></label>
       <div class="tp-form">
@@ -1230,7 +1230,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     close();
     card.hidden = false; btn.setAttribute("aria-pressed", "true");
     const mine = trips();
-    card.innerHTML = `<div><button type="button" class="sk-x" aria-label="Close">✕</button><h3>${K.w.icon} ${esc(K.w.Trips)}</h3></div>
+    card.innerHTML = `<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button><h3>${K.w.icon} ${esc(K.w.Trips)}</h3></div>
       <button type="button" class="sk-tripgo" data-newtrip="1">＋ Start a new trip</button>
       ${window.tfTutorials && K.tutorial ? window.tfTutorials.button(K.tutorial) : ""}
       ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(title(t))}${t.share ? " 👥" : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${nightsW(t)}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}${K.listInfo ? esc(K.listInfo(t)) : ""}</small></button></li>`).join("")}</ul>` : ""}
