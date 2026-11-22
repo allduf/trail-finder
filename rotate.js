@@ -70,6 +70,8 @@
   const TWIST_DEG = 12;   // two fingers must turn this far before the map starts turning with them
   const PINCH_LOCK = 1.25;   // ...and before the pinch has zoomed by this much (in or out), or it's a zoom and never turns
   const PINCH_START = Math.log(1.05);   // fingers must spread or close 5% before the map starts to zoom
+  const TILT_STEP = 6;   // both fingers moved up at least this far: a tilt is starting, so no zoom yet
+  const TILT_SPREAD = Math.log(1.25);   // fingers spreading or closing more than 25% while going up are a pinch
   const TILT_PX = 36;   // two fingers slid up this far together (or a right-drag up) is a tilt: 3D opens (map3d.js tfTilt3d)
 
   const norm = (d) => ((d % 360) + 540) % 360 - 180;   // -180..180
@@ -157,7 +159,7 @@
         this._startZoom = map.getZoom();
       }
       this._rotating = !!this.rotate;
-      this._tiltFrom = { mid: p1.add(p2)._divideBy(2), dist: p1.distanceTo(p2), done: false };
+      this._tiltFrom = { mid: p1.add(p2)._divideBy(2), dist: p1.distanceTo(p2), y1: p1.y, y2: p2.y, done: false };
       this._startAngle = angleOf(map, e);
       this._startBearing = map.getBearing();
       this._twist = 0;            // 0 until the fingers have turned TWIST_DEG, then +-TWIST_DEG (taken off so the map doesn't jump)
@@ -171,17 +173,27 @@
       const map = this._map;
       const p1 = map.mouseEventToContainerPoint(e.touches[0]), p2 = map.mouseEventToContainerPoint(e.touches[1]);
       // Tilt for 3D (map3d.js): both fingers slid up together, before any zoom or turn has started, opens 3D.
-      // Fingers that spread, close or twist first are a pinch or a turn as before; sliding down does nothing here.
+      // While both fingers are going up together (and hardly spreading), the map waits instead of zooming: fingers
+      // sliding up always spread a little, and that used to start a zoom and pan before the slide was long enough to
+      // be a tilt (alex's recording, 2026-11-21: the map zoomed and slid, 3D never opened). Fingers that spread,
+      // close or twist first are a pinch or a turn as before; sliding down does nothing here.
       const tf = this._tiltFrom;
       if (tf && !tf.done && !this._moved && !this._twist && window.tfTilt3d && window.tfTilt3d.ok()) {
         const m = p1.add(p2)._divideBy(2), dy = m.y - tf.mid.y, dx = m.x - tf.mid.x;
-        if (dy < -TILT_PX && Math.abs(dx) < -dy * 0.6 && Math.abs(Math.log(p1.distanceTo(p2) / tf.dist)) < PINCH_START * 2) {
+        const d1 = p1.y - tf.y1, d2 = p2.y - tf.y2, spread = Math.abs(Math.log(p1.distanceTo(p2) / tf.dist));
+        const up = d1 < -TILT_STEP && d2 < -TILT_STEP && Math.abs(dx) < -dy * 0.6 && spread < TILT_SPREAD;
+        if (up && dy < -TILT_PX) {
           tf.done = true;
           this._onTouchEnd();
           window.tfTilt3d.go();
           L.DomEvent.preventDefault(e);
           return;
         }
+        // Still holding while the slide up is larger than the spread (each finger's share of it): a pinch moves the
+        // fingers apart far more than up, so it starts zooming as soon as before.
+        const hold = up || (dy < -2 && -dy > Math.abs(p1.distanceTo(p2) - tf.dist) / 2 && Math.abs(dx) < 4 - dy * 0.6 &&
+          d1 < TILT_STEP && d2 < TILT_STEP && spread < TILT_SPREAD);
+        if (hold) { L.DomEvent.preventDefault(e); return; }
       }
       // A pinch that has already zoomed clearly is a zoom: fingers drifting round as they spread don't turn the map then.
       const dist = p1.distanceTo(p2);
