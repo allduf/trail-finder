@@ -533,4 +533,9 @@
     const layers = document.getElementById("layersBtn");
     if (layers) setTimeout(() => { if (!lmenu || lmenu.hidden) layers.click(); }, 600);
   });
+  // A native map this page opened before it reloaded (the language switch, a sign-in, an update) stays on the phone,
+  // under or over the new page, which doesn't know about it: it's closed now (the "closed" above moves the flat map to
+  // where it was). Otherwise the next 3D went to that old map without opening it under the page, the page stayed over
+  // it, and the 3D button and the tilt seemed to do nothing (alex 2026-11-22, after switching to French).
+  if (TrailMap.close) TrailMap.close().catch(() => {});
 })();
