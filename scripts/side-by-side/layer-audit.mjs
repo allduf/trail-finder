@@ -131,20 +131,26 @@ for (const platform of PLATFORMS) {
     const toggles = await page.evaluate(() => {
       const lb = document.getElementById("layersBtn"); const m = document.getElementById("layersMenu");
       if (m.hidden) lb.click();
-      return [...m.querySelectorAll("button[aria-pressed]")].filter((b) => b.getClientRects().length && !b.disabled && b.id)
-        .map((b) => ({ id: b.id, label: b.textContent.replace(/\s+/g, " ").trim().slice(0, 50), on: b.getAttribute("aria-pressed") === "true" }));
+      // The map's own switches (buttons with ids) and each sport's own (checkboxes: data-k, data-layer).
+      const btns = [...m.querySelectorAll("button[aria-pressed]")].filter((b) => b.getClientRects().length && !b.disabled && b.id)
+        .map((b) => ({ id: b.id, sel: "#" + b.id, label: b.textContent.replace(/\s+/g, " ").trim().slice(0, 50), on: b.getAttribute("aria-pressed") === "true" }));
+      const boxes = [...m.querySelectorAll("input[type=checkbox]")].filter((b) => !b.disabled && (b.dataset.k || b.dataset.layer)).map((b) => {
+        const a = b.dataset.k ? "data-k" : "data-layer", v = b.getAttribute(a);
+        return { id: a + "=" + v, sel: `#layersMenu input[${a}="${v}"]`, label: (b.getAttribute("aria-label") || (b.closest("label") || b).textContent).replace(/\s+/g, " ").trim().slice(0, 50), on: b.checked };
+      });
+      return [...btns, ...boxes];
     }).catch(() => []);
     const base0 = await page.evaluate(INVENTORY).catch((e) => ({ error: e.message }));
     console.log(`${platform} ${sport}: native ${base0.native} web3d ${base0.web3d}, ${toggles.length} switches`);
     report.push({ platform, sport, layer: "(as opened)", on: true, before: null, after: base0, errs: [...errs] });
     for (const t of toggles) {
-      if (/^(native3dBtn|nativeMapBtn|tilt3dBtn|fullBtn|offlineBtn|boxBtn)$/.test(t.id)) continue;
+      if (/^(native3dBtn|nativeMapBtn|tilt3dBtn|fullBtn|offlineBtn|boxBtn|photoBtn)$/.test(t.id)) continue;
       const e0 = errs.length;
       // Off first if it was on (measure it going on).
-      if (t.on) { await page.evaluate((id) => document.getElementById(id).click(), t.id).catch(() => {}); await sleep(1500); }
+      if (t.on) { await page.evaluate((sel) => document.querySelector(sel).click(), t.sel).catch(() => {}); await sleep(1500); }
       await page.evaluate(() => { document.querySelectorAll("dialog[open]").forEach((d) => d.close()); const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); }).catch(() => {});
       const before = await page.evaluate(INVENTORY).catch(() => null);
-      await page.evaluate((id) => { const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); document.getElementById(id).click(); }, t.id).catch(() => {});
+      await page.evaluate((sel) => { const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); const e = document.querySelector(sel); if (e) e.click(); }, t.sel).catch(() => {});
       await sleep(4500);
       // Trails are sent after the map settles (native-map.js): a tiny move makes sure.
       await page.evaluate(() => { const m = window.tfLeaflet; m.panBy([1, 0], { animate: false }); }).catch(() => {});
@@ -154,8 +160,8 @@ for (const platform of PLATFORMS) {
       report.push({ platform, sport, layer: t.label, id: t.id, on: !t.on, before, after, errs: errs.slice(e0) });
       // Back as it was.
       await page.evaluate(() => { const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); }).catch(() => {});
-      await page.evaluate((id) => { const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); document.getElementById(id).click(); }, t.id).catch(() => {});
-      if (t.on) { await sleep(800); await page.evaluate((id) => { const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); document.getElementById(id).click(); }, t.id).catch(() => {}); }
+      await page.evaluate((sel) => { const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); const e = document.querySelector(sel); if (e) e.click(); }, t.sel).catch(() => {});
+      if (t.on) { await sleep(800); await page.evaluate((sel) => { const m = document.getElementById("layersMenu"); if (m.hidden) document.getElementById("layersBtn").click(); const e = document.querySelector(sel); if (e) e.click(); }, t.sel).catch(() => {}); }
       await sleep(1200);
     }
     await ctx.close();
@@ -168,7 +174,8 @@ const rows = [];
 for (const r of report) {
   if (!r.before || !r.after) continue;
   const b = r.before, a = r.after;
-  const web = { paths: a.paths - b.paths, markers: a.markers - b.markers, rasters: a.rasters.filter((x) => !b.rasters.includes(x)) };
+  // "other:<pane>" are the canvas renderers the lines are drawn on (their lines are counted): not pictures.
+  const web = { paths: a.paths - b.paths, markers: a.markers - b.markers, rasters: a.rasters.filter((x) => !b.rasters.includes(x) && !/^other:/.test(x)) };
   const sent = { lines: a.nLines - b.nLines, dots: a.nDots - b.nDots, feats: Object.keys(a.sig).filter((k) => a.sig[k] !== b.sig[k]) };
   const webGain = web.paths > 0 || web.markers > 0 || web.rasters.length > 0;
   const nativeGain = sent.lines > 0 || sent.dots > 0 || sent.feats.length > 0;

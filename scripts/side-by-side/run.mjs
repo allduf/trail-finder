@@ -269,7 +269,8 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
 (async () => {
   phone.launch();   // the app opens this script's site (started above)
   console.log(`side by side: ${PLATFORM}, ${LANG}`);
-  if (!(await pageUp(120000))) { console.log("✗ the app's page never answered"); }
+  // A cold simulator can take the first launch away (seen on Android): open the app again until the page answers.
+  for (let i = 0; i < 4 && !(await pageUp(i ? 60000 : 120000)); i++) { console.log("  (the app's page didn't answer: opening it again)"); phone.kill(); await sleep(2000); phone.launch(); }
   // A brand-new phone: the terms, then the welcome (sport, location, notifications), as a new tester sees them.
   // The app was just installed: a brand-new phone, set to the language itself (workflow), no tf:lang yet (any tf: key
   // means "used before" to the welcome).
@@ -284,13 +285,9 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   await step("Welcome 3: what you'll see", () => "", 2000);
   await jsq(`(() => { const b = document.querySelector("dialog.welc [data-next2]"); if (b) { b.click(); return; } const d = document.querySelector("dialog.welc [data-done]"); if (d) d.click(); })()`);
   await step("Welcome 4: notifications offer", () => "", 2500);
-  await step("Notifications: Turn on (phone's own prompt)", async () => {
-    const r = await jsq(`(() => { const b = document.querySelector("dialog.welc [data-push]"); if (!b) return "no notifications step in the welcome"; b.click(); return ""; })()`, "page didn't answer");
-    await sleep(3000);
-    return r || "";
-  }, 1500);
-  // The phone's own prompt can't be answered from the page: start again, as alex's devices are (tf-admin: native 3D,
-  // native offline copies), with the Today card off (it opens by itself once a day).
+  // Start again as alex's devices are (tf-admin: native 3D, native offline copies), with the Today card off (it opens
+  // by itself once a day). The welcome's "Turn on notifications" is tapped at the very end (the phone's own prompt
+  // can't be answered from the page, and on the iPhone it stays over every later screenshot).
   phone.kill(); await sleep(2000); phone.launch(); await pageUp();
   await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:lang", ${JSON.stringify(LANG)}); location.reload(); })()`);
   await sleep(4000); await pageUp();
@@ -434,6 +431,20 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
   await closeAll("offline");
   }
 
+  if (START) {
+    sport = "start";
+    await jsq(`(() => { localStorage.removeItem("tf:welcomed"); localStorage.removeItem("tf:notifyVisit"); Object.keys(localStorage).filter((k) => k.startsWith("tf:")).forEach((k) => localStorage.removeItem(k)); location.reload(); })()`);
+    await sleep(5000); await pageUp();
+    await jsq(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); })()`);
+    await jsq(`(() => { const b = document.querySelector("dialog.welc [data-sport=mtb]"); if (b) b.click(); })()`); await sleep(1500);
+    await jsq(`(() => { const b = document.querySelector("dialog.welc [data-next]"); if (b) b.click(); })()`); await sleep(1500);
+    await jsq(`(() => { const b = document.querySelector("dialog.welc [data-next2]"); if (b) b.click(); })()`); await sleep(1500);
+    await step("Notifications: Turn on (phone's own prompt)", async () => {
+      const r = await jsq(`(() => { const b = document.querySelector("dialog.welc [data-push]"); if (!b) return "no notifications step in the welcome"; b.click(); return ""; })()`, "page didn't answer");
+      await sleep(3000);
+      return r || "";
+    }, 1500);
+  }
   if (iosNoClose.length) steps.push({ key: `${TAG}/close-problems`, name: "Cards that would not close (iPhone: no close button; Android: Back left the app)", ok: false, problems: [...new Set(iosNoClose)], shot: "", state: null });
   save();
   const bad = steps.filter((s) => !s.ok);
