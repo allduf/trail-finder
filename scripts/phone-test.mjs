@@ -532,24 +532,29 @@ async function appBuild(kind) {
       // Adventure moto's stops and roads reach native 3D (native-moto.js asks moto.js's tfMoto.native3d). They sat in the
       // wrong object for two days and the native map drew no gas, camps or hot springs (alex 2026-11-22: "Moto mode
       // don't show on map"): the page's pins show, so native 3D must get them too.
-      await check("Adventure moto's stops and roads go to native 3D", async () => {
+      await check("Adventure moto's stops, roads and filled areas go to native 3D", async () => {
         await sport("moto");
         await until(() => window.tfMoto && document.body.classList.contains("sport-moto"), null, 15_000).catch(() => {});
         await ev(() => { window.tfLeaflet.setView([50.0, -123.1], 10, { animate: false }); });
         await until(() => document.querySelectorAll(".mt-pin").length > 0, null, 30_000).catch(() => {});
         const pins = await ev(() => document.querySelectorAll(".mt-pin").length);
         if (!(await ev(() => !!(window.tfMoto && typeof window.tfMoto.native3d === "function")))) throw new Error("tfMoto.native3d is missing: native 3D gets nothing for Moto");
-        const n0 = await opens();
-        await tap3d();
-        await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
-        const o = await ev((c) => { const x = window.__tm.opens[c]; return x ? { moto: (x.layers || {}).moto || null } : null; }, n0);
         try {
+          // Filled areas (Where you can't ride, red at 12 %) go filled too, as on the flat map (builds from 2026-11-22 draw
+          // tf-fill): one such area is put on the flat map here, so the check doesn't wait on the parks data.
+          await ev(() => { const c = window.tfLeaflet.getCenter(); window.__tfFillTest = L.polygon([[c.lat - 0.05, c.lng - 0.05], [c.lat - 0.05, c.lng + 0.05], [c.lat + 0.05, c.lng]], { color: "#e03131", weight: 2, fillColor: "#e03131", fillOpacity: 0.12, interactive: false }).addTo(window.tfLeaflet); });
+          const n0 = await opens();
+          await tap3d();
+          await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+          const o = await ev((c) => { const x = window.__tm.opens[c]; return x ? { moto: (x.layers || {}).moto || null, fills: (JSON.parse(x.lines || "{}").features || []).filter((f) => f.properties.fa === 0.12 && f.properties.fc === "#e03131" && f.geometry.type === "MultiPolygon").length } : null; }, n0);
           if (!o) throw new Error("3D didn't open native 3D in Moto");
           if (!o.moto) throw new Error("native 3D opened with no Moto layer (no stops, no roads)");
           const d = JSON.parse(o.moto);
           if (pins && !(d.pts && d.pts.length)) throw new Error(`the page shows ${pins} stops, native 3D got none`);
           if (!Array.isArray(d.pts)) throw new Error("native 3D got Moto with no list of stops");
+          if (!o.fills) throw new Error("a filled area on the flat map (as Where you can't ride) went to native 3D as an outline only");
         } finally {
+          await ev(() => { if (window.__tfFillTest) window.__tfFillTest.remove(); });
           if (await ev(() => document.documentElement.classList.contains("tf-under"))) { await tap3d(); await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {}); }
           else await back();
         }

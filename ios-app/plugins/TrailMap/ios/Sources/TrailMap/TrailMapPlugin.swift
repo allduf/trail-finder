@@ -688,6 +688,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         // In 3D the trails go just under the place names (NativeBaseStyles.swift), so names stay readable over them.
         let names = style.layer(withIdentifier: TrailMapScreen.firstNameLayer)
         let put = { (l: MLNStyleLayer) in if let n = names { style.insertLayer(l, below: n) } else { style.addLayer(l) } }
+        // Filled areas (native-map.js: polygons with fc, fa), see-through as on the flat map, under every trail line.
+        let fill = MLNFillStyleLayer(identifier: "tf-fill", source: lines)
+        fill.predicate = NSPredicate(format: "fa != nil AND fa > 0")
+        fill.fillColor = NSExpression(forKeyPath: "fc")
+        fill.fillOpacity = NSExpression(forKeyPath: "fa")
+        fill.fillAntialiased = NSExpression(forConstantValue: false)
+        put(fill)
         put(lineLayer(id: "tf-line", source: lines, dash: ""))
         let dot = MLNCircleStyleLayer(identifier: "tf-dots", source: dots)
         dot.circleRadius = NSExpression(forKeyPath: "r")
@@ -842,8 +849,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         guard let f = features.first(where: { $0.key == key }) else { return }
         f.setData(data, style: isViewLoaded && styleReady ? map.style : nil)
     }
-    // The lowest trail layer: a feature drawn under the trails inserts its layers below this one.
-    func trailsBottomLayer() -> MLNStyleLayer? { styleReady ? map.style?.layer(withIdentifier: "tf-line") : nil }
+    // The lowest trail layer: a feature drawn under the trails inserts its layers below this one. The filled areas
+    // (tf-fill) count: they stay over ground pictures and radar, as the flat map's areas do.
+    func trailsBottomLayer() -> MLNStyleLayer? { styleReady ? (map.style?.layer(withIdentifier: "tf-fill") ?? map.style?.layer(withIdentifier: "tf-line")) : nil }
     // The style a feature may change now: the one showing, once it has loaded (nil while a new one loads).
     var readyStyle: MLNStyle? { isViewLoaded && styleReady ? map.style : nil }
     var mapLibreView: MLNMapView { map }
