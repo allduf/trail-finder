@@ -11,9 +11,9 @@
   if (!map || !L || !("ontouchstart" in window)) return;
   const t = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   // It showed while moving the map (alex 2026-11-22: "it appears when I don't really want to see it"): now both fingers
-  // must come down together (TOGETHER_MS: a second finger added to a pan or a pinch never counts) and stay quite still
-  // for most of a second.
-  const HOLD_MS = 900, STILL_PX = 8, SHOW_MS = 2500, TOGETHER_MS = 250;
+  // must come down together (TOGETHER_MS: a second finger added to a pan or a pinch never counts) and stay still
+  // for 1 s (alex: "hold still for 1sec").
+  const HOLD_MS = 1000, STILL_PX = 8, SHOW_MS = 2500, TOGETHER_MS = 250;
   let firstAt = 0;
 
   const css = document.createElement("style");

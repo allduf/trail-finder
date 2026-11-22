@@ -48,8 +48,8 @@ final class NativeFingers: NSObject, NativeLayer, UIGestureRecognizerDelegate {
         let g = TwoFingerHold(target: self, action: #selector(pressed(_:)))
         g.numberOfTouchesRequired = 2
         // It showed while moving the map (alex 2026-11-22: "it appears when I don't really want to see it"): both
-        // fingers must come down together (a second finger added to a pan never counts) and stay still most of a second.
-        g.minimumPressDuration = 0.9
+        // fingers must come down together (a second finger added to a pan never counts) and stay still for 1 s (alex: "hold still for 1sec").
+        g.minimumPressDuration = 1.0   // alex 2026-11-22: "hold still for 1sec"
         g.allowableMovement = 8       // fingers that move are a pinch, a twist or a tilt: the map's own
         g.delegate = self
         g.cancelsTouchesInView = false   // the map's own gestures end normally; they're switched off while measuring

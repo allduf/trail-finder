@@ -29,8 +29,8 @@ import org.maplibre.android.maps.UiSettings;
 // are only switched off while measuring).
 final class NativeFingers implements NativeLayer, TrailMapScreen.TouchWatcher {
     // It showed while moving the map (alex 2026-11-22: "it appears when I don't really want to see it"): both fingers
-    // must come down together (a second finger added to a pan never counts) and stay still most of a second.
-    private static final long HOLD_MS = 900, TOGETHER_MS = 250;
+    // must come down together (a second finger added to a pan never counts) and stay still for 1 s (alex: "hold still for 1sec").
+    private static final long HOLD_MS = 1000, TOGETHER_MS = 250;
     private long firstAt = 0;
     private TrailMapScreen screen;
     private Drawing drawing;
