@@ -548,8 +548,12 @@ async function appBuild(kind) {
           await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
           const o = await ev((c) => { const x = window.__tm.opens[c]; return x ? { moto: (x.layers || {}).moto || null, fills: (JSON.parse(x.lines || "{}").features || []).filter((f) => f.properties.fa === 0.12 && f.properties.fc === "#e03131" && f.geometry.type === "MultiPolygon").length } : null; }, n0);
           if (!o) throw new Error("3D didn't open native 3D in Moto");
-          if (!o.moto) throw new Error("native 3D opened with no Moto layer (no stops, no roads)");
-          const d = JSON.parse(o.moto);
+          // iPhone builds without "moto-safe" closed on Moto's layer (2026-11-22): they must get none (native-moto.js);
+          // the data itself is still checked, as the page would send it to a build that has the fix.
+          const safe = await ev(() => window.tfNative.has("moto-safe"));
+          if (!safe && o.moto) throw new Error("Moto's layer went to an iPhone build without moto-safe (it closes the app)");
+          if (safe && !o.moto) throw new Error("native 3D opened with no Moto layer (no stops, no roads)");
+          const d = safe ? JSON.parse(o.moto) : await ev(() => window.tfMoto.native3d());
           if (pins && !(d.pts && d.pts.length)) throw new Error(`the page shows ${pins} stops, native 3D got none`);
           if (!Array.isArray(d.pts)) throw new Error("native 3D got Moto with no list of stops");
           if (!o.fills) throw new Error("a filled area on the flat map (as Where you can't ride) went to native 3D as an outline only");
