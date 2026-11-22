@@ -23,7 +23,7 @@ const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
 const OUT = process.env.OUT || "phone-test-shots";
 const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
-const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds" };
+const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
@@ -309,6 +309,35 @@ async function fullKeysCheck() {
   }
   results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: !problems.length, note: problems.join(" · "), shot: "" });
   console.log(`${problems.length ? "✗" : "✓"} App builds: iPhone builds ${FIRST_FULL.build}+ keep native 3D only${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
+}
+// Test phones send no usage (alex's Problems list, 2026-11-22): the side-by-side check's iPhone simulator and Android
+// emulator open http://localhost:8080 (the Android phone check http://10.0.2.2:8080) and close the app on purpose, so
+// usage.js read each restart as a crash: 25 "MTB · flat map" crashes in one day, none a real person's. usage.js runs
+// here with a stand-in page, just after a restart: the live site must still report the crash, the test pages nothing.
+async function testPhonesCheck() {
+  const vm = await import("node:vm");
+  const src = await readFile(join(root, "usage.js"), "utf8");
+  const run = (url) => {
+    const u = new URL(url), store = new Map([["tf:useAlive", String(Date.now() - 2000)], ["tf:useCtx", "mtb · flat map · Map tab"]]);
+    const st = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+    const noop = () => {};
+    const w = { localStorage: st, sessionStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+      navigator: { webdriver: false, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X)", onLine: false, maxTouchPoints: 5 },
+      location: { protocol: u.protocol, hostname: u.hostname, pathname: u.pathname, href: url, search: "" },
+      document: { currentScript: null, visibilityState: "visible", readyState: "loading", addEventListener: noop, getElementById: () => null, querySelector: () => null, body: { classList: { contains: () => false } } },
+      addEventListener: noop, setInterval: noop, setTimeout: noop, clearTimeout: noop, screen: { width: 440, height: 956 },
+      crypto: { randomUUID: () => "00000000-0000-0000-0000-000000000000" }, performance: { now: () => 0, getEntriesByType: () => [] },
+      fetch: () => Promise.resolve({ ok: true }), tfAccount: { enabled: true, url: "https://x", key: "k" },
+      Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios", Plugins: {} } };
+    w.window = w;
+    vm.runInNewContext(src, w);
+    return String(store.get("tf:useQueue") || "").includes('"k":"crash"');
+  };
+  const problems = [];
+  if (!run("https://trailfinderapp.ca/")) problems.push("the app on trailfinderapp.ca no longer reports a crash restart");
+  for (const u of ["http://localhost:8080/", "http://127.0.0.1:8080/", "http://10.0.2.2:8080/"]) if (run(u)) problems.push(`a test phone on ${u} sends usage (its restarts read as crashes)`);
+  results.push({ sport: "app", step: "Test phones send no usage", ok: !problems.length, note: problems.join(" · "), shot: "" });
+  console.log(`${problems.length ? "✗" : "✓"} App builds: test phones send no usage${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
 }
 // In the page before its own scripts: Satellite picked before (in Skiing, the other sports and the Satellite button's
 // "back to"), Summer or Live for Skiing's 3D photos, and (platform) the app's stand-in.
@@ -629,6 +658,7 @@ async function appBuild(kind) {
   } finally { await p.ctx.close().catch(() => {}); }
 }
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
+await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 
 // The ride page (My rides, recording) on its own.
@@ -637,13 +667,54 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
   await step(p, "ride", "Open My rides (ride.html)", () => p.page.goto(SITE + "ride.html#rides", { waitUntil: "domcontentloaded", timeout: 60_000 }), 4000);
   await p.ctx.close();
 }
+
+// Sign-in person check (CAPTCHA on in Supabase since 2026-11-21): on every page with a sign-in box, Sign in, Create an
+// account and Email me a code each send Cloudflare's answer, and a refused one shows our own words, never Supabase's.
+// Cloudflare's script is a stand-in that answers at once; Supabase's sign-in addresses are answered here, nothing is sent.
+for (const file of ["index.html", "ride.html", "usage.html"]) {
+  const p = await phone(), { page } = p;
+  const sent = [];
+  await page.route("https://challenges.cloudflare.com/**", (r) => r.fulfill({ contentType: "text/javascript", body: `window.turnstile = { n: 0,
+    render(el, o) { this.o = o; setTimeout(() => o.callback("stand-in-" + ++this.n), 50); return "w"; },
+    reset() { setTimeout(() => this.o.callback("stand-in-" + ++this.n), 50); } };` }));
+  await page.route(/supabase\.co\/auth\/v1\/(token|signup|otp)/, (r) => {
+    const b = JSON.parse(r.request().postData() || "{}");
+    sent.push({ what: new URL(r.request().url()).pathname.split("/").pop(), token: !!(b.gotrue_meta_security && b.gotrue_meta_security.captcha_token) });
+    r.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: 400, error_code: "captcha_failed", msg: "captcha protection: request disallowed (stand-in)" }) });
+  });
+  const flow = (name, act) => step(p, "signin", `${file}: ${name} sends the person check`, async () => {
+    const n = sent.length;
+    await act();
+    for (let i = 0; i < 60 && sent.length === n; i++) await wait(250);
+    const s = sent[n];
+    if (!s) throw new Error("nothing was sent to Supabase");
+    if (!s.token) throw new Error(`${s.what} was sent without Cloudflare's answer`);
+    await wait(300);
+    const msg = await page.textContent("#acctMsg");
+    if (/captcha protection|captcha_token/i.test(msg)) throw new Error(`a refused check shows Supabase's own words: "${msg}"`);
+  }, 300);
+  await step(p, "signin", `${file}: open the sign-in box`, async () => {
+    await page.goto(SITE + file, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await page.waitForFunction(() => window.tfAccount && window.tfAccount.open, null, { timeout: 30_000 });
+    await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 3000 }).catch(() => {});
+    await page.evaluate(() => window.tfAccount.open());
+    await page.waitForSelector("#acctEmail", { state: "visible", timeout: 8000 });
+    await page.evaluate(() => { const h = document.getElementById("acctHave"); if (h && !h.hidden) h.click(); });
+    await page.fill("#acctEmail", "probe@example.com");
+    await page.fill("#acctPass", "probe-password-1");
+  });
+  await flow("Sign in", () => page.click("#acctSend"));
+  await flow("Email me a code", () => page.click("#acctLink"));
+  await flow("Create an account", async () => { await page.click("#acctNew"); await page.fill("#acctPass", "probe-password-1"); await page.click("#acctSend"); });
+  await p.ctx.close();
+}
 await browser.close();
 server.close();
 
 // ---------- report ----------
 const bad = results.filter((r) => !r.ok);
 const md = [`## 📱 Phone test (${BROWSER === "webkit" ? "Safari engine" : BROWSER}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
-  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds and My rides.`, "",
+  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds, My rides and the sign-in check.`, "",
   "| Sport | Step | Result |", "|---|---|---|",
   ...results.map((r) => `| ${NAMES[r.sport] || "My rides"} | ${r.step} | ${r.ok ? "✓" : "✗ " + r.note.replace(/\|/g, "\\|")} |`), "",
   "Screenshots of every step: the **phone-test-screenshots** download at the bottom of this run's page."].join("\n");
