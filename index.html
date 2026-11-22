@@ -2302,16 +2302,24 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // app. A style picked in Skiing lasts until another sport is picked or the app is closed. The other sports share
   // their style and never get Winter. Adventure moto keeps its own, ADV topo at first (alex 2026-11-17); only Adventure
   // moto gets ADV topo. The phone test checks Skiing's Winter (scripts/phone-test.mjs, "App builds").
+  // Hiking, Fishing and Hunting open on Satellite with names (summer photos, as 3D's Summer) until another style is
+  // picked (alex 2026-11-22: "it should be by default a satelite map like skiing ... in summer", "but not mtb, leave mtb
+  // like it is now"): MTB opens on Map. A style picked before stays (basemap4, shared by these four sports).
+  const firstBase = () => {
+    const b = document.body.classList;
+    const mtb = b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb");
+    return mtb ? "osm" : "sathybrid";
+  };
   const skiing = () => document.body.classList.contains("sport-ski");
   const moto = () => document.body.classList.contains("sport-moto");
   const ownOnly = (k) => (k === "winter" && !skiing()) || (k === "advtopo" && !moto());
   const savedBase = () => {
     if (skiing()) return "winter";
     if (moto()) { const k = store.get("basemapMoto", "advtopo"); return PICKS.includes(k) && !ownOnly(k) ? k : "advtopo"; }
-    const k = store.get("basemap4", "osm");
-    return PICKS.includes(k) && !ownOnly(k) ? k : "osm";
+    const k = store.get("basemap4", firstBase());
+    return PICKS.includes(k) && !ownOnly(k) ? k : firstBase();
   };
-  { const saved = store.get("basemap4", "osm"); setBasemap(PICKS.includes(saved) && saved !== "winter" && saved !== "advtopo" ? saved : "osm", !PICKS.includes(saved)); }
+  { const saved = store.get("basemap4", firstBase()); setBasemap(PICKS.includes(saved) && saved !== "winter" && saved !== "advtopo" ? saved : firstBase(), !PICKS.includes(saved)); }
   let baseSport = null;
   window.addEventListener("tf:sport", (e) => {
     const again = e.detail === baseSport;

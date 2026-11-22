@@ -1,0 +1,2 @@
+Skiing: approach trails are now part of Ski touring, so one switch shows both. ||| Ski : les sentiers d'approche font maintenant partie du ski de randonnée, un seul interrupteur affiche les deux.
+Backcountry ski routes, with the trails that lead to them (dashed), like the Elfin Lakes Trail ||| Itinéraires de ski hors-piste, avec les sentiers qui y mènent (en pointillé), comme le sentier Elfin Lakes
