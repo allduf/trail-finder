@@ -77,7 +77,7 @@ async function phone() {
     blocked.add(u.hostname);
     return route.abort();
   });
-  // The Today card opens by itself once a day (today.js): off here, so it can't cover a tap; the test opens it itself.
+  // Older builds opened the Today card by itself once a day: kept off here (today.js now never pops up).
   await ctx.addInitScript(() => { try { localStorage.setItem("tf:todayAuto", "false"); } catch {} });
   const page = await ctx.newPage();
   const errors = [];
@@ -152,12 +152,12 @@ for (const sport of SPORTS) {
     if (want) { const ok = await page.evaluate((k) => !!window[k], want); results.push({ sport, step: "Its own scripts loaded", ok, note: ok ? "" : `${want} missing after picking it`, shot: "" }); }
   }
 
-  // Today, in this sport's own words (today.js; MTB: status.js's Where to ride today). The weather is cut off here,
-  // so the card says so; it must open, fill its lists and close.
+  // Today, in this sport's own words (today.js: a card in the sport's panel; MTB: status.js's Where to ride today).
+  // The weather is cut off here, so the card says so; it must open and fill its lists.
   await step(p, sport, "Today card", async () => {
     await page.evaluate(() => window.tfTodayOpen && window.tfTodayOpen());
-    await page.waitForSelector(sport === "mtb" ? "dialog.today[open]" : "dialog.tdy[open]", { timeout: 5000 });
-    if (sport !== "mtb") await page.waitForFunction(() => !document.querySelector("#tdySaved .tdy-wait") || !/Loading/.test(document.getElementById("tdySaved").textContent), null, { timeout: 30_000 });
+    await page.waitForSelector(sport === "mtb" ? "dialog.today[open]" : `.tdy.open[data-sp=${sport}]`, { timeout: 15000 });
+    if (sport !== "mtb") await page.waitForFunction((s) => { const el = document.querySelector(`.tdy[data-sp=${s}] .tdy-saved`); return el && !/Loading/.test(el.textContent); }, sport, { timeout: 30_000 });
   }, 1500);
   await page.keyboard.press("Escape").catch(() => {});
   await wait(300);

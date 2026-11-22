@@ -1,10 +1,12 @@
-// Today, in every sport (alex 2026-11-19: "A Today card in every sport when the app opens ... add that", then picked
-// "C. Both": a few places near you first, then a line for each of your saved places). Once a day, the first time the
-// app opens in a sport, a card answers "what is it like today?" in that sport's own words:
-//  - MTB keeps its own card, Where to ride today (status.js): this file only opens it once a day.
-//  - Skiing: Avalanche Canada's rating for today where you are, each band exactly as given (winter.js tfSki.avyToday:
-//    nothing shown when there is no bulletin for today), new snow in the last and next 24 h, the nearest backcountry
-//    areas (by distance only, never by danger) and your saved tours, each with its new snow and its area's ratings.
+// Today, in every sport (alex 2026-11-19: "A Today card in every sport", then picked "C. Both": a few places near you
+// first, then a line for each of your saved places). Since 2026-11-22 (alex: "put that here instead of a pop up when you
+// open the app", then "Yes, all sports") it is a card in each sport's panel, never a pop-up: a short line with today's
+// numbers where you are, and a tap opens the rest. In each sport's own words:
+//  - MTB keeps its own card, Where to ride today (status.js), opened from its button in the MTB panel.
+//  - Skiing (under Plan a tour ... Cabin trip): Avalanche Canada's rating for today where you are, each band exactly as
+//    given (winter.js tfSki.avyToday: nothing shown when there is no bulletin for today), new snow in the last and next
+//    24 h, the nearest backcountry areas (by distance only, never by danger) and your saved tours, each with its new
+//    snow and its area's ratings.
 //  - Fishing: the bite estimate where you are (fishing.js dayScore), the best waters near you (fishing.js todayTop:
 //    fresh stocking and river flow) and your saved fishing spots with their bite estimate and wind.
 //  - Hunting: your zone's seasons open today (from the regulations files the spot card reads), legal light, the wind
@@ -16,8 +18,7 @@
 //    to ride), the nearest adventure routes (moto-routes.json) and your saved routes, with the rain at their start.
 // Weather: one call for every place on the card, the middle value of GEM, ECMWF and GFS (wxcheck.js), labelled as an
 // estimate with its sources. Wording: facts and sources only; nothing promises conditions, access or safety, and no
-// travel advice. "Don't show when the app opens" turns the automatic card off (tf:todayAuto); the More page's Today
-// and the map sheet's Today line still open it.
+// travel advice. The More page's Today and the map sheet's Today line open the card in the sport's panel.
 (() => {
   "use strict";
   const map = window.tfLeaflet;
@@ -50,63 +51,76 @@
     moto: { title: "Riding today", near: "Adventure routes near you", saved: "Your saved routes", none: "Save a route and it shows here with its rain." },
   };
 
+  // The card lives in each sport's panel (alex 2026-11-22: "put that here instead of a pop up when you open the app",
+  // then "Yes, all sports"): a short line with today's numbers where you are, and a tap opens the places near you and
+  // your saved places. It never opens over the map by itself.
   const css = document.createElement("style");
   css.textContent = `
-dialog.tdy { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--fg); padding: 16px; width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; box-sizing: border-box; box-shadow: 0 10px 40px rgba(0,0,0,.3); font: inherit; }
-dialog.tdy::backdrop { background: rgba(0,0,0,.45); }
-dialog.tdy h2 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; display: flex; align-items: center; gap: 8px; }
-dialog.tdy h2 .tdy-x { margin-left: auto; font: inherit; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px; display: flex; }
-dialog.tdy h2 svg { flex: none; }
-dialog.tdy h3 { margin: 16px 0 6px; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-dialog.tdy .tdy-from { margin: 4px 0 0; color: var(--muted); font-size: .85rem; }
-dialog.tdy ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-dialog.tdy .tdy-here { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
-dialog.tdy .tdy-kv { display: flex; justify-content: space-between; gap: 10px; }
-dialog.tdy .tdy-kv > span:first-child { color: var(--muted); }
-dialog.tdy .tdy-kv > b { text-align: right; }
-dialog.tdy li > button { width: 100%; text-align: left; font: inherit; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
-dialog.tdy li > button > span.tdy-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
-dialog.tdy li b { font-size: .98rem; }
-dialog.tdy li em { font-style: normal; color: var(--muted); font-size: .8rem; white-space: nowrap; }
-dialog.tdy small { color: var(--muted); font-size: .8rem; }
-dialog.tdy .tdy-avy { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .82rem; }
-dialog.tdy .tdy-avy i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.25); }
-dialog.tdy .tdy-note { color: var(--muted); font-size: .8rem; margin: 6px 0 0; line-height: 1.35; }
-dialog.tdy .tdy-warn { color: #8a5a00; font-size: .82rem; margin: 2px 0 0; }
-dialog.tdy .tdy-wait { color: var(--muted); font-size: .9rem; }
-dialog.tdy a { color: inherit; }
-dialog.tdy .tdy-foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-dialog.tdy .tdy-foot button { font: inherit; font-size: .85rem; font-weight: 600; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; }
-dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--muted); }`;
+.tdy { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--fg); margin: 8px 0; box-sizing: border-box; font: inherit; }
+.tdy .tdy-head { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 10px 12px; cursor: pointer; }
+.tdy .tdy-head > svg, .tdy .tdy-ic svg { flex: none; }
+.tdy .tdy-ic { display: flex; flex: none; }
+.tdy .tdy-hd { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tdy .tdy-hd > b { font-size: 1rem; }
+.tdy .tdy-sum { color: var(--muted); font-size: .82rem; line-height: 1.35; }
+.tdy .tdy-sum b { color: var(--fg); font-weight: 700; }
+.tdy .tdy-chev { flex: none; transition: transform .15s; color: var(--muted); }
+.tdy.open .tdy-chev { transform: rotate(180deg); }
+.tdy .tdy-body { padding: 0 12px 12px; }
+.tdy h3 { margin: 14px 0 6px; font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tdy .tdy-from { margin: 0 0 6px; color: var(--muted); font-size: .85rem; }
+.tdy ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tdy .tdy-here { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
+.tdy .tdy-kv { display: flex; justify-content: space-between; gap: 10px; }
+.tdy .tdy-kv > span:first-child { color: var(--muted); }
+.tdy .tdy-kv > b { text-align: right; }
+.tdy li > button { width: 100%; text-align: left; font: inherit; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip, #fff); color: var(--fg); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.tdy li > button > span.tdy-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.tdy li b { font-size: .98rem; }
+.tdy li em { font-style: normal; color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.tdy small { color: var(--muted); font-size: .8rem; }
+.tdy .tdy-avy { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .82rem; }
+.tdy .tdy-avy i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.25); }
+.tdy .tdy-note { color: var(--muted); font-size: .8rem; margin: 6px 0 0; line-height: 1.35; }
+.tdy .tdy-warn { color: #8a5a00; font-size: .82rem; margin: 2px 0 0; }
+.tdy .tdy-wait { color: var(--muted); font-size: .9rem; }
+.tdy a { color: inherit; }
+.tdy [hidden] { display: none !important; }
+/* phones: the sport panels are ordered (theme.css); the card sits with the sport's buttons, after its tool row */
+@media (max-width: 760px) { html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { order: 4; } }`;
   document.head.append(css);
 
-  const dlg = document.createElement("dialog");
-  dlg.className = "tdy";
-  dlg.innerHTML = `<h2><span id="tdyIcon"></span><span id="tdyTitle">Today</span><button type="button" class="tdy-x" data-x aria-label="Close">${line("plus", 20).replace("<svg", '<svg style="transform:rotate(45deg)"')}</button></h2>
-    <p class="tdy-from" id="tdyFrom"></p>
-    <div id="tdyHere" class="tdy-here"><span class="tdy-wait">Checking today's weather…</span></div>
-    <h3 id="tdyNearH"></h3><ul id="tdyNear"><li class="tdy-wait">Loading…</li></ul>
-    <h3 id="tdySavedH"></h3><ul id="tdySaved"><li class="tdy-wait">Loading…</li></ul>
-    <div id="tdyNote"></div>
-    <div class="tdy-foot"><button type="button" data-more>See more in this sport</button><label><input type="checkbox" id="tdyAuto"> <span>Don't show when the app opens</span></label></div>`;
-  document.body.append(dlg);
-  const $ = (id) => document.getElementById(id);
-  dlg.querySelector("[data-x]").addEventListener("click", () => dlg.close());
-  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
-  $("tdyAuto").addEventListener("change", (e) => store.set("todayAuto", !e.target.checked));
-  let cur = "mtb", acts = [];
-  dlg.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-go]");
-    if (b) { const f = acts[+b.dataset.go]; dlg.close(); if (f) try { f(); } catch {} return; }
-    if (e.target.closest("[data-more]")) { dlg.close(); more(cur); }
-  });
-  // "See more": the sport's own Today, on its tab.
-  function more(sp) {
-    const NOW = { ski: "skNow", hunt: "hnNow", fish: "fsNow", moto: "mtNow", hike: "hkNow" };
-    const t = document.querySelector(`#tabbar [data-nav="${{ ski: "ski", hunt: "hunt", fish: "fish", moto: "moto", hike: "hike" }[sp]}"]`);
-    if (t && t.getAttribute("aria-current") !== "true") t.click();
-    if (sp === "hike" && window.tfHike && window.tfHike.hub) { window.tfHike.hub("today"); return; }
-    setTimeout(() => { const b = $(NOW[sp]); if (b && !b.hidden) b.click(); }, 300);
+  const CHEV = `<svg class="tdy-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+  // Where each sport's card sits in its panel: Skiing right under its buttons (Edit my tour ... Cabin trip), the others
+  // under their tool buttons and Today line.
+  const SPOT = { ski: "#skiPane .sk-acts", hunt: "#hnNow", fish: "#fsNow", moto: "#mtNow", hike: "#hkNow" };
+  const cards = {};   // sport -> { el, acts, at, from, seq }
+  const isOpen = () => store.get("todayOpen", false) === true;
+  function card(sp) {
+    if (cards[sp] && cards[sp].el.isConnected) return cards[sp];
+    const a = document.querySelector(SPOT[sp]);
+    if (!a) return null;
+    const el = document.createElement("section");
+    el.className = "tdy" + (isOpen() ? " open" : "");
+    el.dataset.sp = sp;
+    el.innerHTML = `<button type="button" class="tdy-head" aria-expanded="${isOpen()}"><span class="tdy-ic">${line(sp === "hike" ? "boot" : sp, 22)}</span><span class="tdy-hd"><b>${esc(WORDS[sp].title)}</b><span class="tdy-sum"><span>Checking today's weather…</span></span></span>${CHEV}</button>
+      <div class="tdy-body"${isOpen() ? "" : " hidden"}><p class="tdy-from"></p><div class="tdy-here"><span class="tdy-wait">Checking today's weather…</span></div>
+      <h3 class="tdy-nearH">${esc(WORDS[sp].near)}</h3><ul class="tdy-near"><li class="tdy-wait">Loading…</li></ul>
+      <h3 class="tdy-savedH">${esc(WORDS[sp].saved)}</h3><ul class="tdy-saved"><li class="tdy-wait">Loading…</li></ul><div class="tdy-notes"></div></div>`;
+    a.after(el);
+    const c = cards[sp] = { el, acts: [], at: 0, from: null, seq: 0 };
+    el.querySelector(".tdy-head").addEventListener("click", () => toggle(sp));
+    el.addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) { const f = c.acts[+b.dataset.go]; if (f) try { f(); } catch {} } });
+    return c;
+  }
+  // Open or close; the choice is kept for every sport. Opening reads again when the numbers are old or you've moved.
+  function toggle(sp, open = !cards[sp].el.classList.contains("open")) {
+    const c = cards[sp];
+    c.el.classList.toggle("open", open);
+    c.el.querySelector(".tdy-head").setAttribute("aria-expanded", String(open));
+    c.el.querySelector(".tdy-body").hidden = !open;
+    store.set("todayOpen", open);
+    if (open) fill(sp);
   }
 
   // Where from: your location if the map has it, else the middle of the map.
@@ -154,7 +168,6 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
   const kv = (k, v) => `<div class="tdy-kv"><span>${esc(k)}</span><b>${[].concat(v).map((x) => `<span>${esc(x)}</span>`).join("")}</b></div>`;   // v: text, or pieces that translate on their own
   const windWord = (s) => (s.wind == null ? "" : s.wind < 5 ? "Wind light" : `Wind from ${compass(s.dir)}, up to ${Math.round(s.wind)} km/h${s.gust >= 40 ? `, gusts ${Math.round(s.gust)}` : ""}`);
   const row = (i, name, why, d, extra = "") => `<li><button type="button" data-go="${i}"><span class="tdy-top"><b>${esc(name)}</b>${d != null ? `<em>${esc(fmtKm(d))}</em>` : ""}</span>${[].concat(why || []).filter(Boolean).map((w) => `<small>${esc(w)}</small>`).join("")}${extra}</button></li>`;
-  const go = (f) => { acts.push(f); return acts.length - 1; };
 
   // ---------- Avalanche Canada, exactly as given ----------
   const avyLine = (a) => {
@@ -177,7 +190,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
   // ---------- each sport ----------
   // Each returns { near: [{ ll, name, why, d, open }], saved: [...same], here: (s) => html, wx: [extra places] }
   // and fills in its lines once the weather is in.
-  async function ski(from) {
+  async function ski(from, lite) {
     let areas = [];
     try { areas = ((await fetch("data/ski-areas.json").then((r) => r.json())).areas || []).filter((a) => a.lat != null); } catch {}
     const near = areas.map((a) => ({ a, d: kmTo(from.ll, [a.lat, a.lon]) })).filter((x) => x.d <= 150).sort((x, y) => x.d - y.d).slice(0, 3)
@@ -186,10 +199,11 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
       .map((x) => ({ ...x, d: kmTo(from.ll, x.ll) })).sort((a, b) => a.d - b.d).slice(0, 5)
       .map(({ t, ll, d }) => ({ ll, name: t.n || "Tour", d, open: () => { if (t.bb) map.fitBounds([[t.bb[0], t.bb[1]], [t.bb[2], t.bb[3]]]); else map.setView(ll, 13); if (window.tfSki && window.tfSki.tours) window.tfSki.tours(); } }));
     const all = [from.ll, ...near.map((x) => x.ll), ...saved.map((x) => x.ll)];
-    const avys = await Promise.all(all.map(avyAt));
+    const avys = lite ? [] : await Promise.all(all.map(avyAt));   // the short line has no ratings: read them when the card opens
     const snow = (s) => (s ? `New snow ${cm(s.snowPast)} in the last 24 h, ${cm(s.snowNext)} forecast in the next 24 h` : "");
     return {
       near, saved, fish: false,
+      brief: (s) => [["New snow, last 24 h", cm(s.snowPast)], ["Snow forecast, next 24 h", cm(s.snowNext)], ["High and low", `${deg(s.hi)} / ${deg(s.lo)}`]],
       here: (s) => `${s ? kv("New snow, last 24 h", cm(s.snowPast)) + kv("Snow forecast, next 24 h", cm(s.snowNext)) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) : ""}${avyLine(avys[0])}`,
       why: (x, s, k) => snow(s),
       // A place with the same "no rating" reason as where you are: said once, at the top.
@@ -221,6 +235,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
     const biteWord = (b) => (b ? `Bite estimate ${b.s}/5${b.why.length ? `: ${b.why.join(", ")}` : ""}` : "");
     return {
       near, saved, fish: true,
+      brief: (s) => { const b = bite(s); return [["Bite estimate", b ? `${b.s}/5` : null], ["Rain or snow today", mm(s.wet)]]; },
       here: (s) => { const b = bite(s); hereBite = biteWord(b); return s ? (b ? kv("Bite estimate", `${b.s}/5`) + (b.why.length ? `<small>${esc(b.why.join(", "))}</small>` : "") : "") + kv("Sunrise and sunset", `${hm(s.rise)} · ${hm(s.set)}`) + kv("Wind", windWord(s).replace(/^Wind /, "")) + kv("Rain or snow today", mm(s.wet)) : ""; },
       why: (x, s) => [x.why0, ((w) => (w === hereBite ? "" : w))(biteWord(bite(s)))],   // the same as at the top: said once
       extra: () => "",
@@ -246,6 +261,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
     const scent = (s) => (s && s.wind != null && s.wind >= 5 ? `${windWord(s)}: your scent drifts ${compass(s.dir + 180)}` : s ? windWord(s) : "");
     return {
       near, saved, fish: false, noDist: true,
+      brief: (s) => [["Legal light", sky ? `${sky.rise ? hm(sky.rise - 30 * 60000) : "–"} – ${sky.set ? hm(sky.set.valueOf() + 30 * 60000) : "–"}` : null], ["Wind", scent(s).replace(/^Wind /, "")]],
       here: (s) => (sky ? kv("Legal light", `${sky.rise ? hm(sky.rise - 30 * 60000) : "–"} – ${sky.set ? hm(sky.set.valueOf() + 30 * 60000) : "–"}`) + kv("Moon", [sky.moon.name, `, ${sky.moon.pct}%`]) : "")
         + (s ? kv("Wind", scent(s).replace(/^Wind /, "")) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) + kv("Rain or snow today", mm(s.wet)) : ""),
       why: (x, s) => x.why0 || [scent(s), s && s.wet >= 1 ? `${mm(s.wet)} of rain or snow` : ""],
@@ -265,6 +281,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
       .map(({ h, d }) => ({ ll: h.c, name: h.n || "Hike", d, open: () => { if (window.tfHike && window.tfHike.openSaved) window.tfHike.openSaved(h.id, h.c); else map.setView(h.c, 14); } }));
     return {
       near, saved, fish: false,
+      brief: (s) => [["High and low", `${deg(s.hi)} / ${deg(s.lo)}`], ["Chance of rain or snow", s.pop == null ? null : `${Math.round(s.pop)}%`]],
       here: (s) => (s ? kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) + kv("Chance of rain or snow", s.pop == null ? "–" : `${Math.round(s.pop)}%`) + kv("New snow, next 24 h", cm(s.snowNext)) + kv("Sunset", hm(s.set)) : ""),
       why: (x, s) => x.why0 || (s ? [window.tfHike && window.tfHike.trailCond ? window.tfHike.trailCond(s.ground) : "", [`${deg(s.hi)} / ${deg(s.lo)}`, s.pop != null ? `rain or snow ${Math.round(s.pop)}%` : "", s.snowNext >= 1 ? `${cm(s.snowNext)} new snow` : "", `sunset ${hm(s.set)}`].filter(Boolean).join(" · ")] : ""),
       extra: () => "",
@@ -288,6 +305,7 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
       open: () => { if (window.tfLoadSport) window.tfLoadSport("moto").then(() => { if (window.tfMotoDay) window.tfMotoDay.open({ from: { ll: from.ll, name: from.how === "you" ? "Where you are" : "The middle of the map" } }); }).catch(() => {}); } });
     return {
       near, saved, fish: false,
+      brief: (s) => [["Rain or snow, last 2 days", mm(s.wetPast2)], ["Rain or snow, next 24 h", mm(s.wetNext)]],
       here: (s) => (s ? kv("Rain or snow, last 2 days", mm(s.wetPast2)) + kv("Rain or snow, next 24 h", mm(s.wetNext)) + kv("New snow, next 24 h", cm(s.snowNext)) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) : ""),
       why: (x, s) => [x.facts, wet(s)],
       extra: () => "",
@@ -297,63 +315,88 @@ dialog.tdy .tdy-foot label { display: flex; align-items: center; gap: 6px; font-
   const BUILD = { ski, fish, hunt, hike, moto };
 
   // ---------- the card ----------
-  let seq = 0;
-  async function open(sp = sportNow()) {
-    if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0(); return; }
-    const W = WORDS[sp];
-    if (!W) return;
-    cur = sp; acts = [];
-    const my = ++seq, from = whereFrom();
-    $("tdyIcon").innerHTML = line(sp === "hike" ? "boot" : sp, 22);
-    $("tdyTitle").textContent = W.title;
-    $("tdyFrom").textContent = from.how === "you" ? "Where you are, and your saved places" : "The middle of the map, and your saved places";
-    $("tdyHere").innerHTML = `<span class="tdy-wait">Checking today's weather…</span>`;
-    $("tdyNearH").textContent = W.near; $("tdySavedH").textContent = W.saved;
-    $("tdyNear").innerHTML = $("tdySaved").innerHTML = `<li class="tdy-wait">Loading…</li>`;
-    $("tdyNote").innerHTML = "";
-    $("tdyAuto").checked = store.get("todayAuto", true) === false;
-    if (!dlg.open) dlg.showModal();
+  // fill: reads today's numbers for the sport's card, unless they're under 20 minutes old and from the same place.
+  // Closed, it reads only the weather where you are, for the short line (one place); open, every place on the card.
+  async function fill(sp, force) {
+    const W = WORDS[sp], c = card(sp);
+    if (!W || !c) return;
+    const from = whereFrom(), full = c.el.classList.contains("open");
+    if (!force && c.at && (c.full || !full) && Date.now() - c.at < 20 * 60000 && c.from && c.how === from.how && kmTo(c.from, from.ll) < 5) return;
+    c.at = Date.now(); c.from = from.ll; c.how = from.how; c.full = full; c.acts = [];
+    const my = ++c.seq, el = c.el, q = (s) => el.querySelector(s);
+    const go = (f) => { c.acts.push(f); return c.acts.length - 1; };
+    q(".tdy-from").textContent = from.how === "you" ? "Where you are, and your saved places" : "The middle of the map, and your saved places";
+    q(".tdy-sum").innerHTML = q(".tdy-here").innerHTML = `<span class="tdy-wait">Checking today's weather…</span>`;
+    q(".tdy-near").innerHTML = q(".tdy-saved").innerHTML = `<li class="tdy-wait">Loading…</li>`;
+    q(".tdy-notes").innerHTML = "";
     let S;
-    try { S = await BUILD[sp](from); } catch { S = null; }
-    if (my !== seq) return;
-    if (!S) { $("tdyHere").innerHTML = `<span class="tdy-wait">Today couldn't load. Try again in a minute.</span>`; $("tdyNear").innerHTML = $("tdySaved").innerHTML = ""; return; }
-    const places = [from.ll, ...S.near.filter((x) => x.ll).map((x) => x.ll), ...S.saved.map((x) => x.ll)];
+    try { S = await BUILD[sp](from, !full); } catch { S = null; }
+    if (my !== c.seq) return;
+    // Didn't load, or the weather service busy (it limits calls a minute): read again once, a little later, if this
+    // sport is still the one picked.
+    const retry = () => { if (!c.retried) { c.retried = true; setTimeout(() => { if (my === c.seq && sportNow() === sp) fill(sp, true); }, 45000); } };
+    if (!S) { retry(); c.at = 0; q(".tdy-sum").innerHTML = q(".tdy-here").innerHTML = `<span class="tdy-wait">Today couldn't load. Try again in a minute.</span>`; q(".tdy-near").innerHTML = q(".tdy-saved").innerHTML = ""; return; }
+    const places = full ? [from.ll, ...S.near.filter((x) => x.ll).map((x) => x.ll), ...S.saved.map((x) => x.ll)] : [from.ll];
     let wx = [], err = "";
-    try { wx = await weather(places, S.fish, sp === "hike"); } catch (e) { err = navigator.onLine ? "The weather service is busy: try again in a minute." : "No signal: the weather needs a connection."; }
-    if (my !== seq) return;
+    try { wx = await weather(places, S.fish, sp === "hike"); } catch (e) { c.at = 0; err = navigator.onLine ? "The weather service is busy: try again in a minute." : "No signal: the weather needs a connection."; }
+    if (my !== c.seq) return;
+    if (err) retry(); else c.retried = false;
+    // The short line under the title: two or three of the same numbers as the top of the card, each with its name
+    // (a number the weather didn't give is left out).
+    const brief = wx[0] && S.brief ? S.brief(wx[0]).filter((p) => p && p[1] != null && p[1] !== "" && !/^[–\s/°C]*$/.test(p[1])) : [];
+    q(".tdy-sum").innerHTML = err ? `<span>${esc(err)}</span>` : brief.length ? brief.map(([k2, v]) => `<span><span>${esc(k2)}</span>: <b>${esc(v)}</b></span>`).join(" · ") : `<span>${esc(W.near)}</span>`;
+    if (!full) return;   // the lists fill when the card opens
     let k = 1;
     const nearS = S.near.map((x) => (x.ll ? wx[k++] : null)), savedS = S.saved.map(() => wx[k++]);
-    $("tdyHere").innerHTML = (err ? `<span class="tdy-wait">${esc(err)}</span>` : "") + (S.here(wx[0]) || "");
+    const here = S.here(wx[0]) || "";
+    q(".tdy-here").innerHTML = (err ? `<span class="tdy-wait">${esc(err)}</span>` : "") + here;
+    q(".tdy-here").hidden = !err && !here;
     // The avalanche line's index: 0 is here, then the near places, then the saved ones (ski only uses it).
     let ai = 1;
     const nearAi = S.near.map((x) => (x.ll ? ai++ : -1)), savedAi = S.saved.map(() => ai++);
-    $("tdyNear").innerHTML = S.near.length ? S.near.map((x, i) => row(go(x.open), x.name, S.why(x, nearS[i], nearAi[i]), S.noDist ? null : x.d, S.extra(x, nearS[i], nearAi[i]))).join("")
+    q(".tdy-near").innerHTML = S.near.length ? S.near.map((x, i) => row(go(x.open), x.name, S.why(x, nearS[i], nearAi[i]), S.noDist ? null : x.d, S.extra(x, nearS[i], nearAi[i]))).join("")
       : `<li class="tdy-wait">${esc(S.nearEmpty || "Nothing found near here.")}</li>`;
-    $("tdySaved").innerHTML = S.saved.length ? S.saved.map((x, i) => row(go(x.open), x.name, S.why(x, savedS[i], savedAi[i]), x.d, S.extra(x, savedS[i], savedAi[i]))).join("")
+    q(".tdy-saved").innerHTML = S.saved.length ? S.saved.map((x, i) => row(go(x.open), x.name, S.why(x, savedS[i], savedAi[i]), x.d, S.extra(x, savedS[i], savedAi[i]))).join("")
       : `<li class="tdy-wait">${esc(W.none)}</li>`;
-    $("tdyNote").innerHTML = [].concat(S.note).filter(Boolean).map((n) => `<p class="tdy-note">${esc(n)}</p>`).join("") + (wx[0] && window.tfWx ? window.tfWx.noteHtml(wx[0].w, { cls: "tdy-note" }) : "");
+    q(".tdy-notes").innerHTML = [].concat(S.note).filter(Boolean).map((n) => `<p class="tdy-note">${esc(n)}</p>`).join("") + (wx[0] && window.tfWx ? window.tfWx.noteHtml(wx[0].w, { cls: "tdy-note" }) : "");
+  }
+
+  // Put the card in the sport's panel when that sport is picked (the other sports' panels arrive with their files),
+  // and read its numbers then.
+  const TAP = "Tap for today's weather, places near you and your saved places";
+  let mountSeq = 0;
+  async function mount() {
+    const sp = sportNow(), my = ++mountSeq;
+    if (!WORDS[sp]) return;
+    const c = await until(() => card(sp), 15000);
+    if (!c || my !== mountSeq) return;
+    // "tf:todayAuto" false (the old pop-up's "Don't show when the app opens", and the test runs): nothing is read
+    // until the card is opened.
+    if (store.get("todayAuto", true) === false && !c.el.classList.contains("open")) { if (!c.at) c.el.querySelector(".tdy-sum").innerHTML = `<span>${esc(TAP)}</span>`; return; }
+    fill(sp);
+  }
+  window.addEventListener("tf:sport", () => setTimeout(mount, 300));
+
+  // Open the card from elsewhere (the More page's Today, the map sheet's Today line): the sport's tab, the card open,
+  // scrolled to. MTB keeps status.js's Where to ride today.
+  async function open(sp = sportNow()) {
+    if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0(); return; }
+    if (!WORDS[sp]) return;
+    const t = document.querySelector(`#tabbar [data-nav="${sp}"]`);
+    if (t && t.getAttribute("aria-current") !== "true") t.click();
+    const c = await until(() => card(sp), 15000);
+    if (!c) return;
+    if (!c.el.classList.contains("open")) toggle(sp, true); else fill(sp);
+    if (window.tfSnapTo) window.tfSnapTo("half");   // phones: the sheet up from the map so the card shows
+    setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(c.el); }, 300);
   }
 
   // The More page's Today and the map sheet (index.html) call tfTodayOpen: MTB keeps status.js's card.
   window.tfTodayOpen0 = window.tfTodayOpen0 || window.tfTodayOpen;
   window.tfTodayOpen = () => open(sportNow());
-  window.tfTodaySport = { open };
+  window.tfTodaySport = { open, fill: (sp) => fill(sp || sportNow(), true) };
 
-  // ---------- once a day, when the app opens ----------
-  // Not on a shared link (#pin=...), not while the welcome or another card is up, not when turned off.
-  function auto(tries = 20) {
-    if (store.get("todayAuto", true) === false) return;
-    if (/^#\w+=/.test(location.hash)) return;   // opened from a shared link (#pin=, #trail=, #route=, #trip=, #live=...): that comes first
-    if ((window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked) || document.querySelector(".welc, .nt-ask, .acct-nudge, #tpBackBar:not([hidden]), dialog[open]")) {
-      if (tries > 0) setTimeout(() => auto(tries - 1), 1000);
-      return;
-    }
-    const sp = sportNow(), seen = store.get("todaySeen", {});
-    if (seen[sp] === localDay()) return;
-    seen[sp] = localDay(); store.set("todaySeen", seen);
-    if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0({ auto: true }); }   // status.js: only the nearest trails
-    else open(sp);
-  }
-  const start = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(() => auto(), { timeout: 3000 }) : auto()), 5000);
+  // When the app opens: the card in the sport's panel fills in once the map has settled (no pop-up, in any sport).
+  const start = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(() => mount(), { timeout: 3000 }) : mount()), 3000);
   if (document.readyState === "complete") start(); else window.addEventListener("load", start, { once: true });
 })();
