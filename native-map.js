@@ -172,19 +172,34 @@
           properties: { ...props, r: l.getRadius(), c: o.color || "#fff", w: o.stroke === false ? 0 : o.weight || 0, f: o.fillColor || o.color || "#fff", fo: o.fill === false ? 0 : o.fillOpacity == null ? 0.2 : o.fillOpacity } });
         return;
       }
-      if (!o.stroke || !(o.opacity > 0)) return;
+      // A filled area (Where you can't ride, hunting zones...) goes as a polygon with its fill (fc, fa): builds from
+      // 2026-11-22 fill it as the flat map does (tf-fill); older ones draw its outline only, as before.
+      const fa = l instanceof L.Polygon && o.fill !== false ? (o.fillOpacity == null ? 0.2 : +o.fillOpacity) : 0;
+      const stroke = !!o.stroke && o.opacity > 0 && o.weight !== 0;   // weight 0: no outline (Moto's cell signal squares)
+      if (!stroke && !(fa > 0)) return;
       let lls = l.getLatLngs();
       if (!lls.length) return;
+      const d = stroke && o.dashArray ? dashKey(o.dashArray, o.weight) : "";
+      const base = { ...props, c: o.color || "#3388ff", w: (o.weight || 3) * (open3d ? LINE_SCALE : 1), o: stroke ? o.opacity : 0, d, ...(label(l) ? { lb: label(l) } : {}) };
+      if (fa > 0) {
+        // Leaflet: one ring [LatLng], one area [[LatLng]] (outer ring, then holes), or several [[[LatLng]]].
+        const polys = !Array.isArray(lls[0]) ? [[lls]] : !Array.isArray(lls[0][0]) ? [lls] : lls;
+        // An area whose outer ring is too short is left out whole (a hole must never become the filled part).
+        const coords = polys.filter((rings) => rings.length && rings[0].length > 2)
+          .map((rings) => rings.filter((r) => r.length > 2).map((r) => { const c = r.map(ll); c.push(c[0]); return c; }));
+        if (!coords.length) return;
+        if (d) dashes.add(d);
+        lines.push({ type: "Feature", geometry: { type: "MultiPolygon", coordinates: coords }, properties: { ...base, fc: o.fillColor || o.color || "#3388ff", fa: Math.min(1, fa) } });
+        return;
+      }
       if (!Array.isArray(lls[0])) lls = [lls];
       else if (Array.isArray(lls[0][0])) lls = lls.flat();
       let parts = lls.map((p) => p.map(ll));
       if (l instanceof L.Polygon) parts.forEach((p) => p.length && p.push(p[0]));
       parts = parts.filter((p) => p.length > 1);
       if (!parts.length) return;
-      const d = o.dashArray ? dashKey(o.dashArray, o.weight) : "";
       if (d) dashes.add(d);
-      lines.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: parts },
-        properties: { ...props, c: o.color, w: (o.weight || 3) * (open3d ? LINE_SCALE : 1), o: o.opacity, d, ...(label(l) ? { lb: label(l) } : {}) } });
+      lines.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: parts }, properties: base });
     });
     return {
       lines: JSON.stringify({ type: "FeatureCollection", features: lines }),
