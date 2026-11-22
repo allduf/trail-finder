@@ -97,7 +97,10 @@ async function networkFirst(req, e) {
       const hit = page ? await cache.match(req, { ignoreSearch: true }) || (home ? await cache.match("index.html") : null) || await caches.match(req, { ignoreSearch: true }) : await ownHit(req, true);
       if (hit) {
         e.waitUntil(net.catch(() => null));
-        if (page && hit.ok) return plain(hit);
+        // Shown at once: the app itself (the map and My rides). Every other page (usage, privacy, join...) is opened
+        // rarely, so a saved copy there can be days old: it waits for the network like a data file (alex 2026-11-22: the
+        // usage page showed its copy from before the sign-in person check, and sign-in failed until a reload).
+        if (page && hit.ok && /\/(index\.html|ride(\.html)?)?$/.test(new URL(req.url).pathname)) return plain(hit);
         // The whole file, not just its first bytes: a big file can start quickly and then crawl.
         const whole = net.then(async (r) => (r.ok ? new Response(await r.blob(), { status: r.status, statusText: r.statusText, headers: r.headers }) : null)).catch(() => null);
         const slow = new Promise((ok) => setTimeout(() => ok(null), page ? PAGE_WAIT_MS : DATA_WAIT_MS));

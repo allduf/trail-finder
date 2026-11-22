@@ -23,7 +23,7 @@ const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
 const OUT = process.env.OUT || "phone-test-shots";
 const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
-const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds" };
+const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
@@ -637,13 +637,54 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
   await step(p, "ride", "Open My rides (ride.html)", () => p.page.goto(SITE + "ride.html#rides", { waitUntil: "domcontentloaded", timeout: 60_000 }), 4000);
   await p.ctx.close();
 }
+
+// Sign-in person check (CAPTCHA on in Supabase since 2026-11-21): on every page with a sign-in box, Sign in, Create an
+// account and Email me a code each send Cloudflare's answer, and a refused one shows our own words, never Supabase's.
+// Cloudflare's script is a stand-in that answers at once; Supabase's sign-in addresses are answered here, nothing is sent.
+for (const file of ["index.html", "ride.html", "usage.html"]) {
+  const p = await phone(), { page } = p;
+  const sent = [];
+  await page.route("https://challenges.cloudflare.com/**", (r) => r.fulfill({ contentType: "text/javascript", body: `window.turnstile = { n: 0,
+    render(el, o) { this.o = o; setTimeout(() => o.callback("stand-in-" + ++this.n), 50); return "w"; },
+    reset() { setTimeout(() => this.o.callback("stand-in-" + ++this.n), 50); } };` }));
+  await page.route(/supabase\.co\/auth\/v1\/(token|signup|otp)/, (r) => {
+    const b = JSON.parse(r.request().postData() || "{}");
+    sent.push({ what: new URL(r.request().url()).pathname.split("/").pop(), token: !!(b.gotrue_meta_security && b.gotrue_meta_security.captcha_token) });
+    r.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: 400, error_code: "captcha_failed", msg: "captcha protection: request disallowed (stand-in)" }) });
+  });
+  const flow = (name, act) => step(p, "signin", `${file}: ${name} sends the person check`, async () => {
+    const n = sent.length;
+    await act();
+    for (let i = 0; i < 60 && sent.length === n; i++) await wait(250);
+    const s = sent[n];
+    if (!s) throw new Error("nothing was sent to Supabase");
+    if (!s.token) throw new Error(`${s.what} was sent without Cloudflare's answer`);
+    await wait(300);
+    const msg = await page.textContent("#acctMsg");
+    if (/captcha protection|captcha_token/i.test(msg)) throw new Error(`a refused check shows Supabase's own words: "${msg}"`);
+  }, 300);
+  await step(p, "signin", `${file}: open the sign-in box`, async () => {
+    await page.goto(SITE + file, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await page.waitForFunction(() => window.tfAccount && window.tfAccount.open, null, { timeout: 30_000 });
+    await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 3000 }).catch(() => {});
+    await page.evaluate(() => window.tfAccount.open());
+    await page.waitForSelector("#acctEmail", { state: "visible", timeout: 8000 });
+    await page.evaluate(() => { const h = document.getElementById("acctHave"); if (h && !h.hidden) h.click(); });
+    await page.fill("#acctEmail", "probe@example.com");
+    await page.fill("#acctPass", "probe-password-1");
+  });
+  await flow("Sign in", () => page.click("#acctSend"));
+  await flow("Email me a code", () => page.click("#acctLink"));
+  await flow("Create an account", async () => { await page.click("#acctNew"); await page.fill("#acctPass", "probe-password-1"); await page.click("#acctSend"); });
+  await p.ctx.close();
+}
 await browser.close();
 server.close();
 
 // ---------- report ----------
 const bad = results.filter((r) => !r.ok);
 const md = [`## 📱 Phone test (${BROWSER === "webkit" ? "Safari engine" : BROWSER}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
-  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds and My rides.`, "",
+  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds, My rides and the sign-in check.`, "",
   "| Sport | Step | Result |", "|---|---|---|",
   ...results.map((r) => `| ${NAMES[r.sport] || "My rides"} | ${r.step} | ${r.ok ? "✓" : "✗ " + r.note.replace(/\|/g, "\\|")} |`), "",
   "Screenshots of every step: the **phone-test-screenshots** download at the bottom of this run's page."].join("\n");
