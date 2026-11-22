@@ -24,7 +24,8 @@ final class NativeLayers {
         () -> new NativeOverlay("smoke", 1),   // NativeOverlay.java: wildfire smoke forecast
         NativePins::new,                       // NativePins.java: the map's tap pins (webcams, huts, parking, saved spots...)
         NativeSearch::new,                     // NativeSearch.java: search a place and fly there
-        NativeTools::new                       // NativeTools.java: the page's map tools (plan, record, compass, measure)
+        NativeTools::new,                      // NativeTools.java: the page's map tools (plan, record, compass, measure)
+        NativeUnder::new                       // NativeUnder.java: the page's own buttons over native 3D (this build can)
     );
 
     static List<NativeLayer> make() {

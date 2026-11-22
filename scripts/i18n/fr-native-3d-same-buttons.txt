@@ -1,0 +1,1 @@
+iPhone app: 3D keeps the same buttons, Layers, bottom bar and cards as the flat map. Only the map tilts, and "2D map" goes back. ||| App iPhone : la 3D garde les mêmes boutons, Couches, barre du bas et fiches que la carte à plat. Seule la carte s’incline, et « Carte 2D » revient en arrière.

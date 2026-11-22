@@ -3,6 +3,7 @@ import CoreLocation
 import Foundation
 import MapLibre
 import UIKit
+import WebKit
 
 // A trail map drawn by the iPhone itself (MapLibre Native) instead of the web page: a test, to feel whether a native map
 // pans and zooms smoother than the web one (alex 2026-10-30, Upgrade 3 of the review: "Native map trial in MTB").
@@ -48,12 +49,17 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
         let base = call.getString("base") ?? "osm", threeD = call.getBool("threeD") ?? false, winter = call.getBool("winter") ?? false
         let esri = call.getString("esri"), fr = call.getString("lang") == "fr"
         let lines = call.getString("lines") ?? "", dots = call.getString("dots") ?? "", dashes = call.getString("dashes") ?? ""
+        // under: the page's buttons, menus and cards stay on top, this map under them (see TrailMapScreen.under). Only
+        // with an app whose web view lets touches through to it (App/TFBridge.swift); otherwise the screen goes on top.
+        let underData = call.getString("under")
         var extra: [String: String] = [:]
         for (k, v) in call.getObject("layers") ?? [:] { if let t = v as? String { extra[k] = t } }
         DispatchQueue.main.async {
             if let s = self.screen { s.setData(lines: lines, dots: dots, dashes: dashes); extra.forEach { s.setLayer($0.key, $0.value) }; call.resolve(); return }
             guard let host = self.bridge?.viewController else { call.reject("No screen to show the map on"); return }
-            let s = TrailMapScreen(center: center, zoom: zoom, bearing: bearing, base: base, threeD: threeD, winter: winter, esri: esri, fr: fr)
+            let web = self.bridge?.webView
+            let under = underData != nil && threeD && web?.responds(to: NSSelectorFromString("setTfUnderlay:")) == true
+            let s = TrailMapScreen(center: center, zoom: zoom, bearing: bearing, base: base, threeD: threeD, winter: winter, esri: esri, fr: fr, under: under)
             s.onEvent = { [weak self] name, data in
                 self?.notifyListeners(name, data: data)
                 if name == "closed" { self?.screen = nil }
@@ -62,7 +68,7 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             // a full-screen modal), shown while a tool's own bar from the page is open above or below the map. Its
             // scroll view (what draws the page), not the web view: in Capacitor the host's view IS the web view, and
             // this screen sits inside it.
-            s.showWeb = { [weak self] on in self?.bridge?.webView?.scrollView.isHidden = !on }
+            if !under { s.showWeb = { [weak self] on in self?.bridge?.webView?.scrollView.isHidden = !on } }
             s.setData(lines: lines, dots: dots, dashes: dashes)
             extra.forEach { s.setLayer($0.key, $0.value) }
             self.screen = s
@@ -72,8 +78,22 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             host.addChild(s)
             s.view.frame = host.view.bounds
             s.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            s.view.alpha = 0.011   // not seen, but it takes the touches (alpha 0 lets them through to the flat map)
-            host.view.addSubview(s.view)
+            if under, let wv = web {
+                // Under the page: behind the web view's own drawing, which turns see-through where its map was (the page
+                // hides its flat map once open() answers). Touches where the page shows nothing come here (TFWebView).
+                s.view.alpha = 1
+                s.webWas = (wv.isOpaque, wv.backgroundColor, wv.scrollView.backgroundColor)
+                wv.isOpaque = false
+                wv.backgroundColor = .clear
+                wv.scrollView.backgroundColor = .clear
+                wv.insertSubview(s.view, belowSubview: wv.scrollView)
+                wv.setValue(s.view, forKey: "tfUnderlay")
+                s.web = wv
+                if let u = underData { s.setLayer("under", u) }
+            } else {
+                s.view.alpha = 0.011   // not seen, but it takes the touches (alpha 0 lets them through to the flat map)
+                host.view.addSubview(s.view)
+            }
             s.didMove(toParent: host)
             // Seamless from the flat map (alex 2026-11-21: "tilt from the 2d directly and it transition seamless to 3d"):
             // the screen stays invisible over the page's flat map until its own map has drawn the same spot, in the same
@@ -84,6 +104,12 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
                 shown = true
                 guard let s = s, !s.left else { call.resolve(); return }
                 s.onReady = nil
+                if s.under {
+                    // The page hides its flat map as soon as this answers (under: true); the tilt starts once it has.
+                    call.resolve(["under": true])
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak s] in s?.tiltIn() }
+                    return
+                }
                 UIView.animate(withDuration: 0.18, animations: { s.view.alpha = 1 }) { _ in
                     if s.parent != nil && !s.left && !s.toolOpen && !s.aside { s.showWeb?(false) }
                     s.tiltIn()
@@ -138,6 +164,12 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
 
 // The screen's own view lets touches through where nothing of it is (a tool's bar from the page shows there).
 private final class PassView: UIView {
+    // Under the page (TrailMapScreen.under): whether a point is the map's, not the page's (its buttons, bars, cards).
+    var takes: ((CGPoint) -> Bool)?
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        guard super.point(inside: point, with: event) else { return false }
+        return takes?(point) ?? true
+    }
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let v = super.hitTest(point, with: event)
         return v === self ? nil : v
@@ -181,6 +213,18 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private let esri: String?      // the page's Esri photo address (the app's own key), for the 3D photos
     private let fr: Bool           // names in French
     private var tilted = false
+    // ---------- under the page (alex 2026-11-22: "i want to keep the same interface for both i never want the map to
+    // switch from web to native map") ----------
+    // The page's own buttons, menus, bottom bar and cards stay on top, as on the flat map; this map is drawn under the
+    // web view and takes the touches where the page shows nothing (the page sends where that is, "under" below). Its
+    // own Back, Layers, style and Me buttons and its trail card don't show: the page's do that (native-map.js). A
+    // trail tapped here opens the page's own card ("tap"); Details on a feature's card opens on the page ("details")
+    // and this map stays. Only the page closes it (its 2D button, or Android's Back).
+    let under: Bool
+    weak var web: WKWebView?
+    var webWas: (Bool, UIColor?, UIColor?)?
+    private var mask: (cell: CGFloat, cols: Int, rows: Int, bits: [UInt8])?
+    private var uiTop: CGFloat = 0, uiBottom: CGFloat = 0
     // The first frame of the same spot and style as the page's flat map is drawn (open() then shows this screen).
     var onReady: (() -> Void)?
     private var waitWinter = false   // Skiing's Winter asked for but its lists still coming: not ready on Satellite
@@ -210,8 +254,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // The native 3D features (NativeLayers.swift), each with its own sources and layers; 3D only.
     private lazy var features: [NativeLayer] = threeD ? NativeLayers.all.map { $0() } : []
 
-    init(center: CLLocationCoordinate2D, zoom: Double, bearing: Double, base: String, threeD: Bool = false, winter: Bool = false, esri: String? = nil, fr: Bool = false) {
+    init(center: CLLocationCoordinate2D, zoom: Double, bearing: Double, base: String, threeD: Bool = false, winter: Bool = false, esri: String? = nil, fr: Bool = false, under: Bool = false) {
         start = center; startZoom = zoom; startBearing = bearing
+        self.under = under
         self.esri = esri.flatMap { $0.contains("{z}") && $0.hasPrefix("https://") ? $0 : nil }
         self.fr = fr
         self.threeD = threeD
@@ -231,7 +276,45 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    override func loadView() { view = PassView() }
+    override func loadView() {
+        let v = PassView()
+        if under { v.takes = { [weak self] p in self?.mapTakes(p) ?? true } }
+        view = v
+    }
+    // The page's map at this point (not a button, bar or card of its own): the page's grid of what's where.
+    private func mapTakes(_ p: CGPoint) -> Bool {
+        guard let m = mask, m.cell > 0 else { return p.y > 110 && p.y < view.bounds.height - 170 }   // until it comes
+        let c = Int(p.x / m.cell), r = Int(p.y / m.cell)
+        guard c >= 0, r >= 0, c < m.cols, r < m.rows, r * m.cols + c < m.bits.count else { return false }
+        return m.bits[r * m.cols + c] == 1
+    }
+    // { s: cell size (points), c: columns, r: rows, m: "0101…" row by row (1: map), t, b: the page's rows of buttons from
+    // the top and bottom (this map's own labels and cards go between), cam: { lat, lon, zoom, bearing } the page moved its
+    // map to (a search, a card), me: true (the page's My location: follow you), back: true (Back) }.
+    func applyUnder(_ json: String) {
+        guard under, let d = json.data(using: .utf8), let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return }
+        if let cell = (o["s"] as? NSNumber)?.doubleValue, let cols = (o["c"] as? NSNumber)?.intValue,
+           let rows = (o["r"] as? NSNumber)?.intValue, let bits = o["m"] as? String, cols > 0, rows > 0 {
+            mask = (CGFloat(cell), cols, rows, bits.utf8.map { $0 == 49 ? 1 : 0 })
+        }
+        if let t = (o["t"] as? NSNumber)?.doubleValue, let b = (o["b"] as? NSNumber)?.doubleValue,
+           abs(CGFloat(t) - uiTop) >= 1 || abs(CGFloat(b) - uiBottom) >= 1 {
+            uiTop = max(0, CGFloat(t)); uiBottom = max(0, CGFloat(b))
+            if isViewLoaded { layoutArea() }
+        }
+        if isViewLoaded, let cam = o["cam"] as? [String: Any], let lat = (cam["lat"] as? NSNumber)?.doubleValue,
+           let lon = (cam["lon"] as? NSNumber)?.doubleValue, let z = (cam["zoom"] as? NSNumber)?.doubleValue {
+            endTilt()
+            map.userTrackingMode = .none
+            let to = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+            let dir = (cam["bearing"] as? NSNumber)?.doubleValue ?? map.direction
+            map.setCenter(to, zoomLevel: z, direction: dir, animated: true)
+        }
+        if isViewLoaded, o["me"] as? Bool == true { locateTapped() }
+        // Back with nothing of the page's open (Android's; here for the same page): the card first, else back to 2D.
+        if isViewLoaded, o["back"] as? Bool == true { if !card.isHidden { showCard(nil) } else { leave(details: false) } }
+    }
+
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -283,7 +366,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let locate = pill("◎ Me", #selector(locateTapped))
         styled(styleBtn, styleTitle(), #selector(styleTapped))
         [back, tag, locate, styleBtn].forEach { view.addSubview($0) }
-        if threeD {
+        if under { [back, tag, locate, styleBtn].forEach { $0.isHidden = true } }   // the page's own buttons do these
+        if threeD && !under {
             let layers = pill("☰ Layers", #selector(layersTapped))
             view.addSubview(layers)
             NSLayoutConstraint.activate([
@@ -444,6 +528,20 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // extra: a feature's own keys for the page ("closed"), e.g. avy: true for the avalanche card's "Full forecast".
     func leave(details: Bool, layers: Bool = false, extra: [String: Any] = [:]) {
         if left { return }
+        // Under the page, Details (a card's, or a feature's own link such as the avalanche card's full forecast) opens
+        // on the page over this map, which stays.
+        if under && (details || !extra.isEmpty) {
+            var e = camera()
+            e["details"] = details && !card.isHidden && cardDetails?.isHidden != true
+            extra.forEach { e[$0.key] = $0.value }
+            e["open"] = picked
+            e["tapLat"] = pickedAt.latitude
+            e["tapLon"] = pickedAt.longitude
+            if let k = pickedFeature, e["details"] as? Bool == true { e["feature"] = k }
+            send("details", e)
+            showCard(nil)
+            return
+        }
         left = true
         var e = camera()
         e["details"] = details && !card.isHidden && cardDetails?.isHidden != true
@@ -456,6 +554,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         onEvent?("closed", e)
         map.delegate = nil
         showWeb?(true)
+        if let wv = web {   // the page's own map is back: the web view as it was
+            if (wv.value(forKey: "tfUnderlay") as? UIView) === view { wv.setValue(nil, forKey: "tfUnderlay") }
+            if let w = webWas { wv.isOpaque = w.0; wv.backgroundColor = w.1; wv.scrollView.backgroundColor = w.2 }
+        }
         UIView.animate(withDuration: 0.2, animations: { self.view.alpha = 0 }) { _ in
             self.willMove(toParent: nil)
             self.view.removeFromSuperview()
@@ -467,6 +569,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // top / bottom: how much of the screen, in points from its top and bottom edges, the page's bar takes (0: none).
     // The map shrinks to the space between, its buttons with it, and the page shows and takes taps there.
     func setToolInsets(top: CGFloat, bottom: CGFloat) {
+        if under { return }   // the tool's bar is on the page, over this map: nothing to make room for
         let h = view.bounds.height
         let t = max(0, min(top, h * 0.6)), b = max(0, min(bottom, h * 0.75))
         if t + b > h - 160 { return }        // no room left for a map: keep it as it is
@@ -484,6 +587,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // lets every touch through until it's answered, then comes back as it was.
     func stepAside(_ on: Bool) {
         if on { layersAsked = false }
+        if under { return }   // the page's dialog is over this map already
         if aside == on { return }
         aside = on
         if on { showWeb?(true) }
@@ -502,8 +606,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let s = view.safeAreaInsets
         mapTop?.constant = insetTop
         mapBottom?.constant = -insetBottom
-        areaTop?.constant = max(0, insetTop - s.top)
-        areaBottom?.constant = -max(0, insetBottom - s.bottom)
+        // Under the page: this map's own labels and cards go between the page's rows of buttons.
+        let t = under ? uiTop : insetTop, b = under ? uiBottom : insetBottom
+        areaTop?.constant = max(0, t - s.top)
+        areaBottom?.constant = -max(0, b - s.bottom)
     }
     // How the map follows you: "follow" (centred on you), "heading" (also turned the way the phone points, Compass)
     // or "none".
@@ -697,6 +803,7 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     func setLayer(_ key: String, _ data: String) {
         if key == "base" { setBase(data); return }
         if key == "layers" { layersAsked = false; return }   // the page opens its Layers over this screen (layersTapped)
+        if key == "under" { applyUnder(data); return }
         guard let f = features.first(where: { $0.key == key }) else { return }
         f.setData(data, style: isViewLoaded && styleReady ? map.style : nil)
     }
@@ -795,6 +902,14 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         let found = map.visibleFeatures(in: box, styleLayerIdentifiers: layers).filter(named)
         // Beside every trail and dot: a feature's own card for that spot (a slope's avalanche card, NativeAvalanche).
         if found.isEmpty { for f in features where f.emptyTap(pickedAt, screen: self) { showCard(nil); return } }
+        if under {
+            // The page's own card, as a tap on its flat map there (or none: the page closes what it had open).
+            showCard(nil)
+            let f = found.first { $0 is MLNPointFeature } ?? found.first { $0.attribute(forKey: "i") != nil } ?? found.first
+            let at = g.location(in: view)   // where on the screen (the page's CSS pixels): a popup of the page's opens there
+            send("tap", ["open": (f?.attribute(forKey: "i") as? NSNumber)?.intValue ?? -1, "tapLat": pickedAt.latitude, "tapLon": pickedAt.longitude, "x": at.x, "y": at.y])
+            return
+        }
         showCard(found.first { $0 is MLNPointFeature } ?? found.first { $0.attribute(forKey: "i") != nil } ?? found.first)
     }
     private func showCard(_ f: MLNFeature?) {

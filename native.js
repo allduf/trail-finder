@@ -97,6 +97,8 @@
       // Later closers (a timer, a frame) are looked for once more, without the noisy [hidden] count.
       setTimeout(() => {
         if (steady() !== steady0) return;
+        // Native 3D under the page (native-map.js): with nothing else to close, Back goes to the flat map.
+        if (window.tfNative && window.tfNative.backOut && window.tfNative.backOut()) return;
         if (e && e.canGoBack && history.length > 1 && !/\/(index\.html)?$/.test(location.pathname)) history.back();
         else if (App.minimizeApp) App.minimizeApp().catch(() => {});
       }, 60);

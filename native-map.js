@@ -105,6 +105,9 @@
     moveWait(ms) { moveWait = ms > 0 ? ms : 500; },
     skip(fn, key = "tools") { if (typeof fn === "function") skips.push({ fn, key: String(key) }); },
     hit: (i) => hits[i] || null,
+    // backOut(): Android's Back with nothing of the page's left to close (native.js): native 3D under the page closes its
+    // own card if one shows, else goes back to the flat map (true), as the 2D button does.
+    backOut: () => { if (!open || !under) return false; TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {}); return true; },
   };
   const detailFns = [];
   let nativeKeys = null, moveWait = 500, keysWait = [];
@@ -207,13 +210,39 @@
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Path && !(skips.length && skipped(e.layer))) later(400); });
 
   // MapLibre's zoom is one less than Leaflet's (512 px tiles against 256).
-  const follow = (e) => map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false });
-  TrailMap.addListener("moved", (e) => { if (!open) return; follow(e); later(moveWait); });
+  let following = false, nativeAt = null;
+  const follow = (e) => {
+    following = true;
+    try { map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false }); } finally { following = false; }
+    nativeAt = { lat: e.lat, lon: e.lon, zoom: e.zoom, fz: map.getZoom() };   // fz: the zoom the flat map could reach
+  };
+  TrailMap.addListener("moved", (e) => { if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
     open = false; clearTimeout(pending); moveWait = 500; sent = "";
+    leaveUnder();
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
-    if (!e.details) return;
+    if (e.details) openDetails(e);
+  });
+  // Under the page (below): Details on a native card opens here while the native map stays; a trail tapped there opens
+  // the page's own card, as a tap on the flat map.
+  TrailMap.addListener("details", (e) => { if (open && e) openDetails(e); });
+  let quietUntil = 0;
+  TrailMap.addListener("tap", (e) => {
+    if (!open || !e) return;
+    const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
+    // A popup opens where the finger is: the flat map (hidden) is moved so that spot is under it, and its own moves
+    // for the next moment (a popup making room for itself) aren't sent back to the native map.
+    quietUntil = Date.now() + 1000;
+    if (isFinite(e.x) && isFinite(e.y)) {
+      const at = map.latLngToContainerPoint(latlng), r = mapEl.getBoundingClientRect();
+      following = true;
+      try { map.panBy([at.x - (e.x - r.left), at.y - (e.y - r.top)], { animate: false }); } finally { following = false; }
+    }
+    if (l) l.fire("click", { latlng });
+    else map.fire("click", { latlng, layerPoint: map.latLngToLayerPoint(latlng), containerPoint: map.latLngToContainerPoint(latlng) });
+  });
+  function openDetails(e) {
     if (e.feature) {   // a feature's own card: that feature opens it (native-xxx.js)
       const f = details.get(String(e.feature));
       if (f) try { f(e.open, L.latLng(e.tapLat, e.tapLon)); } catch {}
@@ -224,25 +253,149 @@
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     if (l) l.fire("click", { latlng });
     else map.fire("click", { latlng, layerPoint: map.latLngToLayerPoint(latlng), containerPoint: map.latLngToContainerPoint(latlng) });
+  }
+
+  // ---------- native 3D under the page (alex 2026-11-22: "i want to keep the same interface for both i never want the
+  // map to switch from web to native map") ----------
+  // On an app build that can (TrailMap.features has "under": ios-app NativeUnder.swift + App/TFBridge in
+  // SceneDelegate.swift, android-app NativeUnder.java), native 3D opens UNDER this page instead of over it: the page
+  // keeps its own top buttons, Layers, bottom bar, sheets and cards, as on the flat map, and only the map changes (the
+  // flat map's drawing is hidden and the page turns see-through there). The 3D button reads "2D map" and closes it, a
+  // trail tapped on the native map opens this page's card, and a move of this page's map (a search, a card) moves the
+  // native one. The native side lets through to the page every touch where the page shows something of its own: the page
+  // sends a grid of that (1: map), again whenever what shows changes. Older builds keep the native screen over the page.
+  const GRID = 12;   // CSS px per cell
+  const mapEl = map.getContainer();
+  // Something of the page's own at this element: it, or a holder of it up to the page, has a background or is a control.
+  // Remembered per element for one grid (most cells hit the same few elements).
+  let seen = new Map();
+  const solid = (el) => {
+    if (!el || el === document.body || el === document.documentElement || el === mapEl) return false;
+    if (seen.has(el)) return seen.get(el);
+    const cs = getComputedStyle(el);
+    const own = cs.backgroundImage !== "none" || !/^(?:transparent|rgba\(\d+,\s*\d+,\s*\d+,\s*0\))$/.test(cs.backgroundColor) ||
+      /^(BUTTON|INPUT|SELECT|TEXTAREA|A|LABEL|SVG|IMG|VIDEO|CANVAS)$/i.test(el.tagName);
+    const v = own || solid(el.parentElement);
+    seen.set(el, v);
+    return v;
+  };
+  // The map at this element: the flat map itself (its drawing is hidden under the page), or a see-through holder.
+  const isMap = (el) => !el || el === mapEl || el === document.body || el === document.documentElement || !solid(el);
+  function underGrid() {
+    seen = new Map();
+    const w = innerWidth, h = innerHeight, c = Math.ceil(w / GRID), r = Math.ceil(h / GRID);
+    let m = "";
+    for (let y = 0; y < r; y++) for (let x = 0; x < c; x++) {
+      m += isMap(document.elementFromPoint(Math.min(w - 1, x * GRID + GRID / 2), Math.min(h - 1, y * GRID + GRID / 2))) ? "1" : "0";
+    }
+    // The page's rows of buttons at the top and bottom, down the middle third: where the native map's own labels stop.
+    const col = (x) => (y) => m[y * c + x] === "0";
+    const xs = [Math.floor(c / 3), Math.floor(c / 2), Math.floor((2 * c) / 3)];
+    const edge = (from, to, dir) => {
+      let found = -1, gap = 0;
+      for (let y = from; dir > 0 ? y < to : y > to; y += dir) {
+        if (xs.some((x) => col(x)(y))) { found = y; gap = 0; } else if (++gap > (found < 0 ? 14 : 3)) break;
+      }
+      return found;
+    };
+    const t = edge(0, Math.floor(r * 0.5), 1), b = edge(r - 1, Math.floor(r * 0.3), -1);
+    return { s: GRID, c, r, m, t: t < 0 ? 0 : (t + 1) * GRID, b: b < 0 ? 0 : h - b * GRID };
+  }
+  let under = false, gridKey = "", gridT = 0, gridObs = null, saved = [];
+  const sendGrid = () => {
+    gridT = 0;
+    if (!under || !open) return;
+    const g = underGrid(), k = g.m + g.t + "," + g.b;
+    if (k === gridKey) return;
+    gridKey = k;
+    TrailMap.layer({ key: "under", data: JSON.stringify(g) }).catch(() => {});
+  };
+  let gridAt = 0;
+  const gridSoon = () => { if (under && !gridT) gridT = setTimeout(() => { gridAt = Date.now(); sendGrid(); }, Math.max(120, 300 - (Date.now() - gridAt))); };
+  const ownMap = (n) => { const el = n && n.nodeType === 1 ? n : n && n.parentElement; return !!el && (el === mapEl || (mapEl.contains(el) && !!el.closest(".leaflet-pane") && !el.closest(".leaflet-popup-pane"))); };
+  const b3 = document.getElementById("btn3d");
+  let b3Was = null;
+  function enterUnder() {
+    if (under) return;
+    under = true; gridKey = "";
+    document.documentElement.classList.add("tf-under");
+    // See-through from the flat map up to the page: each holder's own background goes while the native map is under it.
+    saved = [];
+    for (let e = mapEl; e; e = e.parentElement) { saved.push([e, e.style.background]); e.style.background = "transparent"; }
+    if (b3) {
+      b3Was = { t: b3.textContent, ti: b3.title, p: b3.getAttribute("aria-pressed"), on: b3.classList.contains("on") };
+      b3.textContent = "▭ 2D map"; b3.title = "Back to the flat map"; b3.setAttribute("aria-pressed", "true"); b3.classList.add("on");
+    }
+    gridObs = new MutationObserver((recs) => { if (recs.some((r) => !ownMap(r.target))) gridSoon(); });
+    gridObs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "hidden", "style", "open"] });
+    addEventListener("resize", gridSoon);
+    map.on("popupopen popupclose", gridSoon);
+    document.addEventListener("transitionend", gridSoon, true);
+    document.addEventListener("animationend", gridSoon, true);
+    sendGrid();
+  }
+  function leaveUnder() {
+    if (!under) return;
+    under = false; clearTimeout(gridT); gridT = 0;
+    if (gridObs) { gridObs.disconnect(); gridObs = null; }
+    removeEventListener("resize", gridSoon);
+    map.off("popupopen popupclose", gridSoon);
+    document.removeEventListener("transitionend", gridSoon, true);
+    document.removeEventListener("animationend", gridSoon, true);
+    for (const [e, bg] of saved) e.style.background = bg;
+    saved = [];
+    document.documentElement.classList.remove("tf-under");
+    if (b3 && b3Was) {
+      b3.textContent = b3Was.t; b3.title = b3Was.ti; b3.setAttribute("aria-pressed", b3Was.p || "false"); b3.classList.toggle("on", b3Was.on);
+      b3Was = null;
+    }
+  }
+  {
+    const css = document.createElement("style");
+    // The flat map's drawing hides; its popups (a pin's card) stay, opened where the finger tapped (the "tap" event).
+    css.textContent = "html.tf-under #map .leaflet-pane:not(.leaflet-map-pane):not(.leaflet-popup-pane), html.tf-under #map .leaflet-control-attribution { visibility: hidden !important; }";
+    document.head.append(css);
+  }
+  // This page's map moved by itself (a search, a card, My location): the native map goes there too.
+  map.on("moveend", () => {
+    if (!under || !open || following || Date.now() < quietUntil) return;
+    const c = map.getCenter();
+    // Only a real move: the flat map follows the native one at whole zooms (up to its own deepest), and a resize nudges it.
+    if (nativeAt && Math.abs(map.getZoom() - (nativeAt.fz != null ? nativeAt.fz : nativeAt.zoom + 1)) < 0.75 &&
+        map.latLngToContainerPoint([nativeAt.lat, nativeAt.lon]).distanceTo(map.latLngToContainerPoint(c)) < 40) return;
+    nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, fz: map.getZoom() };
+    TrailMap.layer({ key: "under", data: JSON.stringify({ cam: { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 } }) }).catch(() => {});
+  });
+  // The map style: Layers' pick, or a new sport's own (Skiing's Winter), goes to the native map.
+  const baseFor = (sel) => {
+    const winter = document.body.classList.contains("sport-ski");
+    return sel === "advtopo" ? "vector" : winter && /^(sat|sathybrid|winter)$/.test(sel) ? "winter" : sel;
+  };
+  window.addEventListener("tf:sport", () => {
+    if (!under || !open) return;
+    const sel = (document.getElementById("basemap") || {}).value || "osm";
+    setTimeout(() => { if (under && open) TrailMap.layer({ key: "base", data: baseFor((document.getElementById("basemap") || {}).value || sel) }).catch(() => {}); }, 0);
   });
 
   function openNative(threeD) {
     const close = document.getElementById("lmClose");
     if (close) close.click();
     const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm";
-    open = true; open3d = threeD;
+    open = true; open3d = threeD; nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 };
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
     const winter = threeD && document.body.classList.contains("sport-ski");
     // Skiing's 3D is always Winter when the flat map shows photos or Winter (alex 2026-11-21: "it should be winter",
     // "winter should always be by default in skiing"), as on the web 3D map, whatever was picked on an earlier visit;
     // Map and Topo picked in Skiing stay those maps. The native map has no ADV topo: its closest is "vector".
-    const base = sel === "advtopo" ? "vector" : winter && /^(sat|sathybrid|winter)$/.test(sel) ? "winter" : sel;
+    const base = baseFor(sel);
     // The photo address with the app's own Esri key (map3d.js), and the page's language for place names (native 3D).
     const esri = window.tfEsriPhoto ? window.tfEsriPhoto() : null, lang = window.tfLang && window.tfLang.lang === "fr" ? "fr" : "en";
     const snap = snapshot();
     sent = keyOf(snap);
-    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...snap })
-      .then(() => true, () => { open = false; sent = ""; return false; });
+    // Under the page on a build that can (above); older builds don't know "under" and open over the page.
+    const und = threeD && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
+    return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...(und ? { under: und } : {}), ...snap })
+      .then((r) => { if (und && open && r && r.under) enterUnder(); return true; }, () => { open = false; sent = ""; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -312,6 +465,11 @@
   if (map3d) map3d.addEventListener("click", (e) => {
     // Only a real tap, going from the flat map into 3D: another script's click goes to map3d.js's set3d, which asks
     // claim() above (native 3D on a full native build, the web 3D map on older builds).
+    if (open && under) {   // "2D map" over native 3D under the page: a tap goes back to the flat map
+      e.stopImmediatePropagation(); e.preventDefault();
+      if (e.isTrusted) TrailMap.close().catch(() => {});
+      return;
+    }
     if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return;
     e.stopImmediatePropagation(); e.preventDefault();
     native3d();
@@ -327,6 +485,14 @@
     // screen goes the old way after 1.5 s (the web 3D map with its Layers).
     if (!open || !open3d || !lb || !lmenu || !feats.has("tools")) return;
     TrailMap.layer({ key: "layers", data: "ok" }).catch(() => {});   // answered: the screen waits for the step aside
+    watchLayers();
+    if (lmenu.hidden) lb.click();
+    window.tfNative.send("tools");   // steps aside now, not at the next look
+  });
+  // While Layers is open over native 3D: the style picked there goes to the native map once it closes, and a layer only
+  // the web 3D map draws (older builds) hands over to it. Over native 3D under the page (enterUnder), the page's own
+  // Layers button opens it, with nothing to step aside.
+  function watchLayers() {
     const base0 = (document.getElementById("basemap") || {}).value;
     // A style tapped in Layers goes to the native map even when the flat map was on it already: Skiing's native 3D shows
     // Winter over a Satellite flat map, and Satellite tapped there must show Satellite.
@@ -335,8 +501,6 @@
     if (tiles && layersPick) tiles.removeEventListener("click", layersPick);
     layersPick = (e) => { const b = e.target.closest("[data-base]"); if (b) picked = b.dataset.base; };
     if (tiles) tiles.addEventListener("click", layersPick);
-    if (lmenu.hidden) lb.click();
-    window.tfNative.send("tools");   // steps aside now, not at the next look
     if (layersWatch) layersWatch.disconnect();
     layersWatch = new MutationObserver(() => {
       if (!lmenu.hidden) return;
@@ -349,7 +513,16 @@
       if (base && (picked || base !== base0)) TrailMap.layer({ key: "base", data: base }).catch(() => {});
     });
     layersWatch.observe(lmenu, { attributes: true, attributeFilter: ["hidden"] });
-  });
+  }
+  // The page's My location over native 3D under it: the native map follows you, as its own Me button did.
+  const locBtn = document.getElementById("locate");
+  if (locBtn) locBtn.addEventListener("click", (e) => {
+    if (!open || !under) return;
+    e.stopImmediatePropagation(); e.preventDefault();
+    TrailMap.layer({ key: "under", data: JSON.stringify({ me: true }) }).catch(() => {});
+  }, true);
+  const lbtn = document.getElementById("layersBtn");
+  if (lbtn && lmenu) lbtn.addEventListener("click", () => { if (open && under) setTimeout(() => { if (open && under && !lmenu.hidden) watchLayers(); }, 0); });
   // "Layers" on an older native 3D screen: the web 3D map here, with its Layers open.
   TrailMap.addListener("closed", (e) => {
     if (toWeb) { toWeb = false; if (map3d && !map.getContainer().classList.contains("is3d")) map3d.click(); return; }

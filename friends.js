@@ -8,7 +8,15 @@
   const KEY = "tf-friend";
   const now = () => { try { return localStorage.getItem(KEY) === "1"; } catch { return false; } };
   const save = (v) => { try { if (v) localStorage.setItem(KEY, "1"); else localStorage.removeItem(KEY); } catch {} };
-  const flip = (v) => { if (v === now()) return; save(v); location.reload(); };
+  // While Sign out runs (account.js api.signingOut) the reload waits for it: Sign out reloads the page itself once it's
+  // done, so there's no second reload on top of it (two at once were followed by the iPhone app's page restarting 3-7 s
+  // later, twice: usage log 2026-11-22); Delete account doesn't, so the page reloads here once it has finished.
+  const flip = (v) => {
+    if (v === now()) return;
+    save(v);
+    const go = () => { if (window.tfAccount && window.tfAccount.signingOut) setTimeout(go, 300); else location.reload(); };
+    go();
+  };
   // alex (tf_is_admin) gets More → Friends on this device: "tf-admin" = "1", asked after each sign-in.
   const ADMIN = "tf-admin";
   const isAdmin = () => { try { return localStorage.getItem(ADMIN) === "1"; } catch { return false; } };
