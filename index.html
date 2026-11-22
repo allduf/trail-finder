@@ -2578,7 +2578,8 @@ body.sport-alt #rideMapBtn { display: none !important; }
   const unoffTag = (why) => (globalThis.tfPub ? "" : `<span class="unoff-tag" title="${esc(why)}">Unofficial</span>`);   // never on the public map
   function unofficial(tags) {
     const out = [];
-    if (tags.informal === "yes") out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
+    // A rider who knows the trail says it's official (ratings.js HAND off, e.g. a signed trail): that beats informal=yes.
+    if (tags.informal === "yes" && !tags["tf:handoff"]) out.push("Mapped as an informal trail (informal=yes): it exists and gets used, but isn't an official trail.");
     if (/^(no|private)$/.test(tags.access || "") && !/^(yes|designated|permissive)$/.test(tags.bicycle || "")) out.push(`Access is closed to the public (access=${tags.access}).`);
     if (/^(no|private)$/.test(tags.bicycle || "")) out.push(`Bikes are not allowed (bicycle=${tags.bicycle}).`);
     if (tags.mtb === "no") out.push("Marked as not for mountain bikes (mtb=no).");
@@ -2705,7 +2706,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   function pubSecret(tags, ll, id) {
     if (!globalThis.tfPub) return false;
     const R = globalThis.tfRatings, h = R && R.hand && ll ? R.hand([ll], tags, id) : null;
-    return !!(h && h.unoff) || unofficial(tags).length > 0;
+    return !!(h && h.unoff) || unofficial(h && h.off ? { ...tags, "tf:handoff": h.off } : tags).length > 0;
   }
   function classify(tags, routes, routeTypes = []) {
     const r = classifyTrail(tags, routes);
