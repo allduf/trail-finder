@@ -1,0 +1,191 @@
+name: Side by side
+
+# The iPhone and Android apps, the same steps on both (alex 2026-11-22): an iPhone simulator and an Android simulator
+# each go through the first open (terms, welcome, notifications prompt), sign-in, then every sport: every tab and card,
+# Layers, the 3D button (native 3D), recording, and a native offline copy; in English and in French.
+# scripts/side-by-side/run.mjs drives both phones the same way; pair.py puts the matching screenshots side by side and
+# lists what differs ("side-by-side" artifact, side-by-side-<lang> folders: differences.md, index.html, pairs/). Never fails: it reports.
+# Run it from Actions > Side by side > Run workflow (any branch).
+on:
+  # A pull request that changes this test runs it, so a change to it is seen working before it's merged.
+  pull_request:
+    paths: ["scripts/side-by-side/**", ".github/workflows/side-by-side.yml"]
+  workflow_dispatch:
+    inputs:
+      sports:
+        description: "Sports, comma separated (mtb,ski,hike,fish,hunt,moto)"
+        default: "mtb,ski,hike,fish,hunt,moto"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: side-by-side-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  iphone:
+    runs-on: macos-15
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [en, fr]
+    env:
+      TF_LANG: ${{ matrix.lang }}
+      SPORTS: ${{ inputs.sports }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90   # v1.7.0, pinned to one exact version
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: French words (i18n-fr.js)
+        run: node scripts/i18n/build.mjs
+      - name: Test build for the simulator (opens this runner's site)
+        working-directory: ios-app
+        run: |
+          npm ci
+          node -e '
+            const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json"));
+            c.server.url = "http://localhost:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("localhost");
+            c.ios.limitsNavigationsToAppBoundDomains = false;
+            fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
+          npx cap sync ios
+          P=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :WKAppBoundDomains: string localhost" $P || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" $P || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" $P || true
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO CURRENT_PROJECT_VERSION=99999 build | tail -30   # newer than any TestFlight build: no "New version" card
+      - name: iPhone simulator
+        run: |
+          DEV=$(xcrun simctl list devices available -j | node -e '
+            const d = Object.values(JSON.parse(require("fs").readFileSync(0, "utf8")).devices).flat().filter((x) => /^iPhone/.test(x.name));
+            const p = d.find((x) => /Pro Max/.test(x.name)) || d.find((x) => /Plus/.test(x.name)) || d[0]; console.log(p.udid); console.error(p.name);')
+          xcrun simctl boot "$DEV"
+          xcrun simctl bootstatus "$DEV" -b
+          if [ "$TF_LANG" = fr ]; then   # a phone set to French (Canada), as a Quebec tester's
+            xcrun simctl spawn "$DEV" defaults write -g AppleLanguages -array fr-CA en
+            xcrun simctl spawn "$DEV" defaults write -g AppleLocale fr_CA
+            xcrun simctl shutdown "$DEV"; xcrun simctl boot "$DEV"; xcrun simctl bootstatus "$DEV" -b
+          fi
+          xcrun simctl install booted "$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
+          xcrun simctl privacy booted grant location-always com.allduf.trailfinder || true
+          xcrun simctl location booted set 50.11,-122.95 || true
+          xcrun simctl status_bar booted override --time 9:41 || true
+      - name: Side-by-side steps
+        run: PLATFORM=ios node scripts/side-by-side/run.mjs
+      - name: The app's crash reports, if it crashed
+        if: always()
+        run: |
+          mkdir -p "out/ios-$TF_LANG/crashes"
+          find ~/Library/Logs/DiagnosticReports -name 'App*' -newer ios-app/package.json -exec cp {} "out/ios-$TF_LANG/crashes/" \; 2>/dev/null || true
+          for f in out/ios-$TF_LANG/crashes/*; do [ -f "$f" ] && { echo "::group::$f"; head -c 20000 "$f"; echo "::endgroup::"; }; done; true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbs-ios-${{ matrix.lang }}
+          path: out/
+          if-no-files-found: ignore
+
+  # One Android simulator per sport and language: the emulator is about 3 times slower than the iPhone simulator, and all
+  # six sports in one job went past 150 minutes. The MTB job also does the first open, sign-in and offline steps.
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [en, fr]
+        sport: [mtb, ski, hike, fish, hunt, moto]
+    env:
+      TF_LANG: ${{ matrix.lang }}
+      SPORTS: ${{ matrix.sport }}
+      TAG: ${{ matrix.sport }}
+      START: ${{ matrix.sport == 'mtb' && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: French words (i18n-fr.js)
+        run: node scripts/i18n/build.mjs
+      - name: Install
+        working-directory: android-app
+        run: npm ci
+      - name: Phone notifications (Firebase)
+        working-directory: android-app
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        # As android-app.yml: with the secret the app offers notifications like the real build.
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ] && printf '%s' "$GOOGLE_SERVICES_JSON" | node -e 'const j = JSON.parse(require("fs").readFileSync(0, "utf8")); if (!(j.project_info && j.project_info.project_id && (j.client || []).some((c) => c.client_info && c.client_info.android_client_info && c.client_info.android_client_info.package_name === "com.allduf.trailfinder"))) process.exit(1)'; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            npm uninstall --no-save @capacitor/push-notifications
+            echo "::warning::No GOOGLE_SERVICES_JSON secret: this test build has no phone notifications."
+          fi
+      - name: Test build (opens this runner's site through adb reverse)
+        working-directory: android-app
+        # localhost, like the iPhone test: a secure page (offline storage works), the same address on both phones.
+        run: |
+          node -e '
+            const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json"));
+            c.server.url = "http://localhost:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("localhost");
+            fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon -q
+      - name: Turn on the simulator's speed-up (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Side-by-side steps on an Android 14 simulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d   # v2.38.0, pinned to one exact version
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swangle_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/side-by-side/android.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbs-android-${{ matrix.lang }}-${{ matrix.sport }}
+          path: out/
+          if-no-files-found: ignore
+
+  pair:
+    needs: [iphone, android]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sbs-*
+          path: out
+          merge-multiple: true
+      - name: Pairs and differences
+        run: |
+          python3 -m pip install --quiet pillow
+          for l in en fr; do python3 scripts/side-by-side/pair.py out "$l" || true; done
+          cat out/side-by-side-*/differences.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: side-by-side
+          path: out/side-by-side-*/
+          if-no-files-found: ignore

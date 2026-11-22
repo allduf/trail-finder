@@ -563,6 +563,34 @@ async function appBuild(kind) {
           else await back();
         }
       });
+      // Layers the website's 3D map draws must reach native 3D too (alex 2026-11-22: "we lost a lot of things that work
+      // on the web version"): Hiking's slope angle and Skiing's heatmap go as native-ground.js pictures.
+      await check("Hiking's slope angle and Skiing's heatmap go to native 3D", async () => {
+        if (!(await ev(() => !!(window.tfGround && window.tfGround.skiheat && window.tfGround.skiheat.paint)))) throw new Error("Skiing's heatmap isn't offered to native 3D (tfGround.skiheat)");
+        await sport("hike");
+        await until(() => document.body.classList.contains("sport-hike") && window.tfGround && window.tfGround["hike-slope"], null, 15_000).catch(() => {});
+        await ev(() => { window.tfLeaflet.setView([50.06, -122.95], 12, { animate: false }); });
+        const turned = await ev(() => {
+          const i = document.querySelector('#hkLayerList input[data-layer="slope"]');
+          if (!i) return false;
+          if (!i.checked) { i.checked = true; i.dispatchEvent(new Event("change", { bubbles: true })); }
+          return true;
+        });
+        if (!turned) throw new Error("Hiking's Slope angle switch wasn't found");
+        const n0 = await opens();
+        await tap3d();
+        await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+        const g = await ev((c) => { const x = window.__tm.opens[c]; return x ? (x.layers || {}).ground || "" : null; }, n0);
+        try {
+          if (g === null) throw new Error("3D didn't open native 3D in Hiking");
+          const ids = (g ? JSON.parse(g).layers || [] : []).map((l) => l.id);
+          if (!ids.includes("hike-slope")) throw new Error(`native 3D opened without Hiking's slope angle (got: ${ids.join(", ") || "nothing"})`);
+        } finally {
+          await ev(() => { const i = document.querySelector('#hkLayerList input[data-layer="slope"]'); if (i && i.checked) { i.checked = false; i.dispatchEvent(new Event("change", { bubbles: true })); } });
+          if (await ev(() => document.documentElement.classList.contains("tf-under"))) { await tap3d(); await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {}); }
+          else await back();
+        }
+      });
     } else if (kind === "android") {
       // Testers: the web 3D map (Android's native 3D is alex's only for now). friends.js keeps "tf-admin" for alex's
       // account only, so it's set again just before alex's tap.
