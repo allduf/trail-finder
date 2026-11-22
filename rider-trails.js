@@ -138,7 +138,9 @@ body.rt-drawing:has(.app:not(.fullmap)) .rt-bar { left: 396px; }
   let all = (lsGet(CACHE) || []).filter((t) => t && t.id && Array.isArray(t.line));
   let mine = new Map();     // id -> this rider's own trail (from the table: shows the ones riders' reports hid too)
   let votes = new Map();    // trail id -> { kind, reason }
-  let on = lsGet(ON) !== false;
+  // Off until a rider turns it on in Layers (alex 2026-11-22: "Rider-added trails ... take out" of MTB's first-open
+  // layers). A rider who turned it on keeps it; adding, opening or listing a trail still turns it on (setOn below).
+  let on = lsGet(ON) === true;
   if (!map.getPane("riderTrails")) map.createPane("riderTrails").style.zIndex = 453;
   const renderer = L.svg({ pane: "riderTrails", padding: 0.3 });
   const layer = L.layerGroup();
