@@ -310,6 +310,35 @@ async function fullKeysCheck() {
   results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: !problems.length, note: problems.join(" · "), shot: "" });
   console.log(`${problems.length ? "✗" : "✓"} App builds: iPhone builds ${FIRST_FULL.build}+ keep native 3D only${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
 }
+// Test phones send no usage (alex's Problems list, 2026-11-22): the side-by-side check's iPhone simulator and Android
+// emulator open http://localhost:8080 (the Android phone check http://10.0.2.2:8080) and close the app on purpose, so
+// usage.js read each restart as a crash: 25 "MTB · flat map" crashes in one day, none a real person's. usage.js runs
+// here with a stand-in page, just after a restart: the live site must still report the crash, the test pages nothing.
+async function testPhonesCheck() {
+  const vm = await import("node:vm");
+  const src = await readFile(join(root, "usage.js"), "utf8");
+  const run = (url) => {
+    const u = new URL(url), store = new Map([["tf:useAlive", String(Date.now() - 2000)], ["tf:useCtx", "mtb · flat map · Map tab"]]);
+    const st = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+    const noop = () => {};
+    const w = { localStorage: st, sessionStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+      navigator: { webdriver: false, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X)", onLine: false, maxTouchPoints: 5 },
+      location: { protocol: u.protocol, hostname: u.hostname, pathname: u.pathname, href: url, search: "" },
+      document: { currentScript: null, visibilityState: "visible", readyState: "loading", addEventListener: noop, getElementById: () => null, querySelector: () => null, body: { classList: { contains: () => false } } },
+      addEventListener: noop, setInterval: noop, setTimeout: noop, clearTimeout: noop, screen: { width: 440, height: 956 },
+      crypto: { randomUUID: () => "00000000-0000-0000-0000-000000000000" }, performance: { now: () => 0, getEntriesByType: () => [] },
+      fetch: () => Promise.resolve({ ok: true }), tfAccount: { enabled: true, url: "https://x", key: "k" },
+      Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios", Plugins: {} } };
+    w.window = w;
+    vm.runInNewContext(src, w);
+    return String(store.get("tf:useQueue") || "").includes('"k":"crash"');
+  };
+  const problems = [];
+  if (!run("https://trailfinderapp.ca/")) problems.push("the app on trailfinderapp.ca no longer reports a crash restart");
+  for (const u of ["http://localhost:8080/", "http://127.0.0.1:8080/", "http://10.0.2.2:8080/"]) if (run(u)) problems.push(`a test phone on ${u} sends usage (its restarts read as crashes)`);
+  results.push({ sport: "app", step: "Test phones send no usage", ok: !problems.length, note: problems.join(" · "), shot: "" });
+  console.log(`${problems.length ? "✗" : "✓"} App builds: test phones send no usage${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
+}
 // In the page before its own scripts: Satellite picked before (in Skiing, the other sports and the Satellite button's
 // "back to"), Summer or Live for Skiing's 3D photos, and (platform) the app's stand-in.
 // window.__tm: what the page asked of TrailMap (opens), fail = open() refuses, fire(name, e) = an event from the app.
@@ -629,6 +658,7 @@ async function appBuild(kind) {
   } finally { await p.ctx.close().catch(() => {}); }
 }
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
+await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 
 // The ride page (My rides, recording) on its own.
