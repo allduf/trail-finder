@@ -85,8 +85,9 @@
 .tdy .tdy-warn { color: #8a5a00; font-size: .82rem; margin: 2px 0 0; }
 .tdy .tdy-wait { color: var(--muted); font-size: .9rem; }
 .tdy a { color: inherit; }
+.tdy [hidden] { display: none !important; }
 /* phones: the sport panels are ordered (theme.css); the card sits with the sport's buttons, after its tool row */
-html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { order: 4; }`;
+@media (max-width: 760px) { html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { order: 4; } }`;
   document.head.append(css);
 
   const CHEV = `<svg class="tdy-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
@@ -189,7 +190,7 @@ html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { ord
   // ---------- each sport ----------
   // Each returns { near: [{ ll, name, why, d, open }], saved: [...same], here: (s) => html, wx: [extra places] }
   // and fills in its lines once the weather is in.
-  async function ski(from) {
+  async function ski(from, lite) {
     let areas = [];
     try { areas = ((await fetch("data/ski-areas.json").then((r) => r.json())).areas || []).filter((a) => a.lat != null); } catch {}
     const near = areas.map((a) => ({ a, d: kmTo(from.ll, [a.lat, a.lon]) })).filter((x) => x.d <= 150).sort((x, y) => x.d - y.d).slice(0, 3)
@@ -198,7 +199,7 @@ html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { ord
       .map((x) => ({ ...x, d: kmTo(from.ll, x.ll) })).sort((a, b) => a.d - b.d).slice(0, 5)
       .map(({ t, ll, d }) => ({ ll, name: t.n || "Tour", d, open: () => { if (t.bb) map.fitBounds([[t.bb[0], t.bb[1]], [t.bb[2], t.bb[3]]]); else map.setView(ll, 13); if (window.tfSki && window.tfSki.tours) window.tfSki.tours(); } }));
     const all = [from.ll, ...near.map((x) => x.ll), ...saved.map((x) => x.ll)];
-    const avys = await Promise.all(all.map(avyAt));
+    const avys = lite ? [] : await Promise.all(all.map(avyAt));   // the short line has no ratings: read them when the card opens
     const snow = (s) => (s ? `New snow ${cm(s.snowPast)} in the last 24 h, ${cm(s.snowNext)} forecast in the next 24 h` : "");
     return {
       near, saved, fish: false,
@@ -315,12 +316,13 @@ html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { ord
 
   // ---------- the card ----------
   // fill: reads today's numbers for the sport's card, unless they're under 20 minutes old and from the same place.
+  // Closed, it reads only the weather where you are, for the short line (one place); open, every place on the card.
   async function fill(sp, force) {
     const W = WORDS[sp], c = card(sp);
     if (!W || !c) return;
-    const from = whereFrom();
-    if (!force && c.at && Date.now() - c.at < 20 * 60000 && c.from && kmTo(c.from, from.ll) < 5) return;
-    c.at = Date.now(); c.from = from.ll; c.acts = [];
+    const from = whereFrom(), full = c.el.classList.contains("open");
+    if (!force && c.at && (c.full || !full) && Date.now() - c.at < 20 * 60000 && c.from && c.how === from.how && kmTo(c.from, from.ll) < 5) return;
+    c.at = Date.now(); c.from = from.ll; c.how = from.how; c.full = full; c.acts = [];
     const my = ++c.seq, el = c.el, q = (s) => el.querySelector(s);
     const go = (f) => { c.acts.push(f); return c.acts.length - 1; };
     q(".tdy-from").textContent = from.how === "you" ? "Where you are, and your saved places" : "The middle of the map, and your saved places";
@@ -328,24 +330,27 @@ html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { ord
     q(".tdy-near").innerHTML = q(".tdy-saved").innerHTML = `<li class="tdy-wait">Loading…</li>`;
     q(".tdy-notes").innerHTML = "";
     let S;
-    try { S = await BUILD[sp](from); } catch { S = null; }
+    try { S = await BUILD[sp](from, !full); } catch { S = null; }
     if (my !== c.seq) return;
-    if (!S) { c.at = 0; q(".tdy-sum").innerHTML = q(".tdy-here").innerHTML = `<span class="tdy-wait">Today couldn't load. Try again in a minute.</span>`; q(".tdy-near").innerHTML = q(".tdy-saved").innerHTML = ""; return; }
-    const places = [from.ll, ...S.near.filter((x) => x.ll).map((x) => x.ll), ...S.saved.map((x) => x.ll)];
+    // Didn't load, or the weather service busy (it limits calls a minute): read again once, a little later, if this
+    // sport is still the one picked.
+    const retry = () => { if (!c.retried) { c.retried = true; setTimeout(() => { if (my === c.seq && sportNow() === sp) fill(sp, true); }, 45000); } };
+    if (!S) { retry(); c.at = 0; q(".tdy-sum").innerHTML = q(".tdy-here").innerHTML = `<span class="tdy-wait">Today couldn't load. Try again in a minute.</span>`; q(".tdy-near").innerHTML = q(".tdy-saved").innerHTML = ""; return; }
+    const places = full ? [from.ll, ...S.near.filter((x) => x.ll).map((x) => x.ll), ...S.saved.map((x) => x.ll)] : [from.ll];
     let wx = [], err = "";
     try { wx = await weather(places, S.fish, sp === "hike"); } catch (e) { c.at = 0; err = navigator.onLine ? "The weather service is busy: try again in a minute." : "No signal: the weather needs a connection."; }
     if (my !== c.seq) return;
-    // The weather service busy (it limits calls a minute): read again once, a little later.
-    if (err && !c.retried) { c.retried = true; setTimeout(() => { if (my === c.seq) fill(sp, true); }, 45000); }
-    else if (!err) c.retried = false;
+    if (err) retry(); else c.retried = false;
+    // The short line under the title: two or three of the same numbers as the top of the card, each with its name
+    // (a number the weather didn't give is left out).
+    const brief = wx[0] && S.brief ? S.brief(wx[0]).filter((p) => p && p[1] != null && p[1] !== "" && !/^[–\s/°C]*$/.test(p[1])) : [];
+    q(".tdy-sum").innerHTML = err ? `<span>${esc(err)}</span>` : brief.length ? brief.map(([k2, v]) => `<span><span>${esc(k2)}</span>: <b>${esc(v)}</b></span>`).join(" · ") : `<span>${esc(W.near)}</span>`;
+    if (!full) return;   // the lists fill when the card opens
     let k = 1;
     const nearS = S.near.map((x) => (x.ll ? wx[k++] : null)), savedS = S.saved.map(() => wx[k++]);
     const here = S.here(wx[0]) || "";
     q(".tdy-here").innerHTML = (err ? `<span class="tdy-wait">${esc(err)}</span>` : "") + here;
     q(".tdy-here").hidden = !err && !here;
-    // The short line under the title: two or three of the same numbers as the top of the card, each with its name.
-    const brief = wx[0] && S.brief ? S.brief(wx[0]).filter((p) => p && p[1] != null && p[1] !== "") : [];
-    q(".tdy-sum").innerHTML = err ? `<span>${esc(err)}</span>` : brief.length ? brief.map(([k2, v]) => `<span><span>${esc(k2)}</span>: <b>${esc(v)}</b></span>`).join(" · ") : `<span>${esc(W.near)}</span>`;
     // The avalanche line's index: 0 is here, then the near places, then the saved ones (ski only uses it).
     let ai = 1;
     const nearAi = S.near.map((x) => (x.ll ? ai++ : -1)), savedAi = S.saved.map(() => ai++);
@@ -358,12 +363,16 @@ html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { ord
 
   // Put the card in the sport's panel when that sport is picked (the other sports' panels arrive with their files),
   // and read its numbers then.
+  const TAP = "Tap for today's weather, places near you and your saved places";
   let mountSeq = 0;
   async function mount() {
     const sp = sportNow(), my = ++mountSeq;
     if (!WORDS[sp]) return;
     const c = await until(() => card(sp), 15000);
     if (!c || my !== mountSeq) return;
+    // "tf:todayAuto" false (the old pop-up's "Don't show when the app opens", and the test runs): nothing is read
+    // until the card is opened.
+    if (store.get("todayAuto", true) === false && !c.el.classList.contains("open")) { if (!c.at) c.el.querySelector(".tdy-sum").innerHTML = `<span>${esc(TAP)}</span>`; return; }
     fill(sp);
   }
   window.addEventListener("tf:sport", () => setTimeout(mount, 300));
@@ -374,10 +383,11 @@ html body :is(#skiPane, #huntPane, #fishPane, #motoPane, #hikePane) > .tdy { ord
     if (sp === "mtb") { if (window.tfTodayOpen0) window.tfTodayOpen0(); return; }
     if (!WORDS[sp]) return;
     const t = document.querySelector(`#tabbar [data-nav="${sp}"]`);
-    if (t && t.offsetParent && t.getAttribute("aria-current") !== "true") t.click();
+    if (t && t.getAttribute("aria-current") !== "true") t.click();
     const c = await until(() => card(sp), 15000);
     if (!c) return;
     if (!c.el.classList.contains("open")) toggle(sp, true); else fill(sp);
+    if (window.tfSnapTo) window.tfSnapTo("half");   // phones: the sheet up from the map so the card shows
     setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(c.el); }, 300);
   }
 
