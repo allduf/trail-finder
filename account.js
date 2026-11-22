@@ -341,7 +341,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // api.js only from its own address, so it can't be copied into vendor/. The sign-in is sent even when no answer came:
   // Supabase decides, so a phone that can't show the check still signs in while CAPTCHA is off there. Before CAPTCHA is
   // switched on in Supabase, check the box answers in the iPhone app (app-bound domains, Info.plist) and Android app.
-  const CAPTCHA_KEY = "";
+  const CAPTCHA_KEY = "0x4AAAAAAGMqoQ4EVOz5RF2w";   // widget "Trail Finder sign-in" (alex 2026-11-21), trailfinderapp.ca + www
   const CAP_TAP = "Tick the box above to show you're a person.";
   const CAP_MSG = "Couldn't check that you're a person. Wait a moment and try again. If it keeps happening, write to trailfinder.help@outlook.com.";
   let capLoad = null, capId = null, capToken = null, capAsk = false, capTapAt = 0, capWait = [];
