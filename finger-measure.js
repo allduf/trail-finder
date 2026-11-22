@@ -10,7 +10,11 @@
   const map = window.tfLeaflet, L = window.L;
   if (!map || !L || !("ontouchstart" in window)) return;
   const t = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
-  const HOLD_MS = 550, STILL_PX = 10, SHOW_MS = 2500;
+  // It showed while moving the map (alex 2026-11-22: "it appears when I don't really want to see it"): now both fingers
+  // must come down together (TOGETHER_MS: a second finger added to a pan or a pinch never counts) and stay still
+  // for 1 s (alex: "hold still for 1sec").
+  const HOLD_MS = 1000, STILL_PX = 8, SHOW_MS = 2500, TOGETHER_MS = 250;
+  let firstAt = 0;
 
   const css = document.createElement("style");
   css.textContent = `
@@ -88,7 +92,9 @@
     if (active) { if (e.touches.length > 2) finish(); return; }
     if (held) return;
     reset();
-    if (e.touches.length !== 2 || ![...e.touches].every((p) => onMap(p.target))) return;
+    if (e.touches.length === 1) firstAt = e.timeStamp;
+    const together = e.changedTouches.length === 2 || e.timeStamp - firstAt <= TOGETHER_MS;
+    if (e.touches.length !== 2 || !together || ![...e.touches].every((p) => onMap(p.target))) return;
     start = last = pts(e);
     timer = setTimeout(() => {
       timer = 0;
