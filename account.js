@@ -255,7 +255,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     q("acctPassTip").hidden = !nu;
     q("acctNew").hidden = nu; q("acctHave").hidden = !nu; q("acctLink").hidden = nu;
     q("acctCodeBox").hidden = true;
-    say("");
+    say(capAsk ? CAP_TAP : "");
   }
   function showSettings(on) {
     q("acctMenu").hidden = on; q("acctSettings").hidden = !on; q("acctDelBox").hidden = true;
@@ -339,11 +339,12 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   // can't guess passwords or make accounts in bulk. Off while CAPTCHA_KEY is empty. The site key is public, like the
   // database key above; the secret key is only in Supabase (Authentication, Attack Protection). Cloudflare serves
   // api.js only from its own address, so it can't be copied into vendor/. The sign-in is sent even when no answer came:
-  // Supabase decides, so a phone that can't show the check still signs in while CAPTCHA is off there.
+  // Supabase decides, so a phone that can't show the check still signs in while CAPTCHA is off there. Before CAPTCHA is
+  // switched on in Supabase, check the box answers in the iPhone app (app-bound domains, Info.plist) and Android app.
   const CAPTCHA_KEY = "";
   const CAP_TAP = "Tick the box above to show you're a person.";
   const CAP_MSG = "Couldn't check that you're a person. Wait a moment and try again. If it keeps happening, write to trailfinder.help@outlook.com.";
-  let capLoad = null, capId = null, capToken = null, capAsk = false, capWait = [];
+  let capLoad = null, capId = null, capToken = null, capAsk = false, capTapAt = 0, capWait = [];
   function capReady() {
     if (!CAPTCHA_KEY) return Promise.resolve();
     if (!capLoad) capLoad = new Promise((ok, no) => {
@@ -355,14 +356,15 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     });
     return capLoad.then(() => {
       if (capId != null || !window.turnstile) return;
-      const done = (t) => { capToken = t; capWait.splice(0).forEach((f) => f(t)); };
+      // Each answer works once: it goes to the first sign-in waiting for one, or is kept for the next. An error ends every wait.
+      const done = (t) => { if (!t) { capToken = null; capWait.slice().forEach((f) => f(null)); } else if (capWait.length) capWait[0](t); else capToken = t; };
       capId = window.turnstile.render(q("acctCaptcha"), {
         sitekey: CAPTCHA_KEY, appearance: "interaction-only", size: "flexible", "refresh-expired": "auto",
         callback: (t) => { capAsk = false; done(t); }, "expired-callback": () => { capToken = null; },
         "error-callback": () => { capAsk = false; done(null); return true; },
         // Cloudflare wants a tap this time: the box shows itself, and the sign-in waits for it.
-        "before-interactive-callback": () => { capAsk = true; say(CAP_TAP); },
-        "after-interactive-callback": () => { capAsk = false; },
+        "before-interactive-callback": () => { capAsk = true; if (capWait.length) say(CAP_TAP); },
+        "after-interactive-callback": () => { capAsk = false; capTapAt = Date.now(); },
       });
     }).catch(() => {});
   }
@@ -373,12 +375,14 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     await capReady();
     if (!window.turnstile || capId == null) return null;
     if (!capToken && capAsk) say(CAP_TAP);
-    const t = capToken || await new Promise((ok) => {
-      const t0 = Date.now(), end = (v) => { clearInterval(iv); ok(v); };
-      const iv = setInterval(() => { const ms = Date.now() - t0; if (ms > 120000 || (ms > 12000 && !capAsk)) end(null); }, 500);
+    let t = capToken;
+    capToken = null;
+    if (!t) t = await new Promise((ok) => {
+      const t0 = Date.now(), end = (v) => { clearInterval(iv); const i = capWait.indexOf(end); if (i >= 0) capWait.splice(i, 1); ok(v); };
+      // Just ticked: the answer follows within a few seconds, so keep waiting for it.
+      const iv = setInterval(() => { const now = Date.now(); if (now - t0 > 120000 || (now - t0 > 12000 && !capAsk && now - capTapAt > 8000)) end(null); }, 500);
       capWait.push(end);
     });
-    capToken = null;
     try { window.turnstile.reset(capId); } catch {}
     return t;
   }
