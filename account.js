@@ -376,6 +376,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
   async function captcha() {
     const t0 = Date.now(), t = await captchaWait();
     if (CAPTCHA_KEY) capLog(t ? "answer" : capErr || (capAsk ? "waiting for a tap" : "no answer"), t0);
+    capErr = "";   // the next sign-in reports only what happened after this one
     return t;
   }
   async function captchaWait() {
