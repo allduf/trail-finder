@@ -129,7 +129,7 @@ window.tfDragSort = (root, o) => {
   const CLUB = { label: "Snowmobile clubs", color: "#c2255c" };
   // The four buttons at the top of the panel: each one turns its group of layers on or off (more than one can be on).
   const VIEWS = {
-    tour: { icon: "⛷", label: "Touring", sub: "backcountry", layers: ["tour", "access", "park", "other", "hut", "snow"],
+    tour: { icon: "⛷", label: "Touring", sub: "backcountry", layers: ["tour", "park", "other", "hut", "snow"],
       // Turned off with Touring but not back on by it (alex 2026-11-05: Skiing opens with a short set, faster): each is a
       // switch in Layers.
       quiet: ["other", "snow", "hut"] },
@@ -141,7 +141,7 @@ window.tfDragSort = (root, o) => {
   // in hunting or set. can we do the same for skiing"). A group's slot holds switches other files own (Avalanche risk,
   // Webcams, Rogers Pass, Ski areas, Slackcountry, Lift status: window.tfSkiSlot); "routes" groups are what the four panel buttons turn on.
   const GROUPS = [
-    { g: "Backcountry", keys: ["tour", "access", "park", "other", "hut"], routes: true },
+    { g: "Backcountry", keys: ["tour", "park", "other", "hut"], routes: true },
     // Picture tiles, 3 to a row, like FATMAP's terrain layers: what each one looks like on the mountains.
     { g: "Avalanche and terrain", slot: "avy", keys: ["slope", "aspect", "flats", "elev"], tiles: true },
     { g: "Snow and weather", keys: ["snow", "fresh", "snowfc1", "snowfc2", "snowfc"], slot: "wx", slotAfter: true },
@@ -802,7 +802,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // stays. Signed-in devices keep their own layers.
   const signedIn = (() => { try { return Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)); } catch { return false; } })();
   const GUEST_START = ["tour", "snowmobile"];
-  const SKI_START = signedIn ? ["tour", "access", "park"] : GUEST_START;
+  const SKI_START = signedIn ? ["tour", "park"] : GUEST_START;
   let shown = new Set(store.get("skiLayers2", SKI_START));
   if (!signedIn && !store.get("skiGuest", false)) {
     shown = new Set(GUEST_START);
@@ -827,6 +827,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   if (!store.get("skiMineOff", false)) { shown.delete("mine"); store.set("skiMineOff", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiSnowAdded", false)) { if (shown.has("tour")) shown.add("snow"); store.set("skiSnowAdded", true); store.set("skiLayers2", [...shown]); }
   if (!store.get("skiParkAdded", false)) { if (shown.has("access")) shown.add("park"); store.set("skiParkAdded", true); store.set("skiLayers2", [...shown]); }
+  // Approach trails are part of Ski touring (alex 2026-11-22: "do you think it should be all in Ski touring?", chose yes):
+  // no switch of their own; they show whenever Ski touring does (typeOn). An old saved "access" is dropped.
+  if (shown.delete("access")) store.set("skiLayers2", [...shown]);
+  const typeOn = (t) => shown.has(t === "access" ? "tour" : t);
   // The ground colours (Avalanche risk and the shaded terrain and snow layers): one at a time (window.tfOneGround).
   const GROUND = ["avy", "slope", "aspect", "flats", "elev", "fresh", "snowfc1", "snowfc2", "snowfc"];
   // k just went on: the other ground colours go off. Returns the keys turned off (the caller redraws them).
@@ -1139,7 +1143,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     skiLayer.clearLayers(); hutLayer.clearLayers();
     if (!ski) return;
     for (const r of ski.routes || []) {
-      if (!shown.has(r.type)) continue;
+      if (!typeOn(r.type)) continue;
       const t = TYPES[r.type] || TYPES.other, sel = selected === r;
       r.layers = [];
       for (const line of r.lines) {
@@ -1285,7 +1289,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return `<span class="sk-lic" style="${st}" aria-hidden="true">${SW_SYM[k] || ""}</span>`;
   };
   const SW_TITLE = {
-    access: "Trails that lead to the skiing, like the Elfin Lakes Trail",
+    tour: "Backcountry ski routes, with the trails that lead to them (dashed), like the Elfin Lakes Trail",
     park: "Where to leave the car for a ski tour. Village and ski resort lots aren't shown",
     heat: "Public OpenStreetMap GPS traces from December to April, roads and lifts left out",
     mine: "Your tours from My rides (import or record them there)",
@@ -1336,7 +1340,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!ul) return;
     const line = (t) => `<li><span class="sk-kic"><i style="background:${t.dashArray ? `repeating-linear-gradient(90deg, ${t.color} 0 6px, transparent 6px 10px)` : t.color}"></i></span>${esc(t.label)}</li>`;
     const pin = (c, ic, label) => `<li><span class="sk-kic"><span class="sk-pin" style="background:${c}">${ic}</span></span>${esc(label)}</li>`;
-    ul.innerHTML = Object.keys(TYPES).filter((k) => shown.has(k)).map((k) => line(TYPES[k])).join("")
+    ul.innerHTML = Object.keys(TYPES).filter((k) => typeOn(k)).map((k) => line(TYPES[k])).join("")
       + (shown.has("hut") ? `<li><span class="sk-kic"><span class="sk-kdot" style="background:${HUT.color}"></span></span>Huts, cabins and shelters (brown dots; brown house pins when zoomed in, “Book” when they must be booked ahead)</li>` : "")
       + (shown.has("park") ? `<li><span class="sk-kic"><span class="sk-pin park" style="background:${PARK.color}">P</span></span>Trailhead parking</li>` : "")
       + (shown.has("tour") ? pin(START.color, "⛷", "Start of a camptocamp ski route") : "")
@@ -1463,7 +1467,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const runsOnly = ![...shown].some((t) => TYPES[t] && t !== "resort" && t !== "offpiste");
     for (const r of ski.routes || []) {
       if (!q && !runsOnly && (r.type === "resort" || r.type === "offpiste")) continue;
-      if (!shown.has(r.type) || (q ? !has(nameOf(r)) && !has(r.tags && r.tags["hand:aka"]) : !inView(r))) continue;
+      if (!typeOn(r.type) || (q ? !has(nameOf(r)) && !has(r.tags && r.tags["hand:aka"]) : !inView(r))) continue;
       const key = r.name ? r.type + "|" + r.name.toLowerCase() : r.id;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(r);
@@ -1687,7 +1691,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const r = p.route ? p.route[0] : p.point;
     if (r) {
       $("skPlaceMsg").textContent = "";
-      if (!shown.has(r.type) && TYPES[r.type]) { shown.add(r.type); applySwitches(); }
+      if (!typeOn(r.type) && TYPES[r.type]) { shown.add(r.type === "access" ? "tour" : r.type); applySwitches(); }
       select(p.route || p.point, true);
       const at = p.route ? r.lines[0][Math.floor(r.lines[0].length / 2)] : [r.lat, r.lon];
       cardInView($("skDetail"), at[0], at[1]);
@@ -4003,7 +4007,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (ski) {
       let best = null, bestKm = 3;
       for (const r of ski.routes || []) {
-        if (!shown.has(r.type) || !r.bounds || !r.bounds.intersects(box)) continue;
+        if (!typeOn(r.type) || !r.bounds || !r.bounds.intersects(box)) continue;
         for (const line of r.lines) for (let i = 0; i < line.length; i += 3) {
           const km = map.distance(line[i], here) / 1000;
           if (km < bestKm) { bestKm = km; best = r; }
