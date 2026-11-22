@@ -196,6 +196,7 @@ final class TrailMapScreen extends FrameLayout {
         toolStack.setOrientation(LinearLayout.VERTICAL);
         toolStack.setGravity(Gravity.END);
         area.addView(toolStack, at(Gravity.TOP | Gravity.END, 0, 8, 12, 0));
+        if (under) toolStack.setVisibility(GONE);   // the page's own search bar and Tools: no Search or Tools pills over the page
 
         LinearLayout bottom = new LinearLayout(activity);
         bottom.setOrientation(LinearLayout.VERTICAL);
