@@ -56,6 +56,7 @@ enum NativeLayers {
         { NativeGround() },
         { NativeHunting() },
         { NativeMoto() },
+        { NativeMotoSafe() },   // NativeMoto.swift: this build's Moto layer doesn't close the app (native-moto.js waits for it)
         { NativeOffline() },
         { NativeOverlay(key: "radar", row: 0) },   // NativeWeather.swift: rain and snow radar and forecast
         { NativeOverlay(key: "smoke", row: 1) },   // NativeWeather.swift: wildfire smoke forecast

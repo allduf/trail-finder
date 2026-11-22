@@ -117,7 +117,9 @@ final class NativeMoto: NativeLayer {
         let dirt = MLNVectorTileSource(identifier: "mt-dirt", tileURLTemplates: ["https://\(Self.dirtHost)/{z}/{x}/{y}"],
                                        options: [.minimumZoomLevel: 7, .maximumZoomLevel: 11])
         style.addSource(dirt)
-        let farColour = json(["case", ["==", ["get", "c"], "t"], ["to-color", roads.track], ["to-color", roads.road]])
+        // The two colours as UIColor constants: "to-color" on a text turns into a CAST that NSPredicate rejects, which
+        // closed the app on opening 3D in Moto (simulator crash report, 2026-11-22).
+        let farColour = NSExpression(format: "TERNARY(c == 't', %@, %@)", Self.colour(roads.track), Self.colour(roads.road))
         let farWidth = json(["interpolate", ["linear"], ["zoom"], 7, 0.6, 10, 1.1, 12.9, 2.5])
         let farCase = MLNLineStyleLayer(identifier: "mt-far-case", source: dirt)
         farCase.sourceLayerIdentifier = "dirt"
@@ -189,4 +191,12 @@ final class NativeMoto: NativeLayer {
         guard h.count == 6, let v = UInt32(h, radix: 16) else { return .gray }
         return UIColor(red: CGFloat((v >> 16) & 255) / 255, green: CGFloat((v >> 8) & 255) / 255, blue: CGFloat(v & 255) / 255, alpha: 1)
     }
+}
+
+// "moto-safe" in this build's features (TrailMap.features): its NativeMoto draws without closing the app (the far
+// roads' colours above). native-moto.js sends Moto's layer to an iPhone build only when it reports this; nothing to draw.
+final class NativeMotoSafe: NativeLayer {
+    let key = "moto-safe"
+    func added(to style: MLNStyle, screen: TrailMapScreen) {}
+    func setData(_ json: String, style: MLNStyle?) {}
 }
