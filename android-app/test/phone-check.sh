@@ -31,5 +31,14 @@ if timeout 30 adb logcat -d -v time | grep -iE -A4 "Mbgl.*failed to (compile|lin
 fi
 # A failed check: the app's crashes and the map engine's own lines in the log too (no artifact download needed).
 [ $status = 0 ] || grep -E "FATAL|Fatal signal|AndroidRuntime|MapLibre|Mbgl|backtrace|#0[0-9] pc" shots/logcat.txt | tail -60 || true
-[ $status = 0 ] && { node test/fgs-video.mjs || true; node test/fgs-save-video.mjs || true; }
+[ $status = 0 ] && { node test/fgs-video.mjs || true; }
+# The offline map save video: offline maps need a secure page (the browser's file storage), which http://10.0.2.2 isn't
+# and http://localhost is. A second test build opens localhost, sent to this runner's site with adb reverse.
+if [ $status = 0 ]; then
+  ( node -e 'const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json")); c.server.url = "http://localhost:8080/"; c.server.allowNavigation.push("localhost"); fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));' \
+    && npx cap sync android >/dev/null && (cd android && ./gradlew assembleDebug --no-daemon -q) \
+    && adb reverse tcp:8080 tcp:8080 && adb install -r android/app/build/outputs/apk/debug/app-debug.apk \
+    && for p in ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION POST_NOTIFICATIONS; do adb shell pm grant $APP android.permission.$p || true; done \
+    && node test/fgs-save-video.mjs ) || echo "(no offline save video)"
+fi
 exit $status

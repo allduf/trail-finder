@@ -19,7 +19,7 @@ async function page() {
         try { adb("forward --remove tcp:9222"); } catch {}
         adb(`forward tcp:9222 localabstract:${sock}`);
         const list = await (await fetch("http://127.0.0.1:9222/json")).json();
-        const p = list.find((x) => x.type === "page" && /10\.0\.2\.2/.test(x.url) && !/offline/.test(x.url));
+        const p = list.find((x) => x.type === "page" && /localhost:8080/.test(x.url) && !/offline\.html/.test(x.url));
         if (p) return p;
       }
     } catch {}
@@ -67,7 +67,7 @@ async function slowNet() {
   const id = ++seq;
   await new Promise((r) => { waiting.set(id, r); ws.send(JSON.stringify({ id, method: "Network.enable", params: {} })); });
   const id2 = ++seq;
-  await new Promise((r) => { waiting.set(id2, r); ws.send(JSON.stringify({ id: id2, method: "Network.emulateNetworkConditions", params: { offline: false, latency: 60, downloadThroughput: 350000, uploadThroughput: 200000 } })); });
+  await new Promise((r) => { waiting.set(id2, r); ws.send(JSON.stringify({ id: id2, method: "Network.emulateNetworkConditions", params: { offline: false, latency: 60, downloadThroughput: 700000, uploadThroughput: 200000 } })); });
 }
 const state = () => js(`(() => { const s = document.querySelector(".offline-card [data-state]"); if (!s || s.hidden) return { kind: "", head: "" };
   return { kind: s.className, head: (s.querySelector("[data-st-head]") || {}).textContent || "" }; })()`);
