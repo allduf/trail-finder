@@ -1054,7 +1054,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const my = ++spotSeq, b = cur(), cap = capOf(b);
     el.hidden = false;
     const title = s.pin ? (realName(s.pin.p[2]) || kindLine(s.pin.k, s.pin.p).split(" · ")[0]) : s.road ? (s.road.name || (s.road.class === "track" ? "Unnamed track" : "Unnamed gravel road")) : "This spot";
-    const head = `<header>${svg(s.pin ? IC.camp : IC.road)}<h3>${esc(title)}</h3>${window.tfShareBtn ? window.tfShareBtn(s.lat, s.lon, { sport: "moto", name: s.pin || s.road ? title : "" }) : ""}<button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>`;
+    const head = `<header>${svg(s.pin ? IC.camp : IC.road)}<h3>${esc(title)}</h3>${window.tfShareBtn ? window.tfShareBtn(s.lat, s.lon, { sport: "moto", name: s.pin || s.road ? title : "" }) : ""}<button type="button" class="mt-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header>`;
     const pinLine = s.pin ? `${pinHead(s.pin.k, s.pin.p)}<div data-pin><p class="mt-note">Looking up its details…</p></div>
       <div class="mt-row"><a class="mt-pill" href="${goLink(s.lat, s.lon)}" data-go-name="${esc(title)}" target="_blank" rel="noopener">${svg(IC.ride, 16)}Directions</a>${planning || route ? `<button type="button" class="mt-pill" data-addpt>${svg(IC.plan, 16)}Add to my route</button>` : ""}</div>` : "";
     let gradeHtml = "";
@@ -2044,7 +2044,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   function openSaved() {
     const el = $("mtRoute");
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.save)}<h3>Saved routes</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header>
+    el.innerHTML = `<header>${svg(IC.save)}<h3>Saved routes</h3><button type="button" class="mt-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header>
       ${saved.length ? `<ul class="mt-list">${saved.map((r) => `<li style="--c:${ACC}"><button type="button" class="mt-go" data-open="${esc(r.id)}"><b>${esc(r.name)}</b><small>${STYLES[r.style] ? esc(STYLES[r.style].label) : ""}${r.loop ? " · loop" : ""} · saved ${new Date(r.at).toLocaleDateString()}</small><em>${r.km.toLocaleString()} km</em></button></li>`).join("")}</ul>
         <p class="mt-note">Saved routes keep their line and turns, so you can ride one with no signal (save its map offline too).</p>` : `<p class="mt-note">No saved routes yet: plan one and tap Save.</p>`}`;
     el.querySelector(".mt-x").onclick = () => { el.hidden = true; renderRoute(); };
@@ -2565,7 +2565,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const el = $("mtLog");
     toPanel();
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.log)}<h3>My adventure rides</h3><button type="button" class="mt-x" aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
+    el.innerHTML = `<header>${svg(IC.log)}<h3>My adventure rides</h3><button type="button" class="mt-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header><p class="mt-note">Loading…</p>`;
     el.querySelector(".mt-x").onclick = () => { el.hidden = true; rideLayer.clearLayers(); };
     showCard(el);
     const rides = await loadMotoRides();

@@ -1,0 +1,1 @@
+Android: Back closes a card still showing at the bottom (a hike, a bike trip, saved tours, a stop) before leaving the app. A planned route is kept. ||| Android : le bouton Retour ferme une fiche encore visible en bas (une randonnée, un voyage à vélo, les tours enregistrés, un arrêt) avant de quitter l'appli. Un itinéraire planifié est conservé.
