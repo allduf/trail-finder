@@ -417,6 +417,8 @@
     { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
     { ids: [1055222771, 1065048117, 1283478720, 1285445609, 1285445610, 1285445611, 1285445613], c: [49.6372, -123.1735], r: 1000, who: "alex",
       unoff: "alex, who rides it, says it's an unofficial trail", note: "unnamed trails, Britannia" },
+    { ids: [93562059], c: [50.163, -122.899], r: 1000, named: "Ebb N Flow", d: "blue", who: "alex", off: true,
+      note: "an official trail by Green Lake, Whistler: its trail post reads Ebb N Flow with a blue square (photo by alex, 2026-11-22)" },
     { name: "Leftovers Skid Road", c: [50.103, -123.016], r: 1500, d: "green", who: "alex",
       note: "an old access skid road on the Rainbow-Sproat flank, Whistler, ridden as an easy MTB climbing trail" },
     // alex's own unofficial trails are listed by nh (nameHash of the lower-case name), not by name, so this public file
