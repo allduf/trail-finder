@@ -236,7 +236,7 @@ async function closeAll(what) {
     const o = await jsq(OPEN, []);
     if (!o || !o.length) return;
     if (ios) { const r = await jsq(CLOSE_IOS, ""); if (r && /^no close/.test(r)) iosNoClose.push(`${what}: ${r}`); await sleep(900); }
-    else { phone.back(); await sleep(1100); if (phone.crashed()) { iosNoClose.push(`${what}: Android Back put the app in the background`); phone.launch(); await pageUp(); } }
+    else { phone.back(); await sleep(1100); if (phone.crashed()) { iosNoClose.push(`${what}: Android Back put the app in the background (still open: ${o.join(", ").slice(0, 80)}; Back pressed ${i + 1}x)`); phone.launch(); await pageUp(); } }
   }
   // Still open: whatever it takes, so the next step starts clean.
   await jsq(`(() => { document.querySelectorAll("dialog[open]").forEach((d) => d.close()); const m = document.querySelector("#tabbar [data-nav=map]"); if (m) m.click(); })()`);
