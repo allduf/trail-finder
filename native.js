@@ -97,11 +97,6 @@
       // Later closers (a timer, a frame) are looked for once more, without the noisy [hidden] count.
       setTimeout(() => {
         if (steady() !== steady0) return;
-        // A sport's card still showing in the sheet (a hike, Plan a route, Saved tours, a bike trip): Back closes it with
-        // its own close button before the app is put away (side-by-side test 2026-11-22: Back left the app with one open).
-        const inView = (b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.bottom > 0 && r.top < innerHeight && getComputedStyle(b).visibility !== "hidden" && !b.closest("[hidden], dialog, #layersMenu"); };
-        const x = [...document.querySelectorAll(".sk-x, .hk-x[data-close], .mt-x, [data-tours=\"close\"], .plan-x")].filter(inView).pop();
-        if (x) { x.click(); return; }
         // Native 3D under the page (native-map.js): with nothing else to close, Back goes to the flat map.
         if (window.tfNative && window.tfNative.backOut && window.tfNative.backOut()) return;
         if (e && e.canGoBack && history.length > 1 && !/\/(index\.html)?$/.test(location.pathname)) history.back();

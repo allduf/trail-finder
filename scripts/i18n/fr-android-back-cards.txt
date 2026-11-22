@@ -1,1 +1,0 @@
-Android: Back closes a card still showing in the bottom sheet (a hike, a planned route, a bike trip) before leaving the app. ||| Android : le bouton Retour ferme une fiche encore visible dans le panneau du bas (une randonnée, un itinéraire planifié, un voyage à vélo) avant de quitter l'appli.
