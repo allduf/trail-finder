@@ -735,8 +735,15 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         if !left { onEvent?("moved", camera()) }   // the page's flat map follows once, where the tilt ended
     }
     func mapView(_ mapView: MLNMapView, regionWillChangeWith reason: MLNCameraChangeReason, animated: Bool) {
-        if tiltLink != nil && !stepping && !reason.isDisjoint(with: TrailMapScreen.byFinger) { endTilt() }
+        let finger = !reason.isDisjoint(with: TrailMapScreen.byFinger)
+        if finger { fingerMoving = true; fingerMovedAt = CACurrentMediaTime() }
+        if tiltLink != nil && !stepping && finger { endTilt() }
     }
+    // A move by finger, going on or just ended: a tap then is part of moving the map (a short drag also read as a tap,
+    // a touch that stops a fling), not a tap on what's there (alex 2026-11-22: "When you navigate on the map often the
+    // page pops up").
+    private var fingerMoving = false, fingerMovedAt: CFTimeInterval = 0
+    private var justMoved: Bool { fingerMoving || CACurrentMediaTime() - fingerMovedAt < 0.3 }
     private static let byFinger: MLNCameraChangeReason = [.gesturePan, .gesturePinch, .gestureRotate, .gestureZoomIn,
                                                           .gestureZoomOut, .gestureOneFingerZoom, .gestureTilt]
     fileprivate func tiltStep() {
@@ -829,6 +836,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         cardSub.isHidden = (sub ?? "").isEmpty
         cardSwatch.backgroundColor = TrailMapScreen.color(colour) ?? .gray
         card.isHidden = false
+        // Under the page, a tapped webcam, pin or stop opens its page right away, with no small card first (alex
+        // 2026-11-22: "We dont need to have that step... Just open the page"). One with no details keeps its card.
+        if under && details { leave(details: true) }
     }
     // A feature's own button, top right across from Back (3D only; the weather captions sit under Back); added once, kept across style changes.
     func addToolButton(_ title: String, handler: @escaping () -> Void) {
@@ -876,13 +886,14 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     }
 
     func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
+        if fingerMoving { fingerMoving = false; fingerMovedAt = CACurrentMediaTime() }
         if !left && tiltLink == nil { onEvent?("moved", camera()) }   // mid-tilt: once at its end (endTilt)
     }
 
     // A tap on a trail or a dot shows its card; a tap anywhere else closes it. Dots win: they sit on the trails.
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
     @objc private func tapped(_ g: UITapGestureRecognizer) {
-        guard g.state == .ended else { return }
+        guard g.state == .ended, !justMoved else { return }
         let p = g.location(in: map)
         let box = CGRect(x: p.x - 22, y: p.y - 22, width: 44, height: 44)
         pickedAt = map.convert(p, toCoordinateFrom: map)

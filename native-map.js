@@ -216,7 +216,13 @@
     try { map.setView([e.lat, e.lon], Math.max(3, Math.round(e.zoom + 1)), { animate: false }); } finally { following = false; }
     nativeAt = { lat: e.lat, lon: e.lon, zoom: e.zoom, fz: map.getZoom() };   // fz: the zoom the flat map could reach
   };
-  TrailMap.addListener("moved", (e) => { if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
+  // movedAt: when the native map last moved. A tap that comes with a move, or just after one (a short drag read as a
+  // tap too, a touch that stops a fling) is not a tap on what's there: it opened a spot's or a pin's page while the
+  // map was being moved (alex 2026-11-22: "When you navigate on the map often the page pops up").
+  // Moves this page asked for (a search, a card, Me: camAt) don't count.
+  let movedAt = 0, camAt = 0;
+  const justMoved = () => Date.now() - movedAt < 450;
+  TrailMap.addListener("moved", (e) => { if (Date.now() - camAt > 2500) movedAt = Date.now(); if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
     open = false; clearTimeout(pending); moveWait = 500; sent = "";
     leaveUnder();
@@ -226,10 +232,10 @@
   });
   // Under the page (below): Details on a native card opens here while the native map stays; a trail tapped there opens
   // the page's own card, as a tap on the flat map.
-  TrailMap.addListener("details", (e) => { if (open && e) openDetails(e); });
+  TrailMap.addListener("details", (e) => { if (open && e && !(under && justMoved())) openDetails(e); });
   let quietUntil = 0;
   TrailMap.addListener("tap", (e) => {
-    if (!open || !e) return;
+    if (!open || !e || justMoved()) return;
     const latlng = L.latLng(e.tapLat, e.tapLon), l = e.open >= 0 && hits[e.open];
     // A popup opens where the finger is: the flat map (hidden) is moved so that spot is under it, and its own moves
     // for the next moment (a popup making room for itself) aren't sent back to the native map.
@@ -364,6 +370,7 @@
     if (nativeAt && Math.abs(map.getZoom() - (nativeAt.fz != null ? nativeAt.fz : nativeAt.zoom + 1)) < 0.75 &&
         map.latLngToContainerPoint([nativeAt.lat, nativeAt.lon]).distanceTo(map.latLngToContainerPoint(c)) < 40) return;
     nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, fz: map.getZoom() };
+    camAt = Date.now();
     TrailMap.layer({ key: "under", data: JSON.stringify({ cam: { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 } }) }).catch(() => {});
   });
   // The map style: Layers' pick, or a new sport's own (Skiing's Winter), goes to the native map.
@@ -520,6 +527,7 @@
   if (locBtn) locBtn.addEventListener("click", (e) => {
     if (!open || !under) return;
     e.stopImmediatePropagation(); e.preventDefault();
+    camAt = Date.now();
     TrailMap.layer({ key: "under", data: JSON.stringify({ me: true }) }).catch(() => {});
   }, true);
   const lbtn = document.getElementById("layersBtn");
@@ -533,4 +541,9 @@
     const layers = document.getElementById("layersBtn");
     if (layers) setTimeout(() => { if (!lmenu || lmenu.hidden) layers.click(); }, 600);
   });
+  // A native map this page opened before it reloaded (the language switch, a sign-in, an update) stays on the phone,
+  // under or over the new page, which doesn't know about it: it's closed now (the "closed" above moves the flat map to
+  // where it was). Otherwise the next 3D went to that old map without opening it under the page, the page stayed over
+  // it, and the 3D button and the tilt seemed to do nothing (alex 2026-11-22, after switching to French).
+  if (TrailMap.close) TrailMap.close().catch(() => {});
 })();

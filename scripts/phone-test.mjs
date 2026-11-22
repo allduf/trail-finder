@@ -322,17 +322,27 @@ function appStandIn({ platform, keys, admin, photos }) {
     if (admin) localStorage.setItem("tf-admin", "1");
   } catch {}
   if (!platform) return;
-  const tm = (window.__tm = { opens: [], fail: false, on: {} });
-  tm.fire = (name, e) => (tm.on[name] || []).forEach((fn) => fn(e));
+  // screen: a native map is open (as TrailMapPlugin's own screen, it outlives a page reload: "tmLeft" in sessionStorage
+  // has one left open by the page before).
+  const tm = (window.__tm = { opens: [], fail: false, on: {}, closes: 0, screen: sessionStorage.getItem("tmLeft") === "1" });
+  sessionStorage.removeItem("tmLeft");
+  tm.fire = (name, e) => { if (name === "closed") tm.screen = false; (tm.on[name] || []).forEach((fn) => fn(e)); };
   const ok = (v) => Promise.resolve(v);
   const TrailMap = {
     features: () => ok({ keys }),
     // A build that reports "under" opens under the page when asked (and says so), as TrailMapPlugin does.
-    open: (o) => { tm.opens.push(o); return tm.fail ? Promise.reject(new Error("No screen to show the map on")) : ok(o.under && keys.includes("under") ? { under: true } : undefined); },
+    // A screen already open only takes the new data and answers with nothing, as TrailMapPlugin does.
+    open: (o) => {
+      tm.opens.push(o);
+      if (tm.fail) return Promise.reject(new Error("No screen to show the map on"));
+      if (tm.screen) return ok(undefined);
+      tm.screen = true;
+      return ok(o.under && keys.includes("under") ? { under: true } : undefined);
+    },
     update: () => ok(), offline: () => ok({ areas: {} }),
     layer: (o) => { (tm.layers = tm.layers || []).push(o); return ok(); },
     // As the app: the screen goes, and says so.
-    close: () => { tm.closes = (tm.closes || 0) + 1; setTimeout(() => { const c = window.tfLeaflet.getCenter(); tm.fire("closed", { lat: c.lat, lon: c.lng, zoom: 12, bearing: 0, details: false, layers: false, open: -1 }); }, 0); return ok(); },
+    close: () => { if (!tm.screen) return ok(); tm.closes++; setTimeout(() => { const c = window.tfLeaflet.getCenter(); tm.fire("closed", { lat: c.lat, lon: c.lng, zoom: 12, bearing: 0, details: false, layers: false, open: -1 }); }, 0); return ok(); },
     addListener: (name, fn) => { (tm.on[name] = tm.on[name] || []).push(fn); return ok({ remove() {} }); },
   };
   // The app's other plugins: every call answers with nothing.
@@ -470,6 +480,46 @@ async function appBuild(kind) {
         if (!(await ev(() => /3D/.test(document.getElementById("btn3d").textContent)))) throw new Error("the 3D button didn't come back");
         await noWeb3d("2D map");
         await flatWinter("after 2D map");
+      });
+      // The app's native map outlives a page reload (the language switch reloads): the new page closes the one left
+      // open, so 3D opens under it again (alex 2026-11-22: after switching to French, 3D and the tilt did nothing).
+      await check("after a reload with native 3D left open, 3D opens under the page again", async () => {
+        await ev(() => sessionStorage.setItem("tmLeft", "1"));
+        await page.reload();
+        await until(() => window.__tm && window.tfLeaflet && document.getElementById("btn3d"), null, 20_000);
+        await until(() => window.__tm.closes > 0, null, 5000).catch(() => {});
+        if (!(await ev(() => window.__tm.closes > 0))) throw new Error("the new page didn't close the native map left open");
+        await wait(1500);
+        await tap3d();
+        await until(() => document.documentElement.classList.contains("tf-under"), null, 5000).catch(() => {});
+        if (!(await ev(() => document.documentElement.classList.contains("tf-under")))) throw new Error("3D didn't open under the page after the reload");
+        await tap3d();
+        await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {});
+      });
+      // Adventure moto's stops and roads reach native 3D (native-moto.js asks moto.js's tfMoto.native3d). They sat in the
+      // wrong object for two days and the native map drew no gas, camps or hot springs (alex 2026-11-22: "Moto mode
+      // don't show on map"): the page's pins show, so native 3D must get them too.
+      await check("Adventure moto's stops and roads go to native 3D", async () => {
+        await sport("moto");
+        await until(() => window.tfMoto && document.body.classList.contains("sport-moto"), null, 15_000).catch(() => {});
+        await ev(() => { window.tfLeaflet.setView([50.0, -123.1], 10, { animate: false }); });
+        await until(() => document.querySelectorAll(".mt-pin").length > 0, null, 30_000).catch(() => {});
+        const pins = await ev(() => document.querySelectorAll(".mt-pin").length);
+        if (!(await ev(() => !!(window.tfMoto && typeof window.tfMoto.native3d === "function")))) throw new Error("tfMoto.native3d is missing: native 3D gets nothing for Moto");
+        const n0 = await opens();
+        await tap3d();
+        await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+        const o = await ev((c) => { const x = window.__tm.opens[c]; return x ? { moto: (x.layers || {}).moto || null } : null; }, n0);
+        try {
+          if (!o) throw new Error("3D didn't open native 3D in Moto");
+          if (!o.moto) throw new Error("native 3D opened with no Moto layer (no stops, no roads)");
+          const d = JSON.parse(o.moto);
+          if (pins && !(d.pts && d.pts.length)) throw new Error(`the page shows ${pins} stops, native 3D got none`);
+          if (!Array.isArray(d.pts)) throw new Error("native 3D got Moto with no list of stops");
+        } finally {
+          if (await ev(() => document.documentElement.classList.contains("tf-under"))) { await tap3d(); await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {}); }
+          else await back();
+        }
       });
     } else if (kind === "android") {
       // Testers: the web 3D map (Android's native 3D is alex's only for now). friends.js keeps "tf-admin" for alex's
