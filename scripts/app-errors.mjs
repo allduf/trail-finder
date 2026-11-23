@@ -44,8 +44,21 @@ const real = (e) => !/aborted|AbortError/i.test(e.what || "");
 // The same error after a change moves its line number and script version (?v=): compare without them.
 const key = (w) => String(w || "error").replace(/\?v=\d+/g, "").replace(/:\d+(:\d+)?\b/g, "").replace(/\s+/g, " ").trim();
 
+// Test and review devices, left out as usage.html leaves them out (its reviewDevices): the phone check's Android emulator,
+// Google Play's review phones (screen 435x725, an old web viewer: 195 "Script error." rows of 16-23 Nov 2026), the
+// side-by-side check's iPhone simulator (iOS 18.5 · iPhone17,2 at 440x956, 22-25 Nov 2026) and the "console check".
+// Before this, the daily issue and the weekly report counted them as testers' errors and crashes (alex 2026-11-23).
+const testDev = new Map();
+async function isTest(ev) {
+  if (!testDev.has(ev.device)) testDev.set(ev.device, (await rows(`tf_use_devices?select=os,screen&device=eq.${encodeURIComponent(ev.device)}`))[0] || {});
+  const d = testDev.get(ev.device), os = d.os || "", at = String(ev.at);
+  return /sdk_gphone|emulator/i.test(os) || d.screen === "435x725" || /^Web · console check/.test(os)
+    || (os === "iOS 18.5 · iPhone17,2" && d.screen === "440x956" && at >= "2026-11-22" && at < "2026-11-26");
+}
+async function people(list) { const out = []; for (const e of list) if (!(await isTest(e))) out.push(e); return out; }
+
 const since = ago(HOURS);
-const errors = (await rows(`tf_use_events?select=device,session,at,what&kind=eq.error&at=gte.${since}&order=at`)).filter(real);
+const errors = await people((await rows(`tf_use_events?select=device,session,at,what&kind=eq.error&at=gte.${since}&order=at`)).filter(real));
 console.log(`${errors.length} errors in the last ${HOURS} h.`);
 const known = new Set((await rows(`tf_use_events?select=what&kind=eq.error&at=gte.${ago(HOURS + 14 * 24)}&at=lt.${since}`)).filter(real).map((e) => key(e.what)));
 
@@ -88,7 +101,7 @@ const who = (g) => [...g.phones].map((d) => (devices.get(d) || {}).label).filter
 // the last taps and load times, and how long that page had been open. The queue is kept on the phone, so the events
 // before a crash arrive with the next visit. Phones by model only (this log is public), never by name.
 const CRASH_HOURS = Math.max(1, +(process.env.CRASH_HOURS || HOURS));
-const crashes = await rows(`tf_use_events?select=device,session,at,what&kind=eq.crash&at=gte.${ago(CRASH_HOURS)}&order=at`);
+const crashes = await people(await rows(`tf_use_events?select=device,session,at,what&kind=eq.crash&at=gte.${ago(CRASH_HOURS)}&order=at`));
 const crashDev = new Map();
 for (const d of [...new Set(crashes.map((c) => c.device))])
   for (const x of await rows(`tf_use_devices?select=device,os,screen&device=eq.${encodeURIComponent(d)}`)) crashDev.set(x.device, x);
