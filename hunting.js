@@ -2022,7 +2022,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return out;
   }
   let nativeTimer = 0, nativeLast = null, nativeNext = null;
-  const nativeSent = (d) => { nativeLast = d; glassSent = glass && glass.png ? glass.at : ""; return d; };
+  // The glassing picture counts as there only once a Hunting payload carried it (not nothing, not the empty one that
+  // cleared it on leaving Hunting), so coming back sends it again.
+  const nativeSent = (d) => { nativeLast = d; glassSent = d != null && d !== HUNT_NONE && glass && glass.png ? glass.at : ""; return d; };
   let groundOn = "";   // which repainted pictures are on near the view: native-ground.js is told when that changes
   function nativeSend() {
     if (!window.tfNative || !window.tfNative.isOpen || !window.tfNative.isOpen()) return;

@@ -16,6 +16,7 @@
   // Outside Moto nothing is drawn: once something was sent, an empty layer clears it from a native map left open under
   // the page (another sport picked there, sport switch test 2026-11-22), then nothing more.
   let had = false;
+  if (N.on) N.on("closed", () => { had = false; });   // a new native screen starts with nothing to clear
   N.addLayer("moto", () => {
     if (ios && !(N.has && N.has("moto-safe"))) return null;
     const d = window.tfMoto && window.tfMoto.native3d ? window.tfMoto.native3d() : null;
