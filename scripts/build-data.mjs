@@ -67,8 +67,9 @@ const outOfTime = () => Date.now() >= deadline;
 // A server whose map data is months old (2026-11-20 to 23: one mirror served July data all night) is left alone for
 // 30 minutes, so every retry goes to a server that can answer instead of waiting on one that can't.
 const staleUntil = new Map();   // host -> time it may be asked again
-async function overpass(query) {
-  let lastErr, timeouts = 0;
+async function overpass(query, canSplit = false) {
+  let lastErr;
+  const timeouts = new Map();   // host -> answers cut off at the time limit, for this query
   for (let attempt = 0; attempt < 6; attempt++) {
     if (outOfTime()) throw lastErr || new Error("out of time for tonight");
     const live = OVERPASS.filter((u) => !(staleUntil.get(new URL(u).host) > Date.now()));
@@ -94,8 +95,8 @@ async function overpass(query) {
     } catch (e) {
       if (e.heavy || /HTTP 4\d\d/.test(e.message) && !/HTTP 429/.test(e.message)) throw e;
       lastErr = e;
-      // Two answers cut off at the time limit: ask for the square as 4 smaller ones instead (fetchBox).
-      if (e.name === "TimeoutError" && ++timeouts >= 2) throw Object.assign(new Error(`${host}: ${e.message}`), { heavy: true });
+      // The same server cut off twice at the time limit: ask for the square as 4 smaller ones instead (fetchBox).
+      if (canSplit && e.name === "TimeoutError" && timeouts.set(host, (timeouts.get(host) || 0) + 1).get(host) >= 2) throw Object.assign(new Error(`${host}: ${e.message}`), { heavy: true });
       // Another server is up to date: ask it right away, no wait.
       if (e.stale && OVERPASS.some((u) => !(staleUntil.get(new URL(u).host) > Date.now()))) { log(`    ${e.message}; asking another server`); continue; }
     }
@@ -108,7 +109,7 @@ async function overpass(query) {
 }
 // A square too heavy for the server is fetched as 4 smaller ones (2 levels at most), like the site does.
 async function fetchBox(box, makeQuery, depth = 0) {
-  try { return (await overpass(makeQuery(bounds(box)))).elements; }
+  try { return (await overpass(makeQuery(bounds(box)), depth < 2)).elements; }
   catch (e) {
     if (!e.heavy || depth >= 2) throw e;
     log(`    too heavy, splitting in 4`);

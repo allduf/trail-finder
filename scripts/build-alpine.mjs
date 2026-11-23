@@ -105,8 +105,9 @@ out ids qt;`;
 // A server whose map data is months old is left alone for 30 minutes (see build-data.mjs).
 const staleUntil = new Map();   // host -> time it may be asked again
 const liveServers = () => OVERPASS.filter((u) => !(staleUntil.get(new URL(u).host) > Date.now()));
-async function overpass(q) {
-  let lastErr, timeouts = 0;
+async function overpass(q, canSplit = false) {
+  let lastErr;
+  const timeouts = new Map();   // host -> answers cut off at the time limit, for this query
   for (let attempt = 0; attempt < 6 && !outOfTime(); attempt++) {
     const pool = liveServers().length ? liveServers() : OVERPASS;
     const url = pool[attempt % pool.length], host = new URL(url).host;
@@ -124,13 +125,12 @@ async function overpass(q) {
         return json;
       }
       lastErr = new Error(`${host}: HTTP ${res.status}`);
-      if (res.status === 504 && ++timeouts >= 2) throw Object.assign(lastErr, { heavy: true });
       if (res.status !== 429 && res.status !== 504) throw lastErr;
     } catch (e) {
       if (e.heavy || /HTTP 4\d\d/.test(e.message) && !/HTTP 429/.test(e.message)) throw e;
       lastErr = e;
-      // Two answers cut off at the time limit or by the server (Canmore & Kananaskis, 2026-11-21 and 23): ask for 4 smaller boxes instead.
-      if (e.name === "TimeoutError" && ++timeouts >= 2) throw Object.assign(new Error(`${host}: ${e.message}`), { heavy: true });
+      // The same server cut off twice at the time limit (Canmore & Kananaskis, 2026-11-21 and 23): ask for 4 smaller boxes instead.
+      if (canSplit && e.name === "TimeoutError" && timeouts.set(host, (timeouts.get(host) || 0) + 1).get(host) >= 2) throw Object.assign(new Error(`${host}: ${e.message}`), { heavy: true });
       if (e.stale && liveServers().length) { log(`    ${e.message}; asking another server`); continue; }
     }
     const wait = Math.min(30000 * 2 ** Math.floor(attempt / OVERPASS.length), 240000);
@@ -152,7 +152,7 @@ function parts(els) {
 }
 const quarters = ([s, w, n, e]) => { const cs = (s + n) / 2, cw = (w + e) / 2; return [[s, w, cs, cw], [s, cw, cs, e], [cs, w, n, cw], [cs, cw, n, e]]; };
 async function fetchBox(box, depth = 0) {
-  try { return parts((await overpass(query(box))).elements); }
+  try { return parts((await overpass(query(box), depth < 2)).elements); }
   catch (e) {
     if (!e.heavy || depth >= 2) throw e;
     log(`    too heavy, splitting in 4`);

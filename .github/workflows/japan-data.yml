@@ -11,7 +11,7 @@ on:
     - cron: "37 9 * * 1"    # Mondays 09:37 UTC
   push:
     branches: [main]
-    paths: [scripts/build-japan.mjs, .github/workflows/japan-data.yml]
+    paths: [scripts/build-japan.mjs, scripts/geofabrik-get.sh, .github/workflows/japan-data.yml]
   workflow_dispatch:
     inputs:
       regions:
