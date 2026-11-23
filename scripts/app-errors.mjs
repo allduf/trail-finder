@@ -60,7 +60,7 @@ async function people(list) { const out = []; for (const e of list) if (!(await 
 const since = ago(HOURS);
 const errors = await people((await rows(`tf_use_events?select=device,session,at,what&kind=eq.error&at=gte.${since}&order=at`)).filter(real));
 console.log(`${errors.length} errors in the last ${HOURS} h.`);
-const known = new Set((await rows(`tf_use_events?select=what&kind=eq.error&at=gte.${ago(HOURS + 14 * 24)}&at=lt.${since}`)).filter(real).map((e) => key(e.what)));
+const known = new Set((await people((await rows(`tf_use_events?select=device,at,what&kind=eq.error&at=gte.${ago(HOURS + 14 * 24)}&at=lt.${since}`)).filter(real))).map((e) => key(e.what)));
 
 // What happened around each error: the sport picked before it in that visit, and the last taps.
 const sessions = [...new Set(errors.map((e) => e.session))];
