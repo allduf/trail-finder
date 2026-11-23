@@ -13,6 +13,7 @@ on:
     paths:
       - scripts/audit.mjs
       - scripts/audit-settled.json
+      - scripts/geofabrik-get.sh
       - .github/workflows/data-audit.yml
 
 permissions:
@@ -27,7 +28,7 @@ concurrency:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120   # up to 40 minutes of waiting for Geofabrik per province (scripts/geofabrik-get.sh)
     env:
       NODE_OPTIONS: --max-old-space-size=12000
     steps:
@@ -43,7 +44,7 @@ jobs:
         run: |
           mkdir -p /tmp/osm
           for p in british-columbia alberta; do
-            curl -sSfL --retry 5 --retry-all-errors --retry-delay 60 -o /tmp/osm/p.pbf "https://download.geofabrik.de/north-america/canada/$p/$p-latest.osm.pbf"
+            bash scripts/geofabrik-get.sh "north-america/canada/$p" /tmp/osm/p.pbf
             # Southern BC and Alberta, where the zones are (index.html ZONES), then every highway way in it.
             osmium extract --overwrite -b -124.9,48.9,-113.7,52.4 -o /tmp/osm/x.pbf /tmp/osm/p.pbf
             osmium tags-filter --overwrite -o /tmp/osm/h.pbf /tmp/osm/x.pbf w/highway

@@ -102,23 +102,36 @@ map_to_area->.a;
 way.p(area.a);
 out ids qt;`;
 }
+// A server whose map data is months old is left alone for 30 minutes (see build-data.mjs).
+const staleUntil = new Map();   // host -> time it may be asked again
+const liveServers = () => OVERPASS.filter((u) => !(staleUntil.get(new URL(u).host) > Date.now()));
 async function overpass(q) {
-  let lastErr;
+  let lastErr, timeouts = 0;
   for (let attempt = 0; attempt < 6 && !outOfTime(); attempt++) {
-    const url = OVERPASS[attempt % OVERPASS.length], host = new URL(url).host;
+    const pool = liveServers().length ? liveServers() : OVERPASS;
+    const url = pool[attempt % pool.length], host = new URL(url).host;
     try {
       const res = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA }, signal: AbortSignal.timeout(240000) });
       if (res.ok) {
         const json = await res.json();
         if (json.remark && /error/i.test(json.remark)) throw Object.assign(new Error(`${host}: ${json.remark}`), { heavy: true });
+        const base = Date.parse((json.osm3s || {}).timestamp_osm_base);
+        if (base && Date.now() - base > 2 * 864e5) {
+          staleUntil.set(host, Date.now() + 30 * 60e3);
+          throw Object.assign(new Error(`${host}: map data from ${json.osm3s.timestamp_osm_base}, too old`), { stale: true });
+        }
         await sleep(2000);
         return json;
       }
       lastErr = new Error(`${host}: HTTP ${res.status}`);
+      if (res.status === 504 && ++timeouts >= 2) throw Object.assign(lastErr, { heavy: true });
       if (res.status !== 429 && res.status !== 504) throw lastErr;
     } catch (e) {
       if (e.heavy || /HTTP 4\d\d/.test(e.message) && !/HTTP 429/.test(e.message)) throw e;
       lastErr = e;
+      // Two answers cut off at the time limit or by the server (Canmore & Kananaskis, 2026-11-21 and 23): ask for 4 smaller boxes instead.
+      if (e.name === "TimeoutError" && ++timeouts >= 2) throw Object.assign(new Error(`${host}: ${e.message}`), { heavy: true });
+      if (e.stale && liveServers().length) { log(`    ${e.message}; asking another server`); continue; }
     }
     const wait = Math.min(30000 * 2 ** Math.floor(attempt / OVERPASS.length), 240000);
     log(`    ${lastErr.message}; trying again in ${Math.round(wait / 1000)} s`);
