@@ -763,7 +763,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   };
   function drawPoints() {
     ptLayer.clearLayers(); pts3d = [];
-    if (!isMoto()) { sync3d(); return; }
+    if (!isMoto()) { sync3d(); toNative(); return; }   // left Moto: a native map still open clears its stops and roads (native-moto.js)
     const z = map.getZoom(), b = map.getBounds().pad(0.15);
     // Pins that would sit on each other wait for a closer zoom (alex 2026-11-05, "see if anything else is too crowded":
     // campsites piled up around Squamish, the 3D map too). Fuel first, then campsites, hot springs, shops, ferries.

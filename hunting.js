@@ -1953,8 +1953,11 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return { type: "Feature", properties: { k }, geometry: { type: "LineString", coordinates: pts } };
   };
   let glassSent = "";   // the glassing view the native map has (its "at")
+  // Outside Hunting: nothing to draw, sent empty so a native map left open under the page (the one map, alex's trial)
+  // clears the zones, cone and pictures it had (sport switch test 2026-11-22: Hunting's zones stayed in Hiking).
+  const HUNT_NONE = JSON.stringify({ fills: fc([]), labels: fc([]), rings: fc([]), cone: fc([]), spot: fc([]), glass: null, pics: [] });
   function nativeHunt() {
-    if (!isHunt()) return null;
+    if (!isHunt()) return HUNT_NONE;
     const want = (k) => shown.has(k), b = map.getBounds().pad(map.getZoom() < 11 ? 1 : 2);
     const s = b.getSouth(), w = b.getWest(), n = b.getNorth(), e = b.getEast();
     // Outlines thinned to about two pixels of the flat map (the 3D view is no sharper), so a move sends tens of KB, not MB.
@@ -2019,7 +2022,9 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     return out;
   }
   let nativeTimer = 0, nativeLast = null, nativeNext = null;
-  const nativeSent = (d) => { nativeLast = d; glassSent = glass && glass.png ? glass.at : ""; return d; };
+  // The glassing picture counts as there only once a Hunting payload carried it (not nothing, not the empty one that
+  // cleared it on leaving Hunting), so coming back sends it again.
+  const nativeSent = (d) => { nativeLast = d; glassSent = d != null && d !== HUNT_NONE && glass && glass.png ? glass.at : ""; return d; };
   let groundOn = "";   // which repainted pictures are on near the view: native-ground.js is told when that changes
   function nativeSend() {
     if (!window.tfNative || !window.tfNative.isOpen || !window.tfNative.isOpen()) return;
@@ -2028,13 +2033,13 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
       const g = PICS.filter((p) => p.recolor && isHunt() && shown.has(p.layer) && picNear(p)).map((p) => p.id).join();
       if (g !== groundOn) { groundOn = g; window.dispatchEvent(new Event("tf:ground")); }
       const d = nativeHunt();
-      if (d === nativeLast) return;
+      if (d === nativeLast || (d === HUNT_NONE && nativeLast == null)) return;   // nothing there, nothing to clear
       nativeNext = d;
       try { window.tfNative.send("hunt"); } finally { nativeNext = null; }
     }, 250);
   }
   // At opening (a new native screen, nothing on it yet) everything goes, the glassing picture too.
-  if (window.tfNative && window.tfNative.addLayer) window.tfNative.addLayer("hunt", () => nativeSent(nativeNext != null ? nativeNext : (glassSent = "", nativeHunt())));
+  if (window.tfNative && window.tfNative.addLayer) window.tfNative.addLayer("hunt", () => nativeSent(nativeNext != null ? nativeNext : isHunt() ? (glassSent = "", nativeHunt()) : null));
 
   // ---------- 3D map (map3d.js) ----------
   // map3d.js copies every line on the flat map (zone, park and closure outlines, the scent cone's edge), but not

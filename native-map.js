@@ -410,11 +410,22 @@
     const winter = document.body.classList.contains("sport-ski");
     return sel === "advtopo" ? "vector" : winter && /^(sat|sathybrid|winter)$/.test(sel) ? "winter" : sel;
   };
+  // The new sport's style can come a moment after the sport (ADV topo loads its map first): sent again when it does,
+  // or native 3D kept the sport before's style (sport switch test 2026-11-22: MTB's Map stayed in Adventure moto).
+  let sportBase = false;   // a sport was picked and its style hasn't come yet
+  const sendBase = () => { if (under && open && !(canFlat() && !tipped && !oneMap())) TrailMap.layer({ key: "base", data: baseFor((document.getElementById("basemap") || {}).value || "osm") }).catch(() => {}); };
+  window.addEventListener("tf:basemap", () => { if (sportBase) { sportBase = false; setTimeout(sendBase, 0); } });
   window.addEventListener("tf:sport", () => {
+    sportBase = true;
     if (!under || !open) return;
-    const sel = (document.getElementById("basemap") || {}).value || "osm";
-    setTimeout(() => { if (under && open && !(canFlat() && !tipped && !oneMap())) TrailMap.layer({ key: "base", data: baseFor((document.getElementById("basemap") || {}).value || sel) }).catch(() => {}); }, 0);
+    setTimeout(() => {
+      sendBase();
+    }, 0);
   });
+  // map3d.js sets its own button for the flat map (a new sport's own 3D choice, now or once the welcome closes): over the
+  // native map it reads "2D map" while that is tipped up, "3D" while seen from above. It read "3D" over native 3D after a
+  // switch, and a tap then tipped the map down or closed it (sport switch test 2026-11-22).
+  if (b3) new MutationObserver(() => { if (under && open && b3Was && tipped !== /2D/.test(b3.textContent)) b3Label(); }).observe(b3, { childList: true, characterData: true, subtree: true });
 
   function openNative(threeD, flat = false) {
     const close = document.getElementById("lmClose");
