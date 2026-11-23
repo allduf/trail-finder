@@ -829,7 +829,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra, a picture a rider
     // confirmed more. Above 0.6 the online check had to say what lines up (the same rock, tree, skyline): proof.
     // It never makes a "Best match" on its own: the free AI calls look-alikes the same place, proof and all (2026-10-24:
-    // Gnar Log Bridge, Pretty Slabs, Hanging Gardens and Peak Express Traverse, each 0.7 to 1 "with proof", all wrong).
+    // one unofficial bridge line, Pretty Slabs, Hanging Gardens and Peak Express Traverse, each 0.7 to 1 "with proof", all wrong).
     // That stays for the trail's name in the words or a past confirmed match.
     const fitOf = new Map((got.ranks || []).map((k) => [F.norm(String(k.trail).replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, "")), k]));
     const fitted = (r, k) => ({ ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit > 0.6 ? 0.15 : 0), web: k });
@@ -877,7 +877,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         const have = next.find((r) => F.norm(r.name) === F.norm(g.name) && r.save && r.save.zone === g.zone.id);
         // A photo the AI calls the same place puts its trail at the top: one a rider confirmed, or one whose page names the
         // trail. A photo known only by where it was taken just lifts the trails there: the nearest one isn't necessarily the
-        // one in the picture (an online photo of Mount Currie put Gnar Log Bridge first for a Cream Puff picture).
+        // one in the picture (an online photo of Mount Currie put an unofficial bridge line first for a Cream Puff picture).
         const top = c.close >= 0.8 && c.trail ? Math.max(...next.map((r) => r.s), STRONG) + 0.05 - 0.06 * i : 0;
         if (have) { if (!have.closeBy) { have.s = Math.max(have.s + 0.3 * c.close, top); have.closeBy = true; have.meta += " · " + why; if (!have.web || !have.web.photo) have.web = web; } }
         else next.push({ ...rowOf({ g, s: Math.max(0.45 + 0.45 * c.close, top), why: [why] }, "mixed"), web, closeBy: true });
@@ -1027,7 +1027,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   };
   const LEVEL = { green: 1, blue: 2, black: 3, dbl: 4, pro: 5 };
   // The same things on a trail: from its pieces' tags (bridges, surface, a track), its rating, and its name or description
-  // ("Gnar Log Bridge", "Pretty Slabs", "rock roll line").
+  // ("a log bridge line", "Pretty Slabs", "rock roll line").
   function looksOf(g) {
     const ts = [g.tags, ...g.items.map((i) => i.tags)].filter(Boolean);
     const text = F.norm([g.name, ...ts.map((t) => t.description || "")].join(" "));

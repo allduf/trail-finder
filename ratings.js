@@ -434,7 +434,7 @@
     // bicycle=designated), which reads as official, and removed informal=yes from older ones. Their edits: "added sick new line",
     // "added death line", "fun freeride line built for trolldom".
     { ids: [1228978479, 1568299895, 1565717920, 1565717921, 1565717922], c: [50.315, -122.815], r: 3000, src: "OpenStreetMap edit history",
-      url: "https://www.openstreetmap.org/user/tresspasserlover69/history", unoff: "A mapper drew this new, unsanctioned line as a bike path (bicycle=designated), which made it look official; it isn't.", note: "Upper Pacific, KOG and Gnar Log Bridge, Pemberton" },
+      url: "https://www.openstreetmap.org/user/tresspasserlover69/history", unoff: "A mapper drew this new, unsanctioned line as a bike path (bicycle=designated), which made it look official; it isn't.", note: "three new lines, Pemberton" },
     { ids: [1568013247, 1568014331, 1568015037, 1568015906, 1568017673, 1568300627, 1568300903, 1565892823], c: [50.09, -122.95], r: 15000, src: "OpenStreetMap edit history",
       url: "https://www.openstreetmap.org/user/tresspasserlover69/history", unoff: "A mapper drew this new, unsanctioned line as a bike path (bicycle=designated), which made it look official; it isn't.", note: "new lines on Whistler and Fitzsimmons" },
     { ids: [1568302348, 1568302185], c: [49.92, -123.28], r: 5000, src: "OpenStreetMap edit history",

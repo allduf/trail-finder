@@ -127,6 +127,11 @@ let crashed = "";
 page.on("crash", () => { crashed = "the page crashed (out of memory)"; });
 page.on("pageerror", (e) => { if (/out of memory|Maximum call stack/i.test(String(e.message))) crashed = String(e.message).slice(0, 200); });
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+// A step that never answers (a page stuck drawing on a slow runner without a graphics card) would otherwise hold the
+// job until GitHub cancels it with no report: every run on GitHub 2026-11-13..22 ended that way. Each step gets a
+// time limit and its name, so a stuck step ends the test with a report that says where it stuck.
+let step = "";
+const within = (ms, name, p) => { step = name; let t; return Promise.race([p, new Promise((_, no) => { t = setTimeout(() => no(new Error(`${name}: no answer in ${Math.round(ms / 1000)} s`)), ms); })]).finally(() => clearTimeout(t)); };
 const tap = (sel) => page.locator(sel).first().click({ timeout: 8000 });
 
 await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -217,16 +222,19 @@ while (Date.now() - start < MINUTES * 60e3 && !crashed) {
   let note = "", sw = null, ground = null, net = "";
   try {
     const t0 = Date.now();
-    await pickSport(sport);
-    await threeD();
-    await groundReady();
+    await within(60_000, "pick the sport", pickSport(sport));
+    await within(60_000, "open 3D", threeD());
+    await within(60_000, "3D ground", groundReady());
     sw = Date.now() - t0;
-    ground = await lookAround(place, round);
+    ground = await within(120_000, "look around " + place[0], lookAround(place, round));
     net = lastNet;
-    if (round % 3 === 2) { await background(); note = "back from background"; }
-  } catch (e) { note = "step failed: " + String(e.message || e).split("\n")[0].slice(0, 120); }
+    if (round % 3 === 2) { await within(90_000, "background and back", background()); note = "back from background"; }
+  } catch (e) {
+    note = "step failed: " + String(e.message || e).split("\n")[0].slice(0, 120);
+    if (/no answer in/.test(note)) crashed = "the page stopped answering (" + step + ")";
+  }
   if (crashed) break;
-  const m = await measure().catch((e) => { crashed = "the page stopped answering: " + String(e.message || e).slice(0, 120); return null; });
+  const m = await within(60_000, "measure memory", measure()).catch((e) => { crashed = "the page stopped answering: " + String(e.message || e).slice(0, 120); return null; });
   if (!m) break;
   const min = (Date.now() - start) / 60e3;
   samples.push({ round, min, sport, place: place[0], ...m, sw, ground, net, note });
@@ -235,14 +243,14 @@ while (Date.now() - start < MINUTES * 60e3 && !crashed) {
   if (m.total != null && m.total > MAX_MB) { problem = `total memory ${m.total} MB, over the ${MAX_MB} MB limit`; break; }
   round++;
 }
-const appSpeed = await page.evaluate(() => {
+const appSpeed = await within(30_000, "read the app's timings", page.evaluate(() => {
   const out = [...(window.__soakSpeed || [])];
   const n = performance.getEntriesByType("navigation")[0];
   if (n && n.loadEventEnd > 0) out.push(["page", Math.round(n.loadEventEnd)]);
   return out;
-}).catch(() => []);
-await page.screenshot({ path: join(OUT, "last.png") }).catch(() => {});
-await browser.close().catch(() => {});
+})).catch(() => []);
+await within(30_000, "last screenshot", page.screenshot({ path: join(OUT, "last.png") })).catch(() => {});
+await within(30_000, "close the browser", browser.close()).catch(() => {});
 server.close();
 
 // ---------- verdict ----------
