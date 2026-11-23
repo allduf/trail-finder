@@ -48,6 +48,10 @@ const MAX_GAP_S = 30;        // s between two GPS points: longer is a gap in the
 const SINCE = Date.parse(process.env.TRACES_SINCE || "2012-01-01");   // older recordings are skipped
 const PAGES_PER_SQUARE = +(process.env.PAGES_PER_SQUARE || 200);    // 5000 GPS points per page
 const PAGE_BUDGET = +(process.env.PAGE_BUDGET || 2000);             // pages per run, all squares together
+// Minutes of work per run: stop starting new squares after this and save what's done, well before the workflow's
+// 300-minute limit. Before this, every run since 2026-10-25 hit that limit mid-way and GitHub cancelled it unsaved.
+const TIME_BUDGET_MIN = +(process.env.TIME_BUDGET_MIN || 210);
+const RUN_START = Date.now();
 // Snowy zones, where skiing traces look like riding: all but the coast, the Fraser Valley and Calgary.
 const WINTER_ZONES = new Set(["wh", "pem", "lil", "chil", "pri", "mer", "kam", "wl", "shu", "ver", "kel", "bwh", "pen", "sok", "gfk", "ros", "nel", "rev", "gol", "inv", "cbk", "fer", "brg", "kan", "bnf"]);
 const BIKE_KMH = 9, VEHICLE_KMH = 50;
@@ -368,6 +372,7 @@ log(`Unmapped trails: ${allSquares.size} squares, up to ${PAGE_BUDGET} pages of 
 const results = new Map();
 for (const sq of order) {
   if (pagesUsed >= PAGE_BUDGET) { log(`Page budget used up; the other squares wait for the next run.`); break; }
+  if (Date.now() - RUN_START > TIME_BUDGET_MIN * 60e3) { log(`Time budget (${TIME_BUDGET_MIN} min) used up; the other squares wait for the next run.`); break; }
   const t0 = Date.now();
   try {
     const tr = await fetchTraces(sq.box);
