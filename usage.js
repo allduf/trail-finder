@@ -74,8 +74,13 @@
   const QKEY = "tf:useQueue", MAX_QUEUE = 400;
   let queue = [];
   try { queue = JSON.parse(lsGet(QKEY) || "[]"); } catch {}
+  // A web viewer too old for the map (no Object.hasOwn: Chrome before 93, Safari before 15.4) gets index.html's update
+  // note; MapLibre's errors there ("Script error." with no detail: 195 rows of 16-23 Nov 2026, all from
+  // Google Play's review phones) and its restarts can't be fixed in the app, so they aren't sent. Visits still are.
+  const oldViewer = typeof Object.hasOwn !== "function";
   const add = (k, w, ms) => {
     if (off) return;
+    if (oldViewer && (k === "error" || k === "crash")) return;
     if (k === "crash") ms = PREV_VER; else if (k === "error") ms = VER;
     queue.push({ s: session, t: new Date().toISOString(), p: page, k, w: w == null ? null : String(w).slice(0, 120), ms });
     if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
