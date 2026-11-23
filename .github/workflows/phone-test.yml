@@ -6,6 +6,9 @@ name: Phone test
 # The check fails on a script error, a tap that breaks, or a page wider than the phone. Screenshots of every step are
 # in the run's "phone-test-screenshots" download. Outside the app's own files only code libraries and map pictures
 # are fetched (see scripts/phone-test.mjs): no resort or club sites, no weather, no Supabase.
+# Next to it, "switch" (alex 2026-11-22: "test every sport to switch to other sport to see every mode") switches every
+# sport to every other one on the flat map, the 3D map, each map style, and the iPhone and Android apps' native 3D, and
+# fails if anything of the sport before stays (scripts/sport-switch-test.mjs). Screenshots: "switch-test-screenshots".
 on:
   pull_request:
     # ios-app/ runs it too since 2026-11-21: the "App builds" checks read the iPhone's native 3D keys (NativeLayers.swift),
@@ -66,4 +69,37 @@ jobs:
         with:
           name: phone-test-screenshots
           path: phone-test-shots
+          retention-days: 14
+
+  switch:
+    # Every sport to every other sport (scripts/sport-switch-test.mjs), beside the phone test so that one stays quick:
+    # about 20 min in WebKit.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add the data jobs' files
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install the test browser
+        # The same mirror fixes as the phone job above.
+        run: |
+          sudo sed -i -E 's#http://[a-z0-9.-]+\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#mirror\+file:/etc/apt/apt-mirrors\.txt#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          [ -f /etc/apt/apt-mirrors.txt ] && echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt >/dev/null || true
+          grep -h "^URIs\|^deb " /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null | sort -u || true
+          printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
+          printf 'Acquire::Languages "none";\nAcquire::IndexTargets::deb::CNF::DefaultEnabled "false";\n' | sudo tee /etc/apt/apt.conf.d/99tf-lean >/dev/null
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps webkit
+      - name: Switch every sport to every other sport
+        run: node scripts/sport-switch-test.mjs
+        env:
+          OUT: switch-test-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: switch-test-screenshots
+          path: switch-test-shots
           retention-days: 14

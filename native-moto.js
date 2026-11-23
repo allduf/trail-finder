@@ -13,10 +13,14 @@
   // iPhone builds up to 184 close when Moto's layer reaches them (simulator 2026-11-22, right after #914 made it send
   // anything): nothing goes to an iPhone build until one reports "moto-safe" (TrailMap.features) with the fix.
   const C = window.Capacitor, ios = !!(C && C.getPlatform && C.getPlatform() === "ios");
+  // Outside Moto nothing is drawn: once something was sent, an empty layer clears it from a native map left open under
+  // the page (another sport picked there, sport switch test 2026-11-22), then nothing more.
+  let had = false;
   N.addLayer("moto", () => {
     if (ios && !(N.has && N.has("moto-safe"))) return null;
     const d = window.tfMoto && window.tfMoto.native3d ? window.tfMoto.native3d() : null;
-    if (!d) return null;
+    if (!d) { if (!had) return null; had = false; return JSON.stringify({ roads: false, ften: "", pts: [] }); }
+    had = true;
     d.pts = d.pts.map((p) => [p[0], p[1], p[2], p[3], t(p[4])]);
     return JSON.stringify(d);
   });

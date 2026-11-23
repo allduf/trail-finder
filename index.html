@@ -6327,6 +6327,9 @@ out body;`;
   function syncPeekToday() {
     const sp = sportOf(), el = sp === "mtb" ? null : $(NOW_ID[sp]), pt = $("peekToday");
     if (el && !nowSeen.has(el)) { nowSeen.add(el); new MutationObserver(() => syncPeekToday()).observe(el, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden"] }); }
+    // The app opened in this sport: its own file (which makes the Today line) isn't there yet. Once it is, look again,
+    // or the line stayed off the map's sheet until another sport was picked and back (sport switch test 2026-11-22).
+    if (!el && sp !== "mtb" && window.tfLoadSport) window.tfLoadSport(sp).then(() => setTimeout(syncPeekToday, 0), () => {});
     const html = sp === "mtb" ? mtbNowHtml : el && !el.hidden ? el.innerHTML : "", was = pt.hidden;
     if (pt.innerHTML !== html) pt.innerHTML = html;
     pt.hidden = !html;
