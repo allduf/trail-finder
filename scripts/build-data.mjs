@@ -64,11 +64,17 @@ let deadline = started + TRAILS_MINUTES * 60e3;
 const outOfTime = () => Date.now() >= deadline;
 
 // ---------- Overpass, politely: one query at a time, long waits when a server is busy ----------
-async function overpass(query) {
+// A server whose map data is months old (2026-11-20 to 23: one mirror served July data all night) is left alone for
+// 30 minutes, so every retry goes to a server that can answer instead of waiting on one that can't.
+const staleUntil = new Map();   // host -> time it may be asked again
+async function overpass(query, canSplit = false) {
   let lastErr;
+  const timeouts = new Map();   // host -> answers cut off at the time limit, for this query
   for (let attempt = 0; attempt < 6; attempt++) {
     if (outOfTime()) throw lastErr || new Error("out of time for tonight");
-    const url = OVERPASS[attempt % OVERPASS.length];
+    const live = OVERPASS.filter((u) => !(staleUntil.get(new URL(u).host) > Date.now()));
+    const pool = live.length ? live : OVERPASS;
+    const url = pool[attempt % pool.length];
     const host = new URL(url).host;
     try {
       const res = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": UA }, signal: AbortSignal.timeout(180000) });
@@ -77,7 +83,10 @@ async function overpass(query) {
         if (json.remark && /error/i.test(json.remark)) throw Object.assign(new Error(`${host}: ${json.remark}`), { heavy: true });
         // A mirror can lag months behind (2026-10-18: Vancouver's list came back without every trail mapped since June).
         const base = Date.parse((json.osm3s || {}).timestamp_osm_base);
-        if (base && Date.now() - base > 2 * 864e5) throw new Error(`${host}: map data from ${json.osm3s.timestamp_osm_base}, too old`);
+        if (base && Date.now() - base > 2 * 864e5) {
+          staleUntil.set(host, Date.now() + 30 * 60e3);
+          throw Object.assign(new Error(`${host}: map data from ${json.osm3s.timestamp_osm_base}, too old`), { stale: true });
+        }
         await sleep(2000);
         return json;
       }
@@ -86,6 +95,10 @@ async function overpass(query) {
     } catch (e) {
       if (e.heavy || /HTTP 4\d\d/.test(e.message) && !/HTTP 429/.test(e.message)) throw e;
       lastErr = e;
+      // The same server cut off twice at the time limit: ask for the square as 4 smaller ones instead (fetchBox).
+      if (canSplit && e.name === "TimeoutError" && timeouts.set(host, (timeouts.get(host) || 0) + 1).get(host) >= 2) throw Object.assign(new Error(`${host}: ${e.message}`), { heavy: true });
+      // Another server is up to date: ask it right away, no wait.
+      if (e.stale && OVERPASS.some((u) => !(staleUntil.get(new URL(u).host) > Date.now()))) { log(`    ${e.message}; asking another server`); continue; }
     }
     const wait = Math.min(30000 * 2 ** Math.floor(attempt / OVERPASS.length), 240000) * (process.env.FAST_RETRY ? 0.001 : 1);
     if (Date.now() + wait >= deadline) break;   // no time left tonight to wait for a busy server
@@ -96,7 +109,7 @@ async function overpass(query) {
 }
 // A square too heavy for the server is fetched as 4 smaller ones (2 levels at most), like the site does.
 async function fetchBox(box, makeQuery, depth = 0) {
-  try { return (await overpass(makeQuery(bounds(box)))).elements; }
+  try { return (await overpass(makeQuery(bounds(box)), depth < 2)).elements; }
   catch (e) {
     if (!e.heavy || depth >= 2) throw e;
     log(`    too heavy, splitting in 4`);

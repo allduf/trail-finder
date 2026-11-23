@@ -13,7 +13,7 @@ on:
     - cron: "43 9 * * 0"    # Sundays 09:43 UTC, after the nightly Canada job
   workflow_dispatch:
   pull_request:
-    paths: [".github/workflows/dirt-roads.yml", "scripts/build-dirt-roads.mjs"]   # test build of one small province, no publish
+    paths: [".github/workflows/dirt-roads.yml", "scripts/build-dirt-roads.mjs", "scripts/geofabrik-get.sh"]   # test build of one small province, no publish
 
 permissions:
   contents: read
@@ -45,7 +45,7 @@ jobs:
           : > /tmp/dirt.geojsonseq
           for p in $PROVINCES; do
             echo "::group::${NAME[$p]}"
-            curl -sSfL --retry 5 --retry-all-errors --retry-delay 60 -o /tmp/osm/p.pbf "https://download.geofabrik.de/north-america/canada/${NAME[$p]}/${NAME[$p]}-latest.osm.pbf"
+            bash scripts/geofabrik-get.sh "north-america/canada/${NAME[$p]}" /tmp/osm/p.pbf
             osmium tags-filter --overwrite -o /tmp/osm/r.pbf /tmp/osm/p.pbf w/highway=track,unclassified,tertiary,secondary,primary,road,residential,service
             rm /tmp/osm/p.pbf
             osmium export --overwrite -c /tmp/export.json --geometry-types=linestring -f geojsonseq -o /tmp/osm/r.geojsonseq /tmp/osm/r.pbf

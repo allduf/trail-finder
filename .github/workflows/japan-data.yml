@@ -11,7 +11,7 @@ on:
     - cron: "37 9 * * 1"    # Mondays 09:37 UTC
   push:
     branches: [main]
-    paths: [scripts/build-japan.mjs, .github/workflows/japan-data.yml]
+    paths: [scripts/build-japan.mjs, scripts/geofabrik-get.sh, .github/workflows/japan-data.yml]
   workflow_dispatch:
     inputs:
       regions:
@@ -45,7 +45,7 @@ jobs:
           mkdir -p /tmp/osm
           for r in $REGIONS; do
             echo "::group::$r"
-            curl -sSfL --retry 5 --retry-all-errors --retry-delay 60 -o /tmp/osm/p.pbf "https://download.geofabrik.de/asia/japan/${r}/${r}-latest.osm.pbf"
+            bash scripts/geofabrik-get.sh "asia/japan/${r}" /tmp/osm/p.pbf
             ls -lh /tmp/osm/p.pbf
             # Ski runs, tours, nordic, snowmobile trails and lifts; relation members come along.
             osmium tags-filter --overwrite -o /tmp/osm/s.pbf /tmp/osm/p.pbf \
