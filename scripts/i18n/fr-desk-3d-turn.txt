@@ -1,0 +1,1 @@
+3D map on a computer: turning the map stops much less often. The ground is a little softer while it moves and sharp again when it stops. ||| Carte 3D sur ordinateur : la carte s'arrête beaucoup moins souvent quand on la tourne. Le sol est un peu moins net pendant le mouvement et redevient net à l'arrêt.

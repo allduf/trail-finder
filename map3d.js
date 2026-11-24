@@ -2089,7 +2089,13 @@
   // to 3) inside that budget; as soon as a view needs more than fit, they go back to 1024 px. Never more memory
   // than before, sharper ground whenever the view allows it (2026-11-02).
   const PHONE_RTT = 1024;
-  const RTT_BUDGET = PHONE_BUFFERS * PHONE_RTT * PHONE_RTT;   // pixels of paint buffer, all buffers together
+  // Computers: the same budget idea, bigger (40 x 1024 px, ~320 MB at most, where MapLibre's own 2048 px x 30 could
+  // reach ~960 MB), and 1024 px whenever the map is moved by hand (deskMoving below). alex's recording 2026-11-24
+  // (Skiing 3D, Whistler, planning a tour): stops of 0.3-0.5 s in the middle of a turn, again and again. While
+  // turning, the far ground toward the horizon keeps changing pieces (5 to 10 new ones in one frame, at several
+  // sizes), and each new piece was painted at 2048 px: 4 times a phone's pixels, several of them in one frame.
+  const DESK_BUFFERS = 40;
+  const RTT_BUDGET = (PHONE ? PHONE_BUFFERS : DESK_BUFFERS) * PHONE_RTT * PHONE_RTT;   // pixels of paint buffer, all buffers together
   const RTT_SIZES = [2048, 1536, PHONE_RTT];
   const fitting = (size) => Math.floor(RTT_BUDGET / (size * size));   // how many buffers of this size fit the budget
   function setRtt(pool, size) {
@@ -2128,6 +2134,15 @@
       if (size && size !== pool._tileSize) setRtt(pool, size);
     } catch {}
   }
+  // Computers: when the map is moved by hand (a turn, a drag, a scroll), the ground is painted at 1024 px until it
+  // stops, then sharpenWhenStill paints it at the biggest size that fits again. Switching repaints the ground in
+  // view once, at the start of the move, at a quarter of the pixels; every new piece after it costs a quarter too.
+  function deskMoving(e) {
+    try {
+      const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (e && e.originalEvent && pool && pool._tileSize > PHONE_RTT) setRtt(pool, PHONE_RTT);
+    } catch {}
+  }
   // Computers: the paint buffers are made ahead, while the map is still. MapLibre made each one the moment a turn
   // first needed it (~32 MB of graphics memory each, 2048 px + depth), so the start of a turn that showed new ground
   // stuck while the graphics card set them up (alex's recording, 2026-11-06: 0.1 s then 0.2 s stops in the first half
@@ -2139,7 +2154,8 @@
     clearTimeout(warmT);
     try {
       const pool = gl && gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
-      if (!pool || !gl.terrain || gl.isMoving() || document.hidden || pool._objects.length >= Math.min(pool._size, WARM_BUFFERS)) return;
+      // Only 1024 px ones: a turn starts at that size (deskMoving), so bigger ones made ahead would be let go unused.
+      if (!pool || !gl.terrain || gl.isMoving() || document.hidden || pool._tileSize > PHONE_RTT || pool._objects.length >= Math.min(pool._size, WARM_BUFFERS)) return;
       const obj = pool._createObject(pool._objects.length);
       pool._objects.push(obj);
       pool._recentlyUsed.unshift(obj.id);   // free and first in line to be used
@@ -3166,7 +3182,13 @@
       // mountains kept up to 16 (~510 MB, measured) until the map stopped, and the iPhone app ran out of memory and
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
       gl.on("render", phoneBuffers);
-    } else gl.on("idle", warmPaintBuffers);
+    } else {
+      // Computers (alex's recording 2026-11-24): 1024 px paint buffers while moved by hand, sharp again when still.
+      gl.on("render", phoneBuffers);
+      gl.on("movestart", deskMoving);
+      gl.on("idle", sharpenWhenStill);
+      gl.on("idle", warmPaintBuffers);   // after the sharpen: buffers ahead only while the view stays at 1024 px
+    }
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
     gl.on("render", () => { spreadPaints(); quietSources(); skipEmpty(); });   // once its paint buffers exist (and again if the terrain is set up anew)

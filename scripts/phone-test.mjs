@@ -23,7 +23,7 @@ const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
 const OUT = process.env.OUT || "phone-test-shots";
 const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
-const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check" };
+const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
@@ -68,8 +68,8 @@ await mkdir(OUT, { recursive: true });
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
 const results = [];   // { sport, step, ok, note, shot }
 
-async function phone() {
-  const ctx = await browser.newContext(PHONE);
+async function phone(opts = PHONE) {
+  const ctx = await browser.newContext(opts);
   const blocked = new Set();
   await ctx.route("**/*", (route) => {
     const u = new URL(route.request().url());
@@ -697,6 +697,56 @@ async function appBuild(kind) {
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
+
+// ---------- Computer: turning the 3D map (alex's recording 2026-11-24) ----------
+// The website on a computer stopped 0.3-0.5 s again and again while the 3D map was turned (Skiing, Whistler): each
+// piece of far ground turning into view was painted into a 2048 px buffer, 5 to 10 new pieces in one frame. Now the
+// ground is painted at 1024 px while the map is moved by hand and sharp again once it stops (map3d.js deskMoving,
+// sharpenWhenStill). This turns the map with the mouse at computer size and fails if a frame of the turn paints more
+// ground than DESK_TURN_PIXELS (before the fix: up to 12 pieces at 2048 px, ~50 million pixels in one frame; after: at most ~12 million) or the
+// buffers stay at 2048 px while turning.
+{
+  const DESK_TURN_PIXELS = 20 * 1024 * 1024;
+  const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
+  const p = await phone({ ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  const { page } = p;
+  await step(p, "desk", "Open Skiing 3D on a computer", async () => {
+    await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
+    await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).catch(() => {});
+    await wait(1500); await page.keyboard.press("Escape").catch(() => {});
+    await tap(page, "#sportMapBtn"); await tap(page, "#sportMenu [data-sport=ski]");
+    await page.waitForFunction(() => (document.getElementById("sport") || {}).value === "ski", null, { timeout: 8000 });
+    await wait(6000);
+    if (!(await page.evaluate(() => !!(window.tf3dGl && window.tf3dGl())))) { await tap(page, "#btn3d"); await wait(8000); }
+    if (!(await page.evaluate(() => !!(window.tf3dGl && window.tf3dGl() && window.tf3dGl().terrain)))) throw new Error("the 3D map didn't open");
+    await page.evaluate(() => window.tf3dGl().jumpTo({ center: [-122.93, 50.08], zoom: 12.6, pitch: 62, bearing: 150 }));
+    await page.waitForFunction(() => { const g = window.tf3dGl(); return g.loaded() && !g.isMoving() && g.areTilesLoaded(); }, null, { timeout: 60_000 }).catch(() => {});
+    await wait(3000);
+  }, 0);
+  await step(p, "desk", "Turning the 3D map paints little ground per frame", async () => {
+    await page.evaluate(() => {
+      const g = window.tf3dGl(), pool = g.painter.renderToTexture.pool, stamp = pool.stampObject;
+      const s = window.tfTurn = { px: 0, worst: 0, sizes: new Set(), hand: false };
+      pool.stampObject = function () { s.px += pool._tileSize * pool._tileSize; return stamp.apply(this, arguments); };
+      g.on("movestart", (e) => { if (e.originalEvent) s.hand = true; });
+      g.on("render", () => { if (g.isMoving()) { s.worst = Math.max(s.worst, s.px); s.sizes.add(pool._tileSize); } s.px = 0; });
+    });
+    const r = await page.evaluate(() => { const b = window.tf3dGl().getCanvas().getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
+    await page.mouse.move(r[0], r[1]);
+    await page.mouse.down({ button: "right" });
+    for (let i = 1; i <= 40; i++) { await page.mouse.move(r[0] + i * 12, r[1] + Math.sin(i / 6) * 20); await wait(40); }
+    await page.mouse.up({ button: "right" });
+    await wait(1000);
+    const t = await page.evaluate(() => ({ hand: window.tfTurn.hand, worst: window.tfTurn.worst, sizes: [...window.tfTurn.sizes] }));
+    if (!t.hand) throw new Error("the mouse didn't turn the map");
+    const mp = (n) => (n / 1048576).toFixed(1) + " million pixels";
+    console.log(`    (worst frame of the turn painted ${mp(t.worst)} of ground; buffer sizes while moving: ${t.sizes.join(", ")} px)`);
+    if (t.sizes.some((z) => z > 1024)) throw new Error(`the ground was painted at ${Math.max(...t.sizes)} px while turning (1024 px expected)`);
+    if (t.worst > DESK_TURN_PIXELS) throw new Error(`one frame of the turn painted ${mp(t.worst)} of ground (at most ${mp(DESK_TURN_PIXELS)})`);
+  }, 0);
+  await p.ctx.close();
+}
 
 // The ride page (My rides, recording) on its own.
 {
