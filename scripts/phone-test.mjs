@@ -702,11 +702,11 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 // The website on a computer stopped 0.3-0.5 s again and again while the 3D map was turned (Skiing, Whistler): each
 // piece of far ground turning into view was painted into a 2048 px buffer, 5 to 10 new pieces in one frame. Now the
 // ground is painted at 1024 px while the map is moved by hand and sharp again once it stops (map3d.js deskMoving,
-// sharpenWhenStill). This turns the map with the mouse at computer size and fails if a frame of the turn paints more
+// deskStill, deskSize). This turns the map with the mouse at computer size and fails if a frame of the turn paints more
 // ground than DESK_TURN_PIXELS (before the fix: up to 12 pieces at 2048 px, ~50 million pixels in one frame; after: at
 // most ~12 million), if the buffers stay bigger than 1024 px while turning, if a turn has to make new buffers (a stop at
 // its start), or if the ground isn't sharp (bigger than 1024 px) before and after the turn, once the map is still.
-{
+if (SPORTS.includes("ski")) {
   const DESK_TURN_PIXELS = 20 * 1024 * 1024;
   const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
   const p = await phone({ ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -812,7 +812,7 @@ server.close();
 // ---------- report ----------
 const bad = results.filter((r) => !r.ok);
 const md = [`## 📱 Phone test (${BROWSER === "webkit" ? "Safari engine" : BROWSER}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
-  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds, My rides and the sign-in check.`, "",
+  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds, a computer-size 3D turn, My rides and the sign-in check.`, "",
   "| Sport | Step | Result |", "|---|---|---|",
   ...results.map((r) => `| ${NAMES[r.sport] || "My rides"} | ${r.step} | ${r.ok ? "✓" : "✗ " + r.note.replace(/\|/g, "\\|")} |`), "",
   "Screenshots of every step: the **phone-test-screenshots** download at the bottom of this run's page."].join("\n");

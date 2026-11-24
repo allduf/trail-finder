@@ -2148,9 +2148,11 @@
     if (gl.terrain) gl.terrain.tileManager.freeRtt();   // every piece of ground paints again, into the other buffers
     rttGen++;
     pool.freeAllObjects();
-    // Kept: the 1024 px set and the set in use now. Any other big set goes (one big set at most).
+    // Kept: the 1024 px set, and the big set in use when going to 1024 px (for the next sharpen). Any other big set
+    // goes: one big set at most.
+    const now = pool._tileSize, keepNow = pool.tfDesk && (now === PHONE_RTT || size === PHONE_RTT);
     for (const k of Object.keys(kept)) if (+k !== PHONE_RTT && +k !== size) { for (const o of kept[k]) o.fbo.destroy(); delete kept[k]; }
-    if (pool.tfDesk) kept[pool._tileSize] = pool._objects; else for (const o of pool._objects) o.fbo.destroy();   // MapLibre's first 2048 x 30
+    if (keepNow) kept[now] = pool._objects; else for (const o of pool._objects) o.fbo.destroy();   // also MapLibre's first 2048 x 30
     pool.tfDesk = true;
     pool._objects = kept[size] || []; delete kept[size];
     pool._recentlyUsed = pool._objects.map((o) => o.id);
@@ -2163,13 +2165,21 @@
       if (!pool) return;
       if (!pool.tfDesk) {
         // The terrain was set up anew (a new pool): the old pool's kept buffers go with it.
-        const was = gl.tfDeskPool;
-        if (was && was !== pool && was.tfKept) { for (const k in was.tfKept) for (const o of was.tfKept[k]) o.fbo.destroy(); was.tfKept = {}; }
+        if (gl.tfDeskPool !== pool) deskDropOld();
         gl.tfDeskPool = pool;
         return deskSize(pool, PHONE_RTT);
       }
       // Still, sharp, and the view now needs more than fit (more ground came in): 1024 px right away.
       if (pool._tileSize > PHONE_RTT && rttNeed() > pool._size) deskSize(pool, PHONE_RTT);
+    } catch {}
+  }
+  // A pool MapLibre let go (terrain off or set up anew): the buffers kept next to it go too (MapLibre frees only its own).
+  function deskDropOld() {
+    try {
+      const was = gl.tfDeskPool, now = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (!was || was === now || !was.tfKept) return;
+      for (const k in was.tfKept) for (const o of was.tfKept[k]) o.fbo.destroy();
+      was.tfKept = {}; gl.tfDeskPool = null;
     } catch {}
   }
   let deskSharpT = 0;
@@ -2248,6 +2258,7 @@
         for (const o of pool._objects) o.fbo.destroy();
         pool._objects = []; pool._recentlyUsed = [];
         if (pool.tfKept) { for (const k in pool.tfKept) for (const o of pool.tfKept[k]) o.fbo.destroy(); pool.tfKept = {}; }
+        pool.tfDesk = false;   // computers: set up again at the next draw (1024 px, made ahead again once still)
         rttGen++;
       }
       for (const tm of Object.values(gl.style.tileManagers || {})) if (tm._outOfViewCache) tm._outOfViewCache.reset();
@@ -3246,7 +3257,9 @@
       gl.on("render", deskBuffers);
       gl.on("movestart", deskMoving);
       gl.on("idle", deskStill);
+      gl.on("moveend", deskStill);   // also when some tile never finishes loading (no "idle"): sharp once still anyway
       gl.on("idle", warmPaintBuffers);
+      gl.on("terrain", deskDropOld);
     }
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
