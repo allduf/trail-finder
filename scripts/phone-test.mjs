@@ -639,14 +639,18 @@ async function appBuild(kind) {
         await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
         // Hiking on its photos is the one map (native under the page, seen from above, since #930): 3D tips it up without
         // a new open, so the ground then is the last one sent to it (or its own open's).
-        await wait(1500);
-        const g = await ev((c) => {
+        // The ground picture is sent when native-ground.js has it ready, which can take a few seconds on a busy test
+        // machine (a fixed 1.5 s wait failed now and then): wait up to 10 s for the slope angle in it.
+        const ground = (c) => {
           const t = window.__tm, x = t.opens[c];
           if (x) return (x.layers || {}).ground || "";
           if (!document.documentElement.classList.contains("tf-under") || !t.opens.length) return null;
           const l = (t.layers || []).filter((y) => y.key === "ground").pop();
           return l ? l.data : (t.opens[t.opens.length - 1].layers || {}).ground || "";
-        }, n0);
+        };
+        await wait(1500);
+        await until(new Function("c", `const g = (${ground})(c); return !!g && g.includes('"hike-slope"');`), n0, 10_000).catch(() => {});
+        const g = await ev(ground, n0);
         try {
           if (g === null) throw new Error("3D didn't open native 3D in Hiking");
           const ids = (g ? JSON.parse(g).layers || [] : []).map((l) => l.id);
