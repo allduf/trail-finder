@@ -2089,12 +2089,12 @@
   // to 3) inside that budget; as soon as a view needs more than fit, they go back to 1024 px. Never more memory
   // than before, sharper ground whenever the view allows it (2026-11-02).
   const PHONE_RTT = 1024;
-  // Computers: the same budget idea, bigger (40 x 1024 px, ~320 MB at most, where MapLibre's own 2048 px x 30 could
-  // reach ~960 MB), and 1024 px whenever the map is moved by hand (deskMoving below). alex's recording 2026-11-24
-  // (Skiing 3D, Whistler, planning a tour): stops of 0.3-0.5 s in the middle of a turn, again and again. While
-  // turning, the far ground toward the horizon keeps changing pieces (5 to 10 new ones in one frame, at several
-  // sizes), and each new piece was painted at 2048 px: 4 times a phone's pixels, several of them in one frame.
-  const DESK_BUFFERS = 40;
+  // Computers: the same budget idea, bigger (48 x 1024 px: 12 buffers at 2048 px or 21 at 1536 px when still), and
+  // 1024 px whenever the map moves (deskBuffers below). alex's recording 2026-11-24 (Skiing 3D, Whistler, planning a
+  // tour): stops of 0.3-0.5 s in the middle of a turn, again and again. While turning, the far ground toward the
+  // horizon keeps changing pieces (5 to 10 new ones in one frame, at several sizes), and each new piece was painted
+  // at 2048 px: 4 times a phone's pixels, several of them in one frame.
+  const DESK_BUFFERS = 48;
   const RTT_BUDGET = (PHONE ? PHONE_BUFFERS : DESK_BUFFERS) * PHONE_RTT * PHONE_RTT;   // pixels of paint buffer, all buffers together
   const RTT_SIZES = [2048, 1536, PHONE_RTT];
   const fitting = (size) => Math.floor(RTT_BUDGET / (size * size));   // how many buffers of this size fit the budget
@@ -2134,14 +2134,63 @@
       if (size && size !== pool._tileSize) setRtt(pool, size);
     } catch {}
   }
-  // Computers: when the map is moved by hand (a turn, a drag, a scroll), the ground is painted at 1024 px until it
-  // stops, then sharpenWhenStill paints it at the biggest size that fits again. Switching repaints the ground in
-  // view once, at the start of the move, at a quarter of the pixels; every new piece after it costs a quarter too.
-  function deskMoving(e) {
+  // ---------- computer paint buffers (alex's recording 2026-11-24) ----------
+  // While the map moves (by hand, a tour, a fly-to), the ground is painted at 1024 px; once it has been still for
+  // DESK_SHARPEN_MS it is painted at the biggest size that fits the budget for the view. The buffers of the size not
+  // in use stay made (pool.tfKept): switching only paints the ground in view again, it never makes new buffers in the
+  // first frame of a turn (the stop warmPaintBuffers was made for, 2026-11-06). At most one set of big buffers is kept
+  // next to the 1024 px ones: under MapLibre's own 2048 px x 30 (~960 MB) in all.
+  const DESK_SHARPEN_MS = 800;
+  let rttGen = 0;   // spreadPaints lets go of the pictures it held back when the buffers change size
+  function deskSize(pool, size) {
+    if (pool._tileSize === size) return;
+    const kept = pool.tfKept || (pool.tfKept = {});
+    if (gl.terrain) gl.terrain.tileManager.freeRtt();   // every piece of ground paints again, into the other buffers
+    rttGen++;
+    pool.freeAllObjects();
+    // Kept: the 1024 px set and the set in use now. Any other big set goes (one big set at most).
+    for (const k of Object.keys(kept)) if (+k !== PHONE_RTT && +k !== size) { for (const o of kept[k]) o.fbo.destroy(); delete kept[k]; }
+    if (pool.tfDesk) kept[pool._tileSize] = pool._objects; else for (const o of pool._objects) o.fbo.destroy();   // MapLibre's first 2048 x 30
+    pool.tfDesk = true;
+    pool._objects = kept[size] || []; delete kept[size];
+    pool._recentlyUsed = pool._objects.map((o) => o.id);
+    pool._tileSize = size; pool._size = fitting(size);
+    gl.triggerRepaint();
+  }
+  function deskBuffers() {
     try {
       const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
-      if (e && e.originalEvent && pool && pool._tileSize > PHONE_RTT) setRtt(pool, PHONE_RTT);
+      if (!pool) return;
+      if (!pool.tfDesk) {
+        // The terrain was set up anew (a new pool): the old pool's kept buffers go with it.
+        const was = gl.tfDeskPool;
+        if (was && was !== pool && was.tfKept) { for (const k in was.tfKept) for (const o of was.tfKept[k]) o.fbo.destroy(); was.tfKept = {}; }
+        gl.tfDeskPool = pool;
+        return deskSize(pool, PHONE_RTT);
+      }
+      // Still, sharp, and the view now needs more than fit (more ground came in): 1024 px right away.
+      if (pool._tileSize > PHONE_RTT && rttNeed() > pool._size) deskSize(pool, PHONE_RTT);
     } catch {}
+  }
+  let deskSharpT = 0;
+  function deskMoving() {
+    clearTimeout(deskSharpT);
+    try {
+      const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+      if (pool && pool.tfDesk && pool._tileSize > PHONE_RTT) deskSize(pool, PHONE_RTT);
+    } catch {}
+  }
+  function deskStill() {
+    clearTimeout(deskSharpT);
+    deskSharpT = setTimeout(() => {
+      try {
+        const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
+        if (!pool || !pool.tfDesk || gl.isMoving() || document.hidden) return;
+        const need = rttNeed();
+        const size = need && RTT_SIZES.find((s) => need <= fitting(s));
+        if (size) deskSize(pool, size);
+      } catch {}
+    }, DESK_SHARPEN_MS);
   }
   // Computers: the paint buffers are made ahead, while the map is still. MapLibre made each one the moment a turn
   // first needed it (~32 MB of graphics memory each, 2048 px + depth), so the start of a turn that showed new ground
@@ -2154,11 +2203,17 @@
     clearTimeout(warmT);
     try {
       const pool = gl && gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
-      // Only 1024 px ones: a turn starts at that size (deskMoving), so bigger ones made ahead would be let go unused.
-      if (!pool || !gl.terrain || gl.isMoving() || document.hidden || pool._tileSize > PHONE_RTT || pool._objects.length >= Math.min(pool._size, WARM_BUFFERS)) return;
-      const obj = pool._createObject(pool._objects.length);
-      pool._objects.push(obj);
-      pool._recentlyUsed.unshift(obj.id);   // free and first in line to be used
+      // Only 1024 px ones, the size every move starts at (deskMoving), also while the sharp ones are in use.
+      if (!pool || !pool.tfDesk || !gl.terrain || gl.isMoving() || document.hidden) return;
+      const kept = pool.tfKept || (pool.tfKept = {}), live = pool._tileSize === PHONE_RTT;
+      const set = live ? pool._objects : (kept[PHONE_RTT] || (kept[PHONE_RTT] = []));
+      if (set.length >= Math.min(fitting(PHONE_RTT), WARM_BUFFERS)) return;
+      const size = pool._tileSize;
+      pool._tileSize = PHONE_RTT;
+      let obj;
+      try { obj = pool._createObject(set.length); } finally { pool._tileSize = size; }
+      set.push(obj);
+      if (live) pool._recentlyUsed.unshift(obj.id);   // free and first in line to be used
       warmT = setTimeout(warmPaintBuffers, 60);   // the next one a moment later: never a long stop
     } catch {}
   }
@@ -2192,6 +2247,8 @@
         pool.freeAllObjects();
         for (const o of pool._objects) o.fbo.destroy();
         pool._objects = []; pool._recentlyUsed = [];
+        if (pool.tfKept) { for (const k in pool.tfKept) for (const o of pool.tfKept[k]) o.fbo.destroy(); pool.tfKept = {}; }
+        rttGen++;
       }
       for (const tm of Object.values(gl.style.tileManagers || {})) if (tm._outOfViewCache) tm._outOfViewCache.reset();
       if (p._tileTextures) { for (const k in p._tileTextures) for (const t of p._tileTextures[k]) t.destroy(); p._tileTextures = {}; }
@@ -2316,7 +2373,7 @@
     const rtt = gl && gl.painter && gl.painter.renderToTexture, tm = gl && gl.terrain && gl.terrain.tileManager;
     if (!rtt || !tm || rtt.tfSpread || typeof rtt.prepareForRender !== "function" || typeof tm.freeRtt !== "function") return;
     rtt.tfSpread = true;
-    const old = new WeakMap();   // piece of ground -> the painted picture it showed before MapLibre let it go
+    let old = new WeakMap(), gen = rttGen;   // piece of ground -> the painted picture it showed before MapLibre let it go
     if (!tm.tfSpread) {
       tm.tfSpread = true;
       const free = tm.freeRtt;
@@ -2328,6 +2385,8 @@
     const prep = rtt.prepareForRender;
     rtt.prepareForRender = function () {
       let before = null;
+      // The buffers changed size (computers, deskSize): the pictures held back point into buffers that now hold others.
+      if (gen !== rttGen) { gen = rttGen; old = new WeakMap(); }
       try {
         before = tm.getRenderableTiles().filter(Boolean).map((t) => {
           if (t.tfWait) t.rtt = [];   // put off last frame: its turn again
@@ -3183,11 +3242,11 @@
       // restarted on the flat map. A view that needs more paints its ground in turns: a little slower, never a crash.
       gl.on("render", phoneBuffers);
     } else {
-      // Computers (alex's recording 2026-11-24): 1024 px paint buffers while moved by hand, sharp again when still.
-      gl.on("render", phoneBuffers);
+      // Computers (alex's recording 2026-11-24): 1024 px paint buffers while moving, sharp again when still.
+      gl.on("render", deskBuffers);
       gl.on("movestart", deskMoving);
-      gl.on("idle", sharpenWhenStill);
-      gl.on("idle", warmPaintBuffers);   // after the sharpen: buffers ahead only while the view stays at 1024 px
+      gl.on("idle", deskStill);
+      gl.on("idle", warmPaintBuffers);
     }
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);

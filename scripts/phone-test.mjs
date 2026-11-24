@@ -703,8 +703,9 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 // piece of far ground turning into view was painted into a 2048 px buffer, 5 to 10 new pieces in one frame. Now the
 // ground is painted at 1024 px while the map is moved by hand and sharp again once it stops (map3d.js deskMoving,
 // sharpenWhenStill). This turns the map with the mouse at computer size and fails if a frame of the turn paints more
-// ground than DESK_TURN_PIXELS (before the fix: up to 12 pieces at 2048 px, ~50 million pixels in one frame; after: at most ~12 million) or the
-// buffers stay at 2048 px while turning.
+// ground than DESK_TURN_PIXELS (before the fix: up to 12 pieces at 2048 px, ~50 million pixels in one frame; after: at
+// most ~12 million), if the buffers stay bigger than 1024 px while turning, if a turn has to make new buffers (a stop at
+// its start), or if the ground isn't sharp (bigger than 1024 px) before and after the turn, once the map is still.
 {
   const DESK_TURN_PIXELS = 20 * 1024 * 1024;
   const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
@@ -723,12 +724,17 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
     await page.evaluate(() => window.tf3dGl().jumpTo({ center: [-122.93, 50.08], zoom: 12.6, pitch: 62, bearing: 150 }));
     await page.waitForFunction(() => { const g = window.tf3dGl(); return g.loaded() && !g.isMoving() && g.areTilesLoaded(); }, null, { timeout: 60_000 }).catch(() => {});
     await wait(3000);
+    const still = await page.waitForFunction(() => window.tf3dGl().painter.renderToTexture.pool._tileSize > 1024, null, { timeout: 20_000 })
+      .then(() => 0, () => page.evaluate(() => window.tf3dGl().painter.renderToTexture.pool._tileSize));
+    if (still) throw new Error(`the still ground is painted at ${still} px (sharper expected)`);
   }, 0);
   await step(p, "desk", "Turning the 3D map paints little ground per frame", async () => {
     await page.evaluate(() => {
       const g = window.tf3dGl(), pool = g.painter.renderToTexture.pool, stamp = pool.stampObject;
-      const s = window.tfTurn = { px: 0, worst: 0, sizes: new Set(), hand: false };
+      const s = window.tfTurn = { px: 0, worst: 0, sizes: new Set(), hand: false, made: 0 };
       pool.stampObject = function () { s.px += pool._tileSize * pool._tileSize; return stamp.apply(this, arguments); };
+      const mk = pool._createObject;
+      pool._createObject = function () { if (g.isMoving()) s.made++; return mk.apply(this, arguments); };
       g.on("movestart", (e) => { if (e.originalEvent) s.hand = true; });
       g.on("render", () => { if (g.isMoving()) { s.worst = Math.max(s.worst, s.px); s.sizes.add(pool._tileSize); } s.px = 0; });
     });
@@ -737,13 +743,18 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
     await page.mouse.down({ button: "right" });
     for (let i = 1; i <= 40; i++) { await page.mouse.move(r[0] + i * 12, r[1] + Math.sin(i / 6) * 20); await wait(40); }
     await page.mouse.up({ button: "right" });
-    await wait(1000);
-    const t = await page.evaluate(() => ({ hand: window.tfTurn.hand, worst: window.tfTurn.worst, sizes: [...window.tfTurn.sizes] }));
+    await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
+    await page.waitForFunction(() => window.tf3dGl().painter.renderToTexture.pool._tileSize > 1024, null, { timeout: 20_000 }).catch(() => {});
+    const t = await page.evaluate(() => ({ hand: window.tfTurn.hand, worst: window.tfTurn.worst, sizes: [...window.tfTurn.sizes], made: window.tfTurn.made,
+      after: window.tf3dGl().painter.renderToTexture.pool._tileSize }));
     if (!t.hand) throw new Error("the mouse didn't turn the map");
     const mp = (n) => (n / 1048576).toFixed(1) + " million pixels";
-    console.log(`    (worst frame of the turn painted ${mp(t.worst)} of ground; buffer sizes while moving: ${t.sizes.join(", ")} px)`);
+    console.log(`    (worst frame of the turn painted ${mp(t.worst)} of ground; buffer sizes while moving: ${t.sizes.join(", ")} px; ` +
+      `new buffers while moving: ${t.made}; still after: ${t.after} px)`);
     if (t.sizes.some((z) => z > 1024)) throw new Error(`the ground was painted at ${Math.max(...t.sizes)} px while turning (1024 px expected)`);
     if (t.worst > DESK_TURN_PIXELS) throw new Error(`one frame of the turn painted ${mp(t.worst)} of ground (at most ${mp(DESK_TURN_PIXELS)})`);
+    if (t.made > 2) throw new Error(`the turn made ${t.made} new paint buffers (they're made ahead while the map is still)`);
+    if (t.after <= 1024) throw new Error(`after the turn the still ground stays at ${t.after} px (sharper expected)`);
   }, 0);
   await p.ctx.close();
 }
