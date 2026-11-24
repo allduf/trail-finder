@@ -2383,7 +2383,8 @@
       const args = Array.prototype.slice.call(arguments);
       try {
         if (layer && layer.type === "raster" && tm && typeof tm.getTile === "function" && coords && coords.length) {
-          const keep = coords.filter((c) => { const t = tm.getTile(c), z = t && t.texture && t.texture.size; return !z || z[0] > 1 || z[1] > 1; });
+          // A photo piece with no picture on the graphics card yet can't be painted (MapLibre would throw on it): left out.
+          const keep = coords.filter((c) => { const t = tm.getTile(c), z = t && t.texture && t.texture.size; return !!z && (z[0] > 1 || z[1] > 1); });
           if (!keep.length) return;
           if (keep.length < coords.length) args[3] = keep;
         }
@@ -3114,11 +3115,15 @@
     const awayFlat = (e) => { if (!e.detail) goneAway(); };
     document.addEventListener("visibilitychange", awayHidden);
     window.addEventListener("tf:3d", awayFlat);
+    // And only while the 3D map was on screen: at 30 s the clock stops and sends 30 s (shown as "30 s+" on the usage
+    // page), but a 3D map that was hidden or closed by then sent 30 s too, a wait nobody had (2026-11-24: one tester's
+    // iPhone sent only 30 s, so the page's usual 3D time read exactly 30 s).
+    const watched = () => !away && on && box && !box.hidden && document.visibilityState === "visible";
     let timed = false;
     const timeIt = () => {
       if (timed) return;
       timed = true;
-      if (!away) logUse("speed", "3d", Math.min(performance.now() - t3d, 30000));
+      if (watched()) logUse("speed", "3d", Math.min(performance.now() - t3d, 30000));
       document.removeEventListener("visibilitychange", awayHidden); window.removeEventListener("tf:3d", awayFlat);
     };
     const photoSource = () => gl.getLayer("adv-bg") ? "names" : ["winter", "live", "topo", "osm", "sat"].find((id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none") || "sat";
@@ -3135,7 +3140,7 @@
     let shaped = false;
     const shapeTime = () => {
       if (shaped) return;
-      shaped = true; if (!away) logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
+      shaped = true; if (watched()) logUse("speed", "3dshape", Math.min(performance.now() - t3d, 30000));
       gl.off("sourcedata", shapeIn); gl.off("idle", shapeIn); gl.off("moveend", shapeIn);
     };
     const shapeIn = () => { if (tilted && gl.isSourceLoaded(quickPhotos())) shapeTime(); };
@@ -3344,7 +3349,10 @@
           if (n >= 3) continue;
           if (tileTries.size > 2000) tileTries.clear();
           tileTries.set(k, n + 1);
-          setTimeout(() => { try { if (tiles.getTileById(t)?.state === "errored") m._reloadTile(t, "expired"); } catch {} }, 1000 * (n + 1));
+          // Asked again as "loading", never "expired": an expired tile counts as drawable, and this one has no picture
+          // yet, so every frame until it came in threw "Cannot read properties of undefined (reading 'bind')" in
+          // MapLibre (usage page 2026-11-24: 16 times on a computer, Topo in 3D, OpenTopoMap tiles that failed once).
+          setTimeout(() => { try { if (tiles.getTileById(t)?.state === "errored") m._reloadTile(t, "loading"); } catch {} }, 1000 * (n + 1));
         }
       }
     });

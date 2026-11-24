@@ -1,0 +1,3 @@
+3D map on Topo: a map picture that failed to download is asked again without stopping the map with an error. ||| Carte 3D en Topo : une image de carte qui n'a pas pu être téléchargée est redemandée sans arrêter la carte sur une erreur.
+The 3D clock stops at 30 s: “30 s+” means the 3D map wasn't in yet by then, and the last column says how many times that happened. ||| Le chronomètre 3D s'arrête à 30 s : « 30 s+ » veut dire que la carte 3D n'était pas encore là, et la dernière colonne dit combien de fois c'est arrivé.
+Over 30 s ||| Plus de 30 s
