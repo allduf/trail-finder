@@ -1,0 +1,1 @@
+3D map on Topo: a map picture that failed to download is asked again without stopping the map with an error. ||| Carte 3D en Topo : une image de carte qui n'a pas pu être téléchargée est redemandée sans arrêter la carte sur une erreur.
