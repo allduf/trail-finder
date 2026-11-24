@@ -23,7 +23,7 @@ const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
 const OUT = process.env.OUT || "phone-test-shots";
 const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
-const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check" };
+const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
@@ -68,8 +68,8 @@ await mkdir(OUT, { recursive: true });
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
 const results = [];   // { sport, step, ok, note, shot }
 
-async function phone() {
-  const ctx = await browser.newContext(PHONE);
+async function phone(opts = PHONE) {
+  const ctx = await browser.newContext(opts);
   const blocked = new Set();
   await ctx.route("**/*", (route) => {
     const u = new URL(route.request().url());
@@ -639,14 +639,18 @@ async function appBuild(kind) {
         await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
         // Hiking on its photos is the one map (native under the page, seen from above, since #930): 3D tips it up without
         // a new open, so the ground then is the last one sent to it (or its own open's).
-        await wait(1500);
-        const g = await ev((c) => {
+        // The ground picture is sent when native-ground.js has it ready, which can take a few seconds on a busy test
+        // machine (a fixed 1.5 s wait failed now and then): wait up to 10 s for the slope angle in it.
+        const ground = (c) => {
           const t = window.__tm, x = t.opens[c];
           if (x) return (x.layers || {}).ground || "";
           if (!document.documentElement.classList.contains("tf-under") || !t.opens.length) return null;
           const l = (t.layers || []).filter((y) => y.key === "ground").pop();
           return l ? l.data : (t.opens[t.opens.length - 1].layers || {}).ground || "";
-        }, n0);
+        };
+        await wait(1500);
+        await until(new Function("c", `const g = (${ground})(c); return !!g && g.includes('"hike-slope"');`), n0, 10_000).catch(() => {});
+        const g = await ev(ground, n0);
         try {
           if (g === null) throw new Error("3D didn't open native 3D in Hiking");
           const ids = (g ? JSON.parse(g).layers || [] : []).map((l) => l.id);
@@ -697,6 +701,67 @@ async function appBuild(kind) {
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
+
+// ---------- Computer: turning the 3D map (alex's recording 2026-11-24) ----------
+// The website on a computer stopped 0.3-0.5 s again and again while the 3D map was turned (Skiing, Whistler): each
+// piece of far ground turning into view was painted into a 2048 px buffer, 5 to 10 new pieces in one frame. Now the
+// ground is painted at 1024 px while the map is moved by hand and sharp again once it stops (map3d.js deskMoving,
+// deskStill, deskSize). This turns the map with the mouse at computer size and fails if a frame of the turn paints more
+// ground than DESK_TURN_PIXELS (before the fix: up to 12 pieces at 2048 px, ~50 million pixels in one frame; after: at
+// most ~12 million), if the buffers stay bigger than 1024 px while turning, if a turn has to make new buffers (a stop at
+// its start), or if the ground isn't sharp (bigger than 1024 px) before and after the turn, once the map is still.
+if (SPORTS.includes("ski")) {
+  const DESK_TURN_PIXELS = 20 * 1024 * 1024;
+  const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
+  const p = await phone({ ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  const { page } = p;
+  await step(p, "desk", "Open Skiing 3D on a computer", async () => {
+    await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
+    await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).catch(() => {});
+    await wait(1500); await page.keyboard.press("Escape").catch(() => {});
+    await tap(page, "#sportMapBtn"); await tap(page, "#sportMenu [data-sport=ski]");
+    await page.waitForFunction(() => (document.getElementById("sport") || {}).value === "ski", null, { timeout: 8000 });
+    await wait(6000);
+    if (!(await page.evaluate(() => !!(window.tf3dGl && window.tf3dGl())))) { await tap(page, "#btn3d"); await wait(8000); }
+    if (!(await page.evaluate(() => !!(window.tf3dGl && window.tf3dGl() && window.tf3dGl().terrain)))) throw new Error("the 3D map didn't open");
+    await page.evaluate(() => window.tf3dGl().jumpTo({ center: [-122.93, 50.08], zoom: 12.6, pitch: 62, bearing: 150 }));
+    await page.waitForFunction(() => { const g = window.tf3dGl(); return g.loaded() && !g.isMoving() && g.areTilesLoaded(); }, null, { timeout: 60_000 }).catch(() => {});
+    await wait(3000);
+    const still = await page.waitForFunction(() => window.tf3dGl().painter.renderToTexture.pool._tileSize > 1024, null, { timeout: 20_000 })
+      .then(() => 0, () => page.evaluate(() => window.tf3dGl().painter.renderToTexture.pool._tileSize));
+    if (still) throw new Error(`the still ground is painted at ${still} px (sharper expected)`);
+  }, 0);
+  await step(p, "desk", "Turning the 3D map paints little ground per frame", async () => {
+    await page.evaluate(() => {
+      const g = window.tf3dGl(), pool = g.painter.renderToTexture.pool, stamp = pool.stampObject;
+      const s = window.tfTurn = { px: 0, worst: 0, sizes: new Set(), hand: false, made: 0 };
+      pool.stampObject = function () { s.px += pool._tileSize * pool._tileSize; return stamp.apply(this, arguments); };
+      const mk = pool._createObject;
+      pool._createObject = function () { if (g.isMoving()) s.made++; return mk.apply(this, arguments); };
+      g.on("movestart", (e) => { if (e.originalEvent) s.hand = true; });
+      g.on("render", () => { if (g.isMoving()) { s.worst = Math.max(s.worst, s.px); s.sizes.add(pool._tileSize); } s.px = 0; });
+    });
+    const r = await page.evaluate(() => { const b = window.tf3dGl().getCanvas().getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
+    await page.mouse.move(r[0], r[1]);
+    await page.mouse.down({ button: "right" });
+    for (let i = 1; i <= 40; i++) { await page.mouse.move(r[0] + i * 12, r[1] + Math.sin(i / 6) * 20); await wait(40); }
+    await page.mouse.up({ button: "right" });
+    await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
+    await page.waitForFunction(() => window.tf3dGl().painter.renderToTexture.pool._tileSize > 1024, null, { timeout: 20_000 }).catch(() => {});
+    const t = await page.evaluate(() => ({ hand: window.tfTurn.hand, worst: window.tfTurn.worst, sizes: [...window.tfTurn.sizes], made: window.tfTurn.made,
+      after: window.tf3dGl().painter.renderToTexture.pool._tileSize }));
+    if (!t.hand) throw new Error("the mouse didn't turn the map");
+    const mp = (n) => (n / 1048576).toFixed(1) + " million pixels";
+    console.log(`    (worst frame of the turn painted ${mp(t.worst)} of ground; buffer sizes while moving: ${t.sizes.join(", ")} px; ` +
+      `new buffers while moving: ${t.made}; still after: ${t.after} px)`);
+    if (t.sizes.some((z) => z > 1024)) throw new Error(`the ground was painted at ${Math.max(...t.sizes)} px while turning (1024 px expected)`);
+    if (t.worst > DESK_TURN_PIXELS) throw new Error(`one frame of the turn painted ${mp(t.worst)} of ground (at most ${mp(DESK_TURN_PIXELS)})`);
+    if (t.made > 2) throw new Error(`the turn made ${t.made} new paint buffers (they're made ahead while the map is still)`);
+    if (t.after <= 1024) throw new Error(`after the turn the still ground stays at ${t.after} px (sharper expected)`);
+  }, 0);
+  await p.ctx.close();
+}
 
 // The ride page (My rides, recording) on its own.
 {
@@ -751,7 +816,7 @@ server.close();
 // ---------- report ----------
 const bad = results.filter((r) => !r.ok);
 const md = [`## 📱 Phone test (${BROWSER === "webkit" ? "Safari engine" : BROWSER}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
-  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds, My rides and the sign-in check.`, "",
+  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds, a computer-size 3D turn, My rides and the sign-in check.`, "",
   "| Sport | Step | Result |", "|---|---|---|",
   ...results.map((r) => `| ${NAMES[r.sport] || "My rides"} | ${r.step} | ${r.ok ? "✓" : "✗ " + r.note.replace(/\|/g, "\\|")} |`), "",
   "Screenshots of every step: the **phone-test-screenshots** download at the bottom of this run's page."].join("\n");
