@@ -3352,7 +3352,16 @@
           // Asked again as "loading", never "expired": an expired tile counts as drawable, and this one has no picture
           // yet, so every frame until it came in threw "Cannot read properties of undefined (reading 'bind')" in
           // MapLibre (usage page 2026-11-24: 16 times on a computer, Topo in 3D, OpenTopoMap tiles that failed once).
-          setTimeout(() => { try { if (tiles.getTileById(t)?.state === "errored") m._reloadTile(t, "loading"); } catch {} }, 1000 * (n + 1));
+          // A retry that never ends (an answer with no picture leaves it "loading") would hold the map's idle forever:
+          // after 20 s it counts as failed again, for the next try.
+          setTimeout(() => {
+            try {
+              const tile = tiles.getTileById(t);
+              if (tile?.state !== "errored") return;
+              m._reloadTile(t, "loading");
+              setTimeout(() => { try { if (tiles.getTileById(t) === tile && tile.state === "loading") { tile.state = "errored"; gl.triggerRepaint(); } } catch {} }, 20000);
+            } catch {}
+          }, 1000 * (n + 1));
         }
       }
     });

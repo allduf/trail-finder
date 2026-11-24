@@ -970,7 +970,7 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     // 3D times stop at 30 s (map3d.js): that value is "30 s or more", not a time, so it says so and is counted.
     const CAP = 30000, capped = (k) => k === "3d" || k === "3dshape";
     const speedCell = (k, ms) => (capped(k) && ms != null && ms >= CAP ? "30 s+" : secs(ms));
-    $("speed").innerHTML = `<tr><th>Wait</th><th class="n">Usual</th><th class="n">Slow</th><th class="n">Times</th><th class="n">Over 30 s</th></tr>` + SPEED.map(([k, l]) => {
+    $("speed").innerHTML = `<tr><th>Wait</th><th class="n">Usual</th><th class="n">Slow</th><th class="n">Times</th><th class="n">30 s+</th></tr>` + SPEED.map(([k, l]) => {
       const v = shown.filter((r) => r.kind === "speed" && r.what === k).map((r) => r.ms);
       const over = capped(k) ? String(v.filter((ms) => ms >= CAP).length) : "";
       return `<tr><td>${l}</td><td class="n">${speedCell(k, quantile(v, 0.5))}</td><td class="n">${speedCell(k, quantile(v, 0.9))}</td><td class="n">${v.length}</td><td class="n">${over}</td></tr>`;
