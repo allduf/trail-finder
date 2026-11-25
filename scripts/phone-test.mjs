@@ -22,7 +22,11 @@ import { fileURLToPath } from "node:url";
 const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
 const OUT = process.env.OUT || "phone-test-shots";
-const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
+// PART: "phone" (every sport at iPhone size, App builds, My rides, sign-in) or "computer" (the website at computer size);
+// both when not given. phone-test.yml runs them as two jobs side by side, "phone" and "computer" (alex 2026-11-25).
+const PART = process.env.PART || "all";
+const PHONE_PART = PART !== "computer", COMPUTER_PART = PART !== "phone";
+const SPORTS = PHONE_PART ? (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean) : [];
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
@@ -698,9 +702,11 @@ async function appBuild(kind) {
     console.log(`✗ App builds: ${label}: the page\n    ${note}`);
   } finally { await p.ctx.close().catch(() => {}); }
 }
+if (PHONE_PART) {
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
+}
 
 // ---------- Computer: turning the 3D map (alex's recording 2026-11-24) ----------
 // The website on a computer stopped 0.3-0.5 s again and again while the 3D map was turned (Skiing, Whistler): each
@@ -710,7 +716,7 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 // ground than DESK_TURN_PIXELS (before the fix: up to 12 pieces at 2048 px, ~50 million pixels in one frame; after: at
 // most ~12 million), if the buffers stay bigger than 1024 px while turning, if a turn has to make new buffers (a stop at
 // its start), or if the ground isn't sharp (bigger than 1024 px) before and after the turn, once the map is still.
-if (SPORTS.includes("ski")) {
+if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
   const DESK_TURN_PIXELS = 20 * 1024 * 1024;
   const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
   const p = await phone({ ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -764,7 +770,7 @@ if (SPORTS.includes("ski")) {
 }
 
 // The ride page (My rides, recording) on its own.
-{
+if (PHONE_PART) {
   const p = await phone();
   await step(p, "ride", "Open My rides (ride.html)", () => p.page.goto(SITE + "ride.html#rides", { waitUntil: "domcontentloaded", timeout: 60_000 }), 4000);
   await p.ctx.close();
@@ -773,7 +779,7 @@ if (SPORTS.includes("ski")) {
 // Sign-in person check (CAPTCHA on in Supabase since 2026-11-21): on every page with a sign-in box, Sign in, Create an
 // account and Email me a code each send Cloudflare's answer, and a refused one shows our own words, never Supabase's.
 // Cloudflare's script is a stand-in that answers at once; Supabase's sign-in addresses are answered here, nothing is sent.
-for (const file of ["index.html", "ride.html", "usage.html"]) {
+for (const file of PHONE_PART ? ["index.html", "ride.html", "usage.html"] : []) {
   const p = await phone(), { page } = p;
   const sent = [];
   await page.route("https://challenges.cloudflare.com/**", (r) => r.fulfill({ contentType: "text/javascript", body: `window.turnstile = { n: 0,
@@ -815,11 +821,13 @@ server.close();
 
 // ---------- report ----------
 const bad = results.filter((r) => !r.ok);
-const md = [`## 📱 Phone test (${BROWSER === "webkit" ? "Safari engine" : BROWSER}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
-  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed** in ${SPORTS.length} sports, App builds, a computer-size 3D turn, My rides and the sign-in check.`, "",
+const engine = BROWSER === "webkit" ? "Safari engine" : BROWSER;
+const passed = PART === "computer" ? "the computer-size 3D turn" : `${SPORTS.length} sports, App builds, ${PART === "all" ? "a computer-size 3D turn, " : ""}My rides and the sign-in check`;
+const md = [PART === "computer" ? `## 🖥 Computer test (${engine}, 1440×900)` : `## 📱 Phone test (${engine}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
+  bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed**: ${passed}.`, "",
   "| Sport | Step | Result |", "|---|---|---|",
   ...results.map((r) => `| ${NAMES[r.sport] || "My rides"} | ${r.step} | ${r.ok ? "✓" : "✗ " + r.note.replace(/\|/g, "\\|")} |`), "",
-  "Screenshots of every step: the **phone-test-screenshots** download at the bottom of this run's page."].join("\n");
+  `Screenshots of every step: the **${PART === "computer" ? "computer" : "phone"}-test-screenshots** download at the bottom of this run's page.`].join("\n");
 if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, md + "\n");
 console.log(`\n${bad.length ? `${bad.length} problem(s)` : "All passed"} in ${results.length} steps.`);
 process.exit(bad.length ? 1 : 0);
