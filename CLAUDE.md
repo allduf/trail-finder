@@ -126,6 +126,8 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 ## Pull requests and merging
 - The required check on main is "phone" (`.github/workflows/phone-test.yml`: wording check, then every sport
   at iPhone size).
+- Next to it, "computer" (same workflow, `PART=computer`) tests the website at computer size: turning Skiing's 3D map
+  with the mouse. Keep it passing too.
 - Every pull request merges on its own once it is ready and its checks pass (alex, 2026-11-20: "i want all of them
   merge when they are ready"). Turn on auto-merge for one pull request at a time, and tell alex after it goes live.
   This never covers going public (see "Do not go public").

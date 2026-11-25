@@ -6,7 +6,7 @@ name: Phone test
 # The check fails on a script error, a tap that breaks, or a page wider than the phone. Screenshots of every step are
 # in the run's "phone-test-screenshots" download. Outside the app's own files only code libraries and map pictures
 # are fetched (see scripts/phone-test.mjs): no resort or club sites, no weather, no Supabase.
-# Next to it, "switch" (alex 2026-11-22: "test every sport to switch to other sport to see every mode") switches every
+# Next to it, "computer" runs the website at computer size (3D turning with the mouse), and "switch" (alex 2026-11-22: "test every sport to switch to other sport to see every mode") switches every
 # sport to every other one on the flat map, the 3D map, each map style, and the iPhone and Android apps' native 3D, and
 # fails if anything of the sport before stays (scripts/sport-switch-test.mjs). Screenshots: "switch-test-screenshots".
 on:
@@ -64,11 +64,45 @@ jobs:
         run: node scripts/phone-test.mjs
         env:
           OUT: phone-test-shots
+          PART: phone
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: phone-test-screenshots
           path: phone-test-shots
+          retention-days: 14
+
+  computer:
+    # The website at computer size (alex 2026-11-25: its own line next to "phone", so a problem shows where it is):
+    # turning Skiing's 3D map with the mouse must stay smooth (alex's recording 2026-11-24). scripts/phone-test.mjs PART=computer.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add the data jobs' files
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install the test browser
+        # The same mirror fixes as the phone job above.
+        run: |
+          sudo sed -i -E 's#http://[a-z0-9.-]+\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#mirror\+file:/etc/apt/apt-mirrors\.txt#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          [ -f /etc/apt/apt-mirrors.txt ] && echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt >/dev/null || true
+          printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
+          printf 'Acquire::Languages "none";\nAcquire::IndexTargets::deb::CNF::DefaultEnabled "false";\n' | sudo tee /etc/apt/apt.conf.d/99tf-lean >/dev/null
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps webkit
+      - name: Test the website at computer size
+        run: node scripts/phone-test.mjs
+        env:
+          OUT: computer-test-shots
+          PART: computer
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: computer-test-screenshots
+          path: computer-test-shots
           retention-days: 14
 
   switch:
