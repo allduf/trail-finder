@@ -870,7 +870,9 @@ async function deskTurn() {
     await page.mouse.up({ button: "right" });
     await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
     const before = await page.evaluate(() => window.tfReads.n), ev0 = await page.evaluate(() => window.tfReads.ev);
-    await page.mouse.move(r[0] - 40, r[1] - 30); await wait(600);
+    await page.mouse.move(r[0] - 40, r[1] - 30);
+    // (A slow test browser can take a few seconds per frame here: wait for the lookup rather than a fixed time.)
+    await page.waitForFunction((n) => window.tfReads.ev > n, ev0, { timeout: 10_000 }).catch(() => {});
     const t = await page.evaluate(() => ({ n: window.tfReads.n, ev: window.tfReads.ev }));
     console.log(`    (ground reads from the graphics card: ${before} for 25 mouse moves and a turn; trail-name lookups once still: ${t.ev - ev0})`);
     if (before > 40) throw new Error(`moving the mouse to a turn read the ground back from the graphics card ${before} times (at most 40)`);
