@@ -6,7 +6,7 @@ name: Phone test
 # The check fails on a script error, a tap that breaks, or a page wider than the phone. Screenshots of every step are
 # in the run's "phone-test-screenshots" download. Outside the app's own files only code libraries and map pictures
 # are fetched (see scripts/phone-test.mjs): no resort or club sites, no weather, no Supabase.
-# Next to it, "computer" runs the website at computer size (3D turning with the mouse), and "switch" (alex 2026-11-22: "test every sport to switch to other sport to see every mode") switches every
+# Next to it, "computer" runs the same steps on the website at computer size (and 3D turning with the mouse), and "switch" (alex 2026-11-22: "test every sport to switch to other sport to see every mode") switches every
 # sport to every other one on the flat map, the 3D map, each map style, and the iPhone and Android apps' native 3D, and
 # fails if anything of the sport before stays (scripts/sport-switch-test.mjs). Screenshots: "switch-test-screenshots".
 on:
@@ -73,8 +73,12 @@ jobs:
           retention-days: 14
 
   computer:
-    # The website at computer size (alex 2026-11-25: its own line next to "phone", so a problem shows where it is):
-    # turning Skiing's 3D map with the mouse must stay smooth (alex's recording 2026-11-24). scripts/phone-test.mjs PART=computer.
+    # The website at computer size (alex 2026-11-25: its own line next to "phone", so a problem shows where it is), with
+    # the same steps as "phone" (alex 2026-11-25: "can we test the same test on the computer test?"): wording check,
+    # version and French build, then every sport at 1440 x 900 with a mouse (side panel and ☰ Menu instead of the bottom
+    # bar, Layers, 3D, Skiing's 3D ground), the website opening Skiing on Winter, My rides, the sign-in check, and turning
+    # Skiing's 3D map with the mouse (alex's recording 2026-11-24). Only the phone apps' checks ("App builds") stay in
+    # "phone". scripts/phone-test.mjs PART=computer.
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -84,6 +88,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Wording check (nothing that promises safety or conditions)
+        run: node scripts/wording-check.mjs
+      - name: Version number, What's new and French as the website gets them (scripts/stamp.mjs)
+        run: node scripts/stamp.mjs --test
       - name: Install the test browser
         # The same mirror fixes as the phone job above.
         run: |

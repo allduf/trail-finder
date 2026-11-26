@@ -105,8 +105,8 @@
     }, 0);
   }
   const sendNow = () => { if (!N.isOpen()) return; const s = state(); if (s !== sent) { sent = s; N.send("avy"); } };
-  N.addLayer("avy", state);
   let sent = "", t = 0;
+  N.addLayer("avy", () => (sent = state()));   // an open reads it too: what the native map got last (as native-ground.js)
   const changed = () => {
     if (!N.isOpen() || t) return;
     // The card and the colours go together (the ground state carries the colours' version): never one forecast's card

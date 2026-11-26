@@ -1,0 +1,1 @@
+Avalanche map in 3D: the problem stripes are wider with soft edges, so they look even on steep slopes instead of wavy. ||| Carte d'avalanche en 3D : les rayures des problèmes sont plus larges, aux bords adoucis, et restent régulières sur les pentes raides au lieu d'onduler.

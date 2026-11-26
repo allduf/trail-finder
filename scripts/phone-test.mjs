@@ -11,8 +11,16 @@
 // resort and club sites, webcams... are all cut off, so the test asks nobody anything and runs the same every time.
 // Errors that only come from those cut-off downloads ("Load failed", "Failed to fetch") don't count.
 //
+// "computer" (PART=computer, alex 2026-11-25: "can we test the same test on the computer test?") goes through the same
+// steps on the website at computer size (1440 x 900, mouse, no touch): every sport, the side panel and the ☰ Menu (the
+// computer's tabs), Layers, the 3D map, Skiing's 3D ground, the website opening Skiing on Winter, My rides and the sign-in
+// check, then turning the 3D map with the mouse. Left to "phone" only, as they test the phone apps and not a page on a
+// computer: the iPhone and Android stand-ins ("App builds": native 3D keys, iPhone app, Android app) and the test
+// phones' usage check.
+//
 // Run: node scripts/phone-test.mjs   (needs the playwright package and its WebKit, or BROWSER=chromium)
-// Optional: BROWSER (webkit), OUT (phone-test-shots), SPORTS (mtb,ski,hunt,fish,moto), CHROMIUM (a Chromium to use).
+// Optional: BROWSER (webkit), OUT (phone-test-shots), PART (phone, computer, or both), SPORTS (mtb,ski,hunt,fish,moto,hike),
+// CHROMIUM (a Chromium to use).
 
 import { createServer } from "node:http";
 import { readFile, readdir, mkdir, appendFile } from "node:fs/promises";
@@ -26,8 +34,10 @@ const OUT = process.env.OUT || "phone-test-shots";
 // both when not given. phone-test.yml runs them as two jobs side by side, "phone" and "computer" (alex 2026-11-25).
 const PART = process.env.PART || "all";
 const PHONE_PART = PART !== "computer", COMPUTER_PART = PART !== "phone";
-const SPORTS = PHONE_PART ? (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean) : [];
-const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer" };
+const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
+// The devices this run goes through: "phone" (iPhone size, touch) and "desk" (a computer: 1440 x 900, mouse).
+const DEVICES = [PHONE_PART && "phone", COMPUTER_PART && "desk"].filter(Boolean);
+const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer", site: "Website" };
 // Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
 const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
@@ -40,6 +50,8 @@ const PHONE = {
   // The app's offline helper (sw.js) would fetch outside on its own, past the cut-off below (in WebKit).
   serviceWorkers: "block",
 };
+// A computer: the same place, language and blocks, a 1440 x 900 window, a mouse and no touch.
+const DESK = (() => { const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE; return { ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }; })();
 // A failed download of something cut off on purpose, not a fault of the app.
 const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|AbortError|ERR_FAILED|access control checks|Access-Control-Allow-Origin|Status code: \d{3}|Importing a module script failed|Could not connect/i;
 
@@ -74,6 +86,7 @@ const results = [];   // { sport, step, ok, note, shot }
 
 async function phone(opts = PHONE) {
   const ctx = await browser.newContext(opts);
+  const desk = !opts.hasTouch;
   const blocked = new Set();
   await ctx.route("**/*", (route) => {
     const u = new URL(route.request().url());
@@ -94,7 +107,7 @@ async function phone(opts = PHONE) {
     errors.push("console: " + t.split("\n")[0].slice(0, 200));
   });
   page.on("crash", () => errors.push("the page crashed (out of memory?)"));
-  return { ctx, page, errors, blocked };
+  return { ctx, page, errors, blocked, desk };
 }
 function where(e) {
   const m = String(e.stack || "").match(/([\w.-]+\.(?:js|html))(?:\?[^:]*)?:(\d+)/);
@@ -103,6 +116,8 @@ function where(e) {
 
 // One step: run it, wait for the app to settle, screenshot, note the new errors and any sideways scrolling.
 async function step(p, sport, name, fn, settle = 1500) {
+  // On a run of both parts, the computer's steps say so (their sports are the same as the phone's).
+  if (p.desk && PART === "all" && sport !== "desk") name = "Computer: " + name;
   const before = p.errors.length;
   let note = "";
   try { await fn(); } catch (e) { note = String(e.message || e).split("\n")[0].replace(/\s+/g, " ").slice(0, 160); }
@@ -111,14 +126,16 @@ async function step(p, sport, name, fn, settle = 1500) {
     const w = document.documentElement.scrollWidth, v = innerWidth;
     return w > v + 2 ? w - v : 0;
   }).catch(() => 0);
-  const shot = `${sport}-${String(results.filter((r) => r.sport === sport).length + 1).padStart(2, "0")}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
+  const shot = `${sport}-${String(results.filter((r) => r.sport === sport).length + 1).padStart(2, "0")}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80)}.png`;
   await p.page.screenshot({ path: join(OUT, shot) }).catch(() => {});
   const errs = p.errors.slice(before);
-  const problems = [note, ...errs, wide ? `page is ${wide} px wider than the phone (sideways scrolling)` : ""].filter(Boolean);
+  const problems = [note, ...errs, wide ? `page is ${wide} px wider than the ${p.desk ? "window" : "phone"} (sideways scrolling)` : ""].filter(Boolean);
   results.push({ sport, step: name, ok: !problems.length, note: problems.join(" · "), shot });
   console.log(`${problems.length ? "✗" : "✓"} ${NAMES[sport] || sport}: ${name}${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
 }
 
+// A result without a step of its own (a check read from the page), named like step()'s.
+const note = (p, sport, name, ok, why) => results.push({ sport, step: p.desk && PART === "all" && sport !== "desk" ? "Computer: " + name : name, ok, note: ok ? "" : why, shot: "" });
 const tap = (page, sel) => page.locator(sel).first().click({ timeout: 8000 });
 const visible = (page, sel) => page.locator(sel).first().isVisible().catch(() => false);
 // Closes whatever sheet or card a step opened: the app's own Back / close button, else Escape.
@@ -127,8 +144,10 @@ async function back(page) {
   await page.keyboard.press("Escape").catch(() => {});
 }
 
-for (const sport of SPORTS) {
-  const p = await phone();
+// Every sport on the phone, then on a computer (the computer has no bottom bar: its side panel and ☰ Menu instead).
+async function sportRun(sport, dev) {
+  const desk = dev === "desk";
+  const p = await phone(desk ? DESK : PHONE);
   const { page } = p;
   await step(p, sport, "Open the app", async () => {
     await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -137,7 +156,7 @@ for (const sport of SPORTS) {
   // Each sport's own scripts load only when it's picked (winter.js): MTB opens without them.
   if (sport === "mtb") {
     const extra = await page.evaluate(() => ["tfHunt", "tfFish", "tfWebcams", "tfMoto"].filter((k) => window[k]));
-    results.push({ sport, step: "Opens without the other sports' scripts", ok: !extra.length, note: extra.length ? `loaded anyway: ${extra.join(", ")}` : "", shot: "" });
+    note(p, sport, "Opens without the other sports' scripts", !extra.length, `loaded anyway: ${extra.join(", ")}`);
   }
   // The one-time terms sheet (risk.js "Before you head out") is agreed to like a person would.
   // On a brand-new device the welcome opens right after I agree: wait for it so Escape below closes it.
@@ -153,7 +172,7 @@ for (const sport of SPORTS) {
   }, sport === "ski" ? 8000 : 4000);   // Skiing opens on the 3D map
   {
     const want = { ski: "tfWebcams", hunt: "tfHunt", fish: "tfFish", moto: "tfMoto", hike: "tfHike" }[sport];
-    if (want) { const ok = await page.evaluate((k) => !!window[k], want); results.push({ sport, step: "Its own scripts loaded", ok, note: ok ? "" : `${want} missing after picking it`, shot: "" }); }
+    if (want) { const ok = await page.evaluate((k) => !!window[k], want); note(p, sport, "Its own scripts loaded", ok, `${want} missing after picking it`); }
   }
 
   // Today, in this sport's own words (today.js: a card in the sport's panel; MTB: status.js's Where to ride today).
@@ -178,39 +197,86 @@ for (const sport of SPORTS) {
     await page.evaluate(() => window.tfMotoDay && window.tfMotoDay.close());
   }
 
-  // The bottom bar's tabs this sport shows (Map, the sport's own Find/Routes/Hunt/Fish/Roads, Ride, Saved, More).
-  const tabs = await page.$$eval("#tabbar button[data-nav]", (bs) => bs.filter((b) => b.offsetParent && getComputedStyle(b).display !== "none")
-    .map((b) => ({ nav: b.dataset.nav, label: b.textContent.trim() })));
-  if (!tabs.length) results.push({ sport, step: "Bottom bar", ok: false, note: "no tabs showing in the bottom bar", shot: "" });
-  for (const t of tabs.filter((t) => t.nav !== "map")) {
-    await step(p, sport, `Tab ${t.label}`, () => tap(page, `#tabbar [data-nav=${t.nav}]`));
-    await back(page);
-    await wait(500);
-  }
+  if (!desk) {
+    // The bottom bar's tabs this sport shows (Map, the sport's own Find/Routes/Hunt/Fish/Roads, Ride, Saved, More).
+    const tabs = await page.$$eval("#tabbar button[data-nav]", (bs) => bs.filter((b) => b.offsetParent && getComputedStyle(b).display !== "none")
+      .map((b) => ({ nav: b.dataset.nav, label: b.textContent.trim() })));
+    if (!tabs.length) note(p, sport, "Bottom bar", false, "no tabs showing in the bottom bar");
+    for (const t of tabs.filter((t) => t.nav !== "map")) {
+      await step(p, sport, `Tab ${t.label}`, () => tap(page, `#tabbar [data-nav=${t.nav}]`));
+      await back(page);
+      await wait(500);
+    }
 
-  // Offline maps from the Saved tab, no route needed (alex, 2026-10-31).
-  if (tabs.some((t) => t.nav === "saved")) {
-    await step(p, sport, "Saved → Offline maps", async () => {
-      await tap(page, "#tabbar [data-nav=saved]");
-      await tap(page, '#hub [data-hub="offline"]');
+    // Offline maps from the Saved tab, no route needed (alex, 2026-10-31).
+    if (tabs.some((t) => t.nav === "saved")) {
+      await step(p, sport, "Saved → Offline maps", async () => {
+        await tap(page, "#tabbar [data-nav=saved]");
+        await tap(page, '#hub [data-hub="offline"]');
+        await page.waitForSelector(".offline-card:not([hidden])", { state: "visible", timeout: 5000 });
+      });
+      await tap(page, ".offline-card [data-x]").catch(() => page.keyboard.press("Escape"));
+      await back(page);
+      await wait(500);
+    }
+
+    // More › Tutorials (tutorials.js, alex 2026-11-11): the list of videos opens; no video loads until one is tapped.
+    // Each sport lists its own videos (2026-11-21), so it's tried in the sports that have one.
+    if (tabs.some((t) => t.nav === "more") && await page.evaluate(() => !!(window.tfTutorials && (window.tfTutorials.hasFor ? window.tfTutorials.hasFor() : window.tfTutorials.list.length)))) {
+      await step(p, sport, "More → Tutorials", async () => {
+        await tap(page, "#tabbar [data-nav=more]");
+        await tap(page, '#hub [data-hub="tutorials"]');
+        await page.waitForSelector("dialog.tut[open] .tut-row", { state: "visible", timeout: 5000 });
+      });
+      await page.keyboard.press("Escape").catch(() => {});
+      await back(page);
+      await wait(500);
+    }
+  } else {
+    // A computer: the sport's own page is in the side panel (the phone's sport tab), and ☰ Menu holds the phone's Ride,
+    // Saved and More tabs in one list.
+    await step(p, sport, "Side panel shows the sport's own page", async () => {
+      const sel = sport === "mtb" ? "#trailQ" : `#${{ ski: "ski", hunt: "hunt", fish: "fish", moto: "moto", hike: "hike" }[sport]}Pane`;
+      await page.waitForSelector(sel, { state: "visible", timeout: 10_000 });
+      const w = await page.evaluate(() => { const a = document.querySelector("aside"); return a ? Math.round(a.getBoundingClientRect().width) : 0; });
+      if (w < 200) throw new Error(`the side panel is ${w} px wide`);
+    });
+    await step(p, sport, "☰ Menu (Ride, Saved, More)", async () => {
+      await tap(page, "#deskMenuBtn");
+      await page.waitForSelector("#deskMenu:not([hidden]) .hub-card", { state: "visible", timeout: 5000 });
+      const n = await page.$$eval("#deskMenu .hub-card", (c) => c.length);
+      if (n < 4) throw new Error(`the menu shows only ${n} buttons`);
+      // The menu stays inside the window (it opens under its button).
+      const off = await page.evaluate(() => { const r = document.getElementById("deskMenu").getBoundingClientRect(); return r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || r.left < -1; });
+      if (off) throw new Error("the menu goes past the edge of the window");
+    });
+    await page.keyboard.press("Escape").catch(() => {});
+    await wait(300);
+    // Offline maps from ☰ Menu, as from the phone's Saved tab (alex, 2026-10-31).
+    await step(p, sport, "☰ Menu → Offline maps", async () => {
+      await tap(page, "#deskMenuBtn");
+      await tap(page, '#deskMenu [data-hub="offline"]');
       await page.waitForSelector(".offline-card:not([hidden])", { state: "visible", timeout: 5000 });
     });
     await tap(page, ".offline-card [data-x]").catch(() => page.keyboard.press("Escape"));
-    await back(page);
     await wait(500);
-  }
-
-  // More › Tutorials (tutorials.js, alex 2026-11-11): the list of videos opens; no video loads until one is tapped.
-  // Each sport lists its own videos (2026-11-21), so it's tried in the sports that have one.
-  if (tabs.some((t) => t.nav === "more") && await page.evaluate(() => !!(window.tfTutorials && (window.tfTutorials.hasFor ? window.tfTutorials.hasFor() : window.tfTutorials.list.length)))) {
-    await step(p, sport, "More → Tutorials", async () => {
-      await tap(page, "#tabbar [data-nav=more]");
-      await tap(page, '#hub [data-hub="tutorials"]');
-      await page.waitForSelector("dialog.tut[open] .tut-row", { state: "visible", timeout: 5000 });
+    if (await page.evaluate(() => !!(window.tfTutorials && (window.tfTutorials.hasFor ? window.tfTutorials.hasFor() : window.tfTutorials.list.length)))) {
+      await step(p, sport, "☰ Menu → Tutorials", async () => {
+        await tap(page, "#deskMenuBtn");
+        await tap(page, '#deskMenu [data-hub="tutorials"]');
+        await page.waitForSelector("dialog.tut[open] .tut-row", { state: "visible", timeout: 5000 });
+      });
+      await page.keyboard.press("Escape").catch(() => {});
+      await wait(500);
+    }
+    await step(p, sport, "How it works (opens, Got it closes)", async () => {
+      await tap(page, "#aboutBtn");
+      await page.waitForSelector("#about:not([hidden])", { state: "visible", timeout: 5000 });
+      await tap(page, "#aboutClose");
+      await page.waitForSelector("#about", { state: "hidden", timeout: 3000 });
     });
-    await page.keyboard.press("Escape").catch(() => {});
-    await back(page);
-    await wait(500);
+    await page.evaluate(() => { const a = document.getElementById("about"); if (a && !a.hidden) a.hidden = true; });   // so a failure above doesn't fail the next steps too
+    await wait(300);
   }
 
   // Map buttons: Layers, then 3D (on and off).
@@ -218,8 +284,9 @@ for (const sport of SPORTS) {
     await step(p, sport, "Layers", () => tap(page, "#layersBtn"));
     await tap(page, "#layersBtn").catch(() => page.keyboard.press("Escape"));
     await wait(500);
-    // Offline maps without a route (alex, 2026-10-31): the first row of Layers opens the Offline maps card.
-    await step(p, sport, "Layers → Save this area offline", async () => {
+    // Offline maps without a route (alex, 2026-10-31): the first row of Layers opens the Offline maps card. Phones only:
+    // a computer's Layers has no such row (Offline maps is in ☰ Menu there, tried above).
+    if (!desk) await step(p, sport, "Layers → Save this area offline", async () => {
       await tap(page, "#layersBtn");
       await tap(page, "#lmOffline");
       await page.waitForSelector(".offline-card:not([hidden])", { state: "visible", timeout: 5000 });
@@ -231,7 +298,7 @@ for (const sport of SPORTS) {
     const on = await page.locator("#btn3d").first().getAttribute("aria-pressed") === "true";
     await step(p, sport, on ? "3D map off" : "3D map", () => tap(page, "#btn3d"), on ? 3000 : 8000);
     await step(p, sport, on ? "3D map back on" : "3D map off", () => tap(page, "#btn3d"), on ? 8000 : 3000);
-  } else results.push({ sport, step: "3D button", ok: false, note: "the 3D button isn't showing", shot: "" });
+  } else note(p, sport, "3D button", false, "the 3D button isn't showing");
   if (sport === "ski") await groundWhole(p);
 
   console.log(`    (cut off, as planned: ${[...p.blocked].sort().join(", ") || "nothing"})`);
@@ -383,9 +450,11 @@ function appStandIn({ platform, keys, admin, photos }) {
   window.Capacitor = { isNativePlatform: () => true, getPlatform: () => platform, isPluginAvailable: (n) => n === "TrailMap",
     registerPlugin: (n) => (n === "TrailMap" ? TrailMap : other()), Plugins: { TrailMap } };
 }
-async function appBuild(kind) {
-  const label = { ios: "iPhone app", iosu: "iPhone app, page over native 3D", android: "Android app", web: "Website" }[kind];
-  const p = await phone(), { page } = p;
+// desk: the website (kind "web") at computer size, in the computer's run.
+async function appBuild(kind, desk = false) {
+  const label = desk ? "Website on a computer" : { ios: "iPhone app", iosu: "iPhone app, page over native 3D", android: "Android app", web: "Website" }[kind];
+  const group = desk ? "site" : "app", line = desk ? "Website" : "App builds";
+  const p = await phone(desk ? DESK : PHONE), { page } = p;
   // Anything that breaks outside a check (the page not loading) is one failed line, and the next build still runs.
   try {
     const keys = kind === "ios" ? FIRST_FULL.keys : kind === "iosu" ? [...(await iosKeys())] : kind === "android" ? await androidKeys() : null;
@@ -396,10 +465,10 @@ async function appBuild(kind) {
       let note = "";
       try { const r = await fn(); if (typeof r === "string") note = r; } catch (e) { note = String(e.message || e).split("\n")[0].slice(0, 200); }
       note = [note, ...p.errors.slice(before)].filter(Boolean).join(" · ");
-      const shot = `app-${kind}-${String(++n).padStart(2, "0")}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60)}.png`;
+      const shot = `${group}-${kind}-${String(++n).padStart(2, "0")}-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60)}.png`;
       await page.screenshot({ path: join(OUT, shot) }).catch(() => {});
-      results.push({ sport: "app", step: `${label}: ${name}`, ok: !note, note, shot });
-      console.log(`${note ? "✗" : "✓"} App builds: ${label}: ${name}${note ? "\n    " + note : ""}`);
+      results.push({ sport: group, step: `${label}: ${name}`, ok: !note, note, shot });
+      console.log(`${note ? "✗" : "✓"} ${line}: ${label}: ${name}${note ? "\n    " + note : ""}`);
     };
     const ev = (fn, arg) => page.evaluate(fn, arg);
     const until = (fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms, polling: 100 });
@@ -631,6 +700,9 @@ async function appBuild(kind) {
         await sport("hike");
         await until(() => document.body.classList.contains("sport-hike") && window.tfGround && window.tfGround["hike-slope"], null, 15_000).catch(() => {});
         await ev(() => { window.tfLeaflet.setView([50.06, -122.95], 12, { animate: false }); });
+        // Counted before the switch goes on: an open of the one map right after it (Hiking's own, a moment after the sport
+        // changes) carries the slope angle in its layers, and counts.
+        const n0 = await opens(), l0 = await ev(() => (window.__tm.layers || []).length);
         const turned = await ev(() => {
           const i = document.querySelector('#hkLayerList input[data-layer="slope"]');
           if (!i) return false;
@@ -638,27 +710,26 @@ async function appBuild(kind) {
           return true;
         });
         if (!turned) throw new Error("Hiking's Slope angle switch wasn't found");
-        const n0 = await opens();
         await tap3d();
         await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
         // Hiking on its photos is the one map (native under the page, seen from above, since #930): 3D tips it up without
-        // a new open, so the ground then is the last one sent to it (or its own open's).
-        // The ground picture is sent when native-ground.js has it ready, which can take a few seconds on a busy test
-        // machine (a fixed 1.5 s wait failed now and then): wait up to 10 s for the slope angle in it.
-        const ground = (c) => {
-          const t = window.__tm, x = t.opens[c];
-          if (x) return (x.layers || {}).ground || "";
-          if (!document.documentElement.classList.contains("tf-under") || !t.opens.length) return null;
-          const l = (t.layers || []).filter((y) => y.key === "ground").pop();
-          return l ? l.data : (t.opens[t.opens.length - 1].layers || {}).ground || "";
+        // a new open. The slope angle reaches native 3D either in an open's own layers (read at that open) or in a
+        // "ground" change sent to an open map, which can take a few seconds on a busy test machine: every one of those
+        // since the switch went on counts, up to 20 s (only the first open's was read before, and a change sent after
+        // it was missed: "got: nothing" on two pull requests, 2026-11-26).
+        const grounds = ([c, l]) => {
+          const t = window.__tm;
+          return [...t.opens.slice(c).map((x) => (x.layers || {}).ground || ""), ...(t.layers || []).slice(l).filter((y) => y.key === "ground").map((y) => y.data)];
         };
-        await wait(1500);
-        await until(new Function("c", `const g = (${ground})(c); return !!g && g.includes('"hike-slope"');`), n0, 10_000).catch(() => {});
-        const g = await ev(ground, n0);
+        const has = (gs) => gs.some((g) => { try { return (JSON.parse(g).layers || []).some((x) => x.id === "hike-slope"); } catch { return false; } });
+        await until(new Function("a", `const gs = (${grounds})(a); return (${has})(gs);`), [n0, l0], 20_000).catch(() => {});
+        const gs = await ev(grounds, [n0, l0]);
+        const under = await ev(() => document.documentElement.classList.contains("tf-under"));
         try {
-          if (g === null) throw new Error("3D didn't open native 3D in Hiking");
-          const ids = (g ? JSON.parse(g).layers || [] : []).map((l) => l.id);
-          if (!ids.includes("hike-slope")) throw new Error(`native 3D opened without Hiking's slope angle (got: ${ids.join(", ") || "nothing"})`);
+          if (!gs.length && !under && (await opens()) === n0) throw new Error("3D didn't open native 3D in Hiking");
+          const ids = [...new Set(gs.flatMap((g) => { try { return (JSON.parse(g).layers || []).map((x) => x.id); } catch { return []; } }))];
+          const seen = `${(await opens()) - n0} open(s), ${gs.length} ground state(s), map ${under ? "under the page" : "not under the page"}`;
+          if (!ids.includes("hike-slope")) throw new Error(`native 3D opened without Hiking's slope angle (got: ${ids.join(", ") || "nothing"}; ${seen})`);
         } finally {
           await ev(() => { const i = document.querySelector('#hkLayerList input[data-layer="slope"]'); if (i && i.checked) { i.checked = false; i.dispatchEvent(new Event("change", { bubbles: true })); } });
           if (await ev(() => document.documentElement.classList.contains("tf-under"))) { await tap3d(); await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {}); }
@@ -698,11 +769,11 @@ async function appBuild(kind) {
     }
   } catch (e) {
     const note = String(e.message || e).split("\n")[0].slice(0, 200);
-    results.push({ sport: "app", step: `${label}: the page`, ok: false, note, shot: "" });
-    console.log(`✗ App builds: ${label}: the page\n    ${note}`);
+    results.push({ sport: group, step: `${label}: the page`, ok: false, note, shot: "" });
+    console.log(`✗ ${line}: ${label}: the page\n    ${note}`);
   } finally { await p.ctx.close().catch(() => {}); }
 }
-if (PHONE_PART) {
+async function appBuilds() {
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
@@ -716,7 +787,7 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 // ground than DESK_TURN_PIXELS (before the fix: up to 12 pieces at 2048 px, ~50 million pixels in one frame; after: at
 // most ~12 million), if the buffers stay bigger than 1024 px while turning, if a turn has to make new buffers (a stop at
 // its start), or if the ground isn't sharp (bigger than 1024 px) before and after the turn, once the map is still.
-if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
+async function deskTurn() {
   const DESK_TURN_PIXELS = 20 * 1024 * 1024;
   // Once still: 3 pieces of ground a frame at 2048 px (~12 million pixels) for each layer stack, with room to spare.
   const deskStillPixels = (stacks) => Math.max(1, stacks) * 16 * 1024 * 1024;
@@ -726,8 +797,7 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
     if (g.isMoving() || pool._tileSize <= 1024) return false;
     return g.terrain.tileManager.getRenderableTiles().every((t) => !t || !t.rtt || t.rtt.every((r) => !r || ((pool._objects[r.id] || {}).fbo || {}).width === pool._tileSize));
   };
-  const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
-  const p = await phone({ ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  const p = await phone(DESK);
   const { page } = p;
   await step(p, "desk", "Open Skiing 3D on a computer", async () => {
     await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -784,8 +854,8 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
 }
 
 // The ride page (My rides, recording) on its own.
-if (PHONE_PART) {
-  const p = await phone();
+async function ridePage(dev) {
+  const p = await phone(dev === "desk" ? DESK : PHONE);
   await step(p, "ride", "Open My rides (ride.html)", () => p.page.goto(SITE + "ride.html#rides", { waitUntil: "domcontentloaded", timeout: 60_000 }), 4000);
   await p.ctx.close();
 }
@@ -793,8 +863,9 @@ if (PHONE_PART) {
 // Sign-in person check (CAPTCHA on in Supabase since 2026-11-21): on every page with a sign-in box, Sign in, Create an
 // account and Email me a code each send Cloudflare's answer, and a refused one shows our own words, never Supabase's.
 // Cloudflare's script is a stand-in that answers at once; Supabase's sign-in addresses are answered here, nothing is sent.
-for (const file of PHONE_PART ? ["index.html", "ride.html", "usage.html"] : []) {
-  const p = await phone(), { page } = p;
+async function signIn(dev) {
+for (const file of ["index.html", "ride.html", "usage.html"]) {
+  const p = await phone(dev === "desk" ? DESK : PHONE), { page } = p;
   const sent = [];
   await page.route("https://challenges.cloudflare.com/**", (r) => r.fulfill({ contentType: "text/javascript", body: `window.turnstile = { n: 0,
     render(el, o) { this.o = o; setTimeout(() => o.callback("stand-in-" + ++this.n), 50); return "w"; },
@@ -830,14 +901,27 @@ for (const file of PHONE_PART ? ["index.html", "ride.html", "usage.html"] : []) 
   await flow("Create an account", async () => { await page.click("#acctNew"); await page.fill("#acctPass", "probe-password-1"); await page.click("#acctSend"); });
   await p.ctx.close();
 }
+}
+
+// The run: the phone, then the computer, each in the same order (every sport, the website's own checks, My rides, the
+// sign-in check); the phone adds the phone apps' checks, the computer turning the 3D map with the mouse.
+for (const dev of DEVICES) {
+  for (const sport of SPORTS) await sportRun(sport, dev);
+  if (dev === "phone") await appBuilds();
+  else await appBuild("web", true);
+  if (dev === "desk") await deskTurn();   // in Skiing, whatever SPORTS has
+  await ridePage(dev);
+  await signIn(dev);
+}
 await browser.close();
 server.close();
 
 // ---------- report ----------
 const bad = results.filter((r) => !r.ok);
 const engine = BROWSER === "webkit" ? "Safari engine" : BROWSER;
-const passed = PART === "computer" ? "the computer-size 3D turn" : `${SPORTS.length} sports, App builds, ${PART === "all" ? "a computer-size 3D turn, " : ""}My rides and the sign-in check`;
-const md = [PART === "computer" ? `## 🖥 Computer test (${engine}, 1440×900)` : `## 📱 Phone test (${engine}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
+const passed = PART === "computer" ? `${SPORTS.length} sports, the website opening Skiing on Winter, the 3D turn with the mouse, My rides and the sign-in check`
+  : `${SPORTS.length} sports, App builds, ${PART === "all" ? "the same at computer size with a 3D turn, " : ""}My rides and the sign-in check`;
+const md = [PART === "computer" ? `## 🖥 Computer test (${engine}, 1440×900)` : `## 📱 Phone test (${engine}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height}${PART === "all" ? ", then a computer at 1440×900" : ""})`, "",
   bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed**: ${passed}.`, "",
   "| Sport | Step | Result |", "|---|---|---|",
   ...results.map((r) => `| ${NAMES[r.sport] || "My rides"} | ${r.step} | ${r.ok ? "✓" : "✗ " + r.note.replace(/\|/g, "\\|")} |`), "",
