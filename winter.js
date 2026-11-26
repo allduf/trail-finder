@@ -4849,7 +4849,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         // alike). Counted on the whole world's pixels at this zoom, so the stripes run on unbroken from tile to tile.
         // How far into a dark stripe this pixel is, softened over about a pixel at each edge: hard 1-pixel steps shimmered
         // into wavy lines on tilted 3D slopes (alex 2026-11-26), as the 3D map shrinks the pictures at an angle.
-        const t = ((x << 8) + px + (y << 8) + py) % P, dIn = Math.min(t + 0.5, W - t - 0.5) / Math.SQRT2 + 0.5, w = hit ? Math.max(0, Math.min(1, dIn)) : 0;
+        // c: from the middle of the nearest dark stripe, wrapping round the period so both edges soften alike.
+        let c = ((x << 8) + px + (y << 8) + py) % P + 0.5 - W / 2;
+        if (c > P / 2) c -= P;
+        const w = hit ? Math.max(0, Math.min(1, (W / 2 - Math.abs(c)) / Math.SQRT2 + 0.5)) : 0;
         const base = COLORS[r], dk = DARK_RGB[r];
         if (hit) alpha = Math.min(0.7, alpha + 0.12);
         const cr = base[0] + (dk[0] - base[0]) * w, cg = base[1] + (dk[1] - base[1]) * w, cb = base[2] + (dk[2] - base[2]) * w;
