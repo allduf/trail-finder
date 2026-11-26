@@ -42,7 +42,8 @@ jobs:
           node-version: 22
       - name: The card's height rule before the fix (to see the check catch it)
         if: matrix.swift == 'before'
-        run: sed -i '' 's/h.priority = UILayoutPriority(rawValue: UILayoutPriority.defaultHigh.rawValue - 1)/h.priority = .defaultHigh/' ios-app/plugins/TrailMap/ios/Sources/TrailMap/NativeAvalanche.swift
+        run: |
+          sed -i '' 's/h.priority = UILayoutPriority(rawValue: UILayoutPriority.defaultHigh.rawValue - 1)/h.priority = .defaultHigh/' ios-app/plugins/TrailMap/ios/Sources/TrailMap/NativeAvalanche.swift
       - name: Test build for the simulator (opens this runner's site)
         working-directory: ios-app
         run: |
