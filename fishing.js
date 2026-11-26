@@ -61,7 +61,6 @@
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
   const fmtKm = (k) => (k < 1 ? `${Math.round(k * 1000)} m` : k < 10 ? `${k.toFixed(1)} km` : `${Math.round(k)} km`);
-  const today = () => new Date().toISOString().slice(0, 10);
   const daysAgo = (d) => Math.round((Date.now() - new Date(d + "T12:00:00").getTime()) / 864e5);
 
   // ---------- icons ----------
@@ -2108,7 +2107,6 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const out = [];
     const flow = nearFlowLight();
     for (let k = 0; k < 3; k++) {
-      const day = h.time.find((t) => t.slice(0, 10) > (k ? out[k - 1].date : "") && t >= (wx.current?.time || "").slice(0, 10)) || "";
       const date = k === 0 ? (wx.current?.time || h.time[24]).slice(0, 10) : (() => { const d = new Date(out[0].date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + k); return d.toISOString().slice(0, 10); })();
       const d = dayScore(h, date, k === 0 ? flow : null);
       if (!d) break;

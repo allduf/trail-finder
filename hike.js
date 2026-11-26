@@ -1359,7 +1359,7 @@ out center tags qt;`;
   // Open-Meteo at the middle of the map: the next 3 days, with the freezing level at noon. The snow line is about 300 m
   // under the freezing level.
   const wxCache = new Map();
-  let wx = null, wxT = 0;
+  let wx = null;
   async function loadWx() {
     if (!isHike()) return;
     const c = map.getCenter(), k = `${c.lat.toFixed(1)},${c.lng.toFixed(1)}`, got = wxCache.get(k);
@@ -1770,7 +1770,7 @@ out center tags qt;`;
     return "";
   }
   const todayBits = (h, t) => {
-    const cm = t.snow != null ? Math.round(t.snow * 100) : null, bad = t.warn.find((w) => w.bad);
+    const bad = t.warn.find((w) => w.bad);
     return [GRADES[h.g].label, fmtKm(h.km), `top ${fmtM(t.hi)}`, t.t != null ? `${Math.round(t.t)}°C up top` : "", t.pop >= 50 ? `rain ${t.pop}%` : "",
       bad ? bad.text : ""].filter(Boolean);
   };

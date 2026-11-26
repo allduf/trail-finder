@@ -697,7 +697,6 @@ section[data-panel] > h2:first-child { margin-top: 18px; }
     return out.filter((t) => t.name);
   }
   const rosterLine = (t) => { if (t.me) t = { ...t, name: "Me" }; const tail = [t.model, t.ios ? `iOS ${t.ios}` : null].filter(Boolean).join(" · "); return tail ? `${t.name.slice(0, 58 - tail.length)} · ${tail}` : t.name.slice(0, 60); };
-  const rosterName = (line) => String(line).split(/\s*·\s*/)[0];
   // Names match when equal or one is the start of the other ("Alex" and "Alex Beaulieu Marchand"), ignoring case and accents.
   const norm = (n) => String(n || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
   const sameName = (a, b) => { const x = norm(a), y = norm(b); return !!x && !!y && (x === y || x.startsWith(y + " ") || y.startsWith(x + " ")); };

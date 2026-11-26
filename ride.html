@@ -314,7 +314,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
   }
   // Distance, moving time, climb and descent, max speed: ride-stats.js, shared with Ride mode (navigate.js).
-  const { climbOf, upDown, statsOf, gapsOf, profileOf } = window.tfRideStats;
+  const { upDown, statsOf, gapsOf, profileOf } = window.tfRideStats;
   const kmh = (ms) => (ms * 3.6).toFixed(1);
   const pad = (n) => String(n).padStart(2, "0");
   function hms(s, withSec = true) {

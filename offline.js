@@ -88,7 +88,6 @@
     moto: "the map, roads and tracks (to plan and re-route a ride with no signal), gas, camping and hot springs",
     hike: "the map, hiking trails and their heights (to plan a hike with no signal), trailheads and huts",
   };
-  const none = { data: [], tiles: [] };
   async function extras(box, sport, d3, huntLayers, dz) {
     const parts = [];
     // Hunting's and Fishing's files load with their sport (winter.js): an area saved there, deleted from MTB, needs them.
@@ -411,7 +410,6 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   const sq = frame.querySelector(".box-sq"), sqPos = { l: 0, t: 0, r: 0, b: 0 }, sqTip = frame.querySelector("[data-sq-tip]"), sqGo = frame.querySelector("[data-sq-go]");
   const sqBig = frame.querySelector("[data-sq-big]");
   const styleSq = () => Object.assign(sq.style, { left: sqPos.l + "px", top: sqPos.t + "px", width: sqPos.r - sqPos.l + "px", height: sqPos.b - sqPos.t + "px" });
-  const placeSq = () => { styleSq(); sqSize(); };
   // The square never gets bigger than one save can hold (alex 2026-10-31: "make so the square can't be bigger"):
   // dragging a corner out stops at the limit, and zooming the map out shrinks the square on screen so it keeps
   // covering no more ground than allowed. anchor: the point that stays put ([x, y] on screen).
@@ -419,7 +417,6 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   // Bigger on, MAX_TILES as before.
   const SQ_MIN = 70;
   let atMax = false, bigger = false;
-  const sqTiles = () => countTiles(tileRanges(sqBox(), 0, MAX_Z));
   const sqOver = () => {   // how far over the limit the square is (1 = right at it)
     const box = sqBox(), n = countTiles(tileRanges(box, 0, MAX_Z)) / MAX_TILES, d3 = $("[data-3d]").checked;
     if (!d3) return n;
