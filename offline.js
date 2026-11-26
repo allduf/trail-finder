@@ -161,7 +161,7 @@
 <p class="muted" data-needacct hidden>Saving needs a free account: you'll be asked to sign in first.</p>
 <p class="muted" data-drawn hidden>Saving the square you picked. <button type="button" class="linkish" data-undraw>Use the screen instead</button></p>
 <div class="off-state" data-state hidden><b data-st-head></b><div class="bar"><i></i></div><p data-prog></p><div class="row" data-st-acts></div></div></div>
-<h3 data-saved-h hidden>Saved areas</h3><ul data-list></ul><p class="muted" data-use></p>`;
+<div data-tut-slot></div><h3 data-saved-h hidden>Saved areas</h3><ul data-list></ul><p class="muted" data-use></p>`;
   document.querySelector(".mapwrap").append(card);
   L.DomEvent.disableClickPropagation(card);
   L.DomEvent.disableScrollPropagation(card);
@@ -228,6 +228,7 @@
     btn.setAttribute("aria-pressed", on);
     if (on) {
       const A = window.tfAccount; $("[data-needacct]").hidden = !A || !A.require || !!(A.signedIn ? A.signedIn() : A.user || A.savedSession);
+      $("[data-tut-slot]").innerHTML = window.tfTutorials && window.tfTutorials.button ? window.tfTutorials.button("offline-maps") : "";
       drawnLayer.addTo(map); $("[data-name]").value = suggestName(); sportText(); renderList(); estimate();
       if (!busy) $("[data-state]").hidden = true;
       setTimeout(autoFinish, 1500);

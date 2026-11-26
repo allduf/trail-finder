@@ -186,14 +186,14 @@ final class TrailMapScreen extends FrameLayout {
         area.addView(back, at(Gravity.TOP | Gravity.START, 12, 8, 0, 0));
         if (under) back.setVisibility(GONE);   // the page's own buttons do these
         TextView tag = new TextView(activity);
-        tag.setText(threeD ? "Native 3D (test)" : "Native map (test)");
+        tag.setText("");
         tag.setTextColor(Color.WHITE);
         tag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         tag.setTypeface(Typeface.DEFAULT_BOLD);
         tag.setPadding(dp(10), dp(3), dp(10), dp(3));
         tag.setBackground(round(Color.argb(191, 20, 33, 26), 11));
         area.addView(tag, at(Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 18, 0, 0));
-        if (under) tag.setVisibility(GONE);
+        tag.setVisibility(GONE);   // no "(test)" label any more (alex 2026-11-25, "keep the app professional")
         toolStack = new LinearLayout(activity);
         toolStack.setOrientation(LinearLayout.VERTICAL);
         toolStack.setGravity(Gravity.END);

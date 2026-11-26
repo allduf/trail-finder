@@ -745,7 +745,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
     <div class="sk-views" id="skViews" role="group" aria-label="Show these routes"></div>
-    <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Search or ask a question" aria-label="Search a route, hut, resort, freeride line or place, or ask in plain words" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Go</button></div></form>
+    <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Search or ask a question" aria-label="Search a route, hut, resort, freeride line or place, or ask in plain words" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Search</button></div></form>
     <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Search results"></ul>
     <button type="button" class="sk-now" id="skNow" hidden></button>
     <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button><button type="button" class="sk-act" id="skNewBtn" hidden>＋ Plan a new tour</button><button type="button" class="sk-act" id="skToursBtn" hidden>📂 Saved tours</button></div>
@@ -4669,13 +4669,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function syncNow() {
     const card = $("avCard"), b = $("skNow");
     if (!b) return;
-    const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || ""]);
+    const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || "", x.getAttribute("style") || ""]);
     const line = card.querySelector(".av-line"), exp = card.querySelector(".av-expired");
     // The ratings' day, named when it isn't today (a day picked, a tour asked for tomorrow, an evening bulletin).
     const on = card.querySelector('.av-days button[aria-pressed="true"]'), dayT = on && dayDate && dayDate !== localDay() ? on.textContent.trim() : "";
     // An expired bulletin's ratings are on the card under its warning, never on this line as if current.
     const html = card.hidden ? "" : exp ? `<span>⚠ <b>Avalanche:</b> ${esc(exp.textContent.split(/\s?:\s/)[0].trim())}</span>`
-      : bands.length ? `${dayT ? `<span>⚠ <b>${esc(dayT)}</b></span><span>` : "<span>⚠ "}<b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
+      // The ratings in their colours, as on the card (alex 2026-11-25: "today avalanche forecast with the color"): the
+      // card's own bands, copied as they are, so the line never says anything the card (Avalanche Canada) doesn't.
+      : bands.length ? `<span>⚠ <b>Avalanche</b>${dayT ? ` · ${esc(dayT)}` : ""}</span><span class="sk-nb-row">${bands.map(([r, n, st]) => `<span class="sk-nb" style="${esc(st)}"><b>${esc(r)}</b><small>${esc(n)}</small></span>`).join("")}</span>`
       : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.split(/\.\s/)[0].replace(/\.$/, ""))}</span>` : "";   // first sentence: the card under it has the rest
     if (b.innerHTML !== html) b.innerHTML = html;
     b.hidden = !html;
