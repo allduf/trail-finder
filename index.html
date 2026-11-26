@@ -1433,7 +1433,6 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <option value="topo">OpenTopoMap</option>
         <option value="osmde">Standard (German copy)</option>
         <option value="osmfr">Standard (French copy)</option>
-        <option value="voyager">Light streets</option>
         <option value="sat">Satellite</option>
         <option value="sathybrid">Satellite + names</option>
         <option value="winter">Winter photos</option>
@@ -2074,7 +2073,6 @@ body.sport-alt #rideMapBtn { display: none !important; }
     cyclosm: ["https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 20, attribution: OSM_ATTR + ' | <a href="https://www.cyclosm.org">CyclOSM</a> hosted by <a href="https://openstreetmap.fr">OSM France</a>' }],
     hot: ["https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 19, attribution: OSM_ATTR + ' | Humanitarian style by <a href="https://www.hotosm.org">HOT</a>, hosted by <a href="https://openstreetmap.fr">OSM France</a>' }],
     topo: ["https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { subdomains: "abc", maxZoom: 17, attribution: OSM_ATTR + ', SRTM | &copy; <a href="https://opentopomap.org">OpenTopoMap</a>' }],
-    voyager: ["https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 20, attribution: OSM_ATTR + ' &copy; <a href="https://carto.com/attributions">CARTO</a>' }],
     // Free, no key. Esri World Imagery is the sharpest free source here: it already carries the local
     // 7.5 cm aerial photos (Squamish 2024, Pemberton 2023, Sunshine Coast 2024), qathet 20 cm (2022) and
     // 31-50 cm satellite elsewhere. Those go to zoom 20-22; EsriDeep (below) uses each spot's deepest level.
@@ -2246,7 +2244,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // The official OSM tile server refuses pages opened as a local file (no Referer header) and
   // serves an "Access blocked" image instead. On a file, try look-alike copies in this order.
   const FROM_FILE = location.protocol === "file:";
-  const FALLBACK = ["osmde", "osmfr", "voyager"];
+  const FALLBACK = ["osmde", "osmfr", "vector"];   // CARTO's Light streets left 2026-11-26: it now needs a key
   const tileOk = {};
   async function tileWorks(key) {
     if (key === "osm" && FROM_FILE) return false;
@@ -2256,7 +2254,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const url = BASEMAPS[key][0].replace("{s}", "a").replace("{z}", "10").replace("{x}", "161").replace("{y}", "348").replace("{r}", "");
     if (!FROM_FILE) return (tileOk[key] = true); // on a website every style loads normally
     try { const res = await fetch(url, { mode: "cors", cache: "no-store" }); tileOk[key] = res.ok; }
-    catch { tileOk[key] = key === "voyager"; } // no answer we can read: only trust the CARTO server
+    catch { tileOk[key] = false; }
     return tileOk[key];
   }
   let baseLayer = null, basemapReq = 0;
@@ -2266,7 +2264,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     const req = ++basemapReq;
     let use = key;
     if (!(await tileWorks(key))) {
-      use = "voyager";
+      use = "vector";
       for (const k of FALLBACK) if (k !== key && await tileWorks(k)) { use = k; break; }
     }
     if (req !== basemapReq) return;

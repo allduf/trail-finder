@@ -5,7 +5,7 @@
 // remove, Drive / Bike / Walk (Moto in Adventure moto), the time, distance and arrival, then ▶ Start, which hands the
 // route to Ride mode (navigate.js tfRide.follow) for turn-by-turn: next-turn banner, spoken turns, map following you,
 // new route when you leave it, and in the iPhone app the next turn on the lock screen.
-// Routes: the Valhalla server (with turn words), else OSRM's demo server for driving, else with no signal the roads of
+// Routes: the Valhalla server (with turn words), else with no signal the roads of
 // the saved Offline maps (moto-roads.js). "Other maps" still opens Google or Apple Maps for anyone who wants them.
 //   window.tfGo.to({ lat, lon, name })   // open the sheet with this place as the destination
 (() => {
@@ -14,7 +14,7 @@
   if (!map || !window.L || window.tfGo) return;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const VALHALLA = "https://valhalla1.openstreetmap.de", OSRM = "https://router.project-osrm.org";
+  const VALHALLA = "https://valhalla1.openstreetmap.de";
   const BLUE = "#1a73e8";
   const RAD = Math.PI / 180;
   const metres = (a, b) => { const kx = Math.cos(((a[0] + b[0]) / 2) * RAD) * 111320; return Math.hypot((b[1] - a[1]) * kx, (b[0] - a[0]) * 110540); };
@@ -154,38 +154,6 @@ body.go-picking .leaflet-container { cursor: crosshair; }
     return { line, parts: parts.filter((x) => x.pts.length > 1), m: r.trip.summary.length * 1000, sec: r.trip.summary.time, stopAt, src: "valhalla" };
   }
 
-  // OSRM's demo server (driving only): its steps carry the turn type and the road name, so the words are made here.
-  const OSRM_MOD = { left: "left", right: "right", "slight left": "slight-left", "slight right": "slight-right", "sharp left": "sharp-left", "sharp right": "sharp-right", uturn: "uturn", straight: "straight" };
-  async function viaOsrm(locs, names) {
-    const r = await getJ(`${OSRM}/route/v1/driving/${locs.map((p) => `${p[1].toFixed(6)},${p[0].toFixed(6)}`).join(";")}?overview=full&geometries=geojson&steps=true`, {}, 20000);
-    const rt = r.routes && r.routes[0];
-    if (!rt) throw new Error("none");
-    const line = [], parts = [], stopAt = [];
-    let run = 0;
-    rt.legs.forEach((leg, li) => {
-      const last = li === rt.legs.length - 1;
-      leg.steps.forEach((s) => {
-        const pts = s.geometry.coordinates.map((c) => [c[1], c[0]]);
-        if (line.length) pts.shift();
-        const a = Math.max(0, line.length - 1);
-        line.push(...pts);
-        const mt = s.maneuver.type, mod = s.maneuver.modifier || "", road = s.name || s.ref || "";
-        if (mt === "arrive") { if (last) parts.push({ name: names[li + 1] || "Destination", text: arriveText(names[li + 1], mod === "left" || mod === "right" ? mod : "", true), arrow: "arrive", sec: 0, a, b: line.length - 1 }); else if (parts.length) parts[parts.length - 1].stopName = names[li + 1]; return; }
-        const turn = mt === "depart" ? `Head ${["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"][Math.round((s.maneuver.bearing_after || 0) / 45) % 8]}`
-          : mt === "roundabout" || mt === "rotary" ? `At the roundabout, take exit ${s.maneuver.exit || 1}`
-          : /continue|new name/.test(mt) ? "Continue" : mt === "merge" ? "Merge" : /ramp|on ramp/.test(mt) ? "Take the ramp" : mt === "off ramp" ? "Take the exit"
-          : mod === "uturn" ? "Make a U-turn" : mod ? `${/slight|sharp/.test(mod) ? "Turn " + mod : mod === "straight" ? "Continue straight" : "Turn " + mod}` : "Continue";
-        const text = `${turn[0].toUpperCase()}${turn.slice(1)}${road ? `${mt === "depart" ? " on" : " onto"} ${road}` : ""}.`;
-        parts.push({ name: road || "the road", text, arrow: mt === "roundabout" || mt === "rotary" ? "roundabout" : mt === "depart" ? "straight" : OSRM_MOD[mod] || "straight", sec: s.duration || 0, a, b: line.length - 1 });
-      });
-      run += leg.distance;
-      stopAt.push(run);
-    });
-    parts.forEach((x, i) => { if (x.stopName != null && parts[i + 1]) { const n = parts[i + 1]; n.text = `${arriveText(x.stopName, "", false)} Then ${n.text[0].toLowerCase()}${n.text.slice(1)}`; } });
-    parts.forEach((x) => { Object.assign(x, { kind: "road", lvl: null, color: BLUE, say: x.text }); x.pts = line.slice(x.a, Math.max(x.a + 2, x.b + 1)); });
-    return { line, parts: parts.filter((x) => x.pts.length > 1), m: rt.distance, sec: rt.duration, stopAt, src: "osrm" };
-  }
-
   // No signal: the roads of the saved Offline maps (moto-roads.js), for driving and moto.
   const loadRoads = () => window.tfMotoRoads ? Promise.resolve(window.tfMotoRoads) : new Promise((ok, no) => {
     const v = (document.querySelector('script[src*="go-there.js"]') || {}).src || "";
@@ -208,7 +176,6 @@ body.go-picking .leaflet-container { cursor: crosshair; }
     const m = modeOf().k, road = m === "drive" || m === "moto";
     if (navigator.onLine !== false) {
       try { return await viaValhalla(locs, names); } catch (e) { /* busy or out of reach: next */ }
-      if (m === "drive") try { return await viaOsrm(locs, names); } catch (e) { /* next */ }
     }
     if (road) return viaSaved(locs, names);
     throw new Error(navigator.onLine === false ? "offline" : "server");
