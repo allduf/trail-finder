@@ -45,6 +45,12 @@ jobs:
         # Before the data files: site-data.sh fetches its branch with --depth 1, which marks the checkout shallow.
         working-directory: site
         run: node scripts/stamp.mjs
+      - name: Trim the scripts (scripts/trim-site.mjs)
+        # Comments and spaces out of the site's own scripts, so phones download and read about a quarter less at startup
+        # (alex chose 2026-11-26). Every line keeps its number and the code is checked to be the very same; a file that
+        # doesn't pass the check is published as it was. The phone test runs on the same trimmed copy.
+        working-directory: site
+        run: node scripts/trim-site.mjs .
       - name: App link files (shared links open in the iPhone and Android apps)
         # .well-known/apple-app-site-association and .well-known/assetlinks.json tell the phone which trailfinderapp.ca
         # links (#pin=, #trail=, #route=, #trip=, #live=) open in the installed app. The app's IDs are filled in here from
@@ -94,7 +100,7 @@ jobs:
           git clone -q --depth 1 --branch japan-data "https://github.com/${GITHUB_REPOSITORY}.git" japan || { echo "No japan-data branch yet."; exit 0; }
           mv japan/jp site/jp
       - name: Leave out what the website doesn't need
-        run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app site/old-address site/data/changelog.d
+        run: rm -rf site/.git site/.github site/scripts site/supabase site/ios-app site/old-address site/data/changelog.d site/vendor/acorn-8.19.0.mjs
       - name: Publish to Cloudflare Pages (trailfinderapp.ca)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

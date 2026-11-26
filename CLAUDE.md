@@ -155,6 +155,8 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 ## Where things are
 - Data files built by workflows live on the `site-data` branch, not main: see `README.md`.
   `bash scripts/site-data.sh get` puts them into `data/`.
+- The publish trims comments and spaces from the site's own scripts (`scripts/trim-site.mjs`, alex 2026-11-26); line
+  numbers stay the same, and the phone test runs on the trimmed copy. Never rely on comments or spacing at run time.
 - Phone test: `node scripts/phone-test.mjs`. Wording check: `node scripts/wording-check.mjs`.
   French build: `node scripts/i18n/build.mjs`.
 - Claude Code setup in `.claude/` (see `.claude/README.md`): commands `/ship`, `/add-trail-info`, `/status`,
