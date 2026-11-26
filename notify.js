@@ -724,7 +724,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
           const reg = await swReady();
           sub = await reg.pushManager.getSubscription();
           if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getKey()) })
-            .catch(() => { throw new Error("the phone dropped its push address: turn phone notifications off and on again"); });
+            .catch(() => { throw new Error("the phone dropped its push address: turn “Also send them to this phone” off and on again"); });
         }
         await pushSave(sub, force);
         pushErr = "";

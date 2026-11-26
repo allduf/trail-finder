@@ -214,7 +214,7 @@
       box.innerHTML = `<ol class="lp-list">${loops.map((l, i) => {
         const e = l.est, short = hasWant() && fill(e) < 0.8;
         return `<li><button type="button" class="lp-open" data-l="${i}"><b>🔁 ${esc(l.name)}</b>
-        <small class="lp-est">${e.known ? "About" : "Roughly"} ${e.km.toFixed(e.km < 10 ? 1 : 0)} km · ↑ ${e.up} m${e.time ? ` · ⏱ ${e.time}` : ""}${short ? ` · <span class="lp-short">shorter than you asked: no more trails of this level close by</span>` : ""}</small></button>
+        <small class="lp-est">${e.known ? "About" : "Roughly"} ${e.km.toFixed(e.km < 10 ? 1 : 0)} km · ↑ ${e.up} m${e.time ? ` · ${e.time}` : ""}${short ? ` · <span class="lp-short">shorter than you asked: no more trails of this level close by</span>` : ""}</small></button>
         <p class="lp-lot">${l.lot ? `🅿 Start and finish: <b>${esc(l.lot.name)}</b>${l.lot.d > 150 ? ` · ${fmtM(l.lot.d)} from the trails` : ""}` : "🅿 No parking lot mapped near these trails: starts at their lowest end"}</p>
         <div class="lp-trails">${l.trails.map((t) => `<span class="lp-t">${lvl(t.lvl)}${esc(t.name)}<button type="button" data-skip="${esc(t.name)}" aria-label="Leave out ${esc(t.name)}" title="Leave this trail out: the loops are rebuilt without it">✕</button></span>`).join("")}</div>
         <div class="lp-row"><button type="button" class="lp-other" data-other="${l.k}"${l.alt < 2 ? ` disabled title="No other ${esc(l.name.toLowerCase())} here"` : ""}>↻ Different loop${l.alt > 1 ? ` <small>${l.at + 1} of ${l.alt}</small>` : ""}</button></div></li>`;

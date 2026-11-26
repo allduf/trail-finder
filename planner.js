@@ -1188,7 +1188,7 @@
     // Shuttle with nothing driven (and not because you took every shuttle out): say why.
     const gate = legs.map((l) => l.gate).find(Boolean), wanted = mode === "tap" || picks.some((p) => !p.pedal);
     const gates = car ? driven().flatMap(runGates).filter((g, i, a) => a.findIndex((h) => h.id === g.id) === i) : [];
-    const drive = car ? ` · 🛻 Drive ${fmtM(car)}${gates.length ? ` · <span class="gap-note">🚧 ${gates.length} gate${gates.length > 1 ? "s" : ""} to check</span>` : ""}` : how === "shuttle" && wanted && legs.length && !busy && !joining
+    const drive = car ? ` · Drive ${fmtM(car)}${gates.length ? ` · <span class="gap-note">🚧 ${gates.length} gate${gates.length > 1 ? "s" : ""} to check</span>` : ""}` : how === "shuttle" && wanted && legs.length && !busy && !joining
       ? ` · <span class="gap-note">No shuttle from your start${gate ? `: locked gate ${gate === "the road" ? "near it" : "on " + esc(gate)}` : ": no road a truck can take goes up"}, so you ride it all</span>` : "";
     document.querySelectorAll(".plan-how button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.how === how)));
     document.querySelectorAll(".plan-modes button[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
@@ -1214,7 +1214,7 @@
         ? `In the order you tapped. <button type="button" class="ps-auto" data-act="auto">↻ Best order</button>`
         : "The app chose the best order. ▲ ▼ to change it.";
       $("planSteps").innerHTML = !picks.length ? "" : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
-        : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? (pickStartName ? `: 🅿 ${esc(pickStartName)}` : "") : autoLot ? `: 🅿 ${esc(autoLot.name)}` : " at the lowest end of your trails"}</span></li>`
+        : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? (pickStartName ? `: ${window.tfLineName ? window.tfLineName("parking", 14) + " " : ""}${esc(pickStartName)}` : "") : autoLot ? `: ${window.tfLineName ? window.tfLineName("parking", 14) + " " : ""}${esc(autoLot.name)}` : " at the lowest end of your trails"}</span></li>`
           + legs.map(stepHtml).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "");
     }
     const has = mode === "tap" ? stops.length : picks.length, ready = mode === "tap" ? stops.length >= 2 : legs.length > 0;

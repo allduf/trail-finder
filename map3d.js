@@ -3799,7 +3799,7 @@
     // Back where the 3D map was, once the page has set its first view, and say what happened.
     const back = () => {
       if (Array.isArray(crashView) && crashView.every(Number.isFinite) && !/^#(trail|route|pin)=/.test(location.hash)) map.setView([crashView[0], crashView[1]], Math.round(crashView[2]), { animate: false });
-      if (window.tfToast) window.tfToast("3D ran out of memory: back on the flat map here. Tap ⛰ 3D to return.");
+      if (window.tfToast) window.tfToast("3D ran out of memory: back on the flat map here. Tap 3D to return.");
     };
     if (document.readyState === "complete") setTimeout(back, 0); else addEventListener("load", () => setTimeout(back, 0), { once: true });
   }

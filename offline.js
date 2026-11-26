@@ -304,7 +304,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     use.textContent = "";
     if (navigator.storage && navigator.storage.estimate) {
       const s = await navigator.storage.estimate().catch(() => null);
-      if (s && s.quota) use.textContent = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? `The app is using ${mb(s.usage)} of the ${mb(s.quota)} this phone allows it.` : `This site is using ${mb(s.usage)} of the ${mb(s.quota)} your browser allows it.`;
+      if (s && s.quota) use.textContent = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? `The app is using ${mb(s.usage)} of about ${mb(s.quota)} the phone lets it use (the phone's estimate).` : `This site is using ${mb(s.usage)} of the ${mb(s.quota)} your browser allows it.`;
     }
   }
   $("[data-list]").addEventListener("click", async (e) => {
