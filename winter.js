@@ -505,6 +505,8 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .av-days button { font: inherit; font-size: .8rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
 #skiPane .av-days button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
 #skiPane .av-chip { font-weight: 700; font-size: .78rem; padding: 2px 8px; border-radius: 6px; text-align: center; min-width: 108px; }
+#skiPane .sk-stripe { margin: 2px 0 8px; line-height: 1.6; }
+#skiPane .sk-stripe .av-chip { min-width: 0; display: inline-block; }
 #skiPane .av-prob { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: start; border-top: 1px solid var(--line); padding-top: 8px; }
 #skiPane .av-prob b { display: block; }
 #skiPane .av-prob p, #skiPane .av-card p { margin: 2px 0; font-size: .82rem; }
@@ -3904,6 +3906,21 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (c > (s >= 35 ? 3 : s >= 30 || g.max >= 30 ? 2 : 1)) why.push(["", "The class also counts the shape of the ground around this spot on the terrain map (an estimate)."]);
     return { c, ...T.CLASSES[c], why };
   }
+  // The slope chip in the map's own look: the band's colour, with the problem stripes over it where the map has them.
+  const chipStyle = (r, hit) => `background-color:${DANGER[r].color};${hit ? `background-image:${STRIPES(r)};` : ""}color:${r >= 4 ? "#fff" : "#1a1a1a"}${hit ? `;text-shadow:0 0 3px ${r >= 4 ? "#000" : "#fff"},0 0 2px ${r >= 4 ? "#000" : "#fff"}` : ""}`;
+  // The first line of a tapped slope that the map stripes (alex 2026-11-26: "Striped because: storm slab on this
+  // direction"): Avalanche Canada's own problem names for this slope's band and direction, on the day shown. Exactly
+  // the map's test (rating, 25°+, the band's problem directions); nothing when the slope isn't striped.
+  function spotStripeHtml(lat, lon, g) {
+    const data = example ? exampleData() : avy;
+    const a = data ? areaAt(lat, lon) : null, f = a && a.forecast;
+    if (!f || fcExpired(f) || g.slope < 25) return "";
+    const d = dayOf(f), band = bandOf(g.e, a.bands), r = (d && d[band]) || 0;
+    if (!r || !(a.mask[band] & (1 << g.asp))) return "";
+    const asp = ASPECTS[g.asp], names = [...new Set((f.problems || []).filter((p) => (p.elevations || []).includes(band) && (p.aspects || []).includes(asp)).map((p) => p.type).filter(Boolean))];
+    if (!names.length) return "";
+    return `<p class="sk-stripe"><span class="av-chip" style="${chipStyle(r, true)}">Striped</span> <span>because:</span> <b>${esc(names.join(", "))}</b> <span>${names.length > 1 ? "(Avalanche Canada's problems for this slope's direction and band)" : "(Avalanche Canada's problem for this slope's direction and band)"}</span></p>`;
+  }
   function spotAvyHtml(lat, lon, g, cls) {
     const data = example ? exampleData() : avy;
     const site = avySite(lat, lon), link = siteLink(site);
@@ -3923,7 +3940,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // The map colour is the band's own rating from Avalanche Canada, never moved up or down by the app (alex
       // 2026-11-09: "no mistakes are allowed"); the stripes only say the slope faces a direction in today's problems.
       const mask = a ? a.mask[band] : 0, hit = mask & (1 << g.asp);
-      html += `<p>On the map, this slope is <span class="av-chip" style="background-color:${DANGER[r].color};${hit ? `background-image:${STRIPES(r)};` : ""}color:${r >= 4 ? "#fff" : "#1a1a1a"}${hit ? `;text-shadow:0 0 3px ${r >= 4 ? "#000" : "#fff"},0 0 2px ${r >= 4 ? "#000" : "#fff"}` : ""}">${esc(DANGER[r].label)}</span>, Avalanche Canada's ${bandN.toLowerCase()} rating: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "striped because it faces a direction in today's problems" : mask ? "not a direction in today's problems" : "no problems listed in this band"}.</p>`;
+      html += `<p>On the map, this slope is <span class="av-chip" style="${chipStyle(r, hit)}">${esc(DANGER[r].label)}</span>, Avalanche Canada's ${bandN.toLowerCase()} rating: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "striped because it faces a direction in today's problems" : mask ? "not a direction in today's problems" : "no problems listed in this band"}.</p>`;
     }
     // Band heights are an estimate: near an edge, the next band's rating may be the one that applies here.
     const edge = r && (band === "btl" ? [["lo", "tln"]] : band === "alp" ? [["hi", "tln"]] : [["lo", "btl"], ["hi", "alp"]]).find(([k]) => Math.abs(g.e - bands[k]) < 150);
@@ -4060,7 +4077,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     el.hidden = false;
     el.innerHTML = `<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "ski" }) : ""}<h3>📍 This spot</h3></div>
       <p class="sk-hint">${lat.toFixed(4)}, ${lon.toFixed(4)}</p>
-      <div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
+      <div id="skSpotWhy"></div><div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
       <div class="sk-acts sk-spotacts"><button type="button" class="sk-act" data-act="safe">Less exposed way here</button><button type="button" class="sk-act" data-act="plan">✎ Plan a tour from here</button>${shown.has("slope") ? "" : `<button type="button" class="sk-act" data-act="slope">Show slope angles</button>`}</div>`;
     el.querySelector(".sk-x").addEventListener("click", closeSpot);
     el.querySelector("[data-act=plan]").addEventListener("click", () => { closeSpot(); setPlanning(true); planAdd(L.latLng(lat, lon)); });
@@ -4109,11 +4126,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // html(lat, lon, s) writes the parts for the day shown now (again after a new day is picked).
   window.tfSkiAvySpot = {
     ground: (lat, lon) => spotGround(lat, lon).then((g) => ({ g, cls: spotTerrain(g) })),
-    html: (lat, lon, s) => ({ ground: spotGroundHtml(s.g, s.cls), avy: spotAvyHtml(lat, lon, s.g, s.cls) }),
+    html: (lat, lon, s) => ({ ground: spotStripeHtml(lat, lon, s.g) + spotGroundHtml(s.g, s.cls), avy: spotAvyHtml(lat, lon, s.g, s.cls) }),
   };
   function fillSpotAvy() {
     if (!spot || !spot.g || $("skSpot").hidden) return;
     $("skSpotAvy").innerHTML = spotAvyHtml(spot.lat, spot.lon, spot.g, spot.cls);
+    const why = $("skSpotWhy"); if (why) why.innerHTML = spotStripeHtml(spot.lat, spot.lon, spot.g);
   }
   function bindSpotNear() {
     $("skSpotNear").querySelectorAll(".sk-go").forEach((a) => a.addEventListener("click", (e) => {
