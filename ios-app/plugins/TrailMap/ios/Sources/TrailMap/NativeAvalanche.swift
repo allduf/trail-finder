@@ -59,7 +59,7 @@ final class NativeAvalanche: NativeLayer {
             }
             return
         }
-        info =(try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] ?? ["on": false]
+        info = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] ?? ["on": false]
         show()
         showSpot()
     }
