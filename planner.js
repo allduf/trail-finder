@@ -1639,7 +1639,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     if (name == null) return;
     const e = routeEntry(name.trim() || guess);
     setSaved([e, ...savedList()]);
-    window.tfHappy && window.tfHappy("mtb route"); flash(`Saved "${e.name}". 📂 Saved opens it again.`, false);
+    window.tfHappy && window.tfHappy("mtb route"); flash(`Saved "${e.name}". Find it again in Saved.`, false);
   }
   // A loop opened from a loop list (loops.js) keeps a way back to that list, so another loop is one tap away.
   let toList = null;

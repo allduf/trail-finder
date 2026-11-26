@@ -12,6 +12,9 @@ description: Use when making any user-facing change to the Trail Finder app and 
 3. Wording is liability-safe: never promise safety, accuracy, access, legality or conditions. State facts and their
    source, and say "estimate" where it is one. No travel advice, no terrain traps, runouts or "what is above you".
    No emoji in the interface (line icons in `line-icons.js`). Never mention Trailforks.
+   Keep it professional and organized: consistent wording, capitals, icons and colours; no debug, test or placeholder
+   text; clean empty, loading and error states; controls grouped the same way in every sport. Ask alex before any
+   regrouping or change of look (before and after screenshots).
 4. Versions are automatic: leave `?v=__V__` and `VERSION = "tf-__V__"` as they are. `node scripts/stamp.mjs --check`
    fails on a hand-set number. Leave separate tags (such as `winter-hd.js?v=` in `map3d.js`) alone.
 5. What's new: a new file `data/changelog.d/<short-name>.json` with `{"date": "YYYY-MM-DD", "text": "..."}`, one short

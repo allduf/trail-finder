@@ -15,3 +15,4 @@ That tour isn't in your saved tours any more. Draw it again with Draw a tour. ||
 Used by Ask in plain words and fish ID, for people 18 or older. ||| Utilisé par Demandez en mots simples et l'identification des poissons, pour les 18 ans ou plus.
 Used by photo find, Ask in plain words and fish ID, for people 18 or older. ||| Utilisé par la recherche par photo, Demandez en mots simples et l'identification des poissons, pour les 18 ans ou plus.
 Tidier tips and help texts: plain words in place of picture symbols in sentences. ||| Conseils et textes d'aide plus soignés : des mots simples au lieu de symboles en images dans les phrases.
+: the orange cone shows where your scent goes. The light card has legal light, sun, moon and alarms. ||| : le cône orange montre où va votre odeur. La carte lumière donne la lumière légale, le soleil, la lune et les alarmes.

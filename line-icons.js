@@ -7,7 +7,8 @@
 //  - window.tfLineify(root): swaps the emoji at the start of every text in root for its drawing. index.html runs it
 //    on the map's sheet (search row, quick buttons, the Find/Ride/Saved/More pages) whenever they change, so the
 //    sports' own files can keep writing "⛽ Fuel & camp" and the French translator still sees "Fuel & camp".
-// Text in the middle of a sentence ("tap 📍 Save a spot") is left alone: it reads as the button it names.
+// Text in the middle of a sentence is never drawn here, so the app names the button in words there ("tap Save a spot"):
+// scripts/wording-check.mjs fails on a colour emoji mid-sentence (alex 2026-11-25, "keep the app professional").
 (() => {
   "use strict";
   if (window.tfLine) return;
