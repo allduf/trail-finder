@@ -63,7 +63,7 @@ const marks = (s) => (s.match(/<!--|-->|<\/?script/gi) || []).join(" ").toLowerC
 
 // One script's text, trimmed. Gaps (spaces and comments) become as many line breaks as they had, else one space
 // where needed. A byte order mark at the start stays.
-function trimJs(src, module = false) {
+function trimJs(src, module = false, inline = false) {
   const bom = src.startsWith("\uFEFF") ? "\uFEFF" : "";
   const was = read(src, module);
   let out = bom, end = 0;
@@ -76,10 +76,10 @@ function trimJs(src, module = false) {
   }
   out += "\n".repeat(lines(was.tail));
   // The checks: the same pieces with the same line breaks before them, the same number of lines, the same program,
-  // and the same page markers (marks above).
+  // and, in a page's inline script, the same page markers (marks above).
   const now = read(out, module);
   const differs = was.list.length !== now.list.length || lines(src) !== lines(out) || shape(was.ast) !== shape(now.ast)
-    || marks(out) !== marks(src)
+    || (inline && marks(out) !== marks(src))
     || was.list.some((a, i) => src.slice(a.s, a.e) !== out.slice(now.list[i].s, now.list[i].e) || a.nl !== now.list[i].nl);
   if (differs) throw new Error("trimmed copy differs");
   return out;
@@ -99,7 +99,7 @@ for (const name of files) {
     else out = src.replace(SCRIPT, (m, open, attrs, body, close) => {
       const type = (attrs.match(/(?:^|\s)type\s*=\s*["']?([^"'\s>]+)/i) || [])[1];
       if (type && !/^(module|text\/javascript|application\/javascript)$/i.test(type)) return m;   // JSON and the like: as is
-      return open + trimJs(body, /^module$/i.test(type || "")) + close;
+      return open + trimJs(body, /^module$/i.test(type || ""), true) + close;
     });
   } catch (e) {
     kept.push(`${name} (${e.message})`);
