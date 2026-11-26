@@ -39,11 +39,16 @@
     }
     return JSON.stringify({ layers, keys: keys() });
   }
-  N.addLayer("ground", state);
+  // sent: what the native map got last, by an open (its layers are read then) or by a change sent below. Kept only from
+  // the change sends, an open that got a different state was missed: a layer turned on after it then matched an older
+  // send and never went (Hiking's slope angle stayed off native 3D now and then, phone test 2026-11-26).
+  let last = 0, timer = 0, sent = "";
+  N.addLayer("ground", () => (sent = state()));
   // Changes while the native map is open (new snow numbers, more forecast points in): at most every 4 s, as the web 3D
   // map does, since each one loads that layer's tiles again.
-  let last = 0, timer = 0, sent = "";
-  const sendNow = () => { timer = 0; last = Date.now(); const s = state(); if (s !== sent) { sent = s; N.send("ground"); } };
+  // Up to 4 s after the change: the map may have closed meanwhile, and N.send then sends nothing, so nothing is marked as
+  // sent (its next open reads the layers itself).
+  const sendNow = () => { timer = 0; last = Date.now(); if (!N.isOpen()) return; const s = state(); if (s !== sent) { sent = s; N.send("ground"); } };
   // The sun and shade time slider (shade.js, detail.fast) moves the moment as the finger slides: once a second then.
   let timerAt = 0;
   window.addEventListener("tf:ground", (e) => {
