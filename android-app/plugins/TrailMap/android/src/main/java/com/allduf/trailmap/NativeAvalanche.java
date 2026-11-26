@@ -1,6 +1,7 @@
 package com.allduf.trailmap;
 
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -72,7 +73,20 @@ final class NativeAvalanche implements NativeLayer {
 
     @Override
     public void setData(String json, Style style) {
-        try { info = new JSONObject(json); } catch (Exception e) { info = new JSONObject(); }
+        JSONObject d;
+        try { d = new JSONObject(json); } catch (Exception e) { d = new JSONObject(); }
+        // Test builds only (scripts/slope-card/check.mjs): a slope "tapped" at check { lat, lon }, as emptyTap does.
+        JSONObject c = debuggable() ? d.optJSONObject("check") : null;
+        if (c != null && screen != null) {
+            JSObject e = new JSObject();
+            e.put("lat", c.optDouble("lat"));
+            e.put("lon", c.optDouble("lon"));
+            asked = ++taps;
+            e.put("n", asked);
+            screen.send("avyTap", e);
+            return;
+        }
+        info = d;
         show();
         showSpot();
     }
@@ -434,5 +448,43 @@ final class NativeAvalanche implements NativeLayer {
         boolean fresh = sheet.getVisibility() != View.VISIBLE;
         sheet.setVisibility(View.VISIBLE);
         if (fresh) sheetScroll.scrollTo(0, 0);   // a new slope from the top; a new day keeps the place
+        if (rows != null && debuggable()) sheet.post(() -> reportLaidOut(rows));
+    }
+    private boolean debuggable() {
+        return screen != null && (screen.getContext().getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+    }
+    // Test builds only: how the slope card's rows came out ("avySpotLaid" to the page, scripts/slope-card/check.mjs), so
+    // a row squeezed to nothing or a clipped line can't go unseen again. rows: rows drawn (the last one is "More about
+    // this spot"); kinds: the rows the page sent; empty: rows with no text showing; clipped: lines cut short.
+    private void reportLaidOut(JSONArray rows) {
+        if (sheet == null || sheet.getVisibility() != View.VISIBLE || screen == null) return;
+        JSONArray empty = new JSONArray(), clipped = new JSONArray();
+        for (int i = 0; i < sheetRows.getChildCount(); i++) {
+            View row = sheetRows.getChildAt(i);
+            List<TextView> ls = new ArrayList<>();
+            texts(row, ls);
+            boolean none = row.getHeight() < 1;
+            for (TextView t : ls) {
+                if (t.getHeight() < 1) { none = true; continue; }
+                android.text.Layout l = t.getLayout();
+                if (l != null && (l.getHeight() > t.getHeight() - t.getTotalPaddingTop() - t.getTotalPaddingBottom() + 1
+                    || (l.getLineCount() > 0 && l.getEllipsisCount(l.getLineCount() - 1) > 0))) clipped.put(t.getText().toString());
+            }
+            if (none) empty.put(i);
+        }
+        JSObject e = new JSObject();
+        e.put("rows", sheetRows.getChildCount());
+        JSONArray kinds = new JSONArray();
+        for (int i = 0; i < rows.length(); i++) { JSONObject r = rows.optJSONObject(i); kinds.put(r != null ? r.optString("k", "") : ""); }
+        e.put("kinds", kinds);
+        e.put("empty", empty);
+        e.put("clipped", clipped);
+        e.put("height", sheetRows.getHeight() / screen.getResources().getDisplayMetrics().density);
+        e.put("shown", sheetScroll.getHeight() / screen.getResources().getDisplayMetrics().density);
+        screen.send("avySpotLaid", e);
+    }
+    private static void texts(View v, List<TextView> out) {
+        if (v instanceof TextView) { if (v.getVisibility() == View.VISIBLE && ((TextView) v).getText().length() > 0) out.add((TextView) v); }
+        else if (v instanceof android.view.ViewGroup) for (int i = 0; i < ((android.view.ViewGroup) v).getChildCount(); i++) texts(((android.view.ViewGroup) v).getChildAt(i), out);
     }
 }

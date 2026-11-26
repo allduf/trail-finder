@@ -50,8 +50,9 @@ final class NativeAvalanche: NativeLayer {
     }
 
     func setData(_ json: String, style: MLNStyle?) {
-        // FILM BRANCH ONLY (never for main): the filming script presses the card's own buttons and taps a slope.
-        if let d = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any], let film = d["film"] as? [String: Any] {
+        let d = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any]
+        // FILM BRANCH ONLY (never for main): the filming script presses the card's own hide and close.
+        if let film = d?["film"] as? [String: Any] {
             if let f = film["fold"] as? Bool { setFolded(f) }
             if film["close"] != nil, let s = screen { tapBegan(screen: s) }
             if let lat = (film["lat"] as? NSNumber)?.doubleValue, let lon = (film["lon"] as? NSNumber)?.doubleValue, let s = screen {
@@ -59,7 +60,16 @@ final class NativeAvalanche: NativeLayer {
             }
             return
         }
-        info = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] ?? ["on": false]
+        #if DEBUG
+        // Test builds only (scripts/slope-card/check.mjs): a slope "tapped" at check { lat, lon }, as emptyTap does.
+        if let c = d?["check"] as? [String: Any], let lat = (c["lat"] as? NSNumber)?.doubleValue, let lon = (c["lon"] as? NSNumber)?.doubleValue, let s = screen {
+            taps += 1
+            asked = taps
+            s.send("avyTap", ["lat": lat, "lon": lon, "n": asked])
+            return
+        }
+        #endif
+        info = d ?? ["on": false]
         show()
         showSpot()
     }
@@ -288,9 +298,11 @@ final class NativeAvalanche: NativeLayer {
         [sheetTitle, shut, sheetScroll].forEach { sheet.addSubview($0) }
         screen.view.addSubview(sheet)
         let g = screen.mapArea
-        // As tall as its rows, up to half the map; the rest scrolls.
+        // As tall as its rows, up to half the map; the rest scrolls. Below the labels' own height (their compression
+        // resistance, defaultHigh): at the same priority Auto Layout could squeeze rows to nothing to fit the half map
+        // instead of scrolling (2026-11-26: Striped because, the signs, the chip line and the check box text were gone).
         let h = sheetScroll.heightAnchor.constraint(equalTo: sheetStack.heightAnchor)
-        h.priority = .defaultHigh
+        h.priority = UILayoutPriority(rawValue: UILayoutPriority.defaultHigh.rawValue - 1)
         NSLayoutConstraint.activate([
             sheet.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 12),
             sheet.trailingAnchor.constraint(equalTo: g.trailingAnchor, constant: -12),
@@ -452,7 +464,31 @@ final class NativeAvalanche: NativeLayer {
         let fresh = sheet.isHidden
         sheet.isHidden = false
         if fresh { sheetScroll.setContentOffset(.zero, animated: false) }   // a new slope from the top; a new day keeps the place
+        #if DEBUG
+        if let rows = sp["rows"] as? [[String: Any]] { DispatchQueue.main.async { [weak self] in self?.reportLaidOut(rows.map { str($0, "k") }) } }
+        #endif
     }
+    #if DEBUG
+    // Test builds only: how the slope card's rows came out ("avySpotLaid" to the page, scripts/slope-card/check.mjs), so
+    // a row squeezed to nothing or a clipped line can't go unseen again. rows: rows drawn (the last one is "More about
+    // this spot"); kinds: the rows the page sent; empty: rows with no text showing; clipped: lines cut short.
+    private func reportLaidOut(_ kinds: [String]) {
+        guard !sheet.isHidden else { return }
+        sheet.superview?.layoutIfNeeded()
+        var empty: [Int] = [], clipped: [String] = []
+        func labels(_ v: UIView) -> [UILabel] { (v as? UILabel).map { [$0] } ?? v.subviews.flatMap(labels) }
+        for (i, row) in sheetStack.arrangedSubviews.enumerated() {
+            let ls = labels(row).filter { !($0.text ?? "").isEmpty && !$0.isHidden }
+            if row.bounds.height < 1 || ls.contains(where: { $0.bounds.height < 1 }) { empty.append(i) }
+            for l in ls where !l.adjustsFontSizeToFitWidth && l.bounds.height >= 1 {
+                let need = l.sizeThatFits(CGSize(width: l.bounds.width, height: .greatestFiniteMagnitude)).height
+                if need > l.bounds.height + 1 { clipped.append(l.text ?? "") }
+            }
+        }
+        screen?.send("avySpotLaid", ["rows": sheetStack.arrangedSubviews.count, "kinds": kinds, "empty": empty, "clipped": clipped,
+                                     "height": Double(sheetStack.bounds.height), "shown": Double(sheetScroll.bounds.height)])
+    }
+    #endif
 
     @objc private func dayTapped(_ b: UIButton) { screen?.send("avyDay", ["i": b.tag]) }
     @objc private func closeSpot() {

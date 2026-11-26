@@ -303,12 +303,12 @@ async function camSeq(name, n, at, settle = SET) {
 }
 
 const C0 = { lat: 50.077, lon: -122.925, zoom: 12.55 };
-const SLOPE = (process.env.SLOPE || "50.0675,-122.968").split(",").map(Number);
+const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
 (async () => {
   phone.launch();
   for (let i = 0; i < 4 && !(await pageUp(i ? 60000 : 120000)); i++) { phone.kill(); await sleep(2000); phone.launch(); }
   await sleep(3000);
-  await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:skiGuest", "true"); localStorage.setItem("tf:lang", "en"); localStorage.setItem("tf:avy", "false"); location.reload(); })()`);
+  await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:skiGuest", "true"); localStorage.setItem("tf:lang", "en"); localStorage.setItem("tf:avy", "false"); localStorage.setItem("tf:filmExample", "1"); location.reload(); })()`);
   await sleep(4000); await pageUp();
   await jsq(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); })()`);
   await closeAll("start");
@@ -343,21 +343,28 @@ const SLOPE = (process.env.SLOPE || "50.0675,-122.968").split(",").map(Number);
   await camSeq("orbit", Number(process.env.NO || 90), (u) => ({ ...C0, bearing: 160 + 30 * ease(u) }));
   // 6. In to a slope, and tap it: Striped because.
   await camSeq("glide", Number(process.env.NG || 75), (u) => { const e = ease(u); return { lat: C0.lat + (SLOPE[0] - C0.lat) * e, lon: C0.lon + (SLOPE[1] - C0.lon) * e, zoom: C0.zoom + (14.1 - C0.zoom) * e, bearing: 190 - 40 * e }; });
-  // The slope card (the page's This spot card: the native one shows too few rows in the simulator, see notes).
-  L.taps.push({ f: fi, x: 220, y: Number(process.env.TAPY || 478), name: "slope" }); snap();
-  log("spot: " + (await jsq(`(window.tfSkiSpot(${SLOPE[0]}, ${SLOPE[1]}), true)`, "no")));
-  await sleep(6000); snap(); mark("spot"); snap();
-  log("spot text: " + String(await jsq(`(document.getElementById("skSpot") || {}).innerText`, "")).slice(0, 500));
-  await sleep(2500); snap();
-  await jsq(`(() => { const b = [...document.querySelectorAll("#skSpot button")].find((x) => /^(×|✕)$/.test(x.textContent.trim()) || /close/i.test(x.getAttribute("aria-label") || "")); if (b) b.click(); return !!b; })()`);
-  await sleep(2500); mark("spotclosed"); snap();
+  // The slope cards (the page's This spot card): a striped slope, then a plain one beside it.
+  const spotAt = async (name, pt) => {
+    L.taps.push({ f: fi, x: 220, y: Number(process.env.TAPY || 478), name }); snap();
+    log(name + ": " + (await jsq(`(window.tfSkiSpot(${pt[0]}, ${pt[1]}), true)`, "no")));
+    await sleep(6000); snap(); mark(name + "card"); snap();
+    log(name + " text: " + String(await jsq(`(document.getElementById("skSpot") || {}).innerText`, "")).slice(0, 700));
+    await sleep(2500); snap();
+    await jsq(`(() => { const b = [...document.querySelectorAll("#skSpot button")].find((x) => /^(×|✕)$/.test(x.textContent.trim()) || /close/i.test(x.getAttribute("aria-label") || "")); if (b) b.click(); return !!b; })()`);
+    await sleep(2500); mark(name + "closed"); snap();
+  };
+  await spotAt("slope", SLOPE);
+  const P2 = (process.env.SLOPE2 || "50.0675,-122.968").split(",").map(Number);
+  await camSeq("move2", 45, (u) => { const e = ease(u); return { lat: SLOPE[0] + (P2[0] - SLOPE[0]) * e, lon: SLOPE[1] + (P2[1] - SLOPE[1]) * e, zoom: 14.1, bearing: 150 + 30 * e }; });
+  await spotAt("plain", P2);
+  mark("spotclosed");
   // 7. Hide the card: a small Avalanche chip under the key; tap it, the card is back.
   await ntap("hide", { fold: true }, 2000); mark("folded"); snap();
   await ntap("show", { fold: false }, 2000); mark("unfolded"); snap();
   // 8. The hook: the map alone, turning slowly over Whistler and Blackcomb.
   await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
   await sleep(3000);
-  await camSeq("hook", Number(process.env.NH || 150), (u) => ({ lat: 50.066, lon: -122.95, zoom: 13.35, bearing: 125 + 50 * ease(u) }));
+  await camSeq("hook", Number(process.env.NH || 150), (u) => ({ lat: 50.066, lon: -122.95, zoom: 13.35, bearing: 150 + 90 * ease(u) }));
   mark("END");
   log("done, frames " + fi);
   process.exit(0);

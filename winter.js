@@ -4309,7 +4309,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   map.on("moveend", () => { if (sport !== "ski") return; const was = dayDate; if (syncDay() !== was) refreshAvy(); else { renderList(); renderForecast(); } });
 
   // ---------- avalanche forecast ----------
-  let avy = null, avyLoading = null, avyErr = "", example = false, day = 0, avyAt = 0, pickDate = "", dayDate = "";   // the day shown: see syncDay()
+  let avy = null, avyLoading = null, avyErr = "", example = (() => { try { return localStorage.getItem("tf:filmExample") === "1"; } catch { return false; } })(),  /* FILM BRANCH ONLY */ day = 0, avyAt = 0, pickDate = "", dayDate = "";   // the day shown: see syncDay()
   // Most accurate possible (alex 2026-11-09): the forecasts are read LIVE from Avalanche Canada's own forecast service
   // (open to any site) each time the app opens and when it comes back after 10 minutes, so a new or updated bulletin
   // shows at once. data/avalanche.json (area outlines + a saved copy of the forecasts, rebuilt hourly in season) is
@@ -4554,9 +4554,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const fc = (title, days, problems) => ({ title, url: "https://avalanche.ca/map", issued: today.toISOString(), validUntil: "", highlights: "Example only. This is not a real forecast.", days, problems, summaries: {} });
     return (exampleCache = prepAreas({ example: true, areas: [
       { id: "ex-s2s", name: "Sea to Sky (example)", rings: [box(49.25, -124.0, 50.62, -122.55)], forecast: fc("Sea to Sky (example)",
-        [{ ...dayN(0), alp: 3, tln: 3, btl: 2 }, { ...dayN(1), alp: 3, tln: 2, btl: 1 }, { ...dayN(2), alp: 2, tln: 2, btl: 1 }],
-        [{ type: "Wind Slab", aspects: ["n", "ne", "e"], elevations: ["alp", "tln"], likelihood: "Likely", size: "1-2", comment: "Example: fresh wind slabs on lee slopes below ridgecrests." },
-          { type: "Persistent Slab", aspects: ["n", "ne", "e", "se", "s", "sw", "w", "nw"], elevations: ["alp"], likelihood: "Possible", size: "2-3", comment: "Example: a buried weak layer that can be triggered from thin spots." }]) },
+        [{ ...dayN(0), alp: 3, tln: 2, btl: 1 }, { ...dayN(1), alp: 3, tln: 2, btl: 1 }, { ...dayN(2), alp: 2, tln: 2, btl: 1 }],
+        [{ type: "Wind Slab", aspects: ["n", "ne", "e"], elevations: ["alp", "tln"], likelihood: "Likely", size: "1-2", comment: "Example: wind slabs on slopes facing north to east, in the alpine and at treeline." },
+          { type: "Persistent Slab", aspects: ["nw", "n", "ne"], elevations: ["alp"], likelihood: "Possible", size: "2-3", comment: "Example: a buried weak layer on alpine slopes facing northwest to northeast." }]) },
       { id: "ex-sci", name: "South Coast Inland (example)", rings: [box(50.42, -122.55, 51.25, -121.7)], forecast: fc("South Coast Inland (example)",
         [{ ...dayN(0), alp: 2, tln: 2, btl: 1 }, { ...dayN(1), alp: 2, tln: 2, btl: 1 }, { ...dayN(2), alp: 2, tln: 1, btl: 1 }],
         [{ type: "Storm Slab", aspects: ["n", "ne", "e", "se", "s", "sw", "w", "nw"], elevations: ["alp", "tln"], likelihood: "Possible", size: "1-1.5", comment: "Example." }]) },

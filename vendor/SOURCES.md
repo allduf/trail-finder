@@ -21,6 +21,7 @@ Each file is copied byte for byte from the official npm release named here (chec
 | geotiff-2.1.3/compression/jpeg.js | geotiff@2.1.3 (MIT) | dist-module/compression/jpeg.js | `607cd7114c4e0cffbe5bd4a2ec49350bb3e12dbe3f5edb8f60fb3afe4a71153d` |
 | geotiff-2.1.3/compression/basedecoder.js | geotiff@2.1.3 (MIT) | dist-module/compression/basedecoder.js | `8d1f95fb468a03b73c304cb277cf11207e78b5a426b9cda4c8a7de930ea376f1` |
 | geotiff-2.1.3/predictor.js | geotiff@2.1.3 (MIT) | dist-module/predictor.js | `e65343613131379847315aa377692b8a1906595029a2d502bb4de4b00d67ae02` |
+| acorn-8.19.0.mjs | acorn@8.19.0 (MIT) | dist/acorn.mjs | `76254fc76529713b4dfd2532972d17a991ffd9aafeebb1f977445b5506b9fb0b` |
 
 geotiff 2.1.3's JPEG reader (the three module files above, same folders as in the package so their imports work) moved here from cdn.jsdelivr.net on 2026-11-21 (security check; the CDN copies had the same sha256).
 
@@ -56,3 +57,5 @@ official MapLibre release**; only the alex-only native map screens use it (since
 |---|---|---|
 | okhttp-4.12.0.jar | com.squareup.okhttp3:okhttp:4.12.0 (Maven Central, Apache-2.0; MapLibre's own download library, named by TrailMap to rewrite tile addresses) | `b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0` |
 | android-sdk-opengl-2026.10.19-globe-terrain-ss.13.aar | org.maplibre.gl:android-sdk-opengl:2026.10.19-globe-terrain-ss.13 (raw.githubusercontent.com/WxByte/maplibre-native-maven, commit `ff565a677d6f3ba8e7e0af4b1ceb3c53d3e9025a`) | `bdcdfda7b646a2a96659ddb5de34fca53c741d3221fe79c980ed6908ab4bfce1` |
+
+acorn 8.19.0 is a build tool, not part of the app: scripts/trim-site.mjs uses its tokenizer to trim the site's scripts at publish (2026-11-26). The publish leaves it out of the website.

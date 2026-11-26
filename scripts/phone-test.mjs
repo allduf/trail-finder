@@ -315,12 +315,15 @@ async function groundWhole(p) {
     if (!ok) throw new Error("the 3D map isn't on");
     await page.evaluate(() => window.trailMap3d.jumpTo({ center: [-117.06, 51.295], zoom: 13.5, pitch: 60, bearing: 260 }));
     await wait(25_000);
-    const shot = (await page.screenshot()).toString("base64");
+    // Only the band below the horizon (30% to 65% of the height) is photographed and sent back to the page: a whole
+    // 1440 x 900 screenshot as text, twice per run, helped the computer test run out of memory (2 GB) on 2026-11-26.
+    const vp = page.viewportSize(), cy0 = Math.round(vp.height * 0.3), cy1 = Math.round(vp.height * 0.65);
+    const shot = (await page.screenshot({ clip: { x: 0, y: cy0, width: vp.width, height: cy1 - cy0 } })).toString("base64");
     const sky = await page.evaluate(async (b64) => {
       const img = await createImageBitmap(await (await fetch("data:image/png;base64," + b64)).blob());
       const cv = new OffscreenCanvas(img.width, img.height), cx = cv.getContext("2d");
       cx.drawImage(img, 0, 0);
-      const y0 = Math.round(img.height * 0.3), y1 = Math.round(img.height * 0.65), d = cx.getImageData(0, y0, img.width, y1 - y0).data;
+      const d = cx.getImageData(0, 0, img.width, img.height).data;
       let n = 0;
       for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 159) < 9 && Math.abs(d[i + 1] - 179) < 9 && Math.abs(d[i + 2] - 200) < 9) n++;
       return n / (d.length / 4);
@@ -369,7 +372,7 @@ async function androidKeys() {
   return [...keys];
 }
 async function fullKeysCheck() {
-  const m = (await readFile(join(root, "native-map.js"), "utf8")).match(/const FULL = (\[[^\]]*\]);/);
+  const m = (await readFile(join(root, "native-map.js"), "utf8")).match(/const\s*FULL\s*=\s*(\[[^\]]*\]);/);   // spaces optional: the tests run on the trimmed copy (scripts/trim-site.mjs)
   const full = m ? JSON.parse(m[1]) : null, next = await iosKeys(), problems = [];
   if (!full) problems.push("FULL not found in native-map.js");
   else {
