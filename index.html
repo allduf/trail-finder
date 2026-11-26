@@ -4589,7 +4589,7 @@ out body;`;
     }
   }
   function renderWeather(el, w, key, t) {
-    const c = w.current, h = w.hourly, d = w.daily, u = w.current_units || {};
+    const c = w.current, h = w.hourly, d = w.daily;
     // The hour now, in the trail's own time zone (Open-Meteo times are local, without an offset).
     let i = h.time.findIndex((x) => x > c.time) - 1;
     if (i < 0) i = h.time.length - 1;

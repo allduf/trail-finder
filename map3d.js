@@ -332,7 +332,7 @@
       for (const q of parts) for (const [x, y] of q) { if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y; }
       const bb = [w, s, e, n], col = crispColor(p.c), o = p.o == null ? 1 : p.o;
       if (String(p.d).startsWith("dot:")) {
-        const [, step, lw] = String(p.d).split(":").map(Number), dot = lw * LINE_SCALE * DOT_GROW;
+        const [, , lw] = String(p.d).split(":").map(Number), dot = lw * LINE_SCALE * DOT_GROW;
         out.push({ parts, bb, c: [20, 32, 26, col[3] * o * 0.55], w: dot + DOT_BAND, dash: 0, gap: 0, kind: 0 });
         out.push({ parts, bb, c: [col[0], col[1], col[2], col[3] * o], w: dot, dash: 0, gap: DOT_STEP, kind: 2 });
       } else if (p.d) {
@@ -3394,7 +3394,6 @@
       if (photos === "sharp" && ski()) photos = "winter";
       winBtn.style.display = ski() ? "" : "none";
       sumBtn.style.display = ski() ? "none" : "";
-      const w = photos === "winter" || photos === "live";
       for (const id of ["satlo", "sat", "sumhi"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");

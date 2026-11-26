@@ -9,7 +9,6 @@
   const map = window.tfLeaflet;
   if (!map || !window.L || !window.tfTrails) return;
   const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const COLOR = "#d6338f";   // pink: orange is Pro line, purple the other unmapped lines
   let data = null, busyAt = null, quietAt = null;
 

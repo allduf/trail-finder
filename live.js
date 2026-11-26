@@ -14,7 +14,6 @@
   const map = window.tfLeaflet;
   const acct = window.tfAccount;
   if (!map || !window.L || !acct || !acct.enabled) return;
-  const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // Kept on this phone only (never synced to an account: the secret must stay on the phone that shares)
   const ls = {
