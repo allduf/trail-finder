@@ -43,6 +43,8 @@ const BRIDGE = `(() => {
     }
   })();
 })();`;
+// Whistler for the page's location, so the system's "localhost would like to use your location" box can't cover the card.
+const GEO = `(() => { const at = { coords: { latitude: 50.1135, longitude: -122.954, accuracy: 10, altitude: 670, heading: null, speed: null, altitudeAccuracy: null } }; const g = navigator.geolocation; if (g) { g.getCurrentPosition = (ok) => setTimeout(() => ok({ ...at, timestamp: Date.now() }), 50); g.watchPosition = (ok) => { setTimeout(() => ok({ ...at, timestamp: Date.now() }), 50); return 1; }; g.clearWatch = () => {}; } })();`;
 let current = null, seq = 0;
 const queue = [], inflight = new Map(), polls = [];
 const body = (req) => new Promise((r) => { let d = ""; req.on("data", (c) => d += c); req.on("end", () => { try { r(JSON.parse(d)); } catch { r({}); } }); });
@@ -79,7 +81,7 @@ createServer(async (req, res) => {
     if (/^data\//.test(path)) { await fromLive(res, path, u.search); return; }   // the live site's data files (site-data branch)
     if (!file.startsWith(root) || /^(\.git|\.github|scripts|supabase|ios-app|android-app|out|node_modules)(\/|$)/.test(relative(root, file))) throw new Error("not served");
     let data = await readFile(file);
-    if (extname(file) === ".html") data = Buffer.from(String(data).replace(/<head([^>]*)>/i, `<head$1><script src="/__sbs.js"></script>`));
+    if (extname(file) === ".html") data = Buffer.from(String(data).replace(/<head([^>]*)>/i, `<head$1><script src="/__sbs.js"></script><script>${GEO}</script>`));
     if (path === "sw.js") data = Buffer.from("self.addEventListener('install', () => self.skipWaiting()); self.addEventListener('activate', (e) => e.waitUntil(self.registration.unregister()));");
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" }).end(data);
   } catch {
