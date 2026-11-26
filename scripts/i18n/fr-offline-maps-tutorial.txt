@@ -1,0 +1,3 @@
+Save a map for no signal ||| Enregistrer une carte pour les zones sans réseau
+Pick a square, see its size, save it, pick up a stopped save, then use the map with no signal ||| Choisissez un carré, voyez sa taille, enregistrez-le, reprenez un enregistrement arrêté, puis utilisez la carte sans réseau
+New tutorial video: how to save a map for no signal (More, Tutorials, or Watch how it works in Offline maps). ||| Nouvelle vidéo tutoriel : comment enregistrer une carte pour les zones sans réseau (Plus, Tutoriels, ou Voir comment ça marche dans Cartes hors ligne).
