@@ -700,6 +700,9 @@ async function appBuild(kind, desk = false) {
         await sport("hike");
         await until(() => document.body.classList.contains("sport-hike") && window.tfGround && window.tfGround["hike-slope"], null, 15_000).catch(() => {});
         await ev(() => { window.tfLeaflet.setView([50.06, -122.95], 12, { animate: false }); });
+        // Counted before the switch goes on: an open of the one map right after it (Hiking's own, a moment after the sport
+        // changes) carries the slope angle in its layers, and counts.
+        const n0 = await opens(), l0 = await ev(() => (window.__tm.layers || []).length);
         const turned = await ev(() => {
           const i = document.querySelector('#hkLayerList input[data-layer="slope"]');
           if (!i) return false;
@@ -707,27 +710,26 @@ async function appBuild(kind, desk = false) {
           return true;
         });
         if (!turned) throw new Error("Hiking's Slope angle switch wasn't found");
-        const n0 = await opens();
         await tap3d();
         await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
         // Hiking on its photos is the one map (native under the page, seen from above, since #930): 3D tips it up without
-        // a new open, so the ground then is the last one sent to it (or its own open's).
-        // The ground picture is sent when native-ground.js has it ready, which can take a few seconds on a busy test
-        // machine (a fixed 1.5 s wait failed now and then): wait up to 10 s for the slope angle in it.
-        const ground = (c) => {
-          const t = window.__tm, x = t.opens[c];
-          if (x) return (x.layers || {}).ground || "";
-          if (!document.documentElement.classList.contains("tf-under") || !t.opens.length) return null;
-          const l = (t.layers || []).filter((y) => y.key === "ground").pop();
-          return l ? l.data : (t.opens[t.opens.length - 1].layers || {}).ground || "";
+        // a new open. The slope angle reaches native 3D either in an open's own layers (read at that open) or in a
+        // "ground" change sent to an open map, which can take a few seconds on a busy test machine: every one of those
+        // since the switch went on counts, up to 20 s (only the first open's was read before, and a change sent after
+        // it was missed: "got: nothing" on two pull requests, 2026-11-26).
+        const grounds = ([c, l]) => {
+          const t = window.__tm;
+          return [...t.opens.slice(c).map((x) => (x.layers || {}).ground || ""), ...(t.layers || []).slice(l).filter((y) => y.key === "ground").map((y) => y.data)];
         };
-        await wait(1500);
-        await until(new Function("c", `const g = (${ground})(c); return !!g && g.includes('"hike-slope"');`), n0, 10_000).catch(() => {});
-        const g = await ev(ground, n0);
+        const has = (gs) => gs.some((g) => { try { return (JSON.parse(g).layers || []).some((x) => x.id === "hike-slope"); } catch { return false; } });
+        await until(new Function("a", `const gs = (${grounds})(a); return (${has})(gs);`), [n0, l0], 20_000).catch(() => {});
+        const gs = await ev(grounds, [n0, l0]);
+        const under = await ev(() => document.documentElement.classList.contains("tf-under"));
         try {
-          if (g === null) throw new Error("3D didn't open native 3D in Hiking");
-          const ids = (g ? JSON.parse(g).layers || [] : []).map((l) => l.id);
-          if (!ids.includes("hike-slope")) throw new Error(`native 3D opened without Hiking's slope angle (got: ${ids.join(", ") || "nothing"})`);
+          if (!gs.length && !under && (await opens()) === n0) throw new Error("3D didn't open native 3D in Hiking");
+          const ids = [...new Set(gs.flatMap((g) => { try { return (JSON.parse(g).layers || []).map((x) => x.id); } catch { return []; } }))];
+          const seen = `${(await opens()) - n0} open(s), ${gs.length} ground state(s), map ${under ? "under the page" : "not under the page"}`;
+          if (!ids.includes("hike-slope")) throw new Error(`native 3D opened without Hiking's slope angle (got: ${ids.join(", ") || "nothing"}; ${seen})`);
         } finally {
           await ev(() => { const i = document.querySelector('#hkLayerList input[data-layer="slope"]'); if (i && i.checked) { i.checked = false; i.dispatchEvent(new Event("change", { bubbles: true })); } });
           if (await ev(() => document.documentElement.classList.contains("tf-under"))) { await tap3d(); await until(() => !document.documentElement.classList.contains("tf-under"), null, 4000).catch(() => {}); }

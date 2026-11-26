@@ -4734,8 +4734,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const tileLon = (x, z) => (x / 2 ** z) * 360 - 180;
   const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const COLORS = DANGER.map((d) => rgb(d.color)), DARK_RGB = DARK.map(rgb);
-  // Problem-aspect stripes: one dark stripe STRIPE_W pixels wide every STRIPE pixels, running bottom-left to top-right.
-  const STRIPE = 9, STRIPE_W = 4;
+  // Problem-aspect stripes: one dark stripe STRIPE_W pixels wide every STRIPE pixels, running bottom-left to top-right
+  // (the 3D maps: STRIPE_3D_W every STRIPE_3D).
+  const STRIPE = 9, STRIPE_W = 4, STRIPE_3D = 16, STRIPE_3D_W = 7;
   // The deepest zoom of the terrain heights (Mapzen Terrain Tiles), and of the avalanche shading's own pictures.
   const DEM_MAX = 15, AVY_MAX = 16;
   // Pixels at low zoom are hundreds of metres wide, which flattens slopes: ask for less steepness there.
@@ -4750,7 +4751,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // bring back an earlier day's picture.
   const LOAD = Date.now().toString(36);
   const groundChanged = () => window.dispatchEvent(new Event("tf:ground"));
-  async function paint(z, x, y) {
+  // wide: the 3D maps' stripes (web 3D and the phones' own 3D), wider and further apart than on the flat map, so a
+  // slope seen at an angle still shows even stripes instead of thin wavy lines (alex 2026-11-26).
+  async function paint(z, x, y, wide) {
+    const P = wide ? STRIPE_3D : STRIPE, W = wide ? STRIPE_3D_W : STRIPE_W;
     const data = example ? exampleData() : avy;
     const out = new ImageData(256, 256);
     if (!data) return out;
@@ -4843,10 +4847,16 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         // faces a direction in today's problems for its band: diagonal stripes of the darker shade of that same colour
         // over it (alex 2026-11-26: the plain darker shade was too hard to tell apart, on satellite and winter ground
         // alike). Counted on the whole world's pixels at this zoom, so the stripes run on unbroken from tile to tile.
-        const stripe = hit && (((x << 8) + px + (y << 8) + py) % STRIPE) < STRIPE_W;
-        const [cr, cg, cb] = stripe ? DARK_RGB[r] : COLORS[r];
-        if (stripe) alpha = 0.9;
-        else if (hit) alpha = Math.min(0.7, alpha + 0.12);
+        // How far into a dark stripe this pixel is, softened over about a pixel at each edge: hard 1-pixel steps shimmered
+        // into wavy lines on tilted 3D slopes (alex 2026-11-26), as the 3D map shrinks the pictures at an angle.
+        // c: from the middle of the nearest dark stripe, wrapping round the period so both edges soften alike.
+        let c = ((x << 8) + px + (y << 8) + py) % P + 0.5 - W / 2;
+        if (c > P / 2) c -= P;
+        const w = hit ? Math.max(0, Math.min(1, (W / 2 - Math.abs(c)) / Math.SQRT2 + 0.5)) : 0;
+        const base = COLORS[r], dk = DARK_RGB[r];
+        if (hit) alpha = Math.min(0.7, alpha + 0.12);
+        const cr = base[0] + (dk[0] - base[0]) * w, cg = base[1] + (dk[1] - base[1]) * w, cb = base[2] + (dk[2] - base[2]) * w;
+        alpha = alpha + (0.9 - alpha) * w;
         const j = i * 4;
         o[j] = cr; o[j + 1] = cg; o[j + 2] = cb; o[j + 3] = alpha * 255;
       }
@@ -4859,7 +4869,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // of code (avalanche-rules). Only once this phone's app build draws the avalanche card beside it ("tf-native-avy", set
   // when the native map shows it): an older build would get the colours without the card and its warnings.
   const nativeAvyOk = () => { try { return localStorage.getItem("tf-native-avy") === "1"; } catch { return false; } };
-  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y), on: () => sport === "ski" && avyOn && nativeAvyOk() && !$("avCard").hidden, ver: () => LOAD + "." + ver, min: 8, max: AVY_MAX, opacity: 1, z: 360,
+  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y, true), on: () => sport === "ski" && avyOn && nativeAvyOk() && !$("avCard").hidden, ver: () => LOAD + "." + ver, min: 8, max: AVY_MAX, opacity: 1, z: 360,
     credit: "Avalanche forecast: Avalanche Canada · Terrain: Mapzen Terrain Tiles", keep: false });
 
   // 2D map layer
@@ -4896,7 +4906,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       maplibregl.addProtocol("tfavy", async (params) => {
         const [z, x, y] = params.url.replace("tfavy://", "").split("?")[0].split("/").map(Number);
         // A picture, not PNG bytes: encoding a canvas on the page waits for the 3D map's drawing (see map3d.js tfdem).
-        return { data: await createImageBitmap(await paint(z, x, y)) };
+        return { data: await createImageBitmap(await paint(z, x, y, true)) };
       });
     }
     const want = sport === "ski" && avyOn;
