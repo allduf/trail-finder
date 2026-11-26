@@ -332,9 +332,9 @@ const SLOPE = (process.env.SLOPE || "50.0675,-122.968").split(",").map(Number);
   log("card: " + (await jsq(`(document.getElementById("avCard") || {}).innerText`, "")).slice(0, 600));
   // 3. The bold Problems, notes and riders' reports button, then down to the problem.
   await ptap("#avMore > summary", 1800, "problems"); mark("problems"); snap();
-  await scrollBy(Number(process.env.PDY || 420), 30); mark("problem"); snap();
+  await scrollBy(Number(process.env.PDY || 170), 30); mark("problem"); snap();
   log("after scroll: " + (await jsq(`(document.getElementById("avMore") || {}).innerText`, "")).slice(0, 900));
-  await scrollBy(-Number(process.env.PDY || 420), 24);
+  await scrollBy(-Number(process.env.PDY || 170), 24);
   // 4. Shade slopes: the colours and stripes on the map, and the native card.
   await ptap("#avShade", 7000, "shade"); mark("shaded"); snap();
   await ptap("#tabbar [data-nav=map]", 7000, "maptab"); mark("mapavy"); snap(); snap();
@@ -343,16 +343,21 @@ const SLOPE = (process.env.SLOPE || "50.0675,-122.968").split(",").map(Number);
   await camSeq("orbit", Number(process.env.NO || 90), (u) => ({ ...C0, bearing: 160 + 30 * ease(u) }));
   // 6. In to a slope, and tap it: Striped because.
   await camSeq("glide", Number(process.env.NG || 75), (u) => { const e = ease(u); return { lat: C0.lat + (SLOPE[0] - C0.lat) * e, lon: C0.lon + (SLOPE[1] - C0.lon) * e, zoom: C0.zoom + (14.1 - C0.zoom) * e, bearing: 190 - 40 * e }; });
-  await ntap("slope", { lat: SLOPE[0], lon: SLOPE[1] }, 6000); mark("spot"); snap();
-  await sleep(3000); snap();
-  await film({ close: true }); await sleep(1500); mark("spotclosed"); snap();
+  // The slope card (the page's This spot card: the native one shows too few rows in the simulator, see notes).
+  L.taps.push({ f: fi, x: 220, y: Number(process.env.TAPY || 478), name: "slope" }); snap();
+  log("spot: " + (await jsq(`(window.tfSkiSpot(${SLOPE[0]}, ${SLOPE[1]}), true)`, "no")));
+  await sleep(6000); snap(); mark("spot"); snap();
+  log("spot text: " + String(await jsq(`(document.getElementById("skSpot") || {}).innerText`, "")).slice(0, 500));
+  await sleep(2500); snap();
+  await jsq(`(() => { const b = [...document.querySelectorAll("#skSpot button")].find((x) => /^(×|✕)$/.test(x.textContent.trim()) || /close/i.test(x.getAttribute("aria-label") || "")); if (b) b.click(); return !!b; })()`);
+  await sleep(2500); mark("spotclosed"); snap();
   // 7. Hide the card: a small Avalanche chip under the key; tap it, the card is back.
   await ntap("hide", { fold: true }, 2000); mark("folded"); snap();
   await ntap("show", { fold: false }, 2000); mark("unfolded"); snap();
   // 8. The hook: the map alone, turning slowly over Whistler and Blackcomb.
   await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
   await sleep(3000);
-  await camSeq("hook", Number(process.env.NH || 150), (u) => ({ lat: 50.072, lon: -122.915, zoom: 12.35, bearing: 120 + 45 * ease(u) }));
+  await camSeq("hook", Number(process.env.NH || 150), (u) => ({ lat: 50.066, lon: -122.95, zoom: 13.35, bearing: 125 + 50 * ease(u) }));
   mark("END");
   log("done, frames " + fi);
   process.exit(0);
