@@ -37,6 +37,7 @@ const A=JSON.parse(fs.readFileSync(process.argv[2])); if(A.tripLinesFile){ let t
       await new Promise(r=>requestAnimationFrame(()=>r())); const t=performance.now(); while(performance.now()-t<15000){ if(g.areTilesLoaded()&&g.loaded()) break; await new Promise(r=>setTimeout(r,60)); }
       await new Promise(r=>setTimeout(r,120));
       for(let q=0;q<12;q++){ g.jumpTo(calc(h)); await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); const e=el(); if(Math.abs(e-h)<0.5) break; h=e; }
+      g.fire('move'); await new Promise(r=>requestAnimationFrame(()=>r()));   // markers: the move event keeps their sub-pixel place (moveend rounds it)
       window.__h=h; return h; },[from,alt,to,talt]); };
   // warm pass: load tiles along the path
   for(let k=0;k<A.frames;k+=Math.max(1,Math.floor(A.frames/12))) await frame(k);
