@@ -718,6 +718,7 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 // its start), or if the ground isn't sharp (bigger than 1024 px) before and after the turn, once the map is still.
 if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
   const DESK_TURN_PIXELS = 20 * 1024 * 1024;
+  const DESK_STILL_PIXELS = 16 * 1024 * 1024;   // 3 pieces at 2048 px a frame are ~12 million
   const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
   const p = await phone({ ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const { page } = p;
@@ -746,7 +747,9 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
       const mk = pool._createObject;
       pool._createObject = function () { if (g.isMoving()) s.made++; return mk.apply(this, arguments); };
       g.on("movestart", (e) => { if (e.originalEvent) s.hand = true; });
-      g.on("render", () => { if (g.isMoving()) { s.worst = Math.max(s.worst, s.px); s.sizes.add(pool._tileSize); } s.px = 0; });
+      // Frames once the map is still count too: the sharp repaint after a pause painted the whole view in one frame
+      // (~50 million pixels, alex's recording 2026-11-25), so a turn started right then stopped.
+      g.on("render", () => { if (g.isMoving()) { s.worst = Math.max(s.worst, s.px); s.sizes.add(pool._tileSize); } else s.still = Math.max(s.still || 0, s.px); s.px = 0; });
     });
     const r = await page.evaluate(() => { const b = window.tf3dGl().getCanvas().getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
     await page.mouse.move(r[0], r[1]);
@@ -755,14 +758,15 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
     await page.mouse.up({ button: "right" });
     await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
     await page.waitForFunction(() => window.tf3dGl().painter.renderToTexture.pool._tileSize > 1024, null, { timeout: 20_000 }).catch(() => {});
-    const t = await page.evaluate(() => ({ hand: window.tfTurn.hand, worst: window.tfTurn.worst, sizes: [...window.tfTurn.sizes], made: window.tfTurn.made,
+    const t = await page.evaluate(() => ({ hand: window.tfTurn.hand, worst: window.tfTurn.worst, sizes: [...window.tfTurn.sizes], made: window.tfTurn.made, still: window.tfTurn.still || 0,
       after: window.tf3dGl().painter.renderToTexture.pool._tileSize }));
     if (!t.hand) throw new Error("the mouse didn't turn the map");
     const mp = (n) => (n / 1048576).toFixed(1) + " million pixels";
     console.log(`    (worst frame of the turn painted ${mp(t.worst)} of ground; buffer sizes while moving: ${t.sizes.join(", ")} px; ` +
-      `new buffers while moving: ${t.made}; still after: ${t.after} px)`);
+      `new buffers while moving: ${t.made}; worst still frame: ${mp(t.still)}; still after: ${t.after} px)`);
     if (t.sizes.some((z) => z > 1024)) throw new Error(`the ground was painted at ${Math.max(...t.sizes)} px while turning (1024 px expected)`);
     if (t.worst > DESK_TURN_PIXELS) throw new Error(`one frame of the turn painted ${mp(t.worst)} of ground (at most ${mp(DESK_TURN_PIXELS)})`);
+    if (t.still > DESK_STILL_PIXELS) throw new Error(`once still, one frame painted ${mp(t.still)} of ground again (at most ${mp(DESK_STILL_PIXELS)}: a few pieces a frame)`);
     if (t.made > 2) throw new Error(`the turn made ${t.made} new paint buffers (they're made ahead while the map is still)`);
     if (t.after <= 1024) throw new Error(`after the turn the still ground stays at ${t.after} px (sharper expected)`);
   }, 0);
