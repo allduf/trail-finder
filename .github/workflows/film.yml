@@ -5,7 +5,7 @@ name: Film test (iPhone simulator)
 on:
   push:
     branches: [claude/project-thread-da6rqk]
-    paths: ["scripts/film/**", ".github/workflows/film.yml"]
+    paths: ["scripts/film/film.mjs", ".github/workflows/film.yml"]
   workflow_dispatch:
 
 permissions:
