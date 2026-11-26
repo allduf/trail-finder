@@ -308,7 +308,7 @@ const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
   phone.launch();
   for (let i = 0; i < 4 && !(await pageUp(i ? 60000 : 120000)); i++) { phone.kill(); await sleep(2000); phone.launch(); }
   await sleep(3000);
-  await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:skiGuest", "true"); localStorage.setItem("tf:lang", "en"); localStorage.setItem("tf:avy", "false"); localStorage.setItem("tf:filmExample", "1"); location.reload(); })()`);
+  await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:skiGuest", "true"); localStorage.setItem("tf:lang", "en"); localStorage.setItem("tf:avy", "true"); localStorage.setItem("tf:filmExample", "1"); location.reload(); })()`);
   await sleep(4000); await pageUp();
   await jsq(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); })()`);
   await closeAll("start");
@@ -323,6 +323,13 @@ const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
   await cam({ ...C0, bearing: 160 }); await sleep(12000);
   await film({ fold: false }); await sleep(500);
 
+  // 0. The fly-over: an orbit around the Spearhead Range peaks, the map alone (page buttons hidden), stripes on.
+  await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
+  await sleep(4000);
+  const SP = (process.env.SPEAR || "50.045,-122.835").split(",").map(Number);
+  await camSeq("fly", Number(process.env.NF || 300), (u) => ({ lat: SP[0], lon: SP[1], zoom: Number(process.env.FZ || 12.7), bearing: 100 + 140 * ease(u) }));
+  await jsq(`document.getElementById("__clean")?.remove()`);
+  await cam({ ...C0, bearing: 160 }); await sleep(10000);
   // 1. The Today line on the map's sheet: Avalanche Canada's ratings in their colours.
   mark("map"); snap(); snap();
   L.rects.today = await rect(".peek-today");
@@ -336,11 +343,10 @@ const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
   log("after scroll: " + (await jsq(`(document.getElementById("avMore") || {}).innerText`, "")).slice(0, 900));
   await scrollBy(-Number(process.env.PDY || 170), 24);
   // 4. Shade slopes: the colours and stripes on the map, and the native card.
-  await ptap("#avShade", 7000, "shade"); mark("shaded"); snap();
+  mark("shaded");
   await ptap("#tabbar [data-nav=map]", 7000, "maptab"); mark("mapavy"); snap(); snap();
   L.rects.bars = await rect("#skBars");
   // 5. A slow turn with the app's buttons.
-  await camSeq("orbit", Number(process.env.NO || 90), (u) => ({ ...C0, bearing: 160 + 30 * ease(u) }));
   // 6. In to a slope, and tap it: Striped because.
   await camSeq("glide", Number(process.env.NG || 75), (u) => { const e = ease(u); return { lat: C0.lat + (SLOPE[0] - C0.lat) * e, lon: C0.lon + (SLOPE[1] - C0.lon) * e, zoom: C0.zoom + (14.1 - C0.zoom) * e, bearing: 190 - 40 * e }; });
   // The slope cards (the page's This spot card): a striped slope, then a plain one beside it.
@@ -361,10 +367,6 @@ const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
   // 7. Hide the card: a small Avalanche chip under the key; tap it, the card is back.
   await ntap("hide", { fold: true }, 2000); mark("folded"); snap();
   await ntap("show", { fold: false }, 2000); mark("unfolded"); snap();
-  // 8. The hook: the map alone, turning slowly over Whistler and Blackcomb.
-  await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
-  await sleep(3000);
-  await camSeq("hook", Number(process.env.NH || 150), (u) => ({ lat: 50.066, lon: -122.95, zoom: 13.35, bearing: 150 + 90 * ease(u) }));
   mark("END");
   log("done, frames " + fi);
   process.exit(0);
