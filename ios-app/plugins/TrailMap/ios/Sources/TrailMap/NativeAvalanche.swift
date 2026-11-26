@@ -50,7 +50,16 @@ final class NativeAvalanche: NativeLayer {
     }
 
     func setData(_ json: String, style: MLNStyle?) {
-        info = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] ?? ["on": false]
+        // FILM BRANCH ONLY (never for main): the filming script presses the card's own buttons and taps a slope.
+        if let d = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any], let film = d["film"] as? [String: Any] {
+            if let f = film["fold"] as? Bool { setFolded(f) }
+            if film["close"] != nil, let s = screen { tapBegan(screen: s) }
+            if let lat = (film["lat"] as? NSNumber)?.doubleValue, let lon = (film["lon"] as? NSNumber)?.doubleValue, let s = screen {
+                taps += 1; asked = taps; s.send("avyTap", ["lat": lat, "lon": lon, "n": asked])
+            }
+            return
+        }
+        info =(try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] ?? ["on": false]
         show()
         showSpot()
     }

@@ -4,7 +4,7 @@ name: Film test (iPhone simulator)
 # resolution without a screen recorder? scripts/film/film.mjs; results in the "film" artifact.
 on:
   push:
-    branches: [claude/project-thread-da6rqk]
+    branches: [claude/project-thread-igql62]
     paths: ["scripts/film/**", ".github/workflows/film.yml"]
   workflow_dispatch:
 
@@ -56,7 +56,7 @@ jobs:
           xcrun simctl status_bar booted override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           system_profiler SPDisplaysDataType | head -20 || true
       - name: Film
-        run: PLATFORM=ios node scripts/film/film.mjs
+        run: PLATFORM=ios node scripts/film/avy.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
