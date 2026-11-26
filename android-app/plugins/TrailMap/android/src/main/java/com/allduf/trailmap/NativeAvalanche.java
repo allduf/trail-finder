@@ -43,6 +43,11 @@ final class NativeAvalanche implements NativeLayer {
     private TrailMapScreen screen;
     private JSONObject info = new JSONObject();
     private boolean open = false;
+    // Hidden by its "Hide" button (alex 2026-11-25: "an option to hide that page ... not in the way of nothing"): only a
+    // small "Avalanche" chip stays, under the keys at the left, and a tap brings the card back. Kept between app opens.
+    // Hiding only folds the card: the slope colours stay exactly as Avalanche Canada gives them.
+    private static final String PREFS = "tf-native-avy", HIDDEN = "cardHidden";
+    private Boolean folded;
     private LinearLayout box;
     private LinearLayout sheet, sheetRows;     // the slope card, at the bottom
     private TextView sheetTitle;
@@ -129,16 +134,35 @@ final class NativeAvalanche implements NativeLayer {
             box.setBackground(bg);
             box.setElevation(screen.dp(3));
             box.setPadding(screen.dp(10), screen.dp(8), screen.dp(10), screen.dp(8));
-            box.setOnClickListener((v) -> { open = !open; show(); });
+            box.setOnClickListener((v) -> { if (isFolded()) setFolded(false); else { open = !open; show(); } });
             LinearLayout.LayoutParams at = new LinearLayout.LayoutParams(screen.dp(300), LinearLayout.LayoutParams.WRAP_CONTENT);
             screen.infoColumn().addView(box, at);   // under the ground keys (sun and shade can stay on with avalanche)
         }
         box.removeAllViews();
         if (!info.optBoolean("on", false)) { box.setVisibility(View.GONE); return; }
         box.setVisibility(View.VISIBLE);
+        LinearLayout.LayoutParams at = (LinearLayout.LayoutParams) box.getLayoutParams();
+        if (isFolded()) {
+            // The chip: "Avalanche", nothing else (no rating, so it can never show one out of date); in red while the
+            // card has a warning (example, expired, an old copy).
+            boolean warned = !strings(info.optJSONArray("warn")).isEmpty();
+            TextView chip = label(word("avy", "Avalanche") + " ▾", 13, true, warned ? Color.rgb(176, 18, 26) : INK);
+            chip.setContentDescription(word("show", "Show") + " " + word("avy", "Avalanche"));
+            box.addView(chip, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            if (at != null && at.width != LinearLayout.LayoutParams.WRAP_CONTENT) { at.width = LinearLayout.LayoutParams.WRAP_CONTENT; box.setLayoutParams(at); }
+            return;
+        }
+        if (at != null && at.width != screen.dp(300)) { at.width = screen.dp(300); box.setLayoutParams(at); }
         List<String> head = new ArrayList<>();
         for (String s : new String[] { word("avy", "Avalanche"), info.optString("title", ""), info.optString("day", "") }) if (!s.isEmpty()) head.add(s);
-        add(label(String.join(" · ", head), 13, true, INK), 4);
+        LinearLayout top = new LinearLayout(screen.getContext());
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.addView(label(String.join(" · ", head), 13, true, INK), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        TextView hide = label(word("hide", "Hide"), 13, true, Color.rgb(31, 94, 224));
+        hide.setPadding(screen.dp(10), 0, 0, screen.dp(4));
+        hide.setOnClickListener((v) -> setFolded(true));
+        top.addView(hide, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        add(top, 4);
         for (String w : strings(info.optJSONArray("warn"))) add(label(w, 11.5f, true, Color.rgb(176, 18, 26)), 4);
         JSONArray bands = info.optJSONArray("bands");
         if (bands != null && bands.length() > 0) {
@@ -201,6 +225,16 @@ final class NativeAvalanche implements NativeLayer {
         } else if (!notes.isEmpty()) {
             add(label(word("tap", "Tap for what the colours mean"), 10.5f, false, Color.rgb(31, 94, 224)), 4);
         }
+    }
+
+    private boolean isFolded() {
+        if (folded == null) folded = screen.getContext().getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).getBoolean(HIDDEN, false);
+        return folded;
+    }
+    private void setFolded(boolean f) {
+        folded = f;
+        screen.getContext().getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit().putBoolean(HIDDEN, f).apply();
+        show();
     }
 
     // ---------- the slope card ----------

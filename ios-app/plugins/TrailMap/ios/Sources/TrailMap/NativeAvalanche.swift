@@ -22,6 +22,11 @@ final class NativeAvalanche: NativeLayer {
     private weak var screen: TrailMapScreen?
     private var info: [String: Any] = ["on": false]
     private var open = false
+    // Hidden by its eye button (alex 2026-11-25: "an option to hide that page ... not in the way of nothing"): only a small
+    // "Avalanche" chip stays, under the keys at the left, and a tap brings the card back. Kept between app opens. Hiding
+    // only folds the card: the slope colours stay exactly as Avalanche Canada gives them.
+    private static let hiddenKey = "tfAvyCardHidden"
+    private var folded = UserDefaults.standard.bool(forKey: NativeAvalanche.hiddenKey)
     private let box = UIView()
     private let stack = UIStackView()
     private let sheet = UIView()               // the slope card, at the bottom
@@ -126,9 +131,38 @@ final class NativeAvalanche: NativeLayer {
         guard (info["on"] as? Bool) == true else { box.isHidden = true; return }
         box.isHidden = false
         let ink = UIColor(red: 0.11, green: 0.14, blue: 0.2, alpha: 1)
+        if folded {
+            // The chip: an eye and "Avalanche", nothing else (no rating, so it can never show one out of date). With a
+            // warning on the card (example, expired, an old copy), a red warning sign instead of the eye.
+            let warned = ((info["warn"] as? [String]) ?? []).contains { !$0.isEmpty }
+            let eye = UIImageView(image: UIImage(systemName: warned ? "exclamationmark.triangle" : "eye", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)))
+            eye.tintColor = warned ? UIColor(red: 0.69, green: 0.07, blue: 0.1, alpha: 1) : ink
+            eye.setContentHuggingPriority(.required, for: .horizontal)
+            let chip = UIStackView(arrangedSubviews: [eye, label(word("avy", "Avalanche"), size: 13, weight: .bold, colour: ink)])
+            chip.spacing = 6
+            chip.alignment = .center
+            stack.addArrangedSubview(chip)
+            box.accessibilityLabel = word("show", "Show") + " " + word("avy", "Avalanche")
+            box.accessibilityTraits = .button
+            box.isAccessibilityElement = true
+            return
+        }
+        box.isAccessibilityElement = false
         let title = (info["title"] as? String) ?? "", day = (info["day"] as? String) ?? ""
         let head = [word("avy", "Avalanche"), title, day].filter { !$0.isEmpty }.joined(separator: " · ")
-        stack.addArrangedSubview(label(head, size: 13, weight: .bold, colour: ink))
+        let hide = UIButton(type: .system)
+        hide.setImage(UIImage(systemName: "eye.slash", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)), for: .normal)
+        hide.tintColor = ink
+        hide.accessibilityLabel = word("hide", "Hide")
+        hide.addTarget(self, action: #selector(fold), for: .touchUpInside)
+        hide.setContentHuggingPriority(.required, for: .horizontal)
+        hide.setContentCompressionResistancePriority(.required, for: .horizontal)
+        hide.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        hide.heightAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
+        let top = UIStackView(arrangedSubviews: [label(head, size: 13, weight: .bold, colour: ink), hide])
+        top.spacing = 4
+        top.alignment = .top
+        stack.addArrangedSubview(top)
         for w in (info["warn"] as? [String]) ?? [] where !w.isEmpty {
             let l = label(w, size: 11.5, weight: .semibold, colour: UIColor(red: 0.69, green: 0.07, blue: 0.1, alpha: 1))
             stack.addArrangedSubview(l)
@@ -413,6 +447,14 @@ final class NativeAvalanche: NativeLayer {
         UIApplication.shared.open(u)
     }
 
-    @objc private func toggle() { open.toggle(); show() }
+    @objc private func toggle() {
+        if folded { setFolded(false) } else { open.toggle(); show() }
+    }
+    @objc private func fold() { setFolded(true) }
+    private func setFolded(_ f: Bool) {
+        folded = f
+        UserDefaults.standard.set(f, forKey: NativeAvalanche.hiddenKey)
+        show()
+    }
     @objc private func full() { screen?.leave(details: false, extra: ["avy": true]) }
 }
