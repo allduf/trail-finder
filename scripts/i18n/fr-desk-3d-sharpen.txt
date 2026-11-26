@@ -1,0 +1,1 @@
+3D map on a computer: after a pause, the ground turns sharp a few pieces at a time, so turning again right away no longer stops. ||| Carte 3D sur ordinateur : après une pause, le sol redevient net quelques morceaux à la fois, donc tourner de nouveau tout de suite ne bloque plus.
