@@ -44,7 +44,7 @@
       // The day the ratings and colours are for, when the forecast has several (the page's pressed day).
       day: txt(c.querySelector(".av-days button[aria-pressed=\"true\"]")),
       // The card's own words, in the page's language (scripts/i18n/fr-native-avalanche.txt).
-      words: { avy: T("Avalanche"), more: T("Full forecast"), tap: T("Tap for what the colours mean") },
+      words: { avy: T("Avalanche"), more: T("Full forecast"), tap: T("Tap for what the colours mean"), hide: T("Hide"), show: T("Show") },
       warn: [...c.querySelectorAll(".av-warn")].map(txt).filter(Boolean),
       bands, line: txt(c.querySelector(".av-line")), notes,
       days: [...c.querySelectorAll(".av-days button")].map((b) => ({ t: txt(b), on: b.getAttribute("aria-pressed") === "true" })),
