@@ -850,6 +850,42 @@ async function deskTurn() {
     if (t.made > 2) throw new Error(`the turn made ${t.made} new paint buffers (they're made ahead while the map is still)`);
     if (t.after <= 1024) throw new Error(`after the turn the still ground stays at ${t.after} px (sharper expected)`);
   }, 0);
+  // The mouse on its way to the next drag (alex's recording 2026-11-25: the catches came as a drag began). Each map
+  // mouse event read the ground under the mouse back from the graphics card (and waited for it to finish drawing):
+  // 25 moves over the still map then a right-drag made ~300 such reads before; a handful now (one when the mouse rests,
+  // for the trail-name tip, which still has to come).
+  await step(p, "desk", "Moving the mouse to a turn waits little on the graphics card", async () => {
+    await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
+    await page.evaluate(() => {
+      const g = window.tf3dGl(), c = g.painter.context.gl, rp = c.readPixels;
+      const s = window.tfReads = { n: 0, ev: 0 };
+      c.readPixels = function () { s.n++; return rp.apply(this, arguments); };
+      g.on("mousemove", () => s.ev++);
+    });
+    const r = await page.evaluate(() => { const b = window.tf3dGl().getCanvas().getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
+    for (let i = 0; i < 25; i++) { await page.mouse.move(r[0] - 200 + i * 8, r[1] + 40 + Math.sin(i / 3) * 20); await wait(16); }
+    await page.mouse.move(r[0], r[1]);
+    await page.mouse.down({ button: "right" });
+    for (let i = 1; i <= 8; i++) { await page.mouse.move(r[0] + i * 12, r[1]); await wait(40); }
+    await page.mouse.up({ button: "right" });
+    await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
+    const before = await page.evaluate(() => window.tfReads.n), ev0 = await page.evaluate(() => window.tfReads.ev);
+    await page.mouse.move(r[0] - 40, r[1] - 30);
+    // (A slow test browser can take a few seconds per frame here: wait for the lookup rather than a fixed time.)
+    await page.waitForFunction((n) => window.tfReads.ev > n, ev0, { timeout: 10_000 }).catch(() => {});
+    const t = await page.evaluate(() => ({ n: window.tfReads.n, ev: window.tfReads.ev }));
+    console.log(`    (ground reads from the graphics card: ${before} for 25 mouse moves and a turn; trail-name lookups once still: ${t.ev - ev0})`);
+    if (before > 40) throw new Error(`moving the mouse to a turn read the ground back from the graphics card ${before} times (at most 40)`);
+    if (t.ev <= ev0) throw new Error("the mouse resting on the still map made no trail-name lookup (the name tip would never show)");
+    // A drag is still no click (the skipped button-press event must still note where the button went down).
+    await page.evaluate(() => { window.tfReads.click = 0; window.tf3dGl().on("click", () => window.tfReads.click++); });
+    await page.mouse.move(r[0], r[1]); await page.mouse.down();
+    for (let i = 1; i <= 8; i++) { await page.mouse.move(r[0] + i * 10, r[1] + i * 4); await wait(40); }
+    await page.mouse.up();
+    await wait(800);
+    const clicks = await page.evaluate(() => window.tfReads.click);
+    if (clicks) throw new Error("dragging the map with the mouse counted as a click");
+  }, 0);
   await p.ctx.close();
 }
 
