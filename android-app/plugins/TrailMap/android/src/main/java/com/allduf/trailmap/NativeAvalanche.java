@@ -137,6 +137,7 @@ final class NativeAvalanche implements NativeLayer {
             box.setOnClickListener((v) -> { if (isFolded()) setFolded(false); else { open = !open; show(); } });
             LinearLayout.LayoutParams at = new LinearLayout.LayoutParams(screen.dp(300), LinearLayout.LayoutParams.WRAP_CONTENT);
             screen.infoColumn().addView(box, at);   // under the ground keys (sun and shade can stay on with avalanche)
+            box.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, orr, ob) -> placeUnderKeys());
         }
         box.removeAllViews();
         if (!info.optBoolean("on", false)) { box.setVisibility(View.GONE); return; }
@@ -146,12 +147,16 @@ final class NativeAvalanche implements NativeLayer {
             // The chip: "Avalanche", nothing else (no rating, so it can never show one out of date); in red while the
             // card has a warning (example, expired, an old copy).
             boolean warned = !strings(info.optJSONArray("warn")).isEmpty();
-            TextView chip = label(word("avy", "Avalanche") + " ▾", 13, true, warned ? Color.rgb(176, 18, 26) : INK);
+            TextView chip = label(word("avy", "Avalanche") + " ▾", 12, true, warned ? Color.rgb(176, 18, 26) : INK);
             chip.setContentDescription(word("show", "Show") + " " + word("avy", "Avalanche"));
             box.addView(chip, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
             if (at != null && at.width != LinearLayout.LayoutParams.WRAP_CONTENT) { at.width = LinearLayout.LayoutParams.WRAP_CONTENT; box.setLayoutParams(at); }
+            box.setPadding(screen.dp(8), screen.dp(5), screen.dp(8), screen.dp(5));
+            placeUnderKeys();
             return;
         }
+        box.setPadding(screen.dp(10), screen.dp(8), screen.dp(10), screen.dp(8));
+        placeUnderKeys();
         if (at != null && at.width != screen.dp(300)) { at.width = screen.dp(300); box.setLayoutParams(at); }
         List<String> head = new ArrayList<>();
         for (String s : new String[] { word("avy", "Avalanche"), info.optString("title", ""), info.optString("day", "") }) if (!s.isEmpty()) head.add(s);
@@ -225,6 +230,22 @@ final class NativeAvalanche implements NativeLayer {
         } else if (!notes.isEmpty()) {
             add(label(word("tap", "Tap for what the colours mean"), 10.5f, false, Color.rgb(31, 94, 224)), 4);
         }
+    }
+
+    // Right under the page's own colour keys over the map ("below": their bottom in points from the screen's top,
+    // alex 2026-11-25: the hidden chip floated far under the avalanche key). Moved up only while nothing of this map's
+    // own shows above it in the column (the ground keys); from a page that doesn't say, where it was.
+    private void placeUnderKeys() {
+        if (box == null || screen == null) return;
+        float below = (float) info.optDouble("below", 0);
+        LinearLayout col = screen.infoColumn();
+        boolean first = true;
+        for (int i = 0; i < col.getChildCount() && col.getChildAt(i) != box; i++) if (col.getChildAt(i).getVisibility() == View.VISIBLE) first = false;
+        float y = box.getTop();
+        // Up to the screen's own parent, the page's frame: the screen itself moves down for a tool's bar (setToolInsets).
+        for (View v = col; v != null; v = v == screen ? null : v.getParent() instanceof View ? (View) v.getParent() : null) y += v.getTop() + v.getTranslationY();
+        float want = below > 0 && first ? screen.dp(Math.round(below) + 4) - y : 0;
+        if (Math.abs(box.getTranslationY() - want) > 0.5f) box.setTranslationY(want);
     }
 
     private boolean isFolded() {

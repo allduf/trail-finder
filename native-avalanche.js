@@ -28,6 +28,12 @@
   const txt = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : "");
   const T = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   const avyOn = () => { try { return JSON.parse(localStorage.getItem("tf:avy") || "false") === true; } catch { return false; } };
+  function keysBottom() {
+    const b = document.getElementById("skBars");
+    if (!b || b.hidden) return 0;
+    const r = b.getBoundingClientRect();
+    return r.height > 0 && r.bottom > 0 && r.bottom < innerHeight / 2 ? Math.round(r.bottom) : 0;
+  }
   function state() {
     const c = card(), on = document.body.classList.contains("sport-ski") && avyOn() && !!c && !c.hidden;
     if (!on) { spot = null; return JSON.stringify({ on: false }); }   // a slope card goes with the avalanche card
@@ -47,6 +53,9 @@
       words: { avy: T("Avalanche"), more: T("Full forecast"), tap: T("Tap for what the colours mean"), hide: T("Hide"), show: T("Show") },
       warn: [...c.querySelectorAll(".av-warn")].map(txt).filter(Boolean),
       bands, line: txt(c.querySelector(".av-line")), notes,
+      // The bottom of the page's own colour keys over the map (#skBars, winter.js), in points from the screen's top:
+      // the native card (or its hidden chip) sits right under them (alex 2026-11-25). 0: none showing.
+      below: keysBottom(),
       days: [...c.querySelectorAll(".av-days button")].map((b) => ({ t: txt(b), on: b.getAttribute("aria-pressed") === "true" })),
       spot: spot ? { lat: spot.lat, lon: spot.lon, n: spot.n, title: T("This spot"), more: T("More about this spot"), loading: T("Reading the terrain…"), rows: spot.rows } : null,
     });
@@ -106,6 +115,10 @@
   };
   const watch = () => { const c = card(); if (c) new MutationObserver(changed).observe(c, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "style"] }); };
   if (card()) watch(); else window.addEventListener("load", watch, { once: true });
+  // The colour keys' height (another key on or off): the card moves with them.
+  const watchKeys = () => { const b = document.getElementById("skBars"); if (b) new MutationObserver(changed).observe(b, { childList: true, attributes: true, attributeFilter: ["hidden"] }); };
+  if (document.getElementById("skBars")) watchKeys(); else window.addEventListener("load", watchKeys, { once: true });
+  window.addEventListener("resize", changed);
   window.addEventListener("tf:ground", changed);
   N.on("avyReady", () => {
     let first = false;
