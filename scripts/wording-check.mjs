@@ -52,6 +52,8 @@ const NEG = /(\bnot\b|n't\b|\bno\b|\bnever\b|\bnor\b|\bwithout\b|\bpromise|\bgue
 const TEXT_SYMBOLS = new Set([..."©®™↔↕↖↗↘↙↩↪⬆⬇⬅➡▶◀‼⁉ℹ〰⤴⤵▪▫◻◼"]);
 const DRAWN = new Set([...readFileSync(new URL("line-icons.js", root), "utf8").matchAll(/"([^"\w\s]{1,3})":\s*"\w+"/g)].map((m) => m[1]));
 const EMOJI = /\p{Extended_Pictographic}/gu;
+// Plain text marks that read as text in a sentence (a ✓ Done, a ★ rating), unlike a colour picture.
+const MID_OK = new Set([..."✓✔✕✖✗✘✎★☆☰➤⚠"]);
 let bad = 0;
 for (const f of files) {
   const isPage = pages.includes(f);
@@ -61,6 +63,10 @@ for (const f of files) {
       const code = raw.replace(/\s\/\/\s.*$/, "").replace(/\/\*.*?\*\//g, "");
       const miss = [...new Set([...code.matchAll(EMOJI)].map((m) => m[0]).filter((c) => !DRAWN.has(c) && !TEXT_SYMBOLS.has(c)))];
       if (miss.length) { console.log(`${f}:${i + 1}: emoji with no line drawing (${miss.join(" ")}): add one to line-icons.js, or use a line icon`); bad++; }
+      // A colour emoji in the middle of a sentence ("tap 🔒 Pocket") stays a colour emoji: line-icons.js only draws the
+      // one that starts a button or title (alex 2026-11-25: "keep the app professional"). Name the button in words.
+      const mid = /^\/\*|\*\/$/.test(t) ? null : [...code.matchAll(/(\S) (\p{Extended_Pictographic})/gu)].find((m) => !TEXT_SYMBOLS.has(m[2]) && !MID_OK.has(m[2]) && (!/[=(,;{[?:|&+]/.test(m[1]) || (m[1] === ":" && /[A-Za-z]:$/.test(code.slice(0, m.index + 1)))));
+      if (mid) { console.log(`${f}:${i + 1}: colour emoji in the middle of a sentence (“${code.slice(Math.max(0, mid.index - 30), mid.index + 12).trim()}”): name the button in words`); bad++; }
     }
     if (/wording-ok/.test(raw)) return;   // a line that has to name the word (a word list, a filter): mark it // wording-ok
     if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*") || t.startsWith("<!--")) return;

@@ -225,7 +225,7 @@ body:not(.sport-hike) .lm-hike, body:not(.sport-hike) .hk-mapkey, body.sport-hik
 .lm-hike .hk-ic { width: 22px; height: 22px; border-radius: 6px; display: block; box-sizing: border-box; }
 .lm-hike .hk-sw { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; margin: 0; flex: none; transition: background .15s; }
 .lm-hike .hk-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
-.lm-hike .hk-sw:checked { background: ${ACC}; }
+.lm-hike .hk-sw:checked { background: #2f8a3e; }   /* every Layers switch is the same green in every sport (alex 2026-11-26) */
 .lm-hike .hk-sw:checked::after { left: 19px; }`;
   document.head.append(css);
 
@@ -1359,7 +1359,7 @@ out center tags qt;`;
   // Open-Meteo at the middle of the map: the next 3 days, with the freezing level at noon. The snow line is about 300 m
   // under the freezing level.
   const wxCache = new Map();
-  let wx = null, wxT = 0;
+  let wx = null;
   async function loadWx() {
     if (!isHike()) return;
     const c = map.getCenter(), k = `${c.lat.toFixed(1)},${c.lng.toFixed(1)}`, got = wxCache.get(k);
@@ -1770,7 +1770,7 @@ out center tags qt;`;
     return "";
   }
   const todayBits = (h, t) => {
-    const cm = t.snow != null ? Math.round(t.snow * 100) : null, bad = t.warn.find((w) => w.bad);
+    const bad = t.warn.find((w) => w.bad);
     return [GRADES[h.g].label, fmtKm(h.km), `top ${fmtM(t.hi)}`, t.t != null ? `${Math.round(t.t)}°C up top` : "", t.pop >= 50 ? `rain ${t.pop}%` : "",
       bad ? bad.text : ""].filter(Boolean);
   };

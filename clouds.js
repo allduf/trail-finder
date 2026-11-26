@@ -188,7 +188,6 @@
     const a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
     return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
   }
-  const noise = (x, y) => 0.65 * vnoise(x, y) + 0.35 * vnoise(x * 2.3 + 17, y * 2.3 + 5);
   const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
   const merc = (lat) => { const s = Math.sin((lat * Math.PI) / 180); return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); };
   const unmerc = (y) => (360 / Math.PI) * Math.atan(Math.exp((0.5 - y) * 2 * Math.PI)) - 90;
@@ -414,7 +413,6 @@
   });
   $("clClose").addEventListener("click", () => btn.click());
 
-  const coverWord = (c) => (c < 10 ? "clear" : c < 35 ? "a few clouds" : c < 65 ? "partly cloudy" : c < 90 ? "mostly cloudy" : "overcast");
   // One short line under the slider: what you're looking at, and the forecast at the map centre.
   function here() {
     const el = $("clHere");
@@ -554,7 +552,7 @@
         <div class="cl-key"><b>Chart</b><span><i style="background:#fff"></i>Cloud (whiter = thicker)</span><span><i style="background:#6fa8dc"></i>Clear sky</span><span><i style="background:#3d5a86"></i>Night</span><span><i style="background:none;border:0;border-top:2px dashed #1971c2;height:0"></i>Freezing level</span><span><i style="background:#e8590c;height:3px;border:0"></i>${kind === "route" ? "Route top and bottom" : "This spot's height"}</span></div>
         <div class="cl-key"><b>Strip</b>${Object.values(STATES).map(([col, name]) => `<span><i style="background:${col}"></i>${name}</span>`).join("")}</div>
         <p class="cl-sum">${summary(d, c.states, words.what)}</p>
-        <p class="cl-note">Height goes up, time goes right. The strip under the chart says where ${kind === "route" ? "the top of the route" : "this spot"} is each hour. Tap the chart to see that hour on the map${on ? "" : " (with ☁ Clouds on)"}. Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.</p>`;
+        <p class="cl-note">Height goes up, time goes right. The strip under the chart says where ${kind === "route" ? "the top of the route" : "this spot"} is each hour. Tap the chart to see that hour on the map${on ? "" : " (with Clouds on)"}. Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.</p>`;
       const svg = el.querySelector("svg");
       const pick = (e) => {
         const b = svg.getBoundingClientRect(), x = ((e.clientX - b.left) / b.width) * c.W;

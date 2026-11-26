@@ -332,7 +332,7 @@
       for (const q of parts) for (const [x, y] of q) { if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y; }
       const bb = [w, s, e, n], col = crispColor(p.c), o = p.o == null ? 1 : p.o;
       if (String(p.d).startsWith("dot:")) {
-        const [, step, lw] = String(p.d).split(":").map(Number), dot = lw * LINE_SCALE * DOT_GROW;
+        const [, , lw] = String(p.d).split(":").map(Number), dot = lw * LINE_SCALE * DOT_GROW;
         out.push({ parts, bb, c: [20, 32, 26, col[3] * o * 0.55], w: dot + DOT_BAND, dash: 0, gap: 0, kind: 0 });
         out.push({ parts, bb, c: [col[0], col[1], col[2], col[3] * o], w: dot, dash: 0, gap: DOT_STEP, kind: 2 });
       } else if (p.d) {
@@ -2151,6 +2151,7 @@
   const DESK_SHARPEN_MS = 800;
   let rttGen = 0;   // spreadPaints lets go of the pictures it held back when the buffers are rebuilt
   let spreadHold = null;   // spreadPaints: keep showing this piece's picture until its turn to be painted again
+  let spreadCancel = null;   // spreadPaints: pieces waiting to be sharpened keep their picture (a move began)
   const objSize = (o) => (o && o.fbo && o.fbo.width) || 0;
   // Hand out only the buffers of this size; room for up to the budget's count of them.
   function deskUse(pool, size) {
@@ -2207,7 +2208,7 @@
     clearTimeout(deskSharpT);
     try {
       const pool = gl.painter.renderToTexture && gl.painter.renderToTexture.pool;
-      if (pool && pool.tfDesk && pool._tileSize !== PHONE_RTT) deskUse(pool, PHONE_RTT);
+      if (pool && pool.tfDesk && pool._tileSize !== PHONE_RTT) { deskUse(pool, PHONE_RTT); if (spreadCancel) spreadCancel(); }
     } catch {}
   }
   function deskStill() {
@@ -2226,7 +2227,7 @@
         for (const t of terrain.tileManager.getRenderableTiles()) {
           if (!t || !t.rtt || !t.rtt.some((r) => r && objSize(pool._objects[r.id]) < size)) continue;
           if (spreadHold) spreadHold(t);
-          t.rtt = []; any = true;
+          t.rtt = []; t.tfSharpen = true; any = true;
         }
         if (any) gl.triggerRepaint();
       } catch {}
@@ -2413,12 +2414,26 @@
     rtt.tfSpread = true;
     let old = new WeakMap(), gen = rttGen;   // piece of ground -> the painted picture it showed before MapLibre let it go
     spreadHold = (t) => { if (t.rtt && t.rtt.length) old.set(t, t.rtt); };
+    // Computers: a move began before the sharpen was done (deskMoving): the pieces still waiting keep the 1024 px
+    // picture they show (their buffers weren't handed out since), instead of being painted again at 1024 px.
+    spreadCancel = () => {
+      const objs = rtt.pool && rtt.pool._objects;
+      for (const t of tm.getRenderableTiles()) {
+        if (!t || !t.tfSharpen || !(t.tfWait || !(t.rtt && t.rtt.length))) continue;   // waiting, or emptied and not yet painted
+        const had = old.get(t);
+        if (!had || !objs || !had.every((r) => r && objs[r.id] && objs[r.id].stamp === r.stamp)) continue;
+        t.rtt = had; t.tfWait = false; t.tfSharpen = false; old.delete(t);
+      }
+    };
     if (!tm.tfSpread) {
       tm.tfSpread = true;
       const free = tm.freeRtt;
       tm.freeRtt = function () {
-        try { for (const k in this._tiles) { const t = this._tiles[k]; if (t && t.rtt && t.rtt.length) old.set(t, t.rtt); } } catch {}
-        return free.apply(this, arguments);
+        const had = [];
+        try { for (const k in this._tiles) { const t = this._tiles[k]; if (t && t.rtt && t.rtt.length) { old.set(t, t.rtt); had.push(t); } } } catch {}
+        const out = free.apply(this, arguments);
+        for (const t of had) if (!t.rtt.length) t.tfSharpen = false;   // something new to paint: no going back to the old picture
+        return out;
       };
     }
     const prep = rtt.prepareForRender;
@@ -2440,18 +2455,18 @@
         if (!before) return out;
         const redo = [];
         for (const [t, had] of before) {
-          if (t.rtt.length || !had || !had.length) { t.tfWait = false; old.delete(t); continue; }
+          if (t.rtt.length || !had || !had.length) { t.tfWait = false; t.tfSharpen = false; old.delete(t); continue; }
           redo.push([t, had]);
         }
         const cap = paintsNow();
         if (redo.length > cap) {
           redo.sort((a, b) => b[0].tileID.overscaledZ - a[0].tileID.overscaledZ);   // closer ground first
           redo.forEach(([t, had], i) => {
-            if (i < cap) { t.tfWait = false; old.delete(t); return; }
+            if (i < cap) { t.tfWait = false; t.tfSharpen = false; old.delete(t); return; }
             t.rtt = had; t.tfWait = true; old.set(t, had);
           });
           gl.triggerRepaint();
-        } else for (const [t] of redo) { t.tfWait = false; old.delete(t); }
+        } else for (const [t] of redo) { t.tfWait = false; t.tfSharpen = false; old.delete(t); }
       } catch {}
       return out;
     };
@@ -3379,7 +3394,6 @@
       if (photos === "sharp" && ski()) photos = "winter";
       winBtn.style.display = ski() ? "" : "none";
       sumBtn.style.display = ski() ? "none" : "";
-      const w = photos === "winter" || photos === "live";
       for (const id of ["satlo", "sat", "sumhi"]) gl.setLayoutProperty(id, "visibility", photos === "sharp" ? "visible" : "none");
       gl.setLayoutProperty("fill", "visibility", photos === "winter" ? "visible" : "none");   // under Winter, outside its photos
       gl.setLayoutProperty("ground", "visibility", photos === "winter" ? "visible" : "none");
@@ -3658,11 +3672,48 @@
       const byId = gl.handlers && gl.handlers._handlersById, mapEv = byId && byId.mapEvent, hover = byId && byId.blockableMapEvent;
       if (hover && typeof hover.mousemove === "function") {
         const move = hover.mousemove;
-        hover.mousemove = function (e) { if (gl.isMoving() || (e && e.buttons)) return; return move.apply(this, arguments); };
+        // On a computer the mouse also runs over a still map on its way to the next drag, and each of those moves read
+        // the ground back from the graphics card too (alex 2026-11-25 recording: the catches came as a drag began).
+        // The trail-name tip is the only thing listening, so on a computer it now waits until the mouse rests for a
+        // moment (80 ms): one lookup when the mouse stops instead of one per move.
+        // A tip shown stays while the mouse stays near it; moved further off, it goes at once (and comes back at rest).
+        // A mouse that stopped while the map was still gliding gets its lookup once the map stops.
+        let rest = 0, last = null, shownAt = null, self = hover;
+        const calm = (e) => !gl.isMoving() && !(e && e.buttons);
+        const look = () => { const ev = last; last = null; if (ev && calm(ev) && gl.getCanvasContainer().isConnected) { shownAt = [ev.clientX, ev.clientY]; move.call(self, ev); } };
+        const drop = () => { clearTimeout(rest); last = null; };
+        hover.mousemove = PHONE
+          ? function (e) { if (!calm(e)) return; return move.apply(this, arguments); }
+          : function (e) {
+            clearTimeout(rest); self = this;
+            if (!gl.listens("mousemove") || (e && e.buttons)) { last = null; return; }
+            last = e;
+            if (shownAt && e && Math.hypot(e.clientX - shownAt[0], e.clientY - shownAt[1]) > 8) { shownAt = null; tip.remove(); gl.getCanvas().style.cursor = ""; }
+            if (calm(e)) rest = setTimeout(look, 80);
+          };
+        gl.on("movestart", () => { clearTimeout(rest); });
+        gl.on("moveend", () => { if (!PHONE && last) { clearTimeout(rest); rest = setTimeout(look, 80); } });
+        for (const t of ["mousedown", "mouseleave"]) gl.getCanvasContainer().addEventListener(t, drop, true);
       }
       if (mapEv && typeof mapEv.touchmove === "function") {
         const move = mapEv.touchmove;
         mapEv.touchmove = function () { if (gl.listens("touchmove")) return move.apply(this, arguments); };
+      }
+      // And at both ends of every mouse drag (alex 2026-11-25, third computer recording: the turn still caught for
+      // 0.1-0.3 s, mostly as a new drag began): MapLibre made a map event for the button going down, the button coming
+      // up, the right-click menu (a right-drag turn) and the mouse coming over the map, and each one read the ground
+      // under the mouse back from the graphics card (an extra off-screen drawing of the mountains, then a wait for the
+      // card to finish everything). Nothing in the app listens for those four (clicks and double-clicks still come):
+      // they're made only when something does.
+      for (const k of ["mousedown", "mouseup", "mouseover", "mouseout"]) {
+        const f = mapEv && mapEv[k];
+        // (A skipped button press still notes where it went down: a click after a drag is no click.)
+        if (typeof f === "function") mapEv[k] = function (e, p) { if (gl.listens(e && e.type ? e.type : k)) return f.apply(this, arguments); if (k === "mousedown") this._mousedownPos = p; };
+      }
+      if (hover && typeof hover.contextmenu === "function" && typeof hover.mouseup === "function") {
+        const menu = hover.contextmenu, up = hover.mouseup;
+        hover.contextmenu = function () { if (gl.listens("contextmenu")) return menu.apply(this, arguments); };
+        hover.mouseup = function () { if (!gl.listens("contextmenu")) delete this._contextMenuEvent; return up.apply(this, arguments); };
       }
     } catch {}
   }
@@ -3799,7 +3850,7 @@
     // Back where the 3D map was, once the page has set its first view, and say what happened.
     const back = () => {
       if (Array.isArray(crashView) && crashView.every(Number.isFinite) && !/^#(trail|route|pin)=/.test(location.hash)) map.setView([crashView[0], crashView[1]], Math.round(crashView[2]), { animate: false });
-      if (window.tfToast) window.tfToast("3D ran out of memory: back on the flat map here. Tap ⛰ 3D to return.");
+      if (window.tfToast) window.tfToast("3D ran out of memory: back on the flat map here. Tap 3D to return.");
     };
     if (document.readyState === "complete") setTimeout(back, 0); else addEventListener("load", () => setTimeout(back, 0), { once: true });
   }

@@ -15,7 +15,6 @@
 (() => {
   "use strict";
   if (window.tfSeason) return;
-  const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const T = (s) => (window.tfLang && window.tfLang.t ? window.tfLang.t(s) : s);
   const FR = !!(window.tfLang && window.tfLang.lang === "fr");

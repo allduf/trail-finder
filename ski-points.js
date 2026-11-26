@@ -264,7 +264,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     $("spCount").textContent = spotWords() ? (points.length ? `📍 Your spots (${points.length})` : "📍 Your spots") : $("spCount").textContent;
     $("spNew").textContent = spotWords() ? "📍 Save a spot" : "📍 Save a point";
     paintFilt();
-    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isMoto() ? `<li class="sk-hint">Save the spots of your rides: a viewpoint, fuel, a campsite, where to park. Only you see them. Long-press the map (right-click on a computer) or tap 📍 Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : sportNow() === "hike" ? `<li class="sk-hint">Save the spots of your hikes: a viewpoint, water, a campsite, where to park. Only you see them. Tap 📍 Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, 📍 Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap 📍 Save a point, or long-press the map.</li>`; return; }
+    if (!points.length) { list.innerHTML = isMtb() ? `<li class="sk-hint">Save a spot you found: a jump, water, a hidden entrance, where to park. Long-press the map (right-click on a computer) or tap Save a spot.</li>` : isMoto() ? `<li class="sk-hint">Save the spots of your rides: a viewpoint, fuel, a campsite, where to park. Only you see them. Long-press the map (right-click on a computer) or tap Save a spot.</li>` : isHunt() ? `<li class="sk-hint">Pin your trail cameras, tracks, salines, caches, stands, sightings and where you parked, with a photo and notes. Only you see them. Tap Save a point, or long-press the map.</li>` : sportNow() === "hike" ? `<li class="sk-hint">Save the spots of your hikes: a viewpoint, water, a campsite, where to park. Only you see them. Tap Save a point, or long-press the map.</li>` : isFish() ? `<li class="sk-hint">Save your catches and spots: the holes that fish, the way down to the water, launches, where you parked. Only you see them. Tap Save a catch, Save a point, or long-press the map.</li>` : `<li class="sk-hint">Save a spot you want to remember: a skin track start, a good line, a hazard. Tap Save a point, or long-press the map.</li>`; return; }
     const sorted = [...visible()].sort((a, b) => b.created - a.created);
     list.innerHTML = sorted.map((p, i) => {
       const u = p.thumb || p.photo ? thumbUrl(p) : "";
@@ -790,7 +790,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     if (H && logTab === "hunts") body = H.huntsHtml(hunts, huntPts, HUNT_KINDS);
     else if (H && logTab === "works") body = H.worksHtml(hunts, huntPts);
     else if (logTab === "harvest") {
-      if (!hv.length) body = `<p class="sp-empty">No harvests yet. Save a point with “What's here: 🎯 Harvest” where you took an animal, with the species, date and a photo; the zone fills in from the map.</p>`;
+      if (!hv.length) body = `<p class="sp-empty">No harvests yet. Save a point with “What's here: Harvest” where you took an animal, with the species, date and a photo; the zone fills in from the map.</p>`;
       else {
         const by = new Map();
         for (const r of hv) { const k = seasonOf(r.day); (by.get(k) || by.set(k, []).get(k)).push(r); }
@@ -803,7 +803,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
         }).join("") + `<div class="sp-row" style="margin-top:12px"><button type="button" data-a="csv">Save as CSV</button></div>`;
       }
     } else {
-      if (!cams.length) body = `<p class="sp-empty">No trail cameras yet. Save a point with “What's here: 📷 Trail camera” where it hangs, then add a check each time you pull the card.</p>`;
+      if (!cams.length) body = `<p class="sp-empty">No trail cameras yet. Save a point with “What's here: Trail camera” where it hangs, then add a check each time you pull the card.</p>`;
       else body = cams.map((p) => {
         const list = [...(p.checks || [])].sort((a, b) => b.at - a.at), seen = list.reduce((n, c) => n + (c.count || 0), 0);
         return `<section class="sp-cam"><header><b>📷 ${esc(p.name)}</b><button type="button" data-cam="${esc(p.id)}">Add a check</button><button type="button" data-show="${esc(p.id)}">Map</button></header>

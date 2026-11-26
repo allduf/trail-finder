@@ -1233,7 +1233,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     card.innerHTML = `<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button><h3>${K.w.icon} ${esc(K.w.Trips)}</h3></div>
       <button type="button" class="sk-tripgo" data-newtrip="1">＋ Start a new trip</button>
       ${window.tfTutorials && K.tutorial ? window.tfTutorials.button(K.tutorial) : ""}
-      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(title(t))}${t.share ? " 👥" : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${nightsW(t)}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}${K.listInfo ? esc(K.listInfo(t)) : ""}</small></button></li>`).join("")}</ul>` : ""}
+      ${mine.length ? `<ul class="tp-list">${mine.map((t) => `<li><button type="button" data-trip="${esc(t.id)}"><span>${esc(title(t))}${t.share ? " " + (window.tfLineName ? window.tfLineName("people", 14) : "") : ""}</span><small>${late(t) ? `<b class="tp-late-tag">Overdue</b> ` : ""}${esc(dayWord(t.date))} · ${nightsW(t)}${(t.lines || []).length ? ` · ${t.lines.length} line${t.lines.length > 1 ? "s" : ""}` : ""}${K.listInfo ? esc(K.listInfo(t)) : ""}</small></button></li>`).join("")}</ul>` : ""}
       <p class="sk-note">${K.listNote()}</p>
       <ul class="tp-list" id="tpNear"><li><p class="tp-wait">${esc(K.w.finding)}</p></li></ul>`;
     if (!quiet) scrollTo();

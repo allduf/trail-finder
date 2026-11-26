@@ -920,7 +920,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
         if (p.what === "areas") {
           const rows = scored.slice(0, 8).map((s) => ({ title: esc(s.a.name), sub: `${loamDot(s.pr ? 50 : null)}${areaLine(s)} · ${fmtKm(s.a.km)} away · ${s.a.trails.length} trails`,
             go: () => { map.flyTo(s.a.c, 13); if (window.tfSnapTo) window.tfSnapTo("peek"); } }));
-          out.innerHTML = `${farNote}<h3>Riding areas ${at.you ? "near you" : "near " + esc(at.name || "the map")}</h3>${listHtml(rows)}<p class="ask-note">Tap one to go there. ☀ Where to ride today has each area's rider reports, closures and fires.</p>`;
+          out.innerHTML = `${farNote}<h3>Riding areas ${at.you ? "near you" : "near " + esc(at.name || "the map")}</h3>${listHtml(rows)}<p class="ask-note">Tap one to go there. Where to ride today has each area's rider reports, closures and fires.</p>`;
           wire(out, rows);
           return;
         }
@@ -953,7 +953,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       pool.sort((a, b) => (want ? b.prime - a.prime : 0) || (b.isNew - a.isNew) || (b.off - a.off) || a.km - b.km);
       const rows = pool.slice(0, 10).map((t) => ({
         title: `${lvGlyph(t.lvl)}${esc(t.name)}${t.isNew ? `<span class="ask-new">New</span>` : ""}`,
-        sub: `${loamDot(t.snow ? null : t.v)}${esc(loamWord(t))} ${esc(dn)}${t.area ? ` · ${esc(t.area.name)}` : ""}${t.lift ? " · 🚡 lift access" : ""} · ${fmtKm(t.km)} away${ridden.has(T.nameKey(t.name)) ? " · ✓ ridden" : ""}`,
+        sub: `${loamDot(t.snow ? null : t.v)}${esc(loamWord(t))} ${esc(dn)}${t.area ? ` · ${esc(t.area.name)}` : ""}${t.lift ? " · lift access" : ""} · ${fmtKm(t.km)} away${ridden.has(T.nameKey(t.name)) ? " · ✓ ridden" : ""}`,
         go: () => window.tfShowFound({ type: "w", items: t.ids.map((id) => ({ id })), name: t.name, kind: t.kind, center: L.latLng(t.c[0], t.c[1]) }),
       }));
       const primeN = pool.filter((t) => t.prime).length;

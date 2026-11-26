@@ -61,7 +61,6 @@
   const getJ = (url, ms = 12000) => fetch(url, { signal: timeout(ms) }).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
   const km = (a, b, c, d) => map.distance([a, b], [c, d]) / 1000;
   const fmtKm = (k) => (k < 1 ? `${Math.round(k * 1000)} m` : k < 10 ? `${k.toFixed(1)} km` : `${Math.round(k)} km`);
-  const today = () => new Date().toISOString().slice(0, 10);
   const daysAgo = (d) => Math.round((Date.now() - new Date(d + "T12:00:00").getTime()) / 864e5);
 
   // ---------- icons ----------
@@ -136,7 +135,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 :is(#fishPane, .lm-fish) .fs-ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; box-sizing: border-box; box-shadow: inset 0 0 0 1px #ffffff2e, 0 1px 3px #0003; }
 :is(#fishPane, .lm-fish) .fs-sw { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; margin: 0; flex: none; transition: background .15s; }
 :is(#fishPane, .lm-fish) .fs-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
-:is(#fishPane, .lm-fish) .fs-sw:checked { background: ${ACC}; }
+:is(#fishPane, .lm-fish) .fs-sw:checked { background: #2f8a3e; }   /* every Layers switch is the same green in every sport (alex 2026-11-26) */
 :is(#fishPane, .lm-fish) .fs-sw:checked::after { left: 19px; }
 /* Highlight on the map: picture tiles, 3 to a row, like Skiing's Avalanche and terrain */
 .lm-fish .fs-tilegrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; padding: 6px 0 4px; }
@@ -144,7 +143,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
 .lm-fish .fs-thumb { position: relative; display: block; width: 100%; aspect-ratio: 1; border-radius: 12px; box-sizing: border-box; border: 2px solid var(--line); background: #1d2b24 center / cover; }
 .lm-fish .fs-tcap { display: block; font-size: .74rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
 :is(#fishPane, .lm-fish) .fs-tile .fs-sw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-.lm-fish .fs-tile:has(.fs-sw:checked) .fs-thumb { border-color: ${ACC}; box-shadow: 0 0 0 2px ${ACC}; }
+.lm-fish .fs-tile:has(.fs-sw:checked) .fs-thumb { border-color: #2f8a3e; box-shadow: 0 0 0 2px #2f8a3e; }
 .lm-fish .fs-tile:has(.fs-sw:checked) .fs-thumb::after { content: "✓"; position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: ${ACC}; color: #fff;
   font: 800 11px/18px system-ui, sans-serif; text-align: center; }
 .lm-fish .fs-tile:has(.fs-sw:focus-visible) .fs-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -2108,7 +2107,6 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const out = [];
     const flow = nearFlowLight();
     for (let k = 0; k < 3; k++) {
-      const day = h.time.find((t) => t.slice(0, 10) > (k ? out[k - 1].date : "") && t >= (wx.current?.time || "").slice(0, 10)) || "";
       const date = k === 0 ? (wx.current?.time || h.time[24]).slice(0, 10) : (() => { const d = new Date(out[0].date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + k); return d.toISOString().slice(0, 10); })();
       const d = dayScore(h, date, k === 0 ? flow : null);
       if (!d) break;

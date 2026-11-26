@@ -138,7 +138,7 @@ dialog.jp-big button { align-self: center; font: inherit; font-weight: 700; padd
       <h3>Emergency numbers</h3>
       ${NUMBERS.map(([n, w]) => `<div class="jp-num"><a href="tel:${n.replace(/-/g, "")}">${n}</a><span>${esc(w)}</span></div>`).join("")}
       ${PHRASES.map(([g, list], gi) => `<h3>${esc(g)}</h3>${list.map((p, i) => `<div class="jp-row"><button type="button" class="jp-p" data-g="${gi}" data-i="${i}"><b>${esc(p[0])}</b><span lang="ja">${esc(p[1])}</span><small>${esc(p[2])}</small></button><button type="button" class="jp-say" data-g="${gi}" data-i="${i}" aria-label="Say it in Japanese">🔊</button></div>`).join("")}`).join("")}
-      <p class="jp-small">Tap a phrase to show it big, or 🔊 to have the phone say it in Japanese. These work with no signal. For the best voice on iPhone: Settings → Accessibility → Spoken Content → Voices → Japanese, and download one (Kyoko or O-ren, Enhanced).</p>`;
+      <p class="jp-small">Tap a phrase to show it big, or the speaker to have the phone say it in Japanese. These work with no signal. For the best voice on iPhone: Settings → Accessibility → Spoken Content → Voices → Japanese, and download one (Kyoko or O-ren, Enhanced).</p>`;
     dlg.querySelector(".jp-x").onclick = () => dlg.close();
     dlg.querySelectorAll(".jp-p").forEach((b) => b.addEventListener("click", () => show(PHRASES[+b.dataset.g][1][+b.dataset.i])));
     dlg.querySelectorAll(".jp-say").forEach((b) => b.addEventListener("click", () => say(PHRASES[+b.dataset.g][1][+b.dataset.i][1], b)));

@@ -314,7 +314,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
   }
   // Distance, moving time, climb and descent, max speed: ride-stats.js, shared with Ride mode (navigate.js).
-  const { climbOf, upDown, statsOf, gapsOf, profileOf } = window.tfRideStats;
+  const { upDown, statsOf, gapsOf, profileOf } = window.tfRideStats;
   const kmh = (ms) => (ms * 3.6).toFixed(1);
   const pad = (n) => String(n).padStart(2, "0");
   function hms(s, withSec = true) {
@@ -382,7 +382,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       (filled === g.length ? `${g.length === 1 ? "It's" : "They're"} filled in along the trails and dashed on the map.`
         : !filled ? `${g.length === 1 ? "That stretch is a straight line" : "Those stretches are straight lines"}, dashed on the map.`
         : `${filled} filled in along the trails, the rest straight lines, all dashed on the map.`) +
-      (inApp ? "" : " Next time, use 🔒 Pocket in Ride mode instead of locking the phone.");
+      (inApp ? "" : " Next time, use Pocket in Ride mode instead of locking the phone.");
   }
 
   // ---------- maps ----------

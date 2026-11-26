@@ -458,7 +458,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 .lm-ski .sk-sw, .map-tools .layers-menu .lm-ski .sk-slot button::after { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; margin: 0; flex: none; cursor: pointer; transition: background .15s;
   background: radial-gradient(circle at 12px 50%, #fff 8.5px, transparent 9.5px), var(--line); box-shadow: none; }
 .map-tools .layers-menu .lm-ski .sk-slot button::after { content: ""; padding: 0; }
-.lm-ski .sk-sw:checked, .map-tools .layers-menu .lm-ski .sk-slot button[aria-pressed="true"]::after { background: radial-gradient(circle at 28px 50%, #fff 8.5px, transparent 9.5px), #1f5fe0; }
+.lm-ski .sk-sw:checked, .map-tools .layers-menu .lm-ski .sk-slot button[aria-pressed="true"]::after { background: radial-gradient(circle at 28px 50%, #fff 8.5px, transparent 9.5px), #2f8a3e; }   /* every Layers switch is the same green in every sport (alex 2026-11-26) */
 .lm-ski .sk-sw:focus-visible, .lm-ski .sk-slot button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #skiPane .sk-sw { width: 18px; height: 4px; border-radius: 2px; flex: none; display: inline-block; }
 #skiPane .sk-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; flex: none; display: inline-block; }
@@ -672,9 +672,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 .lm-ski .sk-tcap, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button b { display: block; font-size: .74rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
 .lm-ski .sk-tile .sk-sw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button::after { display: none; }
-.lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic { border-color: #1f5fe0; box-shadow: 0 0 0 2px #1f5fe0; }
+.lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic { border-color: #2f8a3e; box-shadow: 0 0 0 2px #2f8a3e; }
 .lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb::after, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic::after { content: "✓"; position: absolute; top: 4px; right: 4px;
-  width: 18px; height: 18px; border-radius: 50%; background: #1f5fe0; color: #fff; font: 800 11px/18px system-ui, sans-serif; text-align: center; text-shadow: none; }
+  width: 18px; height: 18px; border-radius: 50%; background: #2f8a3e; color: #fff; font: 800 11px/18px system-ui, sans-serif; text-align: center; text-shadow: none; }
 .lm-ski .sk-tile:has(.sk-sw:focus-visible) .sk-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lm-ski .sk-palrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .76rem; color: var(--muted); padding: 2px 0 4px; }
 .lm-ski .sk-palrow[hidden] { display: none; }
@@ -745,7 +745,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
     <div class="sk-views" id="skViews" role="group" aria-label="Show these routes"></div>
-    <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Search or ask a question" aria-label="Search a route, hut, resort, freeride line or place, or ask in plain words" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Go</button></div></form>
+    <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Search or ask a question" aria-label="Search a route, hut, resort, freeride line or place, or ask in plain words" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Search</button></div></form>
     <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Search results"></ul>
     <button type="button" class="sk-now" id="skNow" hidden></button>
     <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button><button type="button" class="sk-act" id="skNewBtn" hidden>＋ Plan a new tour</button><button type="button" class="sk-act" id="skToursBtn" hidden>📂 Saved tours</button></div>
@@ -2704,7 +2704,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <div class="sk-cond" id="skCond">${condHtml()}</div>
         <div class="sk-rc-btns">
           <button type="button" id="skFly" title="Fly along the route on the 3D map"><span class="ic" aria-hidden="true">✈</span>Flyover</button>
-          ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the 🔔 when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
+          ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the bell when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
           <button type="button" id="skGpx" title="Download the route as a GPX file"><span class="ic" aria-hidden="true">⬇</span>GPX</button>
           ${r.src === "plan" ? "" : `<button type="button" id="skAddTour" title="Put this line in your planned tour: the route follows it from its top to its bottom"><span class="ic" aria-hidden="true">＋</span>Add to tour</button>`}
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
@@ -2886,7 +2886,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <dl><dt>Terrain</dt><dd>${classPill(cls.c, official ? "Official ATES rating" : "")} <span class="sk-note">${official ? `official ATES rating${official.src ? ` from ${official.url ? `<a href="${esc(official.url)}" target="_blank" rel="noopener">${esc(official.src)}</a>` : esc(official.src)}` : ""}` : "estimate"}</span><br>${esc(cls.what)}</dd>
         ${cls.why.length ? `<dt>${official ? "Terrain seen" : "Because"}</dt><dd><ul class="sk-why">${cls.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></dd>` : ""}</dl>
       <div class="sk-row"><button type="button" class="btn sk-watch" id="skWatch" aria-pressed="${on}">${on ? "🔔 Watching this tour" : "🔔 Watch this tour"}</button></div>
-      <p class="sk-note">${on ? "The 🔔 tells you when this tour turns to Extra caution or Not recommended (and your phone, if 📱 is on there). " : ""}The terrain class is worked out from the shape of the ground, like ATES (simple, challenging, complex): forest, cornices, glaciers and small features aren't seen. Where an area has an official rating, it's on <a href="https://avalanche.ca/planning/trip-planner" target="_blank" rel="noopener">Avalanche Canada's trip planner</a>. The light follows Avalanche Canada's Avaluator chart: it's for planning, not a decision on the day.</p>`;
+      <p class="sk-note">${on ? "The bell tells you when this tour turns to Extra caution or Not recommended (and your phone too, if “Also send them to this phone” is on). " : ""}The terrain class is worked out from the shape of the ground, like ATES (simple, challenging, complex): forest, cornices, glaciers and small features aren't seen. Where an area has an official rating, it's on <a href="https://avalanche.ca/planning/trip-planner" target="_blank" rel="noopener">Avalanche Canada's trip planner</a>. The light follows Avalanche Canada's Avaluator chart: it's for planning, not a decision on the day.</p>`;
     $("skWatch").addEventListener("click", () => {
       const list = watchList().filter((w) => w.k !== k);
       if (on && window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiWatch", k);   // so the account doesn't bring it back
@@ -4669,13 +4669,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   function syncNow() {
     const card = $("avCard"), b = $("skNow");
     if (!b) return;
-    const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || ""]);
+    const bands = [...card.querySelectorAll(".av-band")].map((x) => [x.querySelector("b")?.textContent || "", x.querySelector("span")?.textContent || "", x.getAttribute("style") || ""]);
     const line = card.querySelector(".av-line"), exp = card.querySelector(".av-expired");
     // The ratings' day, named when it isn't today (a day picked, a tour asked for tomorrow, an evening bulletin).
     const on = card.querySelector('.av-days button[aria-pressed="true"]'), dayT = on && dayDate && dayDate !== localDay() ? on.textContent.trim() : "";
     // An expired bulletin's ratings are on the card under its warning, never on this line as if current.
     const html = card.hidden ? "" : exp ? `<span>⚠ <b>Avalanche:</b> ${esc(exp.textContent.split(/\s?:\s/)[0].trim())}</span>`
-      : bands.length ? `${dayT ? `<span>⚠ <b>${esc(dayT)}</b></span><span>` : "<span>⚠ "}<b>Avalanche: ${esc(bands[0][0])}</b> ${esc(bands[0][1].toLowerCase())}</span>${bands.slice(1).map(([r, n]) => `<span>${esc(r)} ${esc(n.toLowerCase())}</span>`).join("")}`
+      // The ratings in their colours, as on the card (alex 2026-11-25: "today avalanche forecast with the color"): the
+      // card's own bands, copied as they are, so the line never says anything the card (Avalanche Canada) doesn't.
+      : bands.length ? `<span>⚠ <b>Avalanche</b>${dayT ? ` · ${esc(dayT)}` : ""}</span><span class="sk-nb-row">${bands.map(([r, n, st]) => `<span class="sk-nb" style="${esc(st)}"><b>${esc(r)}</b><small>${esc(n)}</small></span>`).join("")}</span>`
       : line ? `<span>⚠ <b>Avalanche:</b> ${esc(line.textContent.split(/\.\s/)[0].replace(/\.$/, ""))}</span>` : "";   // first sentence: the card under it has the rest
     if (b.innerHTML !== html) b.innerHTML = html;
     b.hidden = !html;

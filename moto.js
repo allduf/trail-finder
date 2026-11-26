@@ -199,7 +199,7 @@ body.sport-moto .leaflet-ridesPane-pane { display: none; }
 :is(#motoPane, .lm-moto) .mt-ic { width: 22px; height: 22px; border-radius: 6px; display: block; box-sizing: border-box; }
 :is(#motoPane, .lm-moto) .mt-sw { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; margin: 0; flex: none; transition: background .15s; }
 :is(#motoPane, .lm-moto) .mt-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
-:is(#motoPane, .lm-moto) .mt-sw:checked { background: ${ACC}; }
+:is(#motoPane, .lm-moto) .mt-sw:checked { background: #2f8a3e; }   /* every Layers switch is the same green in every sport (alex 2026-11-26) */
 :is(#motoPane, .lm-moto) .mt-sw:checked::after { left: 19px; }
 #motoPane { display: flex; flex-direction: column; gap: 12px; font-size: .9rem; }
 #motoPane a { color: var(--accent); }

@@ -383,7 +383,7 @@ final class GpsEngine {
 
     private static final java.util.Map<String, String> ARROWS = new java.util.HashMap<>();
     static {
-        ARROWS.put("left", "←"); ARROWS.put("right", "→"); ARROWS.put("straight", "↑"); ARROWS.put("arrive", "🏁");
+        ARROWS.put("left", "←"); ARROWS.put("right", "→"); ARROWS.put("straight", "↑"); ARROWS.put("arrive", "◉");   // a plain mark, not a colour flag emoji (alex 2026-11-25, "keep the app professional")
         ARROWS.put("slight-left", "↖"); ARROWS.put("slight-right", "↗"); ARROWS.put("sharp-left", "←"); ARROWS.put("sharp-right", "→");
         ARROWS.put("uturn", "↩"); ARROWS.put("roundabout", "↻");
     }

@@ -296,7 +296,7 @@ body.cp-ranging { user-select: none; -webkit-user-select: none; }
   window.addEventListener("tf:sport", () => { if (!isHunt()) stop(); });
 
   // ---------- drawing ----------
-  let timer = 0, lastTurnAt = 0, lastMoveAt = 0;
+  let timer = 0, lastTurnAt = 0;
   // Called on every compass reading: the text at once (cheap), the map at most 8 times a second in 2D (turning the flat
   // map redraws it), 16 in 3D.
   let raf = 0;

@@ -413,7 +413,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     showPin(p);
     $("pfWords").hidden = false;
     const zones = await zonesAround(p);
-    if (!zones.length) { if (my === job) show([], "It was taken outside the areas the app has trail lists for. The 📷 pin on the map shows the spot: tap the trail under it."); return; }
+    if (!zones.length) { if (my === job) show([], "It was taken outside the areas the app has trail lists for. The camera pin on the map shows the spot: tap the trail under it."); return; }
     const lists = await Promise.all(zones.map((z) => F.mtbWays(z).catch(() => null)));
     if (my !== job) return;
     const ways = new Map();
@@ -442,8 +442,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     map.setView(p, Math.max(map.getZoom(), 15));
     if (my !== job) return;
     say(rows.length ? "Found from the spot where it was taken." : "No MTB trail near the spot where it was taken.");
-    show(res, close.length ? "" : rows.length ? `No MTB trail within ${NEAR_M} m of the spot, so these are the nearest ones. The 📷 pin on the map shows where it was taken.`
-      : "The 📷 pin on the map shows where it was taken. It may be on a path the app doesn't count as an MTB trail: tap it on the map.");
+    show(res, close.length ? "" : rows.length ? `No MTB trail within ${NEAR_M} m of the spot, so these are the nearest ones. The camera pin on the map shows where it was taken.`
+      : "The camera pin on the map shows where it was taken. It may be on a path the app doesn't count as an MTB trail: tap it on the map.");
     testEnd(my);
   }
   // The pieces of a named trail around the one found, for opening it whole (like a pick in the name search).

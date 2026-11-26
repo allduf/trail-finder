@@ -17,7 +17,6 @@
   const KEY = "tf:strava";                // this device: { uid, athlete, scope, newest, oldest (s), done, at (ms) }
   const AUTO_MS = 30 * 60e3, ASK_MS = 6 * 3600e3, FIRST_DAYS = 30, MAX_PER_SYNC = 25, MIN_STEP_M = 5;
   const box0 = document.getElementById("importMsg");    // ride.html's My rides: the Strava box goes under Import
-  const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch {} };

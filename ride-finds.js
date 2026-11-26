@@ -240,7 +240,7 @@
       const no = new Set(noList()), shown = secs.filter((s) => !no.has(s.id)), hidden = secs.length - shown.length;
       if (!secs.length) { box.innerHTML = `<p>Every part of this ride follows a trail, path or road that's on OpenStreetMap.</p>`; return; }
       box.innerHTML = `<h3>🆕 Possible new trails on this ride</h3>
-<p>${shown.length ? `${shown.length === 1 ? "One stretch" : shown.length + " stretches"} of this ride follow${shown.length === 1 ? "s" : ""} no trail, path or road on OpenStreetMap. If it's a real trail, save it: it shows on the main map with 🚵 My rides, and then ➕ Add for everyone puts it on every rider's map (or add it to OpenStreetMap).` : "Nothing left to look at here."}</p>
+<p>${shown.length ? `${shown.length === 1 ? "One stretch" : shown.length + " stretches"} of this ride follow${shown.length === 1 ? "s" : ""} no trail, path or road on OpenStreetMap. If it's a real trail, save it: it shows on the main map with My rides, and then Add for everyone puts it on every rider's map (or add it to OpenStreetMap).` : "Nothing left to look at here."}</p>
 <ol></ol>${hidden ? `<p>${hidden} marked “Not a trail”. <button class="linkish" type="button" data-unhide>Show ${hidden === 1 ? "it" : "them"}</button></p>` : ""}`;
       const ol = box.querySelector("ol");
       shown.forEach((s, i) => {

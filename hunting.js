@@ -384,7 +384,7 @@ body:not(.sport-hunt) #huntPane, body:not(.sport-hunt) .lm-hunt { display: none 
 :is(#huntPane, .lm-hunt) .hn-ic { width: 22px; height: 22px; border-radius: 6px; display: block; box-sizing: border-box; }
 :is(#huntPane, .lm-hunt) .hn-sw-input { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; margin: 0; transition: background .15s; flex: none; }
 :is(#huntPane, .lm-hunt) .hn-sw-input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0004; transition: left .15s; }
-:is(#huntPane, .lm-hunt) .hn-sw-input:checked { background: ${ORANGE}; }
+:is(#huntPane, .lm-hunt) .hn-sw-input:checked { background: #2f8a3e; }   /* every Layers switch is the same green in every sport (alex 2026-11-26) */
 :is(#huntPane, .lm-hunt) .hn-sw-input:checked::after { left: 19px; }
 :is(#huntPane, .lm-hunt) .hn-sw-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #huntPane .hn-key { list-style: none; margin: 0 0 4px 32px; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: .74rem; color: var(--muted); }
