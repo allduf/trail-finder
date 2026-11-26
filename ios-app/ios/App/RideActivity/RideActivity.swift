@@ -34,15 +34,17 @@ struct RideActivityBundle: WidgetBundle {
 
 private let lime = Color(red: 0.78, green: 0.94, blue: 0.38)
 
+// Each sport's line icon (SF Symbols), not a colour emoji (alex 2026-11-25, "keep the app professional").
 private func icon(_ sport: String) -> String {
     switch sport {
-    case "ski": return "⛷"
-    case "hunt": return "🦌"
-    case "fish": return "🎣"
-    case "moto": return "🏍"
-    case "drive": return "🚗"
-    case "walk": return "🚶"
-    default: return "🚵"
+    case "ski": return "figure.skiing.downhill"
+    case "hunt": return "scope"
+    case "fish": return "fish"
+    case "hike": return "figure.hiking"
+    case "moto": if #available(iOS 17.0, *) { return "motorcycle" } else { return "map" }
+    case "drive": return "car.fill"
+    case "walk": return "figure.walk"
+    default: return "figure.outdoor.cycle"
     }
 }
 
@@ -139,7 +141,7 @@ struct RideActivityWidget: Widget {
             } else {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text(icon(ctx.attributes.sport))
+                    Image(systemName: icon(ctx.attributes.sport)).foregroundColor(lime)
                     Text(ctx.state.paused ? "Paused" : ctx.attributes.title).font(.subheadline.weight(.bold)).lineLimit(1)
                     Spacer()
                     Text("Trail Finder").font(.caption2).foregroundColor(.white.opacity(0.6))
@@ -173,7 +175,7 @@ struct RideActivityWidget: Widget {
                         }
                     } else {
                         HStack(spacing: 4) {
-                            Text(icon(ctx.attributes.sport))
+                            Image(systemName: icon(ctx.attributes.sport)).foregroundColor(lime)
                             Clock(ctx: ctx).font(.title3.weight(.heavy)).monospacedDigit().foregroundColor(lime)
                         }
                     }
@@ -199,7 +201,7 @@ struct RideActivityWidget: Widget {
                 if !ctx.state.turn.isEmpty {
                     Image(systemName: symbol(ctx.state.arrow)).foregroundColor(lime)
                 } else {
-                    Text(icon(ctx.attributes.sport))
+                    Image(systemName: icon(ctx.attributes.sport)).foregroundColor(lime)
                 }
             } compactTrailing: {
                 if !ctx.state.turn.isEmpty {
@@ -211,7 +213,7 @@ struct RideActivityWidget: Widget {
                 if !ctx.state.turn.isEmpty {
                     Image(systemName: symbol(ctx.state.arrow)).foregroundColor(lime)
                 } else {
-                    Text(icon(ctx.attributes.sport))
+                    Image(systemName: icon(ctx.attributes.sport)).foregroundColor(lime)
                 }
             }
         }
