@@ -40,7 +40,8 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 ## Avalanche information must be exact
 - Show only the danger rating Avalanche Canada gave, for that elevation band. Never raise or lower it by slope,
   aspect or anything else. Better to show nothing than a wrong level.
-- Problem aspects may be a darker shade of the same colour. Do not reuse danger colours for other meanings.
+- Problem aspects are shown with diagonal stripes of a darker shade of the same colour (alex 2026-11-26), over the
+  band's own colour. Do not reuse danger colours for other meanings.
 - Any estimate we make (band heights, terrain class) is labelled as an estimate.
 - When there is no forecast, routes can still draw from terrain only, with a warning that no forecast is
   included and why.

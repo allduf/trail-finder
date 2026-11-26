@@ -36,7 +36,7 @@
       r: txt(b.querySelector("b")), n: txt(b.querySelector("span")),
       c: b.style.getPropertyValue("--c").trim(), t: b.style.getPropertyValue("--t").trim(),
     }));
-    // What the colours and the darker shade mean, and the treeline estimate (marked av-native in winter.js), in the
+    // What the colours and the stripes mean, and the treeline estimate (marked av-native in winter.js), in the
     // page's language.
     const notes = [...c.querySelectorAll("#avMore > p.av-native")].map(txt).filter(Boolean);
     return JSON.stringify({
