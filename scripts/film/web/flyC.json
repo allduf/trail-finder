@@ -1,0 +1,1 @@
+{"out": "flyC", "frames": 270, "alt": 3150, "talt": 2050, "orbit": {"c": [-122.866, 50.025], "r": 3800, "a0": 262, "a1": 294}, "tripLinesFile": "ui8-trip.json", "markers": true, "declutter": true, "ease": false, "hide": "osm-|rp-|^lines|dash|hits|dots|trail-names"}

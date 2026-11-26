@@ -1,0 +1,41 @@
+name: Film test (web 3D shots)
+
+# Branch-only (not for main): level 3D fly-over frames for the tutorial videos, rendered frame by frame in Chromium
+# (scripts/film/web/fly.js), split over many runners. Artifacts fly-<shot>-<part>.
+on:
+  push:
+    branches: [claude/project-thread-da6rqk]
+    paths: ["scripts/film/web/**", ".github/workflows/film-web.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  fly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shot: [flyA, flyC]
+        part: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        working-directory: scripts/film/web
+        run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
+      - name: Frames
+        working-directory: scripts/film/web
+        env:
+          DSF: "4"
+        run: |
+          N=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("${{ matrix.shot }}.json")).frames)')
+          ONLY=$(node -e "const a=[]; for(let k=${{ matrix.part }};k<$N;k+=12) a.push(k); console.log(a.join(','))")
+          ONLY=$ONLY node fly.js ${{ matrix.shot }}.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fly-${{ matrix.shot }}-${{ matrix.part }}
+          path: scripts/film/web/${{ matrix.shot }}/
