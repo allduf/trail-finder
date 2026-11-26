@@ -520,6 +520,18 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .av-sw { display: inline-block; width: 14px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: linear-gradient(90deg, #52ba4a, #fff300, #f79218, #ef1c29); }
 #skiPane .av-pill[aria-pressed="true"] { background: #f79218; border-color: #f79218; color: #1a1a1a; }
 #skiPane .av-card > details > summary { font-size: .82rem; color: var(--muted); }
+/* The bulletin's problems, notes and riders' reports (alex 2026-11-26: small grey text was easy to miss, "make that more
+   tape a l'oeil"): a dark, full-width button with a warning line icon, the number of problems and an arrow. Its dark
+   blue-grey is the problem roses' colour, not a danger colour. */
+#skiPane #avMore > summary { list-style: none; display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; padding: 11px 12px; border-radius: 12px; background: #2a3b4c; color: #fff; font-size: .92rem; font-weight: 700; line-height: 1.25; box-shadow: 0 1px 3px #0003; }
+#skiPane #avMore > summary::-webkit-details-marker { display: none; }
+#skiPane #avMore > summary .tf-line { flex: none; }
+#skiPane #avMore > summary .av-mt { flex: 1; min-width: 0; }
+#skiPane #avMore > summary .av-mn { flex: none; white-space: nowrap; padding: 2px 8px; border-radius: 10px; background: #fff; color: #2a3b4c; font-size: .78rem; text-align: center; }
+#skiPane #avMore > summary::after { content: ""; flex: none; width: 8px; height: 8px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(45deg); margin: 0 3px 4px 2px; transition: transform .15s; }
+#skiPane #avMore[open] > summary::after { transform: rotate(-135deg); margin-bottom: -3px; }
+#skiPane #avMore > summary:hover { background: #33495e; }
+#skiPane #avMore > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 #skiPane .av-warn { background: #fff3cd; color: #5c4400; border-radius: 8px; padding: 6px 8px; font-size: .82rem; font-weight: 600; }
 #skiPane .av-adv { margin: 4px 0 6px; padding-left: 18px; font-size: .82rem; }
 #skiPane .av-adv li { margin: 2px 0; }
@@ -4602,6 +4614,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!f || (!f.days?.length && !early)) return short(esc(area.name), "No forecast for this area right now.");
     const d = dayOf(f), expired = fcExpired(f);
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || (f.days || []).some((x) => x.alp || x.tln || x.btl);
+    // The row that opens the problems: a line icon (guarded: an old cached line-icons.js) and how many problems there are.
+    const moreIcon = window.tfLineName ? window.tfLineName("warn", 18) : "", nProb = (f.problems || []).length;
     const band = (b, n) => { const r = d[b] || 0, x = DANGER[r]; return `<div class="av-band" style="--c:${x.color};--t:${r >= 4 ? "#fff" : "#1a1a1a"}"><b>${esc(x.label.replace(/^\d /, ""))}</b><span>${n}</span></div>`; };
     // The day is always named (one day too: the native 3D card shows it), pressed when it's the one shown.
     card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast.</div>` : ""}
@@ -4611,7 +4625,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       ${d ? `<div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>` : `<p class="av-line">This bulletin has no rating for ${esc(weekday(dayDate))}.</p>`}`
         : `<p class="av-line">No danger ratings yet: it's early season.</p>`}
       <div id="avWx">${cardWeather(c, area.bands.hi)}</div>
-      <details id="avMore"${avMore ? " open" : ""}><summary>${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</summary>
+      <details id="avMore"${avMore ? " open" : ""}><summary>${moreIcon}<span class="av-mt">${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</span>${nProb ? `<span class="av-mn">${nProb} problem${nProb === 1 ? "" : "s"}</span>` : ""}</summary>
         ${f.highlights ? `<p><strong>${esc(f.highlights)}</strong></p>` : ""}
         ${(f.problems || []).map((p) => `<div class="av-prob">${rose(p)}<div><b>${esc(p.type)}</b><p>${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))} · ${esc(p.elevations.map((b) => BANDS.find((x) => x[0] === b)[1]).join(", "))}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? " · Size " + esc(p.size) : ""}</p>${probNotes(p)}${p.comment ? `<details><summary>More</summary><p>${esc(p.comment)}</p></details>` : ""}</div></div>`).join("")}
         ${(f.problems || []).length ? `<p class="sk-note">Each rose shows where a problem is: dark parts are the slopes facing that way (north at the top), the middle ring is the alpine, then treeline, then below treeline.</p>` : ""}

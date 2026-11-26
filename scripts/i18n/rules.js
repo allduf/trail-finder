@@ -18,6 +18,8 @@
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
   var R = [
     // Day ride (moto-day.js)
+    // The Avalanche card's problems button (winter.js)
+    [/^(\d+) problems?$/, function (m, n) { return n + (n === "1" ? " problème" : " problèmes"); }],
     [/^Checking loop ideas on the roads \((\d+)\)…$/, "Vérification des idées de boucles sur les routes ($1)…"],
     [/^No hot springs, viewpoints or scenic roads mapped in the right places for a (\d+) h loop from here\. Try another riding time, or plan your own in Plan a route\.$/, "Aucune source chaude, aucun point de vue ni aucune route panoramique cartographiés aux bons endroits pour une boucle de $1 h à partir d'ici. Essayez un autre temps de route, ou planifiez la vôtre dans Planifier un itinéraire."],
     [/^None of the loop ideas came close to (\d+) h on the roads\. Try another riding time or other roads\.$/, "Aucune idée de boucle n'approche $1 h sur les routes. Essayez un autre temps de route ou d'autres routes."],
