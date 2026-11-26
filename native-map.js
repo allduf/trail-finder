@@ -33,11 +33,11 @@
   const btn = document.createElement("button");
   btn.type = "button"; btn.id = "nativeMapBtn";
   btn.title = "Try the map drawn by the phone itself: does it move smoother?";
-  btn.textContent = "Native map (test)";
+  btn.textContent = "Native map";
   const btn3d = document.createElement("button");
   btn3d.type = "button"; btn3d.id = "native3dBtn";
   btn3d.title = "Try the 3D map drawn by the phone itself: does it turn and tilt smoother?";
-  btn3d.textContent = "Native 3D (test)";
+  btn3d.textContent = "Native 3D";
   tools.after(btn, btn3d);
   const isAdmin = () => { try { return localStorage.getItem("tf-admin") === "1"; } catch { return false; } };
   btn.hidden = btn3d.hidden = !isAdmin();

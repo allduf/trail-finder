@@ -621,3 +621,8 @@ body.sport-ski .layers-menu .lm-tiles, body.sport-moto .layers-menu .lm-tiles { 
 .layers-menu .lm-stat:empty { display: none; }
 .layers-menu .lm-stat span { white-space: nowrap; }
 .layers-menu .lm-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
+/* Skiing's Today line: Avalanche Canada's ratings in their colours, as on the avalanche card (alex 2026-11-25) */
+html body :is(#skNow, .peek-today) .sk-nb-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; flex-basis: 100%; }
+html body :is(#skNow, .peek-today) .sk-nb { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px; border-radius: 10px; background: var(--c); color: var(--t); text-align: center; line-height: 1.15; }
+html body :is(#skNow, .peek-today) .sk-nb b { font-size: .9rem; }
+html body :is(#skNow, .peek-today) .sk-nb small { font-size: .72rem; opacity: .9; }

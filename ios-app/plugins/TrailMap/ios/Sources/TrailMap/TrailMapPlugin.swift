@@ -372,8 +372,8 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
 
         let back = pill("← Back", #selector(backTapped))
         let tag = UILabel()
-        tag.text = "  Native map (test)  "
-        tag.isHidden = threeD   // native 3D is the iPhone's 3D map now (alex 2026-11-21): no "(test)" label
+        tag.text = ""
+        tag.isHidden = true   // no "(test)" label any more (alex 2026-11-25, "keep the app professional")
         tag.font = .systemFont(ofSize: 12, weight: .semibold)
         tag.textColor = .white
         tag.backgroundColor = UIColor(red: 0.08, green: 0.13, blue: 0.10, alpha: 0.75)
