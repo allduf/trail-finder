@@ -35,6 +35,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Trim the scripts as the website gets them (scripts/trim-site.mjs)
+        run: node scripts/trim-site.mjs . --strict
       - name: Install the test browser
         # Same mirror fix as phone-test.yml (azure.archive.ubuntu.com hung on 2026-11-11).
         run: |

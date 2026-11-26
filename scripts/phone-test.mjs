@@ -369,7 +369,7 @@ async function androidKeys() {
   return [...keys];
 }
 async function fullKeysCheck() {
-  const m = (await readFile(join(root, "native-map.js"), "utf8")).match(/const\s*FULL\s*=\s*(\[[^\]]*\]);/)   // spaces optional: the tests run on the trimmed copy (scripts/trim-site.mjs);
+  const m = (await readFile(join(root, "native-map.js"), "utf8")).match(/const\s*FULL\s*=\s*(\[[^\]]*\]);/);   // spaces optional: the tests run on the trimmed copy (scripts/trim-site.mjs)
   const full = m ? JSON.parse(m[1]) : null, next = await iosKeys(), problems = [];
   if (!full) problems.push("FULL not found in native-map.js");
   else {
