@@ -2,7 +2,8 @@ name: Slope card
 
 # The native 3D slope card (This spot, after a slope is tapped with the avalanche shading on) shows every row the page
 # sends, with no row squeezed to nothing and no line cut short, on the iPhone and Android simulators
-# (scripts/slope-card/check.mjs; 2026-11-26: the iPhone card had lost "Striped because" and most other rows).
+# (scripts/slope-card/check.mjs; 2026-11-26: the iPhone card had lost "Striped because" and most other rows; with the
+# old height rule this check lists exactly those rows).
 on:
   pull_request:
     paths:
@@ -11,9 +12,6 @@ on:
       - "native-avalanche.js"
       - "scripts/slope-card/**"
       - ".github/workflows/slope-card.yml"
-  push:
-    branches: [claude/project-thread-27mvbl]
-    paths: ["scripts/slope-card/**", ".github/workflows/slope-card.yml"]
   workflow_dispatch:
 
 permissions:
@@ -27,11 +25,6 @@ jobs:
   iphone:
     runs-on: macos-15
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        swift: [fixed, before]
-    continue-on-error: ${{ matrix.swift == 'before' }}
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90   # v1.7.0, pinned to one exact version
@@ -40,10 +33,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: The card's height rule before the fix (to see the check catch it)
-        if: matrix.swift == 'before'
-        run: |
-          sed -i '' 's/h.priority = UILayoutPriority(rawValue: UILayoutPriority.defaultHigh.rawValue - 1)/h.priority = .defaultHigh/' ios-app/plugins/TrailMap/ios/Sources/TrailMap/NativeAvalanche.swift
       - name: Test build for the simulator (opens this runner's site)
         working-directory: ios-app
         run: |
@@ -78,7 +67,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: slope-card-iphone-${{ matrix.swift }}
+          name: slope-card-iphone
           path: out/slope-card/
           if-no-files-found: ignore
 
