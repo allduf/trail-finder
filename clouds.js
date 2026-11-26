@@ -554,7 +554,7 @@
         <div class="cl-key"><b>Chart</b><span><i style="background:#fff"></i>Cloud (whiter = thicker)</span><span><i style="background:#6fa8dc"></i>Clear sky</span><span><i style="background:#3d5a86"></i>Night</span><span><i style="background:none;border:0;border-top:2px dashed #1971c2;height:0"></i>Freezing level</span><span><i style="background:#e8590c;height:3px;border:0"></i>${kind === "route" ? "Route top and bottom" : "This spot's height"}</span></div>
         <div class="cl-key"><b>Strip</b>${Object.values(STATES).map(([col, name]) => `<span><i style="background:${col}"></i>${name}</span>`).join("")}</div>
         <p class="cl-sum">${summary(d, c.states, words.what)}</p>
-        <p class="cl-note">Height goes up, time goes right. The strip under the chart says where ${kind === "route" ? "the top of the route" : "this spot"} is each hour. Tap the chart to see that hour on the map${on ? "" : " (with ☁ Clouds on)"}. Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.</p>`;
+        <p class="cl-note">Height goes up, time goes right. The strip under the chart says where ${kind === "route" ? "the top of the route" : "this spot"} is each hour. Tap the chart to see that hour on the map${on ? "" : " (with Clouds on)"}. Model forecast from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.</p>`;
       const svg = el.querySelector("svg");
       const pick = (e) => {
         const b = svg.getBoundingClientRect(), x = ((e.clientX - b.left) / b.width) * c.W;

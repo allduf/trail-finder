@@ -141,7 +141,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   <label class="nt-opt"><input type="checkbox" id="ntNewOn">Tell me when a new trail is mapped in my regions</label>
   <label class="nt-opt"><input type="checkbox" id="ntAvyOn">⚠ Tell me when the avalanche danger goes up in my regions or on ski tours I watch</label>
   <label class="nt-opt"><input type="checkbox" id="ntFishOn"><span>🎣 Tell me when a lake or river near me is stocked with fish <small id="ntFishWhere"></small></span></label>
-  <div class="nt-push"><label class="nt-opt"><input type="checkbox" id="ntPushOn">📱 Also send them to this phone as notifications</label><p id="ntPushMsg"></p></div>
+  <div class="nt-push"><label class="nt-opt"><input type="checkbox" id="ntPushOn">Also send them to this phone as notifications</label><p id="ntPushMsg"></p></div>
   <p class="nt-zhead">My regions:</p>
   <div class="nt-zones" id="ntZones"></div>
   <div class="nt-row"><button type="button" data-close>Not now</button><button type="button" class="go" id="ntSave">Save</button></div>
@@ -362,7 +362,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     q("ntAvy").hidden = !avyOn();
     if (!avyOn()) return;
     const fresh = new Set(avyUnread().map((t) => t.key)), n = skiWatch().length;
-    q("ntAvyWhere").textContent = `Avalanche Canada's forecast, today and tomorrow: Considerable or more ${prefs() ? "in your regions" : "(pick regions to watch them)"}${n ? `, and Extra caution or Not recommended on the ${n} tour${n > 1 ? "s" : ""} you watch` : ". Watch a tour with 🔔 in its details in Skiing"}.`;
+    q("ntAvyWhere").textContent = `Avalanche Canada's forecast, today and tomorrow: Considerable or more ${prefs() ? "in your regions" : "(pick regions to watch them)"}${n ? `, and Extra caution or Not recommended on the ${n} tour${n > 1 ? "s" : ""} you watch` : ". Watch a tour with the bell in its details in Skiing"}.`;
     q("ntAvyItems").innerHTML = avyList.length ? avyList.map((t, i) => `<li class="${fresh.has(t.key) ? "unread" : ""}"><button type="button" data-v="${i}"><strong>${esc(t.name)}</strong>
       <small><span class="lv" style="--c:${t.color}"><i></i>${esc(t.label)}</span> · ${esc(t.why)}</small></button></li>`).join("")
       : `<li><p>${avyAt ? "No raised danger in what you watch right now." : "Checking the avalanche forecast…"}</p></li>`;
@@ -724,7 +724,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
           const reg = await swReady();
           sub = await reg.pushManager.getSubscription();
           if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(await getKey()) })
-            .catch(() => { throw new Error("the phone dropped its push address: turn 📱 off and on again"); });
+            .catch(() => { throw new Error("the phone dropped its push address: turn phone notifications off and on again"); });
         }
         await pushSave(sub, force);
         pushErr = "";

@@ -2704,7 +2704,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <div class="sk-cond" id="skCond">${condHtml()}</div>
         <div class="sk-rc-btns">
           <button type="button" id="skFly" title="Fly along the route on the 3D map"><span class="ic" aria-hidden="true">✈</span>Flyover</button>
-          ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the 🔔 when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
+          ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the bell when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
           <button type="button" id="skGpx" title="Download the route as a GPX file"><span class="ic" aria-hidden="true">⬇</span>GPX</button>
           ${r.src === "plan" ? "" : `<button type="button" id="skAddTour" title="Put this line in your planned tour: the route follows it from its top to its bottom"><span class="ic" aria-hidden="true">＋</span>Add to tour</button>`}
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
@@ -2886,7 +2886,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <dl><dt>Terrain</dt><dd>${classPill(cls.c, official ? "Official ATES rating" : "")} <span class="sk-note">${official ? `official ATES rating${official.src ? ` from ${official.url ? `<a href="${esc(official.url)}" target="_blank" rel="noopener">${esc(official.src)}</a>` : esc(official.src)}` : ""}` : "estimate"}</span><br>${esc(cls.what)}</dd>
         ${cls.why.length ? `<dt>${official ? "Terrain seen" : "Because"}</dt><dd><ul class="sk-why">${cls.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></dd>` : ""}</dl>
       <div class="sk-row"><button type="button" class="btn sk-watch" id="skWatch" aria-pressed="${on}">${on ? "🔔 Watching this tour" : "🔔 Watch this tour"}</button></div>
-      <p class="sk-note">${on ? "The 🔔 tells you when this tour turns to Extra caution or Not recommended (and your phone, if 📱 is on there). " : ""}The terrain class is worked out from the shape of the ground, like ATES (simple, challenging, complex): forest, cornices, glaciers and small features aren't seen. Where an area has an official rating, it's on <a href="https://avalanche.ca/planning/trip-planner" target="_blank" rel="noopener">Avalanche Canada's trip planner</a>. The light follows Avalanche Canada's Avaluator chart: it's for planning, not a decision on the day.</p>`;
+      <p class="sk-note">${on ? "The bell tells you when this tour turns to Extra caution or Not recommended (and your phone too, if phone notifications are on). " : ""}The terrain class is worked out from the shape of the ground, like ATES (simple, challenging, complex): forest, cornices, glaciers and small features aren't seen. Where an area has an official rating, it's on <a href="https://avalanche.ca/planning/trip-planner" target="_blank" rel="noopener">Avalanche Canada's trip planner</a>. The light follows Avalanche Canada's Avaluator chart: it's for planning, not a decision on the day.</p>`;
     $("skWatch").addEventListener("click", () => {
       const list = watchList().filter((w) => w.k !== k);
       if (on && window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiWatch", k);   // so the account doesn't bring it back

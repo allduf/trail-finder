@@ -24,7 +24,7 @@
     return { native: false, stop: () => navigator.geolocation.clearWatch(id), catchUp: async () => {} };
   } };
   const IN_APP = GPS.native;
-  const pocketHint = () => (IN_APP ? "" : " Tap 🔒 Pocket instead of locking the phone.");
+  const pocketHint = () => (IN_APP ? "" : " Tap Pocket instead of locking the phone.");
   const RESUME_MS = 6 * 3600000;   // a ride whose last point is older than this is over: offer to save it, not to carry on
 
   // ---------- storage: the ride being recorded, shared with ride.html ----------
@@ -1296,7 +1296,7 @@ body.nav-night:not(.base-adv) .leaflet-tile-pane { filter: invert(1) hue-rotate(
     if (gps) await gps.catchUp();                 // the app's GPS kept going: the fixes the page slept through
     if (!rec) return;
     if (hiddenAt && Date.now() - hiddenAt > 20000 && !rec.paused && !(rec.lastReal > hiddenAt + 15000))   // no fixes came while it was off
-      showTip(`The phone stopped the GPS for ${Math.max(1, Math.round((Date.now() - hiddenAt) / 60000))} min while the screen was off. It's back on now.${IN_APP ? "" : " Next time tap 🔒 Pocket instead of locking the phone."}`, 20000);
+      showTip(`The phone stopped the GPS for ${Math.max(1, Math.round((Date.now() - hiddenAt) / 60000))} min while the screen was off. It's back on now.${IN_APP ? "" : " Next time tap Pocket instead of locking the phone."}`, 20000);
     hiddenAt = 0;
   });
 

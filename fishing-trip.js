@@ -459,7 +459,7 @@ html body #fishPane .fs-actions.trips { grid-template-columns: repeat(5, 1fr); }
     if (k === "drawline") {
       F.show(t.hut.lat, t.hut.lon, t.hut.name);
       setTimeout(() => { if (window.tfFishRoute) window.tfFishRoute.start(t.hut.lat, t.hut.lon, t.hut.name); }, 400);
-      toast("Working out the walk in: then tap 🎣 Add to fishing trip under the route.");
+      toast("Working out the walk in: then tap Add to fishing trip under the route.");
     }
   }
   window.addEventListener("tf:fish-route", (e) => {

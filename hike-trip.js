@@ -125,7 +125,7 @@
       <div class="sk-sec" id="tpPark"><h4>Parks, passes and warnings</h4>${parkHtml(t)}</div>` : ""}`,
       afterLinesHtml: (t) => (E.linesOf(t).length ? `<div class="sk-sec" id="tpWater"><h4>Water along your hikes</h4>${waterHtml(t)}</div>` : ""),
       baseBtn: (t) => (t.hut ? `<button type="button" data-tp="place">${esc(t.hut.kind === "hut" ? "Hut details" : t.hut.kind === "camp" ? "Campsite details" : "Place details")}</button>` : ""),
-      linesEmpty: () => `No hikes yet. Tap a hike on the map and then <b>🏕 Add to hike trip</b>, or plan your own with ✏️ Draw a hike.`,
+      linesEmpty: () => `No hikes yet. Tap a hike on the map and then <b>Add to hike trip</b>, or plan your own with Draw a hike.`,
       drawLabel: () => "Draw a hike",
       linesChanged: (t) => { const el = E.part("tpWater"); if (el) el.innerHTML = `<h4>Water along your hikes</h4>${waterHtml(t)}`; else E.render(); if (linesKey(t) !== (t.hp ? t.hp.key : "")) E.loadDays(t); },
       openLine, drawExtra, extraPts,
@@ -406,14 +406,14 @@
     map.fitBounds(L.latLngBounds(x.ls.flat()), { padding: [30, 30], maxZoom: 15 });
     if (window.tfSnapTo) window.tfSnapTo("peek");
   }
-  // ✏️ Draw a hike: Hiking's Plan a hike, from the trip's start or first camp; its card then offers to add it.
+  // Draw a hike: Hiking's Plan a hike, from the trip's start or first camp; its card then offers to add it.
   let drawingFor = null;
   function onTp(k, t) {
     if (k === "drawline") {
       drawingFor = t.id;
       const c = t.start || nightCamps(t).find(Boolean) || t.hut;
       H.plan(c ? [c.lat, c.lon] : null);
-      toast("Tap the map along your hike, then Done. Then tap 🏕 Add to the trip on the plan's card.");
+      toast("Tap the map along your hike, then Done. Then tap Add to the trip on the plan's card.");
     } else if (k === "place" && t.hut) {
       if (H.place(t.hut.id)) H.openPlace(t.hut.id); else map.setView([t.hut.lat, t.hut.lon], Math.max(map.getZoom(), 14));
     }

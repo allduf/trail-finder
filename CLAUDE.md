@@ -69,6 +69,15 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   (lift-access) trails.
 - Loam: Open-Meteo soil moisture; the middle "Damp" range is prime loam.
 
+## Keep the app professional (alex 2026-11-25)
+- Every change, on every device, must look and read polished: consistent wording, capitals, spacing, icons and
+  colours; clean empty, loading and error states; no typos.
+- Nothing meant for us shows to users or testers: no debug, test or placeholder text, no dev-only labels, no raw
+  error codes or `undefined`/`NaN`/`null` in the interface.
+- Keep it organized: menus, panels, settings and buttons grouped the same way in every sport and on every device, with
+  no clutter or duplicate controls. A regrouping is a taste call: show alex before and after screenshots and ask first.
+- Check every changed screen at phone size before calling it done (see "Phone first").
+
 ## Phone first
 - Every feature is designed and tested at iPhone size first. Check it at phone size before calling it done.
 - No emoji in the interface: use the line icons (`line-icons.js`).

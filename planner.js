@@ -1667,7 +1667,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   function renderSaved() {
     if (!savedOpen) return;
     const list = savedList();
-    $("planSaved").innerHTML = (!list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap 💾 Save.</li>` : list.map((e) => {
+    $("planSaved").innerHTML = (!list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap Save.</li>` : list.map((e) => {
       const meta = [e.mode === "pick" ? "Pick trails" : "Tap points", e.km != null ? `${e.drive ? "Ride " : ""}${e.km} km` : "", e.up != null ? `↑ ${e.up} m` : "", e.drive ? `🛻 ${e.drive} km` : "", e.km != null && rs && rs.timeFor ? `⏱ ${rs.fmtHours(rs.timeFor(e.km * 1000, e.up).h)}` : "", e.at ? new Date(e.at).toLocaleDateString() : ""].filter(Boolean).join(" · ");
       return `<li><button type="button" class="sv-body" data-sv="open" data-id="${esc(e.id)}" title="Open this route"><b>${esc(e.name)}</b><small>${esc(meta)}</small></button>
         <span class="sv-ctl">${e.box && window.tfOffline ? `<button type="button" data-sv="offline" data-id="${esc(e.id)}" aria-label="Save offline" title="Save the map and trails around this route on this device, for riding with no signal">⤓</button> ` : ""}<button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
@@ -1708,7 +1708,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       const entry = { ...e, id: Date.now().toString(36), at: new Date().toISOString(), name: String(e.name || "Shared route").slice(0, 120), shared: true };
       setSaved([entry, ...savedList()]);
       setTimeout(() => openSaved(entry), 600);
-      setTimeout(() => flash(`"${entry.name}" was shared with you. It's in 📂 Saved.`, false), 1500);
+      setTimeout(() => flash(`"${entry.name}" was shared with you. It's in Saved.`, false), 1500);
     } catch { setTimeout(() => flash("That shared route link is broken."), 1000); }
   })();
   $("planFind").addEventListener("click", () => setFind(true));
