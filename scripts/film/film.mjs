@@ -104,7 +104,7 @@ createServer(async (req, res) => {
     const rel = relative(root, file);
     if (!file.startsWith(root) || /^(\.git|\.github|scripts|supabase|ios-app|android-app|out|node_modules)(\/|$)/.test(rel)) throw new Error("not served");
     let data = await readFile(file);
-    if (extname(file) === ".html") data = Buffer.from(String(data).replace(/<head([^>]*)>/i, `<head$1><script src="/__sbs.js"></script>`));
+    if (extname(file) === ".html") data = Buffer.from(String(data).replace(/<head([^>]*)>/i, `<head$1><script src="/__sbs.js"></script><script>(() => { const at = { coords: { latitude: 50.1135, longitude: -122.954, accuracy: 10, altitude: 670, heading: null, speed: null, altitudeAccuracy: null }, timestamp: Date.now() }; const g = navigator.geolocation; if (g) { g.getCurrentPosition = (ok) => setTimeout(() => ok({ ...at, timestamp: Date.now() }), 50); g.watchPosition = (ok) => { setTimeout(() => ok({ ...at, timestamp: Date.now() }), 50); return 1; }; g.clearWatch = () => {}; } })();</script>`));
     // The service worker would keep old copies between runs: not in this test.
     if (path === "sw.js") data = Buffer.from("self.addEventListener('install', () => self.skipWaiting()); self.addEventListener('activate', (e) => e.waitUntil(self.registration.unregister()));");
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" }).end(data);
@@ -302,28 +302,25 @@ function rec(file) {
   const ms = []; for (let i = 0; i < 8; i++) ms.push(shotTo(join(OUT, `t-${i}.png`)));
   log("screenshot ms: " + ms.join(", "));
 
-  // 2. Stop-motion orbit: bearing 0 -> 60 over 90 steps, one screenshot each once the move and tiles settle.
-  mkdirSync(join(OUT, "stop"), { recursive: true });
-  const C = { lat: 50.075, lon: -122.92, zoom: 12.6 };
-  log("cam answer: " + (await cam({ ...C, bearing: 0 })));
-  await sleep(6000);
-  const t0 = T(), N = Number(process.env.STEPS || 90);
-  for (let i = 0; i < N; i++) {
-    await cam({ ...C, bearing: (60 * i) / (N - 1) });
-    await sleep(Number(process.env.SETTLE || 900));
-    shotTo(join(OUT, "stop", `f${String(i).padStart(4, "0")}.png`));
+  // 2. Stop-motion: the camera stepped a little each frame, one screenshot per step once it has settled.
+  const SET = Number(process.env.SETTLE || 900);
+  async function seq(name, n, at) {
+    mkdirSync(join(OUT, name), { recursive: true });
+    await cam(at(0)); await sleep(8000);
+    const t0 = T();
+    for (let i = 0; i < n; i++) { await cam(at(i / (n - 1))); await sleep(SET); shotTo(join(OUT, name, `f${String(i).padStart(4, "0")}.png`)); }
+    log(`${name}: ${n} frames in ${Math.round((T() - t0) / 1000)} s`);
   }
-  log(`stop-motion: ${N} frames in ${Math.round((T() - t0) / 1000)} s`);
-
-  // 3a. Live recording while the camera turns (a step every 100 ms).
-  let stop = rec(join(OUT, "live-turn.mp4")); await sleep(1500);
-  for (let i = 0; i <= 150; i++) { cam({ ...C, bearing: 60 - (60 * i) / 150 }); await sleep(100); }
-  await sleep(1500); await stop();
-  // 3b. A native Flyover (a made-up line up Whistler Mountain), live.
-  const pts = [[50.1145, -122.9545, 680], [50.098, -122.951, 1100], [50.083, -122.945, 1500], [50.071, -122.93, 1850], [50.062, -122.918, 2180]].map(([lat, lon, e]) => ({ lat, lon, e }));
-  stop = rec(join(OUT, "live-flyover.mp4")); await sleep(1000);
-  log("flyover: " + (await jsq(`window.tfNativeFly ? window.tfNativeFly(${JSON.stringify(pts)}, "Test") : "no tfNativeFly"`, "no answer")));
-  await sleep(30000); await stop();
+  const ease = (u) => u * u * (3 - 2 * u);
+  // a) with the app's buttons: a slow turn over Whistler
+  await seq("ui-orbit", 180, (u) => ({ lat: 50.075, lon: -122.92, zoom: 12.6, bearing: 40 * ease(u) }));
+  // b) the map alone (the page's buttons hidden): a level glide up Whistler Mountain, nose to the peak
+  await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
+  await sleep(3000);
+  shotTo(join(OUT, "04-clean.png"));
+  const A0 = [50.112, -122.955], A1 = [50.078, -122.935];
+  await seq("clean-glide", 240, (u) => { const e = ease(u); return { lat: A0[0] + (A1[0] - A0[0]) * e, lon: A0[1] + (A1[1] - A0[1]) * e, zoom: 13.0, bearing: 160 }; });
+  await jsq(`document.getElementById("__clean")?.remove()`);
   shotTo(join(OUT, "03-after.png"));
   log("done");
   process.exit(0);
