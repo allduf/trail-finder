@@ -1,0 +1,1 @@
+3D map on a computer: moving the mouse and starting a turn no longer makes the map catch for a moment. ||| Carte 3D sur ordinateur : bouger la souris et commencer à tourner ne fait plus accrocher la carte un instant.
