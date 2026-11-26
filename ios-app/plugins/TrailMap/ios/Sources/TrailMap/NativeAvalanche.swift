@@ -36,7 +36,8 @@ final class NativeAvalanche: NativeLayer {
     private var spotAt: (Double, Double)?
     private var taps = 0, asked = 0           // the slope card asked for last (0: none): an older one arriving late stays shut
     private var links: [String] = []
-    private var underKeys = false            // placed under the ground keys (NativeGround), once they're on the screen
+    private var keysTop: NSLayoutConstraint?  // under the ground keys (NativeGround), while they show
+    private var oldTop: NSLayoutConstraint?, pageTop: NSLayoutConstraint?
     private func word(_ k: String, _ english: String) -> String {
         let w = (info["words"] as? [String: String])?[k] ?? ""
         return w.isEmpty ? english : w
@@ -115,17 +116,30 @@ final class NativeAvalanche: NativeLayer {
                 box.leadingAnchor.constraint(equalTo: g.leadingAnchor, constant: 12),
                 box.widthAnchor.constraint(lessThanOrEqualToConstant: 300),
                 box.trailingAnchor.constraint(lessThanOrEqualTo: g.trailingAnchor, constant: -12),
-                // Under the radar and smoke captions (NativeWeather.swift rows 0-1), and under the ground keys (sun and
-                // shade can stay on with avalanche), never over them.
-                box.topAnchor.constraint(greaterThanOrEqualTo: g.topAnchor, constant: 148)
+                box.topAnchor.constraint(greaterThanOrEqualTo: g.topAnchor, constant: 8)
             ])
-            let pin = box.topAnchor.constraint(equalTo: g.topAnchor, constant: 148)
+            // Where it sits: right under the page's own colour keys over the map ("below", alex 2026-11-25: the hidden
+            // chip floated far under the avalanche key), or, from a page that doesn't say, under the radar and smoke
+            // captions (NativeWeather.swift rows 0-1) as before. Never over the ground keys (sun and shade can stay on
+            // with avalanche) while they show.
+            oldTop = box.topAnchor.constraint(greaterThanOrEqualTo: g.topAnchor, constant: 148)
+            pageTop = box.topAnchor.constraint(greaterThanOrEqualTo: screen.view.topAnchor, constant: 0)
+            let pin = box.topAnchor.constraint(equalTo: g.topAnchor, constant: 8)
             pin.priority = .defaultLow
             pin.isActive = true
         }
-        if !underKeys, let keys = NativeGround.current?.keyBox, keys.superview === screen.view {
-            underKeys = true
-            box.topAnchor.constraint(greaterThanOrEqualTo: keys.bottomAnchor, constant: 6).isActive = true
+        if keysTop == nil, let keys = NativeGround.current?.keyBox, keys.superview === screen.view {
+            keysTop = box.topAnchor.constraint(greaterThanOrEqualTo: keys.bottomAnchor, constant: 6)
+        }
+        if let k = keysTop, let keys = NativeGround.current?.keyBox { k.isActive = !keys.isHidden }
+        let below = (info["below"] as? NSNumber)?.doubleValue ?? 0
+        if below > 0 {
+            oldTop?.isActive = false
+            pageTop?.constant = CGFloat(below) + 4
+            pageTop?.isActive = true
+        } else {
+            pageTop?.isActive = false
+            oldTop?.isActive = true
         }
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         guard (info["on"] as? Bool) == true else { box.isHidden = true; return }
@@ -135,11 +149,11 @@ final class NativeAvalanche: NativeLayer {
             // The chip: an eye and "Avalanche", nothing else (no rating, so it can never show one out of date). With a
             // warning on the card (example, expired, an old copy), a red warning sign instead of the eye.
             let warned = ((info["warn"] as? [String]) ?? []).contains { !$0.isEmpty }
-            let eye = UIImageView(image: UIImage(systemName: warned ? "exclamationmark.triangle" : "eye", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)))
+            let eye = UIImageView(image: UIImage(systemName: warned ? "exclamationmark.triangle" : "eye", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)))
             eye.tintColor = warned ? UIColor(red: 0.69, green: 0.07, blue: 0.1, alpha: 1) : ink
             eye.setContentHuggingPriority(.required, for: .horizontal)
-            let chip = UIStackView(arrangedSubviews: [eye, label(word("avy", "Avalanche"), size: 13, weight: .bold, colour: ink)])
-            chip.spacing = 6
+            let chip = UIStackView(arrangedSubviews: [eye, label(word("avy", "Avalanche"), size: 12, weight: .bold, colour: ink)])
+            chip.spacing = 5
             chip.alignment = .center
             stack.addArrangedSubview(chip)
             box.accessibilityLabel = word("show", "Show") + " " + word("avy", "Avalanche")
