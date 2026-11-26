@@ -269,12 +269,13 @@ async function sportRun(sport, dev) {
       await page.keyboard.press("Escape").catch(() => {});
       await wait(500);
     }
-    await step(p, sport, "How it works", async () => {
+    await step(p, sport, "How it works (opens, Got it closes)", async () => {
       await tap(page, "#aboutBtn");
       await page.waitForSelector("#about:not([hidden])", { state: "visible", timeout: 5000 });
+      await tap(page, "#aboutClose");
+      await page.waitForSelector("#about", { state: "hidden", timeout: 3000 });
     });
-    await page.keyboard.press("Escape").catch(() => {});
-    await page.evaluate(() => { const a = document.getElementById("about"); if (a && !a.hidden) a.hidden = true; });
+    await page.evaluate(() => { const a = document.getElementById("about"); if (a && !a.hidden) a.hidden = true; });   // so a failure above doesn't fail the next steps too
     await wait(300);
   }
 
@@ -283,16 +284,9 @@ async function sportRun(sport, dev) {
     await step(p, sport, "Layers", () => tap(page, "#layersBtn"));
     await tap(page, "#layersBtn").catch(() => page.keyboard.press("Escape"));
     await wait(500);
-    // Offline maps without a route (alex, 2026-10-31): the first row of Layers opens the Offline maps card. A computer's
-    // Layers leaves that row out in the other sports (Offline maps is in ☰ Menu there, tried above).
-    let row = true;
-    if (desk) {
-      await tap(page, "#layersBtn").catch(() => {});
-      row = await visible(page, "#lmOffline");
-      await tap(page, "#layersBtn").catch(() => page.keyboard.press("Escape"));
-      await wait(500);
-    }
-    if (row) await step(p, sport, "Layers → Save this area offline", async () => {
+    // Offline maps without a route (alex, 2026-10-31): the first row of Layers opens the Offline maps card. Phones only:
+    // a computer's Layers has no such row (Offline maps is in ☰ Menu there, tried above).
+    if (!desk) await step(p, sport, "Layers → Save this area offline", async () => {
       await tap(page, "#layersBtn");
       await tap(page, "#lmOffline");
       await page.waitForSelector(".offline-card:not([hidden])", { state: "visible", timeout: 5000 });
@@ -899,7 +893,7 @@ for (const dev of DEVICES) {
   for (const sport of SPORTS) await sportRun(sport, dev);
   if (dev === "phone") await appBuilds();
   else await appBuild("web", true);
-  if (dev === "desk" && SPORTS.includes("ski")) await deskTurn();
+  if (dev === "desk") await deskTurn();   // in Skiing, whatever SPORTS has
   await ridePage(dev);
   await signIn(dev);
 }
@@ -911,7 +905,7 @@ const bad = results.filter((r) => !r.ok);
 const engine = BROWSER === "webkit" ? "Safari engine" : BROWSER;
 const passed = PART === "computer" ? `${SPORTS.length} sports, the website opening Skiing on Winter, the 3D turn with the mouse, My rides and the sign-in check`
   : `${SPORTS.length} sports, App builds, ${PART === "all" ? "the same at computer size with a 3D turn, " : ""}My rides and the sign-in check`;
-const md = [PART === "computer" ? `## 🖥 Computer test (${engine}, 1440×900)` : `## 📱 Phone test (${engine}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height})`, "",
+const md = [PART === "computer" ? `## 🖥 Computer test (${engine}, 1440×900)` : `## 📱 Phone test (${engine}, iPhone ${PHONE.viewport.width}×${PHONE.viewport.height}${PART === "all" ? ", then a computer at 1440×900" : ""})`, "",
   bad.length ? `**${bad.length} problem${bad.length > 1 ? "s" : ""}** in ${results.length} steps.` : `**All ${results.length} steps passed**: ${passed}.`, "",
   "| Sport | Step | Result |", "|---|---|---|",
   ...results.map((r) => `| ${NAMES[r.sport] || "My rides"} | ${r.step} | ${r.ok ? "✓" : "✗ " + r.note.replace(/\|/g, "\\|")} |`), "",
