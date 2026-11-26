@@ -718,7 +718,14 @@ for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 // its start), or if the ground isn't sharp (bigger than 1024 px) before and after the turn, once the map is still.
 if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
   const DESK_TURN_PIXELS = 20 * 1024 * 1024;
-  const DESK_STILL_PIXELS = 16 * 1024 * 1024;   // 3 pieces at 2048 px a frame are ~12 million
+  // Once still: 3 pieces of ground a frame at 2048 px (~12 million pixels) for each layer stack, with room to spare.
+  const deskStillPixels = (stacks) => Math.max(1, stacks) * 16 * 1024 * 1024;
+  // Sharp again: the map still, painting at more than 1024 px, and every piece in view painted at that size.
+  const sharpDone = () => {
+    const g = window.tf3dGl(), pool = g.painter.renderToTexture.pool;
+    if (g.isMoving() || pool._tileSize <= 1024) return false;
+    return g.terrain.tileManager.getRenderableTiles().every((t) => !t || !t.rtt || t.rtt.every((r) => !r || ((pool._objects[r.id] || {}).fbo || {}).width === pool._tileSize));
+  };
   const { hasTouch, isMobile, userAgent, viewport, deviceScaleFactor, ...rest } = PHONE;
   const p = await phone({ ...rest, viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   const { page } = p;
@@ -735,7 +742,7 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
     await page.evaluate(() => window.tf3dGl().jumpTo({ center: [-122.93, 50.08], zoom: 12.6, pitch: 62, bearing: 150 }));
     await page.waitForFunction(() => { const g = window.tf3dGl(); return g.loaded() && !g.isMoving() && g.areTilesLoaded(); }, null, { timeout: 60_000 }).catch(() => {});
     await wait(3000);
-    const still = await page.waitForFunction(() => window.tf3dGl().painter.renderToTexture.pool._tileSize > 1024, null, { timeout: 20_000 })
+    const still = await page.waitForFunction(sharpDone, null, { timeout: 30_000 })
       .then(() => 0, () => page.evaluate(() => window.tf3dGl().painter.renderToTexture.pool._tileSize));
     if (still) throw new Error(`the still ground is painted at ${still} px (sharper expected)`);
   }, 0);
@@ -743,13 +750,14 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
     await page.evaluate(() => {
       const g = window.tf3dGl(), pool = g.painter.renderToTexture.pool, stamp = pool.stampObject;
       const s = window.tfTurn = { px: 0, worst: 0, sizes: new Set(), hand: false, made: 0 };
-      pool.stampObject = function () { s.px += pool._tileSize * pool._tileSize; return stamp.apply(this, arguments); };
+      // Counted at the size of the buffer painted (computers keep buffers of two sizes side by side).
+      pool.stampObject = function (o) { const w = (o && o.fbo && o.fbo.width) || pool._tileSize; s.px += w * w; s.w = Math.max(s.w || 0, w); return stamp.apply(this, arguments); };
       const mk = pool._createObject;
       pool._createObject = function () { if (g.isMoving()) s.made++; return mk.apply(this, arguments); };
       g.on("movestart", (e) => { if (e.originalEvent) s.hand = true; });
       // Frames once the map is still count too: the sharp repaint after a pause painted the whole view in one frame
       // (~50 million pixels, alex's recording 2026-11-25), so a turn started right then stopped.
-      g.on("render", () => { if (g.isMoving()) { s.worst = Math.max(s.worst, s.px); s.sizes.add(pool._tileSize); } else s.still = Math.max(s.still || 0, s.px); s.px = 0; });
+      g.on("render", () => { if (g.isMoving()) { s.worst = Math.max(s.worst, s.px); if (s.w) s.sizes.add(s.w); } else s.still = Math.max(s.still || 0, s.px); s.px = 0; s.w = 0; });
     });
     const r = await page.evaluate(() => { const b = window.tf3dGl().getCanvas().getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
     await page.mouse.move(r[0], r[1]);
@@ -757,8 +765,10 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
     for (let i = 1; i <= 40; i++) { await page.mouse.move(r[0] + i * 12, r[1] + Math.sin(i / 6) * 20); await wait(40); }
     await page.mouse.up({ button: "right" });
     await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
-    await page.waitForFunction(() => window.tf3dGl().painter.renderToTexture.pool._tileSize > 1024, null, { timeout: 20_000 }).catch(() => {});
+    await page.waitForFunction(sharpDone, null, { timeout: 30_000 }).catch(() => {});
+    await wait(1500);
     const t = await page.evaluate(() => ({ hand: window.tfTurn.hand, worst: window.tfTurn.worst, sizes: [...window.tfTurn.sizes], made: window.tfTurn.made, still: window.tfTurn.still || 0,
+      stacks: (window.tf3dGl().painter.renderToTexture._stacks || []).length,
       after: window.tf3dGl().painter.renderToTexture.pool._tileSize }));
     if (!t.hand) throw new Error("the mouse didn't turn the map");
     const mp = (n) => (n / 1048576).toFixed(1) + " million pixels";
@@ -766,7 +776,7 @@ if (COMPUTER_PART && (!PHONE_PART || SPORTS.includes("ski"))) {
       `new buffers while moving: ${t.made}; worst still frame: ${mp(t.still)}; still after: ${t.after} px)`);
     if (t.sizes.some((z) => z > 1024)) throw new Error(`the ground was painted at ${Math.max(...t.sizes)} px while turning (1024 px expected)`);
     if (t.worst > DESK_TURN_PIXELS) throw new Error(`one frame of the turn painted ${mp(t.worst)} of ground (at most ${mp(DESK_TURN_PIXELS)})`);
-    if (t.still > DESK_STILL_PIXELS) throw new Error(`once still, one frame painted ${mp(t.still)} of ground again (at most ${mp(DESK_STILL_PIXELS)}: a few pieces a frame)`);
+    if (t.still > deskStillPixels(t.stacks)) throw new Error(`once still, one frame painted ${mp(t.still)} of ground again (at most ${mp(deskStillPixels(t.stacks))}: a few pieces a frame)`);
     if (t.made > 2) throw new Error(`the turn made ${t.made} new paint buffers (they're made ahead while the map is still)`);
     if (t.after <= 1024) throw new Error(`after the turn the still ground stays at ${t.after} px (sharper expected)`);
   }, 0);
