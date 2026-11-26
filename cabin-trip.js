@@ -1,7 +1,7 @@
 // Plan a cabin trip (Skiing). alex 2026-10-30: "we should have feature 'plan a cabin trip' in skiing", then picked
 // the core first: the cabin and the dates, the way in, the conditions for each day of the trip, and saving it all for
 // when there's no signal.
-//  - "🏕 Plan a cabin trip here" on a hut's card (winter.js select) opens the trip card: the night you go in, how many
+//  - "Plan a cabin trip here" on a hut's card (winter.js select) opens the trip card: the night you go in, how many
 //    nights, how many people, and what's known about the cabin (its tags: beds, price, booking, who runs it, links;
 //    the huts thread fills the same tags from the clubs' own pages).
 //  - The way in: the easiest walk from a parking lot (or a road) to the cabin, worked out by fish-route.js (the same
@@ -108,7 +108,7 @@
       offBase: (t) => (t.hut && t.hut.name) || hutName(t),   // the cabin's name: renaming the trip keeps its offline save
       offUrls: (box) => (window.tfSkiOffline ? window.tfSkiOffline(box).data : []),
       onTp, nearList: nearCabins,
-      listNote: () => `Or start from a cabin: tap one (the brown dots) on the map, then <b>🏕 Plan a cabin trip here</b>, or pick one near you:`,
+      listNote: () => `Or start from a cabin: tap one (the brown dots) on the map, then <b>Plan a cabin trip here</b>, or pick one near you:`,
     };
   }
 
@@ -337,7 +337,7 @@
     let item = null;
     E.offerAdd(d.querySelector(".sk-rc-btns"), () => (r.src === "plan" ? planItem() : item || (item = routeItem(r))));
   });
-  // A tour drawn from the cabin with Plan a tour (✏️ Draw a tour from the cabin) goes in the trip once it's ✓ Done.
+  // A tour drawn from the cabin with Plan a tour (Draw a tour from the cabin) goes in the trip once it's ✓ Done.
   // While drawing, the trip card steps aside so the tour card (its points: move up, down, delete) is right there at the
   // top (alex 2026-11-11 scrolled down past the trip looking for them); it comes back on ✓ Done with the line in it.
   let drawingLine = null;
@@ -354,7 +354,7 @@
     }, 80);
   });
   function editLine(t, id) {   // your own tour: back on the map with its points, then ✓ Done puts the new shape in the trip
-    if (!(S.editTour && S.editTour(id))) { toast("That tour isn't in your saved tours any more. Draw it again with ✏️ Draw a tour."); return; }
+    if (!(S.editTour && S.editTour(id))) { toast("That tour isn't in your saved tours any more. Draw it again with Draw a tour."); return; }
     drawingLine = t; tuckCard();
   }
   const toCard = () => setTimeout(() => window.tfPanelScrollTo && $("skDetail") && window.tfPanelScrollTo($("skDetail")), 80);
@@ -521,7 +521,7 @@
     S.loadSki().then((ski) => { const h = (ski?.huts || []).find((x) => x.id === a.dataset.hut); if (h) open(h); });
   });
 
-  // "🏕 Plan a cabin trip here" on a cabin's details (not shelters you can't sleep in, parking or route starts).
+  // "Plan a cabin trip here" on a cabin's details (not shelters you can't sleep in, parking or route starts).
   window.addEventListener("tf:ski-select", (e) => {
     const h = e.detail && e.detail.item, d = $("skDetail");
     if (!h || !d || h.lat == null || h.src === "c2c" || /^(parking|trailhead|shelter)$/.test(h.kind || "")) return;

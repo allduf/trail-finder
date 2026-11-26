@@ -1188,7 +1188,7 @@
     // Shuttle with nothing driven (and not because you took every shuttle out): say why.
     const gate = legs.map((l) => l.gate).find(Boolean), wanted = mode === "tap" || picks.some((p) => !p.pedal);
     const gates = car ? driven().flatMap(runGates).filter((g, i, a) => a.findIndex((h) => h.id === g.id) === i) : [];
-    const drive = car ? ` · 🛻 Drive ${fmtM(car)}${gates.length ? ` · <span class="gap-note">🚧 ${gates.length} gate${gates.length > 1 ? "s" : ""} to check</span>` : ""}` : how === "shuttle" && wanted && legs.length && !busy && !joining
+    const drive = car ? ` · Drive ${fmtM(car)}${gates.length ? ` · <span class="gap-note">🚧 ${gates.length} gate${gates.length > 1 ? "s" : ""} to check</span>` : ""}` : how === "shuttle" && wanted && legs.length && !busy && !joining
       ? ` · <span class="gap-note">No shuttle from your start${gate ? `: locked gate ${gate === "the road" ? "near it" : "on " + esc(gate)}` : ": no road a truck can take goes up"}, so you ride it all</span>` : "";
     document.querySelectorAll(".plan-how button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.how === how)));
     document.querySelectorAll(".plan-modes button[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
@@ -1214,7 +1214,7 @@
         ? `In the order you tapped. <button type="button" class="ps-auto" data-act="auto">↻ Best order</button>`
         : "The app chose the best order. ▲ ▼ to change it.";
       $("planSteps").innerHTML = !picks.length ? "" : !legs.length ? picks.map((p, i) => pickRow(i, chip({ name: p.name, ...levelOf(p.ways[0]) }))).join("")
-        : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? (pickStartName ? `: 🅿 ${esc(pickStartName)}` : "") : autoLot ? `: 🅿 ${esc(autoLot.name)}` : " at the lowest end of your trails"}</span></li>`
+        : `<li class="ps-start"><span class="ps-n">S</span><span><b>Start</b>${pickStart ? (pickStartName ? `: ${window.tfLineName ? window.tfLineName("parking", 14) + " " : ""}${esc(pickStartName)}` : "") : autoLot ? `: ${window.tfLineName ? window.tfLineName("parking", 14) + " " : ""}${esc(autoLot.name)}` : " at the lowest end of your trails"}</span></li>`
           + legs.map(stepHtml).join("") + (pickBack ? `<li class="ps-start"><span class="ps-n">S</span><span><b>Back at the start</b></span></li>` : "");
     }
     const has = mode === "tap" ? stops.length : picks.length, ready = mode === "tap" ? stops.length >= 2 : legs.length > 0;
@@ -1639,7 +1639,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
     if (name == null) return;
     const e = routeEntry(name.trim() || guess);
     setSaved([e, ...savedList()]);
-    window.tfHappy && window.tfHappy("mtb route"); flash(`Saved "${e.name}". 📂 Saved opens it again.`, false);
+    window.tfHappy && window.tfHappy("mtb route"); flash(`Saved "${e.name}". Find it again in Saved.`, false);
   }
   // A loop opened from a loop list (loops.js) keeps a way back to that list, so another loop is one tap away.
   let toList = null;
@@ -1667,7 +1667,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
   function renderSaved() {
     if (!savedOpen) return;
     const list = savedList();
-    $("planSaved").innerHTML = (!list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap 💾 Save.</li>` : list.map((e) => {
+    $("planSaved").innerHTML = (!list.length ? `<li class="sv-empty">No saved routes yet. Plan one and tap Save.</li>` : list.map((e) => {
       const meta = [e.mode === "pick" ? "Pick trails" : "Tap points", e.km != null ? `${e.drive ? "Ride " : ""}${e.km} km` : "", e.up != null ? `↑ ${e.up} m` : "", e.drive ? `🛻 ${e.drive} km` : "", e.km != null && rs && rs.timeFor ? `⏱ ${rs.fmtHours(rs.timeFor(e.km * 1000, e.up).h)}` : "", e.at ? new Date(e.at).toLocaleDateString() : ""].filter(Boolean).join(" · ");
       return `<li><button type="button" class="sv-body" data-sv="open" data-id="${esc(e.id)}" title="Open this route"><b>${esc(e.name)}</b><small>${esc(meta)}</small></button>
         <span class="sv-ctl">${e.box && window.tfOffline ? `<button type="button" data-sv="offline" data-id="${esc(e.id)}" aria-label="Save offline" title="Save the map and trails around this route on this device, for riding with no signal">⤓</button> ` : ""}<button type="button" data-sv="rename" data-id="${esc(e.id)}" aria-label="Rename">✎</button> <button type="button" data-sv="del" data-id="${esc(e.id)}" aria-label="Delete">🗑</button></span></li>`;
@@ -1708,7 +1708,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       const entry = { ...e, id: Date.now().toString(36), at: new Date().toISOString(), name: String(e.name || "Shared route").slice(0, 120), shared: true };
       setSaved([entry, ...savedList()]);
       setTimeout(() => openSaved(entry), 600);
-      setTimeout(() => flash(`"${entry.name}" was shared with you. It's in 📂 Saved.`, false), 1500);
+      setTimeout(() => flash(`"${entry.name}" was shared with you. It's in Saved.`, false), 1500);
     } catch { setTimeout(() => flash("That shared route link is broken."), 1000); }
   })();
   $("planFind").addEventListener("click", () => setFind(true));

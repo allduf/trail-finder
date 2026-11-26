@@ -1610,9 +1610,9 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <h3>🚵 MTB</h3>
     <ul class="about-quick">
       <li><b>Search</b> a trail, a town or Near me, then pick how new. <b>Any</b> shows every trail, old or new.</li>
-      <li><b>Prime loam</b> means damp, grippy dirt right now. The 🔔 tells you when a trail you saved turns prime.</li>
+      <li><b>Prime loam</b> means damp, grippy dirt right now. The bell tells you when a trail you saved turns prime.</li>
       <li><b>Tap a trail</b> for its difficulty, weather, loam, rider reports and how to get there.</li>
-      <li><b>▶ Ride</b> (Ride tab) follows you on the map and records your ride. Use 🔒 Pocket rather than locking the phone.</li>
+      <li><b>▶ Ride</b> (Ride tab) follows you on the map and records your ride. Use Pocket rather than locking the phone.</li>
       <li><b>▶ Ride this trail</b> (in a trail's details) guides you to it and buzzes if you leave it.</li>
       <li><b>✎ Plan a route</b> (Ride tab): tap the trails you want in order, then ▶ Ride it. ⋯ More has Shuttle, GPX and Save.</li>
       <li><b>☀ Where to ride today</b> (Find) shows the best spots now, with ready-made loops from a parking lot.</li>
@@ -1624,17 +1624,17 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <ul class="about-quick">
       <li><b>Touring, Nordic, Snowmobile, Resorts</b>: the four buttons pick what's on the map.</li>
       <li><b>Avalanche card</b>: today's forecast where you're looking. <b>⚠ Avalanche risk</b> and <b>Slope angle</b> (Layers) colour the steep ground.</li>
-      <li><b>Tap a route</b> for its profile, steepness, weather and avalanche light: Normal caution, Extra caution or Not recommended. 🔔 Watch it to hear when that changes.</li>
+      <li><b>Tap a route</b> for its profile, steepness, weather and avalanche light: Normal caution, Extra caution or Not recommended. Watch it to hear when that changes.</li>
       <li><b>Tap anywhere</b> for “This spot”: snow that fell, snow coming and the week's weather.</li>
       <li><b>✎ Plan a tour</b>, <b>▶ Record a tour</b> or <b>▶ Follow this tour</b> from a route.</li>
-      <li><b>Huts</b>: tap one for booking, beds and price. 🏕 Plan a cabin trip here works out the way in and each day's conditions.</li>
+      <li><b>Huts</b>: tap one for booking, beds and price. Plan a cabin trip here works out the way in and each day's conditions.</li>
       <li><b>Resorts</b>: lift status, webcams, slackcountry and <b>freeride lines</b> (named chutes, couloirs and faces). <b>🚁 Heli and cat skiing</b> and <b>⛰ Backcountry areas</b> cover all of Canada.</li>
       <li>It helps you plan; it doesn't replace avalanche training, the full forecast on avalanche.ca, or what you see on the day.</li>
     </ul>
     <h3 id="aboutHunt">🦌 Hunting</h3>
     <ul class="about-quick">
       <li><b>Tap the map</b> for the zone, what's open today, draws, and whether it's Crown land, private, a park or a no-shooting town.</li>
-      <li><b>Wind and light</b>: the orange cone shows where your scent goes. The light card has legal light, sun, moon and ⏰ alarms.</li>
+      <li><b>Wind and light</b>: the orange cone shows where your scent goes. The light card has legal light, sun, moon and alarms.</li>
       <li><b>Top buttons</b>: My spot, Save a point, My hunts, Mark my truck and Back to truck, Track.</li>
       <li><b>📍 Drop pin</b> marks a trail cam, tracks, a saline and more. Saved can show only the tags you pick.</li>
       <li><b>Compass</b> turns the map with your phone. ◎ Range drops a pin at the distance you ranged.</li>
@@ -1672,7 +1672,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     <h3>Every sport</h3>
     <ul class="about-quick">
       <li>On phones, the tabs at the bottom are Map, Find, Ride, Saved and More. ← Back goes back one step.</li>
-      <li><b>Layers</b> (on the map): clouds, smoke, 🌧 radar, wildfires, forest roads, map style and more. ⛰ 3D sits next to it.</li>
+      <li><b>Layers</b> (on the map): clouds, smoke, radar, wildfires, forest roads, map style and more. 3D sits next to it.</li>
       <li><b>⤓ Offline maps</b> (Ride tab) saves an area for when there's no signal.</li>
       <li><b>📡 Share my live location</b> (Ride tab or More) lets friends follow you on a map.</li>
       <li>Sign in (More) to keep your saved trails, routes and rides on every device.</li>
@@ -3937,7 +3937,7 @@ out body;`;
       setStatus(n ? `${n} ${what}${n === 1 ? "" : "s"} in ${where} ${n === 1 ? "is" : "are"} in prime loam right now.${busy ? " " + busy : ""}`
         : busy || (noType ? "Tick a trail type above to see the trails." : only ? `No ${only}trails in ${where} are in prime loam right now. Turn off ${onlyOff} to see the others.`
           : `No trails in ${where} are in prime loam right now (Loam index 40 to 59).${loamNow()}${state.primeSoon
-            ? ` Forecast: ${state.primeSoon.n} trail${state.primeSoon.n === 1 ? "" : "s"} here turn${state.primeSoon.n === 1 ? "s" : ""} prime ${state.primeSoon.day === "tomorrow" ? "tomorrow" : "on " + state.primeSoon.day}. The 🔔 can tell you when.`
+            ? ` Forecast: ${state.primeSoon.n} trail${state.primeSoon.n === 1 ? "" : "s"} here turn${state.primeSoon.n === 1 ? "s" : ""} prime ${state.primeSoon.day === "tomorrow" ? "tomorrow" : "on " + state.primeSoon.day}. The bell can tell you when.`
             : " None look prime in the next few days either."}${state.primeClose ? ` Below: the ${state.primeClose} trail${state.primeClose === 1 ? "" : "s"} closest to prime right now.` : " Pick Month, Year… to see new trails instead."}`));
       return;
     }
@@ -6136,7 +6136,7 @@ out body;`;
       <div class="hub-seg" role="group" aria-label="Language" translate="no">${[["en", "English"], ["fr", "Français"]].map(([l, n]) => `<button type="button" data-lang="${l}" aria-pressed="${(window.tfLang ? window.tfLang.lang : "en") === l}">${n}</button>`).join("")}</div>
       ${window.tfAiConsent ? `<div class="hub-sec">Google's AI</div>
       <div class="hub-seg" role="group" aria-label="Google's AI">${[[true, "Use it"], [false, "Don't use it"]].map(([v, n]) => `<button type="button" data-ai="${v}" aria-pressed="${window.tfAiConsent.state() === v}">${n}</button>`).join("")}</div>
-      <p class="hub-hint">${window.tfPhotoFindOn === false ? "For Ask in plain words and fish ID. 18 or older." : "For photo find, Ask in plain words and fish ID. 18 or older."}</p>${window.tfAiConsent.state() == null ? `<p class="hub-hint">Not chosen yet. You'll be asked the first time it's needed.</p>` : ""}` : ""}
+      <p class="hub-hint">${window.tfPhotoFindOn === false ? "Used by Ask in plain words and fish ID, for people 18 or older." : "Used by photo find, Ask in plain words and fish ID, for people 18 or older."}</p>${window.tfAiConsent.state() == null ? `<p class="hub-hint">Not chosen yet. You'll be asked the first time it's needed.</p>` : ""}` : ""}
       ${window.tfUsage ? `<div class="hub-sec">How the app is used</div>
       <div class="hub-seg" role="group" aria-label="How the app is used">${[[true, "Share"], [false, "Don't share"]].map(([v, n]) => `<button type="button" data-usage="${v}" aria-pressed="${window.tfUsage.on() === v}">${n}</button>`).join("")}</div>
       <p class="hub-hint">Screens, taps, searches and errors, with no name, email or location, to fix bugs. <a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>` : ""}

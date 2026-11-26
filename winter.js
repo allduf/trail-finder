@@ -458,7 +458,7 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 .lm-ski .sk-sw, .map-tools .layers-menu .lm-ski .sk-slot button::after { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; margin: 0; flex: none; cursor: pointer; transition: background .15s;
   background: radial-gradient(circle at 12px 50%, #fff 8.5px, transparent 9.5px), var(--line); box-shadow: none; }
 .map-tools .layers-menu .lm-ski .sk-slot button::after { content: ""; padding: 0; }
-.lm-ski .sk-sw:checked, .map-tools .layers-menu .lm-ski .sk-slot button[aria-pressed="true"]::after { background: radial-gradient(circle at 28px 50%, #fff 8.5px, transparent 9.5px), #1f5fe0; }
+.lm-ski .sk-sw:checked, .map-tools .layers-menu .lm-ski .sk-slot button[aria-pressed="true"]::after { background: radial-gradient(circle at 28px 50%, #fff 8.5px, transparent 9.5px), #2f8a3e; }   /* every Layers switch is the same green in every sport (alex 2026-11-26) */
 .lm-ski .sk-sw:focus-visible, .lm-ski .sk-slot button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #skiPane .sk-sw { width: 18px; height: 4px; border-radius: 2px; flex: none; display: inline-block; }
 #skiPane .sk-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0003; flex: none; display: inline-block; }
@@ -672,9 +672,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 .lm-ski .sk-tcap, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button b { display: block; font-size: .74rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
 .lm-ski .sk-tile .sk-sw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button::after { display: none; }
-.lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic { border-color: #1f5fe0; box-shadow: 0 0 0 2px #1f5fe0; }
+.lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic { border-color: #2f8a3e; box-shadow: 0 0 0 2px #2f8a3e; }
 .lm-ski .sk-tile:has(.sk-sw:checked) .sk-thumb::after, .map-tools .layers-menu .lm-ski .sk-tilegrid .sk-slot button[aria-pressed="true"] .sk-lic::after { content: "✓"; position: absolute; top: 4px; right: 4px;
-  width: 18px; height: 18px; border-radius: 50%; background: #1f5fe0; color: #fff; font: 800 11px/18px system-ui, sans-serif; text-align: center; text-shadow: none; }
+  width: 18px; height: 18px; border-radius: 50%; background: #2f8a3e; color: #fff; font: 800 11px/18px system-ui, sans-serif; text-align: center; text-shadow: none; }
 .lm-ski .sk-tile:has(.sk-sw:focus-visible) .sk-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lm-ski .sk-palrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: .76rem; color: var(--muted); padding: 2px 0 4px; }
 .lm-ski .sk-palrow[hidden] { display: none; }
@@ -2704,7 +2704,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         <div class="sk-cond" id="skCond">${condHtml()}</div>
         <div class="sk-rc-btns">
           <button type="button" id="skFly" title="Fly along the route on the 3D map"><span class="ic" aria-hidden="true">✈</span>Flyover</button>
-          ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the 🔔 when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
+          ${mine ? "" : `<button type="button" id="skRcWatch" aria-pressed="false" disabled title="Alerts in the bell when this tour turns risky"><span class="ic" aria-hidden="true">🔔</span>Watch</button>`}
           <button type="button" id="skGpx" title="Download the route as a GPX file"><span class="ic" aria-hidden="true">⬇</span>GPX</button>
           ${r.src === "plan" ? "" : `<button type="button" id="skAddTour" title="Put this line in your planned tour: the route follows it from its top to its bottom"><span class="ic" aria-hidden="true">＋</span>Add to tour</button>`}
           ${window.tfRide ? `<button type="button" class="go" id="skFollow" title="Follow this tour with your location"><span class="ic" aria-hidden="true">▶</span>Go</button>` : ""}
@@ -2886,7 +2886,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       <dl><dt>Terrain</dt><dd>${classPill(cls.c, official ? "Official ATES rating" : "")} <span class="sk-note">${official ? `official ATES rating${official.src ? ` from ${official.url ? `<a href="${esc(official.url)}" target="_blank" rel="noopener">${esc(official.src)}</a>` : esc(official.src)}` : ""}` : "estimate"}</span><br>${esc(cls.what)}</dd>
         ${cls.why.length ? `<dt>${official ? "Terrain seen" : "Because"}</dt><dd><ul class="sk-why">${cls.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></dd>` : ""}</dl>
       <div class="sk-row"><button type="button" class="btn sk-watch" id="skWatch" aria-pressed="${on}">${on ? "🔔 Watching this tour" : "🔔 Watch this tour"}</button></div>
-      <p class="sk-note">${on ? "The 🔔 tells you when this tour turns to Extra caution or Not recommended (and your phone, if 📱 is on there). " : ""}The terrain class is worked out from the shape of the ground, like ATES (simple, challenging, complex): forest, cornices, glaciers and small features aren't seen. Where an area has an official rating, it's on <a href="https://avalanche.ca/planning/trip-planner" target="_blank" rel="noopener">Avalanche Canada's trip planner</a>. The light follows Avalanche Canada's Avaluator chart: it's for planning, not a decision on the day.</p>`;
+      <p class="sk-note">${on ? "The bell tells you when this tour turns to Extra caution or Not recommended (and your phone too, if “Also send them to this phone” is on). " : ""}The terrain class is worked out from the shape of the ground, like ATES (simple, challenging, complex): forest, cornices, glaciers and small features aren't seen. Where an area has an official rating, it's on <a href="https://avalanche.ca/planning/trip-planner" target="_blank" rel="noopener">Avalanche Canada's trip planner</a>. The light follows Avalanche Canada's Avaluator chart: it's for planning, not a decision on the day.</p>`;
     $("skWatch").addEventListener("click", () => {
       const list = watchList().filter((w) => w.k !== k);
       if (on && window.tfAccount && window.tfAccount.gone) window.tfAccount.gone("skiWatch", k);   // so the account doesn't bring it back
