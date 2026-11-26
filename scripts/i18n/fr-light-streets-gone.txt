@@ -1,0 +1,1 @@
+Map styles: Light streets is gone, since its map server now needs a key. Sharp outdoor and the other styles stay. ||| Styles de carte : Rues claires n’est plus offert, car son serveur demande maintenant une clé. Plein air net et les autres styles restent.

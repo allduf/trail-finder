@@ -910,6 +910,8 @@ async function buildFishList() {
     for (let off = 0; off < 60000; off += 300) {
       const q = new URLSearchParams({ country: "CA", stateProvince: prov, hasCoordinate: "true", hasGeospatialIssue: "false", occurrenceStatus: "PRESENT", limit: "300", offset: String(off) });
       FISH_ORDERS.forEach((k) => q.append("taxonKey", k));
+      // Only records whose licence allows any use, paid apps included (data rights check, alex 2026-11-26): CC BY-NC left out.
+      ["CC0_1_0", "CC_BY_4_0"].forEach((l) => q.append("license", l));
       let j;
       try { j = await get(`https://api.gbif.org/v1/occurrence/search?${q}`); } catch (e) { log(`  ${prov}: ${e.message}`); if (old) { log("  keeping the last good file"); return; } break; }
       for (const r of j.results || []) {
