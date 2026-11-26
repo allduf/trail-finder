@@ -8,7 +8,7 @@ description: Use when touching anything avalanche, ski touring or freeride in Tr
 - Avalanche info must be exact. Better to show nothing than wrong info.
 - Show only the danger rating Avalanche Canada gave, for that elevation band, read live from api.avalanche.ca.
   Never raise or lower it by slope, aspect or anything else.
-- Problem aspects may be a darker shade of the same colour. Never reuse danger colours for other meanings.
+- Problem aspects: diagonal stripes of a darker shade of the same colour, over the band's own colour. Never reuse danger colours for other meanings.
 - Any estimate we make (band heights, terrain class) is labelled as an estimate.
 - With no forecast, the "Less exposed way" still draws (terrain only), with a warning that no forecast is included
   and why.
