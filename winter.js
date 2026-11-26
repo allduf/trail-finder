@@ -745,7 +745,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   pane.setAttribute("aria-label", "Skiing");
   pane.innerHTML = `
     <div class="sk-views" id="skViews" role="group" aria-label="Show these routes"></div>
-    <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Search or ask a question" aria-label="Search a route, hut, resort, freeride line or place, or ask in plain words" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Go</button></div></form>
+    <form class="sk-findform" id="skFindForm" role="search"><div class="ps-row"><input type="search" class="sk-find" id="skFind" placeholder="Search or ask a question" aria-label="Search a route, hut, resort, freeride line or place, or ask in plain words" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">Search</button></div></form>
     <p class="ps-msg" id="skPlaceMsg" role="status"></p><ul class="ps-hits" id="skPlaces" aria-label="Search results"></ul>
     <button type="button" class="sk-now" id="skNow" hidden></button>
     <div class="sk-acts"><button type="button" class="sk-act" id="skPlanBtn">✎ Plan a tour</button><button type="button" class="sk-act" id="skRecBtn">▶ Record a tour</button><button type="button" class="sk-act" id="skSaveBtn" title="Save a point on the map with a name, a description and a photo">📍 Save a point</button><button type="button" class="sk-act" id="skNewBtn" hidden>＋ Plan a new tour</button><button type="button" class="sk-act" id="skToursBtn" hidden>📂 Saved tours</button></div>

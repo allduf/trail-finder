@@ -20,7 +20,7 @@
 .ps-row { display: flex; gap: 6px; }
 .ps-in { flex: 1; min-width: 0; font: inherit; font-size: 16px; box-sizing: border-box; padding: 9px 12px 9px 34px; border: 1px solid var(--line); border-radius: 12px; color: var(--fg);
   background: var(--panel) no-repeat 11px 50% / 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.2'%3E%3Cpath d='M12 21.5s6.5-5.8 6.5-11.2a6.5 6.5 0 1 0-13 0c0 5.4 6.5 11.2 6.5 11.2z'/%3E%3Ccircle cx='12' cy='10.3' r='2.4'/%3E%3C/svg%3E"); }
-.ps-go { font: inherit; font-size: .88rem; font-weight: 700; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+.ps-go { font: inherit; font-size: .88rem; font-weight: 700; padding: 0 14px; border-radius: 12px; border: 1px solid transparent; background: var(--cta, var(--accent)); color: var(--cta-fg, #fff); cursor: pointer; }   /* the same "Search" button as MTB's in every sport (alex 2026-11-25) */
 .ps-msg { margin: 0; color: var(--muted); font-size: .78rem; }
 .ps-msg:empty { display: none; }
 ul.ps-hits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
@@ -348,7 +348,7 @@ ul.ps-hits:empty { display: none; }
     const el = document.createElement("form");
     el.className = "ps-box";
     el.setAttribute("role", "search");
-    el.innerHTML = `<div class="ps-row"><input type="search" class="ps-in" placeholder="${esc(o.placeholder || "Go to a town, mountain, lake or region")}" aria-label="${esc(o.label || o.placeholder || "Search a place")}" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">${esc(o.button || "Go")}</button></div>
+    el.innerHTML = `<div class="ps-row"><input type="search" class="ps-in" placeholder="${esc(o.placeholder || "Go to a town, mountain, lake or region")}" aria-label="${esc(o.label || o.placeholder || "Search a place")}" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="submit" class="ps-go">${esc(o.button || "Search")}</button></div>
       <p class="ps-msg" role="status"></p><ul class="ps-hits"></ul>`;
     const input = el.querySelector("input"), msg = el.querySelector(".ps-msg"), ul = el.querySelector("ul");
     let rows = [];
