@@ -20,7 +20,7 @@ const A=JSON.parse(fs.readFileSync(process.argv[2])); if(A.tripLinesFile){ let t
       g.addSource('trip',{type:'geojson',data:{type:'FeatureCollection',features:[fc([t.way.line],{c:'#7048e8',n:'Way in'}),...t.lines.map(l=>fc(l.ls,{c:'#e8590c',n:l.name}))]}});
       g.addLayer({id:'trip-case',type:'line',source:'trip',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#fff','line-width':9}});
       g.addLayer({id:'trip-line',type:'line',source:'trip',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':['get','c'],'line-width':5.5}});
-      if(font) g.addLayer({id:'trip-name',type:'symbol',source:'trip',layout:{'symbol-placement':'line','text-field':['get','n'],'text-font':font,'text-size':15,'text-offset':[0,-1.1]},paint:{'text-color':['get','c'],'text-halo-color':'#fff','text-halo-width':2.2}}); }
+      if(font&&!A.noNames) g.addLayer({id:'trip-name',type:'symbol',source:'trip',layout:{'symbol-placement':'line','text-field':['get','n'],'text-font':font,'text-size':15,'text-offset':[0,-1.1]},paint:{'text-color':['get','c'],'text-halo-color':'#fff','text-halo-width':2.2}}); }
     try{ g.setCenterClampedToGround && g.setCenterClampedToGround(false); }catch(e){} g._elevationFreeze=true;
     return 1; },A);
   console.log('layers', await p.evaluate(()=>window.__gl.getStyle().layers.filter(l=>window.__gl.getLayoutProperty(l.id,'visibility')!=='none').map(l=>l.id).join(' ')));
