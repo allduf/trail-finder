@@ -42,6 +42,9 @@ jobs:
         run: node scripts/wording-check.mjs
       - name: Version number, What's new and French as the website gets them (scripts/stamp.mjs)
         run: node scripts/stamp.mjs --test
+      - name: Trim the scripts as the website gets them (scripts/trim-site.mjs)
+        # The publish trims comments and spaces (alex 2026-11-26), so the tests run on that same trimmed copy.
+        run: node scripts/trim-site.mjs . --strict
       - name: Install the test browser
         # The runner's Ubuntu mirror (azure.archive.ubuntu.com) stopped sending files on 2026-11-11 and the install
         # hung until the 25 min limit, twice. The browser's system files come from the main Ubuntu mirror instead, and
@@ -92,6 +95,9 @@ jobs:
         run: node scripts/wording-check.mjs
       - name: Version number, What's new and French as the website gets them (scripts/stamp.mjs)
         run: node scripts/stamp.mjs --test
+      - name: Trim the scripts as the website gets them (scripts/trim-site.mjs)
+        # The publish trims comments and spaces (alex 2026-11-26), so the tests run on that same trimmed copy.
+        run: node scripts/trim-site.mjs . --strict
       - name: Install the test browser
         # The same mirror fixes as the phone job above.
         run: |
@@ -125,6 +131,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Trim the scripts as the website gets them (scripts/trim-site.mjs)
+        # The publish trims comments and spaces (alex 2026-11-26), so the tests run on that same trimmed copy.
+        run: node scripts/trim-site.mjs . --strict
       - name: Install the test browser
         # The same mirror fixes as the phone job above.
         run: |
