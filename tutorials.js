@@ -20,7 +20,7 @@
     { id: "avalanche-terrain", sport: "ski", title: "Avalanche and terrain layers", sub: "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)", src: "videos/avalanche-terrain.mp4", poster: "videos/avalanche-terrain.jpg", secs: 51 },
     // offline-maps: alex 2026-11-26 ("add it to the tutorial in the app"). Every sport saves maps, so it's in the whole app's group.
     { id: "offline-maps", sport: "all", title: "Save a map for no signal", sub: "Pick a square, see its size, save it, pick up a stopped save, then use the map with no signal", src: "videos/offline-maps-2.mp4", poster: "videos/offline-maps.jpg", secs: 44 },
-    { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your crew, ski lines, packing, meals and costs, then share the trip", src: "videos/cabin-trip.mp4", poster: "videos/cabin-trip.jpg", secs: 94 },
+    { id: "cabin-trip", sport: "ski", title: "Plan a cabin trip", sub: "Pick a hut, the way in, your crew, ski lines, packing, meals and costs, then share the trip", src: "videos/cabin-trip-2.mp4", poster: "videos/cabin-trip-2.jpg", secs: 113 },
   ];
   const SPORTS = { all: ["The whole app", "✨"], mtb: ["MTB", "🚵"], ski: ["Skiing", "⛷"], hunt: ["Hunting", "🦌"], fish: ["Fishing", "🎣"], moto: ["Adventure moto (ADV)", "🏍"], hike: ["Hiking", "🥾"] };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
