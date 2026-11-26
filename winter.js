@@ -166,6 +166,9 @@ window.tfDragSort = (root, o) => {
   // darker shade, running bottom-left to top-right as on the map.
   const STRIPES = (r, w = 3) => `repeating-linear-gradient(135deg,${DARK[r]} 0 ${w}px,${DANGER[r].color} ${w}px ${w * 2.25}px)`;
   const BANDS = [["alp", "Alpine"], ["tln", "Treeline"], ["btl", "Below treeline"]];
+  // The bands where today's problems, together, name all 8 directions: every shaded slope there is striped (alex
+  // 2026-11-26 asked why everything was striped: one Storm slab on all aspects, alpine and treeline).
+  const allWays = (f) => BANDS.filter(([b]) => new Set((f.problems || []).filter((p) => (p.elevations || []).includes(b)).flatMap((p) => p.aspects || [])).size >= 8).map(([, n]) => n);
   // Avalanche Canada's likelihood codes ("veryLikely_likely") in words, lower end first: "likely to very likely".
   const LIKELY = ["unlikely", "possible", "likely", "veryLikely", "certain"];
   const likely = (v) => {
@@ -502,6 +505,8 @@ body:not(.sport-ski) .lm-ski { display: none !important; }
 #skiPane .av-days button { font: inherit; font-size: .8rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
 #skiPane .av-days button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
 #skiPane .av-chip { font-weight: 700; font-size: .78rem; padding: 2px 8px; border-radius: 6px; text-align: center; min-width: 108px; }
+#skiPane .sk-stripe { margin: 2px 0 8px; line-height: 1.6; }
+#skiPane .sk-stripe .av-chip { min-width: 0; display: inline-block; }
 #skiPane .av-prob { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: start; border-top: 1px solid var(--line); padding-top: 8px; }
 #skiPane .av-prob b { display: block; }
 #skiPane .av-prob p, #skiPane .av-card p { margin: 2px 0; font-size: .82rem; }
@@ -3913,6 +3918,21 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (c > (s >= 35 ? 3 : s >= 30 || g.max >= 30 ? 2 : 1)) why.push(["", "The class also counts the shape of the ground around this spot on the terrain map (an estimate)."]);
     return { c, ...T.CLASSES[c], why };
   }
+  // The slope chip in the map's own look: the band's colour, with the problem stripes over it where the map has them.
+  const chipStyle = (r, hit) => `background-color:${DANGER[r].color};${hit ? `background-image:${STRIPES(r)};` : ""}color:${r >= 4 ? "#fff" : "#1a1a1a"}${hit ? `;text-shadow:0 0 3px ${r >= 4 ? "#000" : "#fff"},0 0 2px ${r >= 4 ? "#000" : "#fff"}` : ""}`;
+  // The first line of a tapped slope that the map stripes (alex 2026-11-26: "Striped because: storm slab on this
+  // direction"): Avalanche Canada's own problem names for this slope's band and direction, on the day shown. Exactly
+  // the map's test (rating, 25°+, the band's problem directions); nothing when the slope isn't striped.
+  function spotStripeHtml(lat, lon, g) {
+    const data = example ? exampleData() : avy;
+    const a = data ? areaAt(lat, lon) : null, f = a && a.forecast;
+    if (!f || fcExpired(f) || g.slope < 25) return "";
+    const d = dayOf(f), band = bandOf(g.e, a.bands), r = (d && d[band]) || 0;
+    if (!r || !(a.mask[band] & (1 << g.asp))) return "";
+    const asp = ASPECTS[g.asp], names = [...new Set((f.problems || []).filter((p) => (p.elevations || []).includes(band) && (p.aspects || []).includes(asp)).map((p) => p.type).filter(Boolean))];
+    if (!names.length) return "";
+    return `<p class="sk-stripe"><span class="av-chip" style="${chipStyle(r, true)}">Striped</span> <span>because:</span> <b>${esc(names.join(", "))}</b> <span>${names.length > 1 ? "(Avalanche Canada's problems for this slope's direction and band)" : "(Avalanche Canada's problem for this slope's direction and band)"}</span></p>`;
+  }
   function spotAvyHtml(lat, lon, g, cls) {
     const data = example ? exampleData() : avy;
     const site = avySite(lat, lon), link = siteLink(site);
@@ -3932,7 +3952,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // The map colour is the band's own rating from Avalanche Canada, never moved up or down by the app (alex
       // 2026-11-09: "no mistakes are allowed"); the stripes only say the slope faces a direction in today's problems.
       const mask = a ? a.mask[band] : 0, hit = mask & (1 << g.asp);
-      html += `<p>On the map, this slope is <span class="av-chip" style="background-color:${DANGER[r].color};${hit ? `background-image:${STRIPES(r)};` : ""}color:${r >= 4 ? "#fff" : "#1a1a1a"}${hit ? `;text-shadow:0 0 3px ${r >= 4 ? "#000" : "#fff"},0 0 2px ${r >= 4 ? "#000" : "#fff"}` : ""}">${esc(DANGER[r].label)}</span>, Avalanche Canada's ${bandN.toLowerCase()} rating: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "striped because it faces a direction in today's problems" : mask ? "not a direction in today's problems" : "no problems listed in this band"}.</p>`;
+      html += `<p>On the map, this slope is <span class="av-chip" style="${chipStyle(r, hit)}">${esc(DANGER[r].label)}</span>, Avalanche Canada's ${bandN.toLowerCase()} rating: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "striped because it faces a direction in today's problems" : mask ? "not a direction in today's problems" : "no problems listed in this band"}.</p>`;
     }
     // Band heights are an estimate: near an edge, the next band's rating may be the one that applies here.
     const edge = r && (band === "btl" ? [["lo", "tln"]] : band === "alp" ? [["hi", "tln"]] : [["lo", "btl"], ["hi", "alp"]]).find(([k]) => Math.abs(g.e - bands[k]) < 150);
@@ -4069,7 +4089,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     el.hidden = false;
     el.innerHTML = `<div><button type="button" class="sk-x" data-back-close aria-label="Close">✕</button>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "ski" }) : ""}<h3>📍 This spot</h3></div>
       <p class="sk-hint">${lat.toFixed(4)}, ${lon.toFixed(4)}</p>
-      <div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
+      <div id="skSpotWhy"></div><div id="skSpotGround"><p class="sk-note">Reading the terrain…</p></div><div id="skSpotAvy"></div><div id="skSpotSnow"></div><div id="skSpotNear"></div><div id="skSpotMin"></div>
       <div class="sk-acts sk-spotacts"><button type="button" class="sk-act" data-act="safe">Less exposed way here</button><button type="button" class="sk-act" data-act="plan">✎ Plan a tour from here</button>${shown.has("slope") ? "" : `<button type="button" class="sk-act" data-act="slope">Show slope angles</button>`}</div>`;
     el.querySelector(".sk-x").addEventListener("click", closeSpot);
     el.querySelector("[data-act=plan]").addEventListener("click", () => { closeSpot(); setPlanning(true); planAdd(L.latLng(lat, lon)); });
@@ -4118,11 +4138,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // html(lat, lon, s) writes the parts for the day shown now (again after a new day is picked).
   window.tfSkiAvySpot = {
     ground: (lat, lon) => spotGround(lat, lon).then((g) => ({ g, cls: spotTerrain(g) })),
-    html: (lat, lon, s) => ({ ground: spotGroundHtml(s.g, s.cls), avy: spotAvyHtml(lat, lon, s.g, s.cls) }),
+    html: (lat, lon, s) => ({ ground: spotStripeHtml(lat, lon, s.g) + spotGroundHtml(s.g, s.cls), avy: spotAvyHtml(lat, lon, s.g, s.cls) }),
   };
   function fillSpotAvy() {
     if (!spot || !spot.g || $("skSpot").hidden) return;
     $("skSpotAvy").innerHTML = spotAvyHtml(spot.lat, spot.lon, spot.g, spot.cls);
+    const why = $("skSpotWhy"); if (why) why.innerHTML = spotStripeHtml(spot.lat, spot.lon, spot.g);
   }
   function bindSpotNear() {
     $("skSpotNear").querySelectorAll(".sk-go").forEach((a) => a.addEventListener("click", (e) => {
@@ -4634,6 +4655,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         ${minHtml([{ lat: c.lat, lon: c.lng }])}
         ${avyOn ? `<h5>Slope colours</h5><ul class="av-legend">${DANGER.slice(1).map((x, i) => `<li><i style="background:${x.color}"></i><i class="av-dk" style="background:${STRIPES(i + 1, 2)}"></i>${x.label}</li>`).join("")}</ul>
         <p class="sk-note av-native">Stripes: the slope faces a direction Avalanche Canada names in today's problems for its band. The colour under the stripes is still the band's rating.</p>
+        ${allWays(f).length ? `<p class="sk-note av-native"><span>Today's problems face every direction in these bands, so every shaded slope there is striped:</span> ${allWays(f).map((b) => `<b>${esc(b)}</b>`).join(", ")}</p>` : ""}
         <p class="sk-note av-native">Slopes of 25° and more, in the colour of Avalanche Canada's rating for their band, never changed by the app. Treeline is about ${area.bands.lo}-${area.bands.hi} m here (an estimate, so check both ratings near a band edge). Where you go is your decision and your risk.</p>` : ""}
         ${janNote(f)}<p class="sk-note">${f.issued ? "Issued " + esc(new Date(f.issued).toLocaleDateString()) + ", for" : "For"} the middle of the map.</p>
       </details>
@@ -4691,8 +4713,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // Heights for a tile. With no connection, Skiing's offline areas only have the terrain down to zoom 12 (OFFLINE_DEM_Z):
   // a closer tile is then cut from the one that holds it, up to 3 zooms out, and enlarged. E.z says which zoom the
   // heights really come from, so the slope maths can allow for the coarser detail.
-  async function dem(z, x, y) {
-    for (let up = 0; ; up++) {
+  // from: zooms out to start at (the avalanche shading is painted past the terrain's own deepest zoom).
+  async function dem(z, x, y, from = 0) {
+    for (let up = from; ; up++) {
       try {
         const P = await demTile(z - up, x >> up, y >> up);
         if (!up) return P;
@@ -4704,7 +4727,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         }
         E.z = z - up;
         return E;
-      } catch (e) { if (up >= 3 || z - up <= 8) throw e; }
+      } catch (e) { if (up >= from + 3 || z - up <= 8) throw e; }
     }
   }
   const tileLat = (y, z) => { const n = Math.PI - (2 * Math.PI * y) / 2 ** z; return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); };
@@ -4713,6 +4736,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const COLORS = DANGER.map((d) => rgb(d.color)), DARK_RGB = DARK.map(rgb);
   // Problem-aspect stripes: one dark stripe STRIPE_W pixels wide every STRIPE pixels, running bottom-left to top-right.
   const STRIPE = 9, STRIPE_W = 4;
+  // The deepest zoom of the terrain heights (Mapzen Terrain Tiles), and of the avalanche shading's own pictures.
+  const DEM_MAX = 15, AVY_MAX = 16;
   // Pixels at low zoom are hundreds of metres wide, which flattens slopes: ask for less steepness there.
   const minSlope = (z) => (z >= 12 ? 25 : z === 11 ? 21 : z === 10 ? 17 : z === 9 ? 13 : 10);
   // Ground layers painted here, for the iPhone's own 3D map (native-ground.js asks for the same pictures, so the colours
@@ -4792,7 +4817,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       for (let px = 0; px < 256; px++) { const cl = claim[px]; if (cl && near[cl - 1].d) { cell[py * 256 + px] = cl; any = true; } }
     }
     if (!any) return out;
-    const E = await dem(z, x, y), o = out.data, thr = minSlope(E.z), k = 25 / thr;
+    // Painted down to zoom 16 from the terrain's zoom 15 heights, smoothed, so close up the stripes stay thin and the
+    // edges smooth instead of a zoom 14 picture blown up (alex 2026-11-26: stripes looked thick and blocky up close).
+    const E = await dem(z, x, y, Math.max(0, z - DEM_MAX)), o = out.data, thr = minSlope(E.z), k = 25 / thr;
     for (let py = 0; py < 256; py++) {
       const lat = lats[py], m = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** z);
       const y0 = py > 0 ? py - 1 : py, y1 = py < 255 ? py + 1 : py;
@@ -4832,7 +4859,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // of code (avalanche-rules). Only once this phone's app build draws the avalanche card beside it ("tf-native-avy", set
   // when the native map shows it): an older build would get the colours without the card and its warnings.
   const nativeAvyOk = () => { try { return localStorage.getItem("tf-native-avy") === "1"; } catch { return false; } };
-  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y), on: () => sport === "ski" && avyOn && nativeAvyOk() && !$("avCard").hidden, ver: () => LOAD + "." + ver, min: 8, max: 14, opacity: 1, z: 360,
+  groundAdd("avy", { paint: (z, x, y) => paint(z, x, y), on: () => sport === "ski" && avyOn && nativeAvyOk() && !$("avCard").hidden, ver: () => LOAD + "." + ver, min: 8, max: AVY_MAX, opacity: 1, z: 360,
     credit: "Avalanche forecast: Avalanche Canada · Terrain: Mapzen Terrain Tiles", keep: false });
 
   // 2D map layer
@@ -4845,7 +4872,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       return cv;
     },
   });
-  const avyGrid = new AvyGrid({ pane: "avy", minZoom: 8, maxNativeZoom: 14, maxZoom: 20, attribution: 'Avalanche forecast: <a href="https://avalanche.ca">Avalanche Canada</a> · Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
+  const avyGrid = new AvyGrid({ pane: "avy", minZoom: 8, maxNativeZoom: AVY_MAX, maxZoom: 20, attribution: 'Avalanche forecast: <a href="https://avalanche.ca">Avalanche Canada</a> · Terrain: <a href="https://registry.opendata.aws/terrain-tiles/">Mapzen Terrain Tiles</a>' });
 
   // Adds a layer to the 3D map now, or once it's free. isStyleLoaded() is false for as long as any tile is still
   // loading, and "styledata" only comes on a style change, so waiting on those (as before) could wait forever on a
@@ -4879,7 +4906,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (!want) { if (has) gl.removeLayer("avy"); if (gl.getSource("avy")) gl.removeSource("avy"); return; }
       const tiles = [`tfavy://{z}/{x}/{y}?v=${ver}`];
       if (gl.getSource("avy")) gl.getSource("avy").setTiles(tiles);
-      else gl.addSource("avy", { type: "raster", tiles, tileSize: 256, minzoom: 8, maxzoom: 14, attribution: "Avalanche forecast: <a href=\"https://avalanche.ca\">Avalanche Canada</a>" });
+      else gl.addSource("avy", { type: "raster", tiles, tileSize: 256, minzoom: 8, maxzoom: AVY_MAX, attribution: "Avalanche forecast: <a href=\"https://avalanche.ca\">Avalanche Canada</a>" });
       if (!has) gl.addLayer({ id: "avy", type: "raster", source: "avy", paint: { "raster-fade-duration": 0 } }, gl.getLayer("osm-roads") ? "osm-roads" : undefined);
     };
     whenStyle(gl, apply);
