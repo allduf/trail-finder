@@ -1,0 +1,73 @@
+name: Avalanche watch
+
+# Every hour: the live app's avalanche forecast against Avalanche Canada's, area by area, bulletin by bulletin and band
+# by band, and whether Avalanche Canada changed its areas (scripts/avy-watch.mjs; alex 2026-11-27, after the
+# 2026-11-26 regroup left the expired bulletin on the map). A difference is a push on alex's own phone
+# (scripts/admin-push.mjs), never an email: the hourly job stays green and its summary lists what was found.
+# A pull request that changes the avalanche code runs the same check on its own scripts (with the live data files),
+# and fails on a difference.
+on:
+  schedule:
+    - cron: "23 * * * *"   # every hour (GitHub can start it late)
+  pull_request:
+    paths: ["winter.js", "ski-terrain.js", "today.js", "scripts/avy-watch.mjs", ".github/workflows/avalanche-watch.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avalanche-watch-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # The hourly job never goes red (a failed scheduled job emails alex): a failed install shows as "couldn't run"
+      # in the check's own summary, and alex gets a push after 3 hours of it.
+      - name: Browser
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        run: |
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps chromium
+      # The last run's areas and when alex was last told, kept from run to run.
+      - uses: actions/cache/restore@v4
+        if: github.event_name != 'pull_request'
+        with:
+          path: .avy-watch
+          key: avy-watch-${{ github.run_id }}
+          restore-keys: avy-watch-
+      - name: Install the push sender
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        run: npm install --no-save --no-package-lock web-push@3.6.7
+      - name: The app against Avalanche Canada
+        env:
+          LOCAL: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
+        timeout-minutes: 20
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        run: node scripts/avy-watch.mjs
+      - uses: actions/cache/save@v4
+        if: always() && github.event_name != 'pull_request'
+        with:
+          path: .avy-watch
+          key: avy-watch-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: avalanche-watch
+          path: out/avy-watch/
+          retention-days: 7
+          if-no-files-found: ignore
