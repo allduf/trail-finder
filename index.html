@@ -1448,7 +1448,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         <div class="lm-looks" id="lmLooks" role="group" aria-label="Quick looks: turn on the layers for">
         <button type="button" data-look="ride" title="Riding today: all trails, trailheads and parking, bike parks">🚵 Ride</button>
         <button type="button" data-look="plan" title="Planning a trip: all trails, forest roads, elevation lines, trailheads">🗺 Plan</button>
-        <button type="button" data-look="safety" title="Before you go: wildfires and their smoke, forest road closures and status, logging areas">⚠ Safety</button>
+        <button type="button" data-look="safety" title="Before you go: wildfires and their smoke, forest road closures and status, logging areas">⚠ Hazards</button>
         </div>
         <div class="lm-head">Show on the map</div>
         <div class="lm-list lm-overlays">
@@ -1560,7 +1560,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
         </div>
         <div class="diff-pick" role="group" aria-labelledby="newPickLabel">
           <span class="label" id="newPickLabel">Only these levels (tap several), or only unofficial or alpine</span>
-          <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="diff-chip lvl-chip ebike-chip" data-d="ebike" aria-pressed="false" title="Only new trails where the map tags, the park or the province's rules show Class 1 e-bikes (pedal-assist) as allowed. Rules change: check with the land manager"><span class="diff d-ebike">🔋 E-bikes OK</span></button><button type="button" class="alp-chip" id="alpChip" aria-pressed="false" title="Alpine paths above the tree line that may be rideable on a mountain bike, any age (an estimate from the map, updated weekly)"><span class="diff d-alpine">Alpine rideable</span></button></div>
+          <div class="diff-chips"><button type="button" class="diff-chip lvl-chip" data-d="green" aria-pressed="false"><span class="diff d-green">● Green</span></button><button type="button" class="diff-chip lvl-chip" data-d="blue" aria-pressed="false"><span class="diff d-blue">■ Blue</span></button><button type="button" class="diff-chip lvl-chip" data-d="black" aria-pressed="false"><span class="diff d-black">◆ Black</span></button><button type="button" class="diff-chip lvl-chip" data-d="dbl" aria-pressed="false"><span class="diff d-dbl">◆◆ Double black</span></button><button type="button" class="diff-chip lvl-chip" data-d="pro" aria-pressed="false"><span class="diff d-pro">▲ Pro line</span></button><button type="button" class="diff-chip lvl-chip" data-d="unoff" aria-pressed="false" title="New trails that aren&#39;t part of the official bike network: plain paths with no bike tags, and MTB trails mappers flagged as unofficial"><span class="diff d-unoff">Unofficial</span></button><button type="button" class="diff-chip lvl-chip ebike-chip" data-d="ebike" aria-pressed="false" title="Only new trails where the map tags, the park or the province's rules show Class 1 e-bikes (pedal-assist) as allowed. Rules change: check with the land manager"><span class="diff d-ebike">🔋 E-bikes OK</span></button><button type="button" class="alp-chip" id="alpChip" aria-pressed="false" title="Alpine paths above the tree line that may be rideable on a mountain bike, any age (an estimate from the map, updated weekly)"><span class="diff d-alpine">Alpine trails</span></button></div>
         </div>
         <button class="btn primary find" id="findBtn" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M10 2.5l2.1 6 6 2.1-6 2.1-2.1 6-2.1-6-6-2.1 6-2.1z" fill="currentColor"/><path d="M18.5 14.5l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor"/></svg><span id="findLabel">Find new trails</span></button>
         <button class="btn reset-btn" id="resetBtn" type="button" hidden>✕ Clear results</button>
@@ -4136,7 +4136,7 @@ out body;`;
   // Loam moisture index: the model's water content in the top 9 cm of soil (m³/m³), weighted toward
   // the surface, put on a 0 (bone dry) to 100 (saturated) scale. 0.08 is about as dry as forest soil
   // gets here; 0.42 is about saturated.
-  const LMI_LEVELS = [[20, "Dry and dusty", "Loose and fast, more braking bumps and dust."],
+  const LMI_LEVELS = [[20, "Low moisture, dusty", "Loose and fast, more braking bumps and dust."],
     [40, "Tacky", "Grippy and fast, can be a bit loose on top."],
     [60, "Damp, prime loam", "Hero dirt: the best grip on loam. Roots and rocks get slick."],
     [80, "Wet and muddy", "Slippery, and riding leaves ruts."],
@@ -4635,9 +4635,9 @@ out body;`;
         <div><span>Now</span><strong>${icon} ${Math.round(c.temperature_2m)}°C</strong><em>${esc(sky)}${Math.round(c.apparent_temperature) !== Math.round(c.temperature_2m) ? ` · feels ${Math.round(c.apparent_temperature)}°` : ""}</em></div>
       </div>
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
-      <div class="lmi-ends">${["Dry", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
+      <div class="lmi-ends">${["Low", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
       ${lmiKey(frozen ? null : lvl)}
-      ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
+      ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "too low" : "too high"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
         : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
       ${lmi != null && w.gemLmi != null && !isSnowy(snow) && !frozen ? (() => {
         const g = lmiLevel(w.gemLmi), same = g === lvl;

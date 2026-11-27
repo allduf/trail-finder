@@ -1,0 +1,2 @@
+Cabin trips: the weather note now names the weather models it compares and the days they disagree on. Moto Layers: the cell signal group is now called Signal. ||| Séjours en refuge : la note météo nomme maintenant les modèles météo comparés et les jours où ils ne s'entendent pas. Couches moto : le groupe du signal cellulaire s'appelle maintenant Signal.
+Signal ||| Signal

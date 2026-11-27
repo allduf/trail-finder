@@ -16,6 +16,13 @@
   var DATES = new RegExp("^" + MONRE + " \\d");
   // "Wild turkey, Snowshoe hare, Coyote +6 more": each animal on its own.
   function tl(s) { return s.split(", ").map(function (p) { var n = /^(.+?) \+(\d+)(?: more)?$/.exec(p); return n ? tt(n[1]) + " +" + n[2] + (/ more$/.test(p) ? " autres" : "") : tt(p); }).join(", "); }
+  // Avalanche words (winter.js, notify.js): ratings, trip planner lights, "in the alpine", band names, and a list of bands
+  // with no rating in Avalanche Canada's words ("treeline: Early season, below treeline: No rating").
+  var AVR = { Low: "Faible", Moderate: "Modéré", Considerable: "Marqué", High: "Fort", Extreme: "Extrême" };
+  var AVL = { "Normal caution": "Prudence normale", "Extra caution": "Prudence accrue", "Not recommended": "Non recommandé" };
+  var AVIN = { "in the alpine": "en alpin", "in the treeline": "à la limite des arbres", "below treeline": "sous la limite des arbres" };
+  var AVB = { alpine: "alpin", treeline: "limite des arbres", "below treeline": "sous la limite des arbres" };
+  function avNone(s) { return s.split(", ").map(function (p) { var n = /^(alpine|treeline|below treeline): (.+)$/.exec(p); return n ? AVB[n[1]] + " : " + tw(n[2]) : p; }).join(", "); }
   var R = [
     // Day ride (moto-day.js)
     // The Avalanche card's problems button (winter.js)
@@ -153,6 +160,21 @@
     [/^(alpine|treeline|below treeline) and (alpine|treeline|below treeline) meet at about (.+) here\. That height is an estimate, so this spot may be in either band\. The (alpine|treeline|below treeline) rating (?:today|on (.+)) is (\d) (.+)\.$/, function (m, a, b, h, c, dn, n, r) {
       var B = { alpine: "l'alpin", treeline: "la limite des arbres", "below treeline": "le dessous de la limite des arbres" }, G = { alpine: "de l'alpin", treeline: "de la limite des arbres", "below treeline": "sous la limite des arbres" };
       return B[a].charAt(0).toUpperCase() + B[a].slice(1) + " et " + B[b] + " se rejoignent vers " + h.replace(/,/g, " ") + " ici. Cette altitude est une estimation : cet endroit peut être dans l'un ou l'autre étage. La cote " + G[c] + (dn ? " pour " + tw(dn).toLowerCase() : " aujourd'hui") + " est " + n + " " + tw(r) + "."; }],
+    // A band with no rating (Early season, No rating), 2026-11-27: the band edge with no rating next door, the spot card on
+    // another day, the route check, and the bell's tour and region lines (winter.js, notify.js).
+    [/^(alpine|treeline|below treeline) and (alpine|treeline|below treeline) meet at about (.+) here\. That height is an estimate, so this spot may be in either band\.$/, function (m, a, b, h) {
+      var B = { alpine: "l'alpin", treeline: "la limite des arbres", "below treeline": "le dessous de la limite des arbres" };
+      return B[a].charAt(0).toUpperCase() + B[a].slice(1) + " et " + B[b] + " se rejoignent vers " + h.replace(/,/g, " ") + " ici. Cette altitude est une estimation : cet endroit peut être dans l'un ou l'autre étage."; }],
+    [/^No danger rating (in the alpine|in the treeline|below treeline) on (.+)$/, function (m, b, d) { return "Aucune cote de danger " + AVIN[b] + " pour " + tt(d).toLowerCase(); }],
+    [/^(.+?): (?:(Low|Moderate|Considerable|High|Extreme) (in the alpine|in the treeline|below treeline), )?no danger rating (on part of this route|on this route) \((.+)\), so no trip planner light\. Check$/, function (m, d, r, b, w, g) {
+      return tt(d) + " : " + (r ? AVR[r] + " " + AVIN[b] + ", " : "") + "aucune cote de danger " + (w === "on this route" ? "sur ce trajet" : "sur une partie de ce trajet") + " (" + avNone(g) + "), donc aucun feu du planificateur. Consultez"; }],
+    [/^No danger rating (yet|here today), so no trip planner light\. Check$/, function (m, w) { return "Aucune cote de danger " + (w === "yet" ? "pour l'instant" : "ici aujourd'hui") + ", donc aucun feu du planificateur. Consultez"; }],
+    [/^Check (\S+) before you go\.$/, "Consultez $1 avant de partir."],
+    [/^(Low|Moderate|Considerable|High|Extreme|Normal caution|Extra caution|Not recommended)(?: (in the alpine|in the treeline|below treeline))? (today|(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\b.*)$/, function (m, r, b, d) { return (AVR[r] || AVL[r]) + (b ? " " + AVIN[b] : "") + " " + (d === "today" ? "aujourd'hui" : tt(d).toLowerCase()); }],
+    [/^(Low|Moderate|Considerable|High|Extreme) (in the alpine|in the treeline|below treeline)$/, function (m, r, b) { return AVR[r] + " " + AVIN[b]; }],
+    [/^(?:[Aa]lpine|[Tt]reeline|[Bb]elow treeline): (?:Early season|No rating|No forecast|Spring|Off season)(?:, (?:alpine|treeline|below treeline): (?:Early season|No rating|No forecast|Spring|Off season))*$/, function (m) { var f = avNone(m.charAt(0).toLowerCase() + m.slice(1)); return /^[A-Z]/.test(m) ? f.charAt(0).toUpperCase() + f.slice(1) : f; }],
+    [/^(Alpine|Treeline|Below treeline|All bands)(?: and (treeline|below treeline))?, in your regions$/, function (m, a, b) {
+      return { Alpine: "Alpin", Treeline: "Limite des arbres", "Below treeline": "Sous la limite des arbres", "All bands": "Tous les étages" }[a] + (b ? " et " + AVB[b] : "") + ", dans vos régions"; }],
     [/^📂 Or open a saved tour \((\d+)\)$/, "📂 Ou ouvrir une sortie enregistrée ($1)"],
     [/^Delete "(.+)"\?$/, "Supprimer « $1 »?"],
     [/^Leg (\d+) of (\d+) · (.+)$/, function (m, a, b, t) { return "Tronçon " + a + " sur " + b + " · " + tt(t); }],   // ski-route.js, a tour with stops
