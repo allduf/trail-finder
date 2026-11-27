@@ -128,6 +128,11 @@ if (process.argv.includes("--run")) {
   if (run.status !== "completed" || run.conclusion !== "failure" || run.run_attempt !== Number(process.env.ATTEMPT)) {
     console.log("This try is already being handled (a newer try started, or another copy of this job watches it): left alone."); process.exit(0);
   }
+  // The copy of this job that started the re-run already wrote its line for this try.
+  if (HEAD_SHA) {
+    const done = await api(`/commits/${HEAD_SHA}/check-runs?check_name=${encodeURIComponent(checkName)}&per_page=100`).catch(() => null);
+    if ((done?.check_runs || []).some((c) => (c.output?.summary || "").includes(`(try ${run.run_attempt} of`))) { console.log("This try already has its line: left alone."); process.exit(0); }
+  }
   for (;;) {
     const attempt = run.run_attempt;
     const jobs = (await api(`/actions/runs/${RUN_ID}/attempts/${attempt}/jobs?per_page=100`)).jobs || [];
