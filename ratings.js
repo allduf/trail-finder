@@ -338,7 +338,7 @@
     { name: "West Vista", c: [50.674, -120.413], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
     // Sun Peaks: Family Man is a free multi-use (hike and bike) trail by the village, not lift access, on the resort's 2026 hike
     // map; without this it reads as a bike park trail because it lies inside the resort (checked 2026-11-27). No level given.
-    ...["Family Man", "Family Man East", "Family Man West"].map((name) => ({ name, c: [50.882, -119.898], r: 1500, src: "Sun Peaks Resort's 2026 hike map",
+    ...["Family Man", "Family Man East", "Family Man West"].map((name) => ({ name, c: [50.882, -119.898], r: 1500, src: "Sun Peaks Resort",
       url: "https://www.sunpeaksresort.com/sites/default/files/2026-05/SPR-Hike-Map-2026-Web.pdf" })),
     // Canmore benchlands (Cougar Creek to Harvie Heights): bike trails in the Alberta Parks trail reports, tagged only
     // bicycle=yes in OpenStreetMap, so they were missing from All trails (2026-10-25). No level: the reports give none.
