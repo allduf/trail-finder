@@ -51,15 +51,6 @@ final class NativeAvalanche: NativeLayer {
 
     func setData(_ json: String, style: MLNStyle?) {
         let d = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any]
-        // FILM BRANCH ONLY (never for main): the filming script presses the card's own hide and close.
-        if let film = d?["film"] as? [String: Any] {
-            if let f = film["fold"] as? Bool { setFolded(f) }
-            if film["close"] != nil, let s = screen { tapBegan(screen: s) }
-            if let lat = (film["lat"] as? NSNumber)?.doubleValue, let lon = (film["lon"] as? NSNumber)?.doubleValue, let s = screen {
-                taps += 1; asked = taps; s.send("avyTap", ["lat": lat, "lon": lon, "n": asked])
-            }
-            return
-        }
         #if DEBUG
         // Test builds only (scripts/slope-card/check.mjs): a slope "tapped" at check { lat, lon }, as emptyTap does.
         if let c = d?["check"] as? [String: Any], let lat = (c["lat"] as? NSNumber)?.doubleValue, let lon = (c["lon"] as? NSNumber)?.doubleValue, let s = screen {
