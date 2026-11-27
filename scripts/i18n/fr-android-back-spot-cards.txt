@@ -1,0 +1,1 @@
+Android app: the Back button now closes a Fishing or Hunting spot card, or a spot shared with you, before it leaves the app. ||| Appli Android : le bouton Retour ferme maintenant la fiche d'un endroit en Pêche ou en Chasse, ou un endroit partagé avec vous, avant de quitter l'appli.
