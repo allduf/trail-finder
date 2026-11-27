@@ -170,9 +170,9 @@
       return tt(d) + " : " + (r ? AVR[r] + " " + AVIN[b] + ", " : "") + "aucune cote de danger " + (w === "on this route" ? "sur ce trajet" : "sur une partie de ce trajet") + " (" + avNone(g) + "), donc aucun feu du planificateur. Consultez"; }],
     [/^No danger rating (yet|here today), so no trip planner light\. Check$/, function (m, w) { return "Aucune cote de danger " + (w === "yet" ? "pour l'instant" : "ici aujourd'hui") + ", donc aucun feu du planificateur. Consultez"; }],
     [/^Check (\S+) before you go\.$/, "Consultez $1 avant de partir."],
-    [/^(Low|Moderate|Considerable|High|Extreme|Normal caution|Extra caution|Not recommended)(?: (in the alpine|in the treeline|below treeline))? today$/, function (m, r, b) { return (AVR[r] || AVL[r]) + (b ? " " + AVIN[b] : "") + " aujourd'hui"; }],
+    [/^(Low|Moderate|Considerable|High|Extreme|Normal caution|Extra caution|Not recommended)(?: (in the alpine|in the treeline|below treeline))? (today|(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\b.*)$/, function (m, r, b, d) { return (AVR[r] || AVL[r]) + (b ? " " + AVIN[b] : "") + " " + (d === "today" ? "aujourd'hui" : tt(d).toLowerCase()); }],
     [/^(Low|Moderate|Considerable|High|Extreme) (in the alpine|in the treeline|below treeline)$/, function (m, r, b) { return AVR[r] + " " + AVIN[b]; }],
-    [/^(?:alpine|treeline|below treeline): (?:Early season|No rating|No forecast|Spring|Off season)(?:, (?:alpine|treeline|below treeline): (?:Early season|No rating|No forecast|Spring|Off season))*$/, function (m) { return avNone(m); }],
+    [/^(?:[Aa]lpine|[Tt]reeline|[Bb]elow treeline): (?:Early season|No rating|No forecast|Spring|Off season)(?:, (?:alpine|treeline|below treeline): (?:Early season|No rating|No forecast|Spring|Off season))*$/, function (m) { var f = avNone(m.charAt(0).toLowerCase() + m.slice(1)); return /^[A-Z]/.test(m) ? f.charAt(0).toUpperCase() + f.slice(1) : f; }],
     [/^(Alpine|Treeline|Below treeline|All bands)(?: and (treeline|below treeline))?, in your regions$/, function (m, a, b) {
       return { Alpine: "Alpin", Treeline: "Limite des arbres", "Below treeline": "Sous la limite des arbres", "All bands": "Tous les étages" }[a] + (b ? " et " + AVB[b] : "") + ", dans vos régions"; }],
     [/^📂 Or open a saved tour \((\d+)\)$/, "📂 Ou ouvrir une sortie enregistrée ($1)"],

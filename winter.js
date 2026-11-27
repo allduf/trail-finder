@@ -171,6 +171,7 @@ window.tfDragSort = (root, o) => {
   // scripts/build-winter.mjs); none kept is "No rating". Never shown as a level, never coloured on the map. The words
   // are in ski-terrain.js, shared with the alerts (notify.js, scripts/push-loam.mjs).
   const noWord = (d, b) => (T.noWord ? T.noWord(d, b) : "No rating");
+  const noWords = (d, bs) => { const w = [...new Set(bs.map((b) => noWord(d, b)))]; return w.length === 1 ? w[0] : "No rating"; };   // one word for several bands, if they share it
   const bandLabel = (d, b) => { const r = (d && d[b]) || 0; return r ? DANGER[r].label : noWord(d, b); };   // "2 Moderate", or the word for none
   const bandName = (b) => (BANDS.find((x) => x[0] === b) || ["", ""])[1].toLowerCase();
   const inBand = (b) => (b === "btl" ? "below treeline" : `in the ${bandName(b)}`);   // after a rating: "Moderate in the alpine", "Low below treeline"
@@ -1771,6 +1772,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     info.pts.forEach((p, i) => { if (i) out[bandOf(p.e, b)] += (p.d - info.pts[i - 1].d) / 1000; });
     return out;
   };
+  // The bands a route goes through, as its rating and light read them (ski-terrain.js dangerIn: touching one counts),
+  // so the table and the problems agree with them. An older cached ski-terrain.js: 50 m or more in the band.
+  const bandsOnRoute = (info, b, km) => { const on = T.dangerIn(null, b, info.min, info.max).on; return on || BANDS.map(([k]) => k).filter((k) => km[k] >= 0.05); };
   // Height profile: distance across, height up; steep ground (30° and more) in orange, treeline and alpine heights dashed.
   function profileSvg(info, bands) {
     const W = 320, H = 130, L0 = 38, R0 = 6, T0 = 8, B0 = 18, pts = info.pts;
@@ -1866,18 +1870,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!f || (!d && !isEarly(f))) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
     else {
       const expired = fcExpired(f);
-      const on = info ? bandKm(info, area.bands) : null;
+      const on = info ? bandKm(info, area.bands) : null, crossed = on ? bandsOnRoute(info, area.bands, on) : null;
       // Today in words, later days as the number only, so three days fit across a phone. A band with no level: Avalanche
       // Canada's word for it (Early season, No rating...), "–" on later days.
       const chip = (x, b, short) => { const r = x[b] || 0, w = esc(bandLabel(x, b)); return `<span class="av-chip" title="${w}" style="background:${DANGER[r].color};color:${r >= 4 ? "#fff" : "#1a1a1a"}">${short ? r || "–" : w}</span>`; };
       if (expired) html += expiredWarn(f, site);
       if (rated) {
         html += `<table class="sk-avt"><tr><th></th>${f.days.map((x) => `<th>${esc((x.label || x.date || "").slice(0, 3))}</th>`).join("")}</tr>
-          ${BANDS.map(([b, n]) => `<tr class="${on && on[b] < 0.05 ? "off" : ""}"><th>${n}${on ? `<span class="sk-note">${on[b] >= 0.05 ? `${on[b].toFixed(1)} km of the route` : "not on the route"}</span>` : ""}</th>${f.days.map((x, j) => `<td>${chip(x, b, j > 0)}</td>`).join("")}</tr>`).join("")}</table>`;
+          ${BANDS.map(([b, n]) => `<tr class="${crossed && !crossed.includes(b) ? "off" : ""}"><th>${n}${on ? `<span class="sk-note">${on[b] >= 0.05 ? `${on[b].toFixed(1)} km of the route` : crossed.includes(b) ? "under 0.1 km of the route" : "not on the route"}</span>` : ""}</th>${f.days.map((x, j) => `<td>${chip(x, b, j > 0)}</td>`).join("")}</tr>`).join("")}</table>`;
       } else html += `<p>${esc(unratedLine(f))}</p>`;
       if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
       // Each problem, and whether it's where this route goes.
-      const bandsOn = on ? BANDS.filter(([b]) => on[b] >= 0.05).map(([b]) => b) : null;
+      const bandsOn = crossed;
       html += (f.problems || []).map((p) => {
         const bHit = bandsOn ? p.elevations.filter((b) => bandsOn.includes(b)) : p.elevations;
         const aHit = info && info.faces.length ? p.aspects.filter((a) => info.faces.includes(a)) : [];
@@ -2497,7 +2501,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     else if (!dg || !dg.r) {
       // No band on the route rated that day: Avalanche Canada's word for it (Early season, No rating...).
       const none = !dgList.length ? "No forecast here today" : fcExpired(fc) ? "Forecast expired" : condDay === 0 && fIdx < 0 && D.date < (dgList[0].date || "") ? "No forecast here today" : fIdx < 0 ? "Not forecast yet"
-        : dg && dg.gaps && dg.gaps.length ? noWord(dg.d, dg.gaps[0]) : "No rating";
+        : dg && dg.gaps && dg.gaps.length ? noWords(dg.d, dg.gaps) : "No rating";
       const site = avySite(info.top.lat, info.top.lon);
       avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? site.season : `Check ${site.host} before you go.` }]);
     } else {
@@ -2505,7 +2509,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const official = g.find((x) => x.ates && x.ates.cls >= 1 && x.ates.cls <= 3)?.ates;
       const cls = official ? official.cls : Math.max(T.terrainClass(info).c, pre ? pre.c : 0);
       const li = lightOf(dg, cls), L1 = li >= 0 ? T.LIGHTS[li] : null;
-      const on = bandKm(info, dg.area.bands), bandsOn = BANDS.filter(([k]) => on[k] >= 0.05).map(([k]) => k);
+      const bandsOn = bandsOnRoute(info, dg.area.bands, bandKm(info, dg.area.bands));
       const probs = (dg.area.forecast.problems || []).filter((p) => p.elevations.some((e) => bandsOn.includes(e))).map((p) => p.type);
       const gaps = dg.gaps || [];
       // A band on the route without a rating (Early season, No rating): named with Avalanche Canada's word, and no
@@ -3456,7 +3460,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // "early" only for the early season bulletin's own words, never for a bulletin that rates some bands (Kananaskis
       // 2026-11-27: alpine Low, Early season lower down).
       const rated = !!(f && (f.days || []).some((x) => x.alp || x.tln || x.btl));
-      const early = d ? Object.values(d.no || {}).includes("early") || (!d.no && isEarly(f) && !rated) : isEarly(f) && !rated;
+      const early = !rated && (d ? Object.values(d.no || {}).includes("early") || (!d.no && isEarly(f)) : isEarly(f));
       const why = !avy && !example ? "net" : !a ? "off" : early ? "early" : live && !d ? "noday" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
       const area = (f && f.title) || (a && a.name) || "";
       return { r: {}, mask: {}, bands, none: true, why, area: area.length <= 40 ? area : "", date: dayDate };
@@ -3750,7 +3754,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
     const chip = (b) => `<span class="sk-dg"><i style="background:${DANGER[(av.r && av.r[b]) || 0].color}"></i>${esc(bandLabel({ ...av.r, no: av.no }, b))}</span>`;   // a band with no level: Avalanche Canada's word for it
     const K = { ok: "#ced4da", mid: "#868e96", steep: "#e03131" };   // card bar: greys + reds only
-    const LV = av.none ? ["#868e96", "Terrain only", "No avalanche forecast in it"] : { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Most careful", "High or Extreme danger"] }[sp.level || "balanced"];
+    // The forecast's worst rating sets how direct the way is. A band with no rating (Early season) can't be said to be
+    // Low or Moderate: "where rated".
+    const unrated = !av.none && BANDS.some(([b]) => !(av.r && av.r[b])) ? " where rated" : "";
+    const LV = av.none ? ["#868e96", "Terrain only", "No avalanche forecast in it"] : { direct: ["#2f9e44", "Direct", "Low or Moderate danger" + unrated], balanced: ["#f79218", "Balanced", "Considerable danger" + unrated], strict: ["#ef1c29", "Most careful", "High or Extreme danger" + unrated] }[sp.level || "balanced"];
     const lvTxt = av.none ? "The terrain map only, weighed the same at every height and on every aspect. The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes when there's a sensible way, and takes the shortest steep section when there isn't." : { direct: "The way up takes the least exposed line it finds. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground where it can.",
       balanced: "The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes when there's a sensible way, and takes the shortest steep section when there isn't.",
       strict: "Keeps off 30°+ slopes where it can, however much longer that makes it." }[sp.level || "balanced"];
@@ -5991,7 +5998,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       // lower down (Kananaskis, Banff and Glacier 2026-11-27, which read as having no rating at all).
       const d = (f.days || []).find((x) => x.date && x.date === localDay());
       if (!d || !BANDS.some(([b]) => d[b])) {
-        const early = d ? Object.values(d.no || {}).includes("early") || (!d.no && isEarly(f)) : !(f.days || []).length && isEarly(f);
+        // "early" only for the early season bulletin (no level on any day), as avyFor().
+        const rated = (f.days || []).some((x) => x.alp || x.tln || x.btl);
+        const early = !rated && (d ? Object.values(d.no || {}).includes("early") || (!d.no && isEarly(f)) : !(f.days || []).length && isEarly(f));
         return { none: early ? "early" : "forecast", area: a.name };
       }
       const band = (b) => ({ r: d[b] || 0, label: bandLabel(d, b), color: DANGER[d[b] || 0].color });
@@ -6101,7 +6110,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     safeTo: (lat, lon) => { if (sport !== "ski") setSport("ski"); if (plan.on) setPlanning(false); safeTo(lat, lon); },
     // Ask (ask.js): the two ways to a place, drawn to pick from on the map.
     twoWays: (top, start, startName, name) => twoWays(top, start, startName, name),
-    KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS, noWord,
+    KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS, noWord, noWords,
   };
   window.tfSkiOffline = (box) => {
     const tx = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);

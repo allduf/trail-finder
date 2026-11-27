@@ -221,7 +221,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
     const T = window.tfTerrain, top = l.ski[0], c = l.calc || {};
     const dg = window.tfSki && window.tfSki.dangerAt ? window.tfSki.dangerAt(top[0], top[1], c.bottom || 0, c.top || 9999) : null;
     const link = `<a href="${forecastUrl(top)}" target="_blank" rel="noopener">Today's avalanche forecast here ↗</a>`;
-    if (T && dg && dg.gaps && dg.gaps.length) return `<p><span>${dg.r ? "No danger rating today for part of this line, so no Avaluator light." : "No danger rating today for this line, so no Avaluator light."}</span> ${link}</p>`;
+    if (T && dg && dg.gaps && dg.gaps.length) return `<p><span>${dg.r ? "No danger rating today for part of this line, so no trip planner light." : "No danger rating today for this line, so no trip planner light."}</span> ${link}</p>`;
     if (!T || !dg || !dg.r) return `<p>${link}</p>`;
     const k = T.light(dg.r, l.cls), x = T.LIGHTS[k];
     const word = ["", "1 Low", "2 Moderate", "3 Considerable", "4 High", "5 Extreme"][dg.r] || "";

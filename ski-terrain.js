@@ -233,19 +233,21 @@
     return null;
   }
   // The highest danger rating of a forecast day in the bands a route from lo to hi m goes through, and that band.
-  // gaps: the bands it goes through that have no rating that day ("Early season", "No rating"). The Avaluator light
-  // needs the danger all the way, so a route with a gap has none (light() callers check gaps.length).
+  // on: the bands it goes through (touching one counts: band heights are an estimate). gaps: those with no rating that
+  // day ("Early season", "No rating"). The Avaluator light needs the danger all the way, so a route with a gap has none
+  // (light() callers check gaps.length).
   function dangerIn(day, bands, lo, hi) {
     let r = 0, band = "";
-    const gaps = [];
-    if (!day) return { r, band, gaps };
+    const gaps = [], on = [];
     for (const b of BAND_IDS) {
       const [bl, bh] = b === "alp" ? [bands.hi, Infinity] : b === "tln" ? [bands.lo, bands.hi] : [-Infinity, bands.lo];
       if (!(hi >= bl && lo < bh)) continue;
+      on.push(b);
+      if (!day) continue;
       if (!day[b]) gaps.push(b);
       else if (day[b] > r) { r = day[b]; band = b; }
     }
-    return { r, band, gaps };
+    return { r, band, gaps, on };
   }
   // Avalanche Canada's word for a band with no danger level that day: forecast days keep its kind in day.no
   // ({ tln: "early" }, winter.js acForecast and scripts/build-winter.mjs), and any other is "No rating".

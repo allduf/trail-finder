@@ -358,7 +358,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         if (!best || best.l < 1) { if (avyState[key]) { avyState[key] = { lv: best ? best.l : 0, r: 1 }; seen.add(key); } continue; }
         mark(key, best.l);
         const L = TT.LIGHTS[best.l], dg = best.dg, gaps = dg.gaps || [];
-        const none = gaps.map((b) => `${bandN(b)}: ${TT.noWord ? TT.noWord(best.x, b) : "No rating"}`).join(", ");
+        const none = gaps.map((b) => `${bandN(b)}: ${TT.noWord ? TT.noWord(best.x, b) : "No rating"}`).join(", ").replace(/^./, (c) => c.toUpperCase());
         now.push(gaps.length ? { key, name: t.n, k: t.k, lv: best.l, color: DANGER_C[dg.r], label: `${DANGER[dg.r]} ${inBand(dg.band)} ${dayWord(best.x)}`, why: `Tour you watch · ${none}`, c: t.c }
           : { key, name: t.n, k: t.k, lv: best.l, color: L.color, label: `${L.label} ${dayWord(best.x)}`, why: `Tour you watch · ${DANGER[dg.r]} ${inBand(dg.band)}`, c: t.c });
       }
