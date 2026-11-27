@@ -526,6 +526,16 @@
     { name: "Lost Lake Loop", c: [49.806, -119.407], r: 1500, d: "blue", src: "Kelowna.com, Kelowna trails for every rider: '900 meters of blue singletrack'", url: "https://kelowna.com/articles/mountain-biking-adventures-in-kelowna-trails-for-every-rider" },
     { name: "Big Drop", c: [49.803, -119.431], r: 1500, d: "black", src: "Kelowna.com, Kelowna trails for every rider: 'short black diamond'", url: "https://kelowna.com/articles/mountain-biking-adventures-in-kelowna-trails-for-every-rider" },
     { name: "Vapour", c: [49.799, -119.418], r: 2000, d: "black", src: "KelownaNow, Biking the Okanagan guide by MTBCO", url: "https://www.kelownanow.com/watercooler/news/news/Biking_the_Okanagan/Biking_the_Okanagan_Guide_of_Where_to_Ride_1/" },
+    // Okanagan local sources (2026-11-27): Greater Vernon trail map levels for trails its shapes didn't match, Visit Penticton's
+    // Swagman ride guides and Summerland.com. Ward 1 and Sourkraut: Visit Penticton's Skaha Bluffs guide rides them as bike trails.
+    { name: "The Baconator", c: [50.262, -119.099], r: 1500, d: "black", src: "Greater Vernon trail map (Difficult)", url: "https://trails.tourismvernon.com/" },
+    { name: "Blister's Sister", c: [50.175, -119.426], r: 1500, d: "blue", src: "Greater Vernon trail map (Blisters Sisters, Moderate)", url: "https://trails.tourismvernon.com/" },
+    { name: "Home Run", c: [50.173, -119.431], r: 1500, d: "blue", src: "Greater Vernon trail map (Homerun, Moderate)", url: "https://trails.tourismvernon.com/" },
+    { name: "Dagmal", c: [50.359, -119.093], r: 1500, d: "black", src: "Greater Vernon trail map (Dagamal, Difficult)", url: "https://trails.tourismvernon.com/" },
+    { name: "Wedding Crashers", c: [49.554, -119.555], r: 1500, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice part 2 (black diamond)", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-2-tech/" },
+    { name: "Roxy Roller", c: [49.608, -119.708], r: 1500, d: "black", src: "Summerland.com, mountain trails for experienced riders (Black Diamond)", url: "https://summerland.com/articles/biking-bliss-summerlands-best-mountain-trails-for-experienced-riders/" },
+    { name: "Ward 1", c: [49.434, -119.554], r: 1500, src: "Swagman ride guide on Visit Penticton, Skaha Bluffs (Gillies Creek bike area)", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-skaha-bluffs/" },
+    { name: "Sourkraut", c: [49.437, -119.541], r: 1500, src: "Swagman ride guide on Visit Penticton, Skaha Bluffs (Gillies Creek bike area)", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-skaha-bluffs/" },
     { name: "Silver Shack", c: [50.375, -119.03], r: 2000, d: "blue", src: "SilverStar 2025 Cross Country & Hiking trail map (PDF)", url: "https://cms.skisilverstar.com/sites/default/files/2025-05/2025_CrossCountryTrailMap.pdf" },
     { name: "SW Passage", c: [49.65, -116.008], r: 2000, d: "black", src: "City of Kimberley Adventure Trail Network Map (PDF): 'SW Passage Loop - Advanced'", url: "https://www.kimberley.ca/sites/default/files/Adventure%20Trail%20Network%20Map.pdf" },
     // weekly audit, 2026-10-31: Banff levels from Parks Canada (2024 brochure; Minnewanka and Stoney left out, sources disagree), Mount Swansea levels from Columbia Valley Tourism
