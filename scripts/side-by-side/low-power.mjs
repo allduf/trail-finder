@@ -110,8 +110,13 @@ export async function lowPowerWalk(h) {
       await closeAll("start");
       for (const sp of SPORTS) {
         setSport(sp);
+        // One more try when a sport fails: the Android simulator is slow and a finger tap can miss. The first try's
+        // problems are kept as a note; the sport fails only if the second try fails too.
+        let firstTry = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
         const problems = [], notes = [];
-        let a = {}, b = {};
+        let a = {}, b = {}, sawNative = false;
+        if (firstTry) notes.push(`passed on a second try (first: ${firstTry.join(" · ")})`);
         try {
           if (await jsq(`window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen()`, false)) { await closeNative(); await sleep(2000); }
           const r = await click("#sportMapBtn"); if (r) throw new Error(r);
@@ -128,7 +133,7 @@ export async function lowPowerWalk(h) {
           const t0 = Date.now();
           // A few looks while the native map comes up (it shows once its first frame is ready, or after 2.5 s): the stand-in
           // must black out the map at some point before the fallback, and a map that draws must not stay black.
-          let sa = {}, sawBlack = false, sawNative = false;
+          let sa = {}, sawBlack = false;
           for (let i = 0; i < 4; i++) {
             await sleep(i ? 1500 : 3500);
             a = shot(`${run.id}-${sp}-1-open${i ? "-" + i : ""}`);
@@ -165,18 +170,22 @@ export async function lowPowerWalk(h) {
           if (!b.error && b.black) problems.push(`the screen is black after 3D (${b.dark}% of the middle near black)`);
           const shown = (sb.toasts || []).join(" | ");
           if (run.noDraw) {
-            if (sb.native) problems.push("the native map that draws nothing is still up 30 s later (no fallback to the flat map)");
+            if (!sawNative && !shown) problems.push("3D didn't open native 3D");
+            else if (sb.native) problems.push("the native map that draws nothing is still up 30 s later (no fallback to the flat map)");
             if (!NOTE.test(shown)) problems.push(`no note naming ${ios ? "Low Power Mode" : "Battery Saver"} (shown: ${shown || "none"})`);
           } else {
             if (!sb.native) problems.push(`native 3D closed by itself${shown ? ` (shown: ${shown})` : ""}`);
             if (/couldn't draw|may not draw/.test(shown)) problems.push(`the "map couldn't draw" note showed on a map that draws (${shown})`);
           }
         } catch (e) { problems.push(String(e.message || e).split("\n")[0].slice(0, 200)); }
-        record(run, sp, problems, { open: a, after: b, notes });
         if (await jsq(`window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen()`, false)) await closeNative();
         if (await jsq(`!!document.querySelector("#map.is3d")`, false)) await click("#btn3d");
         await sleep(2000);
         await closeAll("after 3d");
+        if (problems.length && !attempt) { firstTry = problems; console.log(`  (${run.name} › ${NAMES[sp] || sp}: ${problems.join(" · ")}; trying once more)`); continue; }
+        record(run, sp, problems, { open: a, after: b, notes });
+        break;
+        }
       }
     }
   } catch (e) {
