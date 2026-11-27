@@ -17,8 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { part: flyA, env: "PART=fly FROM=0 TO=450" }
-          - { part: flyB, env: "PART=fly FROM=450 TO=900" }
           - { part: ui, env: "PART=ui" }
     runs-on: macos-15
     timeout-minutes: 120

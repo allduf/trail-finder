@@ -272,7 +272,7 @@ const T = () => Date.now();
 const note = [];
 const log = (s) => { console.log(s); note.push(s); writeFileSync(join(OUT, "notes.txt"), note.join("\n") + "\n"); };
 const FD = join(OUT, "f"); mkdirSync(FD, { recursive: true });
-const L = { marks: {}, taps: [], rects: {} };
+const L = { marks: {}, taps: [], rects: {}, drags: [] };
 let fi = 0;
 const saveL = () => writeFileSync(join(OUT, "avy-log.json"), JSON.stringify(L, null, 1));
 const snap = () => { tryp(`xcrun simctl io booted screenshot --type=png "${join(FD, String(fi).padStart(5, "0") + ".png")}"`, 30000); fi++; saveL(); };
@@ -369,6 +369,18 @@ const SLOPE = (process.env.SLOPE || "50.135,-122.816").split(",").map(Number);
   await camSeq("move2", 90, (u) => { const e = ease(u); return { lat: SLOPE[0] + (P2[0] - SLOPE[0]) * e, lon: SLOPE[1] + (P2[1] - SLOPE[1]) * e, zoom: 14.1, bearing: 150 - 90 * e }; });
   await spotAt("plain", P2);
   mark("spotclosed");
+  // 6b. Slide the sheet down (as a finger would) so the map is clear before hiding the card.
+  const inf = await jsq(`window.__tfFilmSheet ? window.__tfFilmSheet("info") : null`, null); log("sheet: " + JSON.stringify(inf));
+  if (inf && inf.can) {
+    mark("lower"); snap(); snap();
+    const N = 40;
+    for (let k = 0; k <= N; k++) {
+      const h = Math.round(inf.h + (inf.mini - inf.h) * ease(k / N));
+      await jsq(`window.__tfFilmSheet(${h})`); await sleep(400);
+      const r = await rect("#panel"); L.drags.push({ f: fi, x: 220, y: r ? r.t + 14 : null }); snap();
+    }
+    await jsq(`window.__tfFilmSheet("mini")`); await sleep(2500); mark("lowered"); snap(); snap();
+  }
   // 7. Hide the card: a small Avalanche chip under the key; tap it, the card is back.
   await ntap("hide", { fold: true }, 2000); mark("folded"); snap();
   await ntap("show", { fold: false }, 2000); mark("unfolded"); snap();

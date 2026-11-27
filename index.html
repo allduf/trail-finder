@@ -5940,6 +5940,8 @@ out body;`;
   const sheetUp = () => phoneMQ.matches && sheet.snap !== "peek";
   const lowerSheet = () => snapTo("peek");
   window.tfLowerSheet = () => { if (sheetUp()) lowerSheet(); };   // ski-points.js: picking a spot needs the map in view
+  // FILM BRANCH ONLY: lets the video script slide the sheet down as a finger would.
+  window.__tfFilmSheet = (h) => { if (h === "info") return { h: sheet.h, mini: snapHeights().mini, can: canMini() }; if (h === "mini") { sheet.mini = true; snapTo("peek"); return sheet.h; } setSheetH(h); return sheet.h; };
   window.tfSnapTo = snapTo;   // Skiing (winter.js): the sheet out of the way while planning a tour, back up for its details
   function growTo(name) {                            // only ever grows the sheet
     const order = ["peek", "half", "full"];
