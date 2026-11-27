@@ -12,6 +12,7 @@ import { createServer } from "node:http";
 import { readFile, mkdtemp, rm, appendFile } from "node:fs/promises";
 import { join, extname, normalize, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { fetchRetry } from "./ci/fetch-retry.mjs";
 
 const LIVE = "https://trailfinderapp.ca/";
 const BROWSER = process.env.BROWSER || "webkit";
@@ -31,7 +32,7 @@ function serve(root) {
       try { const body = await readFile(file); res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }).end(body); return; } catch {}
     }
     try {
-      const r = await fetch(LIVE + path);
+      const r = await fetchRetry(LIVE + path);
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   });
