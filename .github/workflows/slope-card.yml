@@ -19,7 +19,7 @@ permissions:
 
 concurrency:
   group: slope-card-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   iphone:
@@ -62,6 +62,8 @@ jobs:
           xcrun simctl privacy booted grant location-always com.allduf.trailfinder || true
           xcrun simctl location booted set 50.11,-122.95 || true
           xcrun simctl status_bar booted override --time 9:41 || true
+      - name: Trim the site as published (dark map check)
+        run: node scripts/trim-site.mjs . --strict
       - name: Slope card check
         run: PLATFORM=ios node scripts/slope-card/check.mjs
       - uses: actions/upload-artifact@v4
