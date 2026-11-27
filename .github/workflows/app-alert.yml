@@ -33,13 +33,14 @@ concurrency:
 jobs:
   alert:
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Check for new crashes and errors
+        timeout-minutes: 350
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
@@ -48,7 +49,6 @@ jobs:
           FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
           DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
           HOURS: ${{ github.event_name == 'pull_request' && '72' || '' }}
-          GH_TOKEN: ${{ github.token }}
           WATCH: ${{ github.event_name != 'pull_request' && !inputs.test && '1' || '' }}
         run: |
           if [ "${{ inputs.test }}" = "true" ]; then
@@ -62,7 +62,11 @@ jobs:
             [ -n "$WATCH" ] && [ $(date +%s) -lt $end ] || break
             sleep 300
           done
-          if [ -n "$WATCH" ]; then
-            gh workflow run app-alert.yml --ref "${{ github.event.repository.default_branch }}" -R "${{ github.repository }}" \
-              || echo "::warning::Couldn't start the next watcher; the schedule restarts it."
-          fi
+      # Its own step, so a watcher that crashed or ran out of time still starts the next one.
+      - name: Start the next watcher
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && !inputs.test }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run app-alert.yml --ref "${{ github.event.repository.default_branch }}" -R "${{ github.repository }}" \
+            || echo "::warning::Couldn't start the next watcher; the schedule restarts it."
