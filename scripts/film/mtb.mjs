@@ -304,7 +304,9 @@ async function camSeq(name, n, at, settle = SET, from = 0, to = n) {
 const AREA = "Lost Lake";
 const PICKS = [["Peaches en Regalia", [50.12132, -122.94739]], ["Donkey Puncher", [50.13038, -122.9443]], ["Soap and Old Clothes", [50.13197, -122.94571]]];
 // The middle of the Easy loop (Cut Yer Bars, Tin Pants, Lorimer Road) for the native 3D camera.
-const LOOP_C = { lat: Number(process.env.FLAT || 50.1262), lon: Number(process.env.FLON || -122.9535) }, LOOP_Z = Number(process.env.FZ || 14.2);
+const LOOP_C = { lat: Number(process.env.FLAT || 50.1291), lon: Number(process.env.FLON || -122.9513) }, LOOP_Z = Number(process.env.FZ || 14.6);
+// With Plan a route's panel over the lower half, the camera aims ~350 m short of the loop's middle so the loop shows above it.
+const near = (b, m = 350) => ({ lat: LOOP_C.lat - (m / 111320) * Math.cos(b * Math.PI / 180), lon: LOOP_C.lon - (m / (111320 * Math.cos(LOOP_C.lat * Math.PI / 180))) * Math.sin(b * Math.PI / 180) });
 const lostLi = `[...document.querySelectorAll("#tdAreas .td-area")].find((l) => /${AREA}/.test(l.querySelector("header").innerText))`;
 async function scrollEl(selJs, k = 24, off = 0) {
   // Eases the scrolling box around an element so that element's top sits near the top of the box (+off px).
@@ -393,12 +395,15 @@ async function bounds() { return jsq(`(() => { const m = window.tfLeaflet, c = m
   const b = await bounds(); log("bounds " + JSON.stringify(b));
   await scrollEl(`document.getElementById("planSteps")`, 30, 0); mark("steps"); await snap();
   await ptap("#btn3d", 2500, "3d"); if (await agree()) await sleep(1500);
-  for (let i = 0; i < 5; i++) { await sleep(2500); await snap(); }
+  await sleep(10000);
   log("native open: " + (await jsq(`!!(window.tfNative && window.tfNative.isOpen())`, false)));
   mark("in3d");
   const NT = Number(process.env.NT || 200);
-  await camSeq("turn3d", NT, (u) => ({ ...LOOP_C, zoom: LOOP_Z, bearing: 200 + 40 * ease(u) }));
-  await ptap("#btn3d", 6000, "2d"); mark("back2d"); await snap();
+  await camSeq("turn3d", NT, (u) => { const b = 200 + 40 * ease(u); return { ...near(b), zoom: Number(process.env.TZ || 14.3), bearing: b }; });
+  // "2D map" needs a real finger (native-map.js): the tap is logged and the native map closed the same way.
+  { const r = await rect("#btn3d"); L.taps.push({ f: fi, x: r && r.x, y: r && r.y, name: "2d" }); await snap(); log("2D: " + (await closeNative())); await sleep(6000); await snap(); }
+  log("native still open: " + (await jsq(`!!(window.tfNative && window.tfNative.isOpen())`, false)));
+  mark("back2d"); await snap();
   // ---- Part 2: plan your own. The loop is cleared off camera first (a person would tap Clear).
   await jsq(`(() => { const c = document.getElementById("planClear"); if (c) c.click(); const d = document.getElementById("planDone"); if (d) d.click(); return 1; })()`); await sleep(2500);
   await jsq(`(window.tfLeaflet.setView([50.1265, -122.9455], 15, { animate: false }), 1)`); await sleep(6000);
