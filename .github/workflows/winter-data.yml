@@ -44,7 +44,7 @@ jobs:
           node-version: 20
       - name: Collect winter data
         env:
-          ONLY: ${{ github.event_name == 'pull_request' && '' || 'ski,canada' }}
+          ONLY: ${{ github.event_name != 'pull_request' && 'ski,canada' || '' }}   # a pull request tests every part
           PROBE: ${{ github.event_name == 'pull_request' && '1' || '' }}
           CANADA_OSM_MIN: ${{ github.event_name == 'pull_request' && '8' || '30' }}   # Canada-wide OpenStreetMap: minutes a run (the rest keep their last data)
         run: node scripts/build-winter.mjs
