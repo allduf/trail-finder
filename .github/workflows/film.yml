@@ -49,8 +49,25 @@ jobs:
           name: film-${{ matrix.name }}
           path: out/film/
           if-no-files-found: ignore
-  ios:
+  slot:
+    # At most 2 heavy test runs at once (scripts/ci/heavy-slot.sh): the simulator jobs wait here.
     needs: plan
+    if: ${{ fromJSON(needs.plan.outputs.ios).include[0] != null }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ci
+      - name: Wait for a free heavy test slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/heavy-slot.sh
+  ios:
+    needs: [plan, slot]
     if: ${{ fromJSON(needs.plan.outputs.ios).include[0] != null }}
     strategy:
       fail-fast: false

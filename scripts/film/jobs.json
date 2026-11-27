@@ -1,3 +1,5 @@
 [
-  { "os": "web", "name": "probe", "env": "PART=probe TRAIL=Pipe_Trail" }
+  { "os": "web", "name": "probe", "env": "PART=probe TRAIL=Pipe_Trail" },
+  { "os": "ios", "name": "ui", "env": "PART=ui TRAIL=Pipe_Trail" },
+  { "os": "ios", "name": "fly", "env": "PART=fly NF=300 FZ=14.2 B0=20 B1=110 FSET=1000" }
 ]
