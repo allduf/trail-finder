@@ -42,11 +42,11 @@
   // is given up then too, so the card never waits longer than ms here (2026-11-27 tough conditions test: over a
   // minute before).
   async function until(fn, ms = 8000) {
-    const end = Date.now() + ms;
+    const end = Date.now() + ms, late = wait(ms).then(() => undefined);
     let pending = null;   // a call still out is waited for, never asked again on top of it
     for (;;) {
       if (!pending) pending = Promise.resolve().then(fn).catch(() => null).then((v) => { pending = null; return v || null; });
-      const v = await Promise.race([pending, wait(Math.max(0, end - Date.now())).then(() => undefined)]);
+      const v = await Promise.race([pending, late]);
       if (v) return v;
       if (Date.now() >= end) return null;
       if (v === null) await wait(Math.min(500, Math.max(0, end - Date.now())));
@@ -231,7 +231,7 @@
   }
 
   async function fish(from) {
-    if (window.tfLoadSport) await window.tfLoadSport("fish").catch(() => {});
+    if (window.tfLoadSport) await Promise.race([window.tfLoadSport("fish").catch(() => {}), wait(8000)]);   // a weak signal: on with what came
     const FT = () => (window.tfFish && window.tfFish.trip) || null;   // fishing.js: todayTop and dayScore
     const top = await until(() => (FT() && FT().todayTop ? FT().todayTop(3) : null), 9000);
     const near = top ? top.list.map((x) => ({ ll: [x.lat, x.lon], name: x.name, d: x.d, why0: x.why, open: x.open })) : [];
@@ -256,10 +256,10 @@
   }
 
   async function hunt(from) {
-    if (window.tfLoadSport) await window.tfLoadSport("hunt").catch(() => {});
+    if (window.tfLoadSport) await Promise.race([window.tfLoadSport("hunt").catch(() => {}), wait(8000)]);   // a weak signal: on with what came
     const H = await until(() => (window.tfHunt && window.tfHunt.trip ? window.tfHunt.trip : null), 6000);
     let zones = [];
-    if (H && H.seasonsAt) try { zones = await H.seasonsAt(from.ll[0], from.ll[1]); } catch {}
+    if (H && H.seasonsAt) try { zones = (await Promise.race([H.seasonsAt(from.ll[0], from.ll[1]), wait(8000).then(() => null)])) || []; } catch {}
     const KEEP = ["truck", "harvest", "camp", "other"];
     const pts = window.tfPoints && window.tfPoints.list ? window.tfPoints.list("hunt").filter((p) => !KEEP.includes(p.kind)) : [];
     const saved = pts.map((p) => ({ p, d: kmTo(from.ll, [p.lat, p.lon]) })).sort((a, b) => a.d - b.d).slice(0, 5)
@@ -284,7 +284,7 @@
   }
 
   async function hike(from) {
-    if (window.tfLoadSport) await window.tfLoadSport("hike").catch(() => {});
+    if (window.tfLoadSport) await Promise.race([window.tfLoadSport("hike").catch(() => {}), wait(8000)]);   // a weak signal: on with what came
     const H = await until(() => (window.tfHike && window.tfHike.todayPicks ? window.tfHike : null), 6000);
     let picks = null;
     if (H) picks = await until(async () => { const p = await H.todayPicks(3); return p && p.length ? p : null; }, 8000);
@@ -426,7 +426,7 @@
   // The More page's Today and the map sheet (index.html) call tfTodayOpen: MTB keeps status.js's card.
   window.tfTodayOpen0 = window.tfTodayOpen0 || window.tfTodayOpen;
   window.tfTodayOpen = () => open(sportNow());
-  window.tfTodaySport = { open, fill: (sp) => fill(sp || sportNow(), true) };
+  window.tfTodaySport = { open, fill: (sp) => fill(sp || sportNow(), true), mount };   // mount: a sport's scripts came late (winter.js)
 
   // When the app opens: the card in the sport's panel fills in once the map has settled (no pop-up, in any sport).
   const start = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(() => mount(), { timeout: 3000 }) : mount()), 3000);

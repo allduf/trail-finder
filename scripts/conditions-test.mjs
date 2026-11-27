@@ -209,7 +209,8 @@ const CONDS = {
     await step(p, "Search a place ends", async () => {
       await pick(p, "mtb");
       // As a person does: the map sheet's search box opens the Find page with its box ready.
-      await p.page.locator("#peekSearch").click({ timeout: 15_000 });
+      if (await p.page.locator("#peekSearch").isVisible()) await p.page.locator("#peekSearch").click({ timeout: 15_000 });
+      else await p.page.locator('#tabbar [data-nav="new"]').click({ timeout: 15_000 });
       const box = p.page.locator("#trailQ");
       await box.waitFor({ state: "visible", timeout: 15_000 });
       await box.fill("Squamish"); await box.press("Enter");
@@ -305,7 +306,7 @@ const CONDS = {
     // error"), a limit of the test tool, not of iPhones: this one runs in Chromium when it is there.
     let other = null;
     if (BROWSER === "webkit") other = await pw.chromium.launch().catch(() => null);
-    if (BROWSER === "webkit" && !other) { results.push({ cond, step: "Offline helper", ok: true, note: "", shot: "" }); console.log(`- ${TITLES[cond]}: Chromium isn't installed here, skipped`); return; }
+    if (BROWSER === "webkit" && !other) { results.push({ cond, step: "Chromium for this check", ok: !process.env.CI, note: process.env.CI ? "Chromium didn't start: the check didn't run" : "", shot: "" }); console.log(`- ${TITLES[cond]}: Chromium isn't installed here, skipped`); return; }
     const p = await phone({ opts: { serviceWorkers: "allow", ...(other ? { isMobile: true } : {}) }, on: other || browser });
     p.ctx.once("close", () => other && other.close().catch(() => {}));
     await open(p);

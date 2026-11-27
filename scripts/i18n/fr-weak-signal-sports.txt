@@ -1,0 +1,2 @@
+Weak signal: the Today card ends with a clear line instead of waiting, and a sport that couldn't load tries again by itself when the signal comes back. ||| Réseau faible : la carte Aujourd'hui se termine par une ligne claire au lieu d'attendre, et un sport qui n'a pas pu se charger réessaie de lui-même quand le réseau revient.
+Small phones: every sport in the sport menu can be reached (the list scrolls above the bottom panel). ||| Petits téléphones : chaque sport du menu des sports est accessible (la liste défile au-dessus du panneau du bas).

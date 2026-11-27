@@ -248,7 +248,9 @@ window.tfDragSort = (root, o) => {
   body.sport-hunt .map-tools #spAdd::before { content: "📍"; font-size: 1.15rem; }
   .sport-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 12px; right: auto; width: min(260px, calc(100vw - 24px));
     /* Small phones (iPhone SE, zoomed display): the list scrolls above the bottom sheet instead of going under it. */
-    max-height: calc(100vh - env(safe-area-inset-top, 0px) - 72px - var(--sheet-vis, 0px)); overflow-y: auto; overscroll-behavior: contain; }
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - 72px - var(--sheet-vis, 0px));
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 72px - var(--sheet-vis, 0px));   /* Safari's bar showing */
+    overflow-y: auto; overscroll-behavior: contain; }
 }
 @media (max-width: 760px) and (max-height: 700px) {
   .sport-menu { gap: 4px; padding: 6px; }
@@ -6084,7 +6086,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       document.body.append(el);
     })));
   }
-  const loadSport = (s) => Promise.all(SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n)).map(loadJs));
+  // Scripts that run once only (they check for themselves) and quietly stop when one they need is missing: when a
+  // script before them in the sport's list didn't come, they are run again with it on the next try.
+  const RERUN = new Set(["hike", "moto", "moto-trip", "moto-day", "hike-trip", "hunting-trip", "fishing-trip", "cabin-trip", "bike-trip"]);
+  const loadSport = (s) => {
+    const list = SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n));
+    return Promise.allSettled(list.map(loadJs)).then((r) => {
+      const bad = r.findIndex((x) => x.status === "rejected");
+      if (bad < 0) return;
+      for (const n of list.slice(bad + 1)) if (RERUN.has(n)) delete jsLoads[n];
+      throw r[bad].reason;
+    });
+  };
   window.tfLoadSport = loadSport;
   // A cabin trip (or a hike trip) starting tomorrow or under way: that sport's files load a few seconds after the app
   // opens, whatever the sport, so the trip's forecast and offline copy update by themselves (trip-core.js refreshAhead, alex 2026-11-11).
@@ -6107,10 +6120,17 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // A sport's scripts that didn't come (the signal dropped just as the sport was picked, 2026-11-27 tough conditions
   // test: the sport's panel stayed without its Today card and tools) are asked for again while that sport is still on:
   // as soon as the signal is back, else after 5, 10, 20... s (at most 6 times). Each script draws itself when it arrives.
+  // The Today card is put in once the scripts are there (today.js gives up waiting for the sport's panel after 15 s).
+  const again = {};   // sport: a retry waiting (one per sport, however often it is picked)
   function loadSportAgain(s, n = 0) {
-    if (n >= 6 || sport !== s) return;
+    if (n >= 6 || sport !== s || (!n && again[s])) { if (n >= 6 || sport !== s) delete again[s]; return; }
     let done = false;
-    const go = () => { if (done) return; done = true; window.removeEventListener("online", go); if (sport === s) loadSport(s).catch(() => loadSportAgain(s, n + 1)); };
+    const go = () => {
+      if (done) return; done = true; window.removeEventListener("online", go);
+      if (sport !== s) { delete again[s]; return; }
+      loadSport(s).then(() => { delete again[s]; if (sport === s && window.tfTodaySport && window.tfTodaySport.mount) window.tfTodaySport.mount(); }, () => loadSportAgain(s, n + 1));
+    };
+    again[s] = true;
     window.addEventListener("online", go);
     setTimeout(go, 5000 * 2 ** n);
   }
