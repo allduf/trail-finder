@@ -183,7 +183,7 @@ body.sport-alt #bkTripBtn { display: none; }`;
       ${E.linesOf(t).length ? `<div class="sk-sec" id="tpWater"><h4>Water along your rides</h4>${waterHtml(t)}</div>` : ""}
       <div class="sk-sec" id="bkCars"><h4>Cars and shuttle</h4>${carsHtml(t)}</div>`,
       baseBtn: () => "",
-      linesEmpty: () => `No rides yet. Tap a trail on the map and then <b>🏕 Add to bike trip</b> on its card, or plan a route (✏️ Plan a ride) and add it from Plan a route.`,
+      linesEmpty: () => `No rides yet. Tap a trail on the map and then <b>🏕 Add to bike trip</b> on its card, or tap <b>Plan a ride</b> to plan a route and add it from there.`,
       drawLabel: () => "Plan a ride",
       linesChanged: (t) => { E.render(); refreshWarnSoon(t); },
       openLine, drawExtra, extraPts,
