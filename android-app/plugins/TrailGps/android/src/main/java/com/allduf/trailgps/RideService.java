@@ -47,8 +47,8 @@ public class RideService extends Service {
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null && nm.getNotificationChannel(CHANNEL) == null) {
-                NotificationChannel ch = new NotificationChannel(CHANNEL, "Ride recording and live location", NotificationManager.IMPORTANCE_LOW);
-                ch.setDescription("Shows while Trail Finder records a ride or shares your location.");
+                NotificationChannel ch = new NotificationChannel(CHANNEL, "Trip recording and live location", NotificationManager.IMPORTANCE_LOW);
+                ch.setDescription("Shows while Trail Finder records a trip or shares your location.");
                 ch.setShowBadge(false);
                 nm.createNotificationChannel(ch);
             }

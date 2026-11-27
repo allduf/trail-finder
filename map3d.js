@@ -2957,7 +2957,7 @@
           // Close up, over the Winter photos: the same photos with finer detail (tfwinterhd above).
           winterhd: { type: "raster", tileSize: PHONE ? 256 : 128, minzoom: 15, maxzoom: 16, bounds: WINTER_BOUNDS, tiles: ["tfwinterhd://{z}/{x}/{y}"] },
           live: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://live/{z}/{x}/{y}"],
-            attribution: "Live: contains modified Copernicus Sentinel data (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>; <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> HLS (Landsat, Sentinel-2), MODIS snow" },
+            attribution: "Latest: contains modified Copernicus Sentinel data (ESA), via <a href=\"https://registry.opendata.aws/sentinel-2-l2a-cogs/\">AWS Open Data</a>; <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> HLS (Landsat, Sentinel-2), MODIS snow" },
           // Under the Winter photos instead of the summer ones: today's snow wherever last winter's photos don't reach.
           fill: { type: "raster", tileSize: PHOTO_TILE, maxzoom: 19, tiles: ["tfwinter://fill/{z}/{x}/{y}"],
             attribution: "Snow cover: <a href=\"https://earthdata.nasa.gov/gibs\">NASA GIBS</a> MODIS Terra" },
@@ -3329,7 +3329,7 @@
     // Live (alex, 2026-10-23), and MTB only Summer and Live.
     const mk = (label) => { const el = document.createElement("button"); el.type = "button"; el.textContent = label;
       el.style.cssText = "width:auto;padding:0 10px;font:600 12px var(--font-body, system-ui)"; return el; };
-    const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Live"), topoBtn = mk("Topo");
+    const sumBtn = mk("Summer"), winBtn = mk("Winter"), liveBtn = mk("Latest"), topoBtn = mk("Topo");
     const moto = () => document.body.classList.contains("sport-moto");
     const ski = () => document.body.classList.contains("sport-ski");
     let photos = "sharp";

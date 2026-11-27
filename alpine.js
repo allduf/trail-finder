@@ -102,5 +102,5 @@ body.sport-alt .leaflet-alpine-pane { display: none; }`;
     },
   };
   const chip = document.querySelector("#alpChip .diff");
-  if (chip) chip.innerHTML = `${peak(14)}Alpine rideable`;
+  if (chip) chip.innerHTML = `${peak(14)}Alpine trails`;
 })();
