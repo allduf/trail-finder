@@ -2305,7 +2305,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // like it is now"): MTB opens on Map. A style picked before stays (basemap4, shared by these four sports).
   const firstBase = () => {
     const b = document.body.classList;
-    const mtb = b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb");
+    const mtb = b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", window.tfFirstSport || "mtb") === "mtb");
     return mtb ? "osm" : "sathybrid";
   };
   const skiing = () => document.body.classList.contains("sport-ski");
@@ -3620,7 +3620,7 @@ out body;`;
   // (welcome.js tfWelcome.picked): tapping I agree pulled ~3 MB of MTB files behind the welcome screens, whatever sport
   // came next (alex 2026-11-09 app test: "first open on a new phone downloads 6.5 to 8 MB").
   const welcomeWait = () => !!(window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked);
-  const mtbSport = () => { const b = document.body.classList; return b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb"); };
+  const mtbSport = () => { const b = document.body.classList; return b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", window.tfFirstSport || "mtb") === "mtb"); };
   const mtbOff = () => welcomeWait() || !mtbSport();
   let wasMtb = mtbSport();
   // Back to MTB from another sport: its files now (mtbStart is set once the map's MTB layers are ready, below).

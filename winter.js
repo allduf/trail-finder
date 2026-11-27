@@ -745,7 +745,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 
   // ---------- the sport menu ----------
   const SPORTS = ["mtb", "ski", "hunt", "fish", "moto", "hike"];   // Hiking (hike.js) since 2026-11-02
-  let sport = SPORTS.includes(store.get("sport", "mtb")) ? store.get("sport", "mtb") : "mtb";
+  let sport = SPORTS.includes(store.get("sport", window.tfFirstSport || "mtb")) ? store.get("sport", window.tfFirstSport || "mtb") : "mtb";   // a new device: the season's sport (welcome.js)
   let avyOn = store.get("avy", false);
 
   // ---------- panel ----------

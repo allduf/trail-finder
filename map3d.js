@@ -24,7 +24,7 @@
   // the map style they closed it at"): 3D or flat, and the 3D photos, kept per sport in "map3dBy" and "3dPhotosBy".
   // Not Skiing's photos: Skiing always opens on Winter (alex 2026-11-21, see savedPhotos).
   // The sport itself is saved by winter.js; before it has set the body class, the saved one is the sport.
-  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", "mtb");
+  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", window.tfFirstSport || "mtb");
   const bySport = (k, s, v) => { const o = store.get(k, null) || {}; if (v === undefined) return o[s]; if (o[s] !== v) store.set(k, { ...o, [s]: v }); };
 
   // Phones have far less memory for the 3D map than a computer, and iPhone Safari kills the whole page when it
