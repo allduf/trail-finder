@@ -307,6 +307,12 @@
     // ... and two it kept blue with 2026 reroutes (OpenStreetMap has no level for them)
     { name: "99er", c: [50.1066, -123.001], r: 1500, d: "blue", src: "WORCA (trails update, May 15, 2026)", url: "https://www.worca.com/news/may15/2026" },
     { name: "Cherry On Top", c: [50.1049, -123.0055], r: 1500, d: "blue", src: "WORCA (trails update, May 29, 2026)", url: "https://www.worca.com/news/may29/2026" },
+    // WORCA's own re-ratings that OpenStreetMap doesn't have yet (checked 2026-11-27): Lower Sproatt (the old road up from
+    // the bottom, with its short trail pieces) re-signed black in October 2025, too steep for blue in either direction;
+    // Hot Dog Pass rebuilt as a blue trail in spring 2026 (OpenStreetMap spells it Hotdog Pass).
+    { name: "Lower Sproatt", c: [50.103, -123.004], r: 2000, d: "black", src: "WORCA (trails update, October 10, 2025)", url: "https://www.worca.com/news/october10/2025-29s6p" },
+    { name: "Lower Sproatt Trail", c: [50.096, -123.007], r: 1000, d: "black", src: "WORCA (trails update, October 10, 2025)", url: "https://www.worca.com/news/october10/2025-29s6p" },
+    { name: "Hotdog Pass", c: [50.1211, -122.9875], r: 1000, d: "blue", src: "WORCA (trails update, May 1, 2026)", url: "https://www.worca.com/news/may1/2026" },
     // RED Mountain (its map ranks Red Riding Hood with the beginner trails; OpenStreetMap says blue)
     { name: "Red Riding Hood", c: [49.099, -117.823], r: 1500, d: "green", src: "RED Mountain Resort, bike park trail map", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
     // Riding hubs and MTB centres: levels from the club's, town's or park's own trail list or map (checked 2026-10-22),

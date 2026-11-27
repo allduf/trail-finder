@@ -10,7 +10,12 @@ on:
     - cron: "4,19,34,49 * * * *"
   pull_request:
     paths: ["scripts/app-alert.mjs", "scripts/test-devices.mjs", "scripts/push-send.mjs", "scripts/admin-push.mjs", ".github/workflows/app-alert.yml"]
-  workflow_dispatch:
+  workflow_dispatch:   # "Run workflow" button; tick "test" to send one test notification to the alert phones
+    inputs:
+      test:
+        description: "Send one test notification to the alert phones"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,4 +42,9 @@ jobs:
           FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
           DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
           HOURS: ${{ github.event_name == 'pull_request' && '72' || '' }}
-        run: node scripts/app-alert.mjs || echo "::warning::The crash and error alert stopped early; the next check tries again."
+        run: |
+          if [ "${{ inputs.test }}" = "true" ]; then
+            node scripts/admin-push.mjs "Trail Finder: test alert" "Crash and error alerts reach this phone. Nothing is wrong." "https://trailfinderapp.ca/usage.html" tf-alert-test
+          else
+            node scripts/app-alert.mjs || echo "::warning::The crash and error alert stopped early; the next check tries again."
+          fi
