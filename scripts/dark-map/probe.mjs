@@ -149,23 +149,29 @@ const killWeb = () => log("kill WebContent: " + tryp(`pgrep -fl WebContent; pkil
   await jsq(`window.tfLeaflet.setView([50.3, -122.8], 12, { animate: false })`); await sleep(4000);
   for (let i = 0; i < 3 && !(await nativeOpen()); i++) { await tap("#btn3d"); await sleep(3000); await click("#tfRisk [data-rk=ok]"); await sleep(9000); }
   await sleep(8000); await state("A native 3D"); shot("A-native-3d.png");
-  // 1: the page's process dies while native 3D is open (iOS memory)
-  killWeb(); await sleep(4000); shot("B1-just-after-kill.png");
-  await sleep(4000); await pageUp(); await sleep(15000); await state("B after reload"); shot("B2-after-reload.png");
-  for (let i = 0; i < 3 && !(await nativeOpen()); i++) { await tap("#btn3d"); await sleep(3000); await click("#tfRisk [data-rk=ok]"); await sleep(9000); }
-  await sleep(6000); await state("B3 3D again"); shot("B3-3d-again.png");
-  // 2: background, page killed there, back
-  tryp(`xcrun simctl launch booted com.apple.Preferences`); await sleep(8000);
-  killWeb(); await sleep(8000);
-  launch(); await sleep(5000); await pageUp(); await sleep(15000); await state("C back from background"); shot("C1-back.png");
-  for (let i = 0; i < 3 && !(await nativeOpen()); i++) { await tap("#btn3d"); await sleep(3000); await click("#tfRisk [data-rk=ok]"); await sleep(9000); }
-  await sleep(6000); await state("C2 3D again"); shot("C2-3d-again.png");
-  // 3: background without a kill, back
-  tryp(`xcrun simctl launch booted com.apple.Preferences`); await sleep(15000); launch(); await sleep(8000); await state("D back"); shot("D-back.png");
-  // 4: Layers open/close with layers toggled, as alex did
-  await click("#layersBtn"); await sleep(2000);
-  for (const id of ["#camsBtn", "#liftsBtn", "#slackBtn", "#freeBtn", "#rogersBtn"]) { await click(id); await sleep(500); }
-  await click("#lmClose"); await sleep(10000); await state("E after layers"); shot("E-after-layers.png");
+  // Weak or no signal: tile hosts blocked on the runner (the simulator uses the Mac's network). Each case: native 3D
+  // closed, the blocked hosts set, then 3D opened again from the 2D map.
+  const HOSTS = {
+    dem: ["tiles.mapterhorn.com"],
+    photos: ["server.arcgisonline.com", "services.arcgisonline.com", "ibasemaps-api.arcgis.com", "trailfinder-wide-0.pages.dev", "trailfinder-wide-1.pages.dev", "trailfinder-wide-2.pages.dev",
+      ...Array.from({ length: 14 }, (_, k) => `trailfinder-w1-${k}.pages.dev`), ...Array.from({ length: 4 }, (_, k) => `trailfinder-w2-${k}.pages.dev`),
+      ...Array.from({ length: 10 }, (_, k) => `trailfinder-sharp-${k}.pages.dev`), ...Array.from({ length: 48 }, (_, k) => `trailfinder-sharpca-${k}.pages.dev`), "trailfinder-summer.pages.dev", "trailfinder-summer-15.pages.dev"],
+    names: ["tiles.openfreemap.org"]
+  };
+  const block = (list) => tryp(`sudo cp /etc/hosts.orig /etc/hosts 2>/dev/null || sudo cp /etc/hosts /etc/hosts.orig; ${list.length ? `printf '${list.map((h) => "0.0.0.0 " + h).join("\\n")}\\n' | sudo tee -a /etc/hosts >/dev/null;` : ""} sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder; tail -3 /etc/hosts`);
+  const reopen = async (name) => {
+    await jsq(`Capacitor.Plugins.TrailMap.close()`); await sleep(3000);
+    for (let i = 0; i < 3 && !(await nativeOpen()); i++) { await tap("#btn3d"); await sleep(3000); await click("#tfRisk [data-rk=ok]"); await sleep(6000); }
+    await sleep(3000); shot(name + "-a.png"); await sleep(12000); await state(name); shot(name + "-b.png");
+  };
+  for (const [name, list] of [["F-no-heights", HOSTS.dem], ["G-no-photos", HOSTS.photos], ["H-no-signal", [...HOSTS.dem, ...HOSTS.photos, ...HOSTS.names]]]) {
+    log(name + " blocked: " + block(list).split("\n").pop());
+    tryp(`xcrun simctl terminate booted ${APP}`); await sleep(2000);   // a fresh app: nothing of these in memory
+    launch(); await pageUp(); await sleep(8000);
+    await jsq(`document.querySelectorAll("dialog[open]").forEach((d) => d.close())`);
+    await reopen(name);
+  }
+  block([]);
   writeFileSync(join(OUT, "probe.md"), notes.join("\n") + "\n");
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, notes.map((n) => "    " + n).join("\n") + "\n");
   process.exit(0);
