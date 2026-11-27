@@ -74,23 +74,28 @@
   const QKEY = "tf:useQueue", MAX_QUEUE = 400;
   let queue = [];
   try { queue = JSON.parse(lsGet(QKEY) || "[]"); } catch {}
+  // Taps saved by an older copy of this script before it was sent (an Account tap kept the email): cleaned here too.
+  const oldTap = (w) => String(w).replace(/^\S*@\S*/, "Account");
   // A web viewer too old for the map (no Object.hasOwn: Chrome before 93, Safari before 15.4) gets index.html's update
   // note; MapLibre's errors there ("Script error." with no detail: 195 rows of 16-23 Nov 2026, all from
   // Google Play's review phones) and its restarts can't be fixed in the app, so they aren't sent. Visits still are.
   // Nothing personal is ever sent, whatever the caller passes (alex 2026-11-27: the Account button's label was the
   // signed-in person's email): an email, a phone number or a map point in any event becomes a plain word. The same
-  // rule runs on the server (supabase/usage-scrub.sql) for copies of this script still cached on phones.
-  const scrub = (t) => t
-    .replace(/[\w.%+#-]+@[\w#-]+(?:\.[\w#-]+)+/g, "[email]")
-    .replace(/-?\d{1,3}\.\d{3,}\s*[,; ]\s*-?\d{1,3}\.\d{3,}/g, "[point]")
-    .replace(/-?\b\d{1,3}\.\d{4,}\b/g, "[point]")
-    .replace(/\+?\d(?:[\s().-]*\d){8,14}/g, "[phone]");
+  // rule runs on the server (supabase/usage-scrub.sql) for copies of this script still cached on phones. Error
+  // messages keep their numbers (times, sizes, versions), only emails go. Long text is cut first, so this stays quick.
+  const scrub = (t, all = true) => {
+    t = String(t).slice(0, 400).replace(/[\w.%+#-]+@[\w#-]+(?:\.[\w#-]+)+/g, "[email]");
+    return !all ? t : t.replace(/-?\d{1,3}\.\d{3,}\s*[,; ]\s*-?\d{1,3}\.\d{3,}/g, "[point]")
+      .replace(/-?\b\d{1,3}\.\d{4,}\b/g, "[point]")
+      .replace(/\+?\d(?:[\s().-]*\d){8,14}/g, "[phone]");
+  };
   const oldViewer = typeof Object.hasOwn !== "function";
+  queue = queue.map((e) => (e && e.w ? { ...e, w: scrub(e.k === "tap" ? oldTap(e.w) : e.w, e.k !== "error").slice(0, 120) } : e));
   const add = (k, w, ms) => {
     if (off) return;
     if (oldViewer && (k === "error" || k === "crash")) return;
     if (k === "crash") ms = PREV_VER; else if (k === "error") ms = VER;
-    queue.push({ s: session, t: new Date().toISOString(), p: page, k, w: w == null ? null : scrub(String(w)).slice(0, 120), ms });
+    queue.push({ s: session, t: new Date().toISOString(), p: page, k, w: w == null ? null : scrub(w, k !== "error").slice(0, 120), ms });
     if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
     lsSet(QKEY, JSON.stringify(queue));
     seen();
@@ -158,7 +163,7 @@
   const DATA = ["sport", "hub", "tab", "layer", "mode", "act", "action", "view", "sheet"];
   // Places whose buttons show what people typed or who they are (the Account button, whose tooltip is the email; a
   // cabin or bike trip's names, costs, meals and notes; the friends list): only the place is sent, never the words.
-  const PRIVATE = ".acct-btn, #acctWho, [id^=tp], #skTrip, #mtTrips, #mtTripCard, .frd-who, [data-private]";
+  const PRIVATE = ".acct-btn, #acctWho, #tpGroup, #tpIam, #tpCost, #tpMeals, #tpJour, #tpPack, #tpPlan, #tpCatch, #tpPhotos, #tpBook, #tpCabin, #tpBikes, #tpDays, #tpStops, #skTrip, #mtTrips, #mtTripCard, .frd-who, [data-private]";
   // A button's own words, without the choices of a menu inside it (a "You are" label held every group member's name).
   const ownText = (el) => {
     let t = "";
