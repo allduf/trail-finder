@@ -89,7 +89,7 @@
     const days = d.time.slice(0, 3).map((t, i) => {
       const name = i === 0 ? "Today" : i === 1 ? "Tomorrow" : DAY[new Date(t + "T12:00:00Z").getUTCDay()];
       const rain = d.precipitation_sum && d.precipitation_sum[i], snow = d.snowfall_sum && d.snowfall_sum[i];
-      const wet = snow >= 0.5 ? `${Math.round(snow)} cm snow` : rain >= 0.2 ? `${rain < 10 ? Math.round(rain * 10) / 10 : Math.round(rain)} mm rain` : "Dry";
+      const wet = snow >= 0.5 ? `${Math.round(snow)} cm snow` : rain >= 0.2 ? `${rain < 10 ? Math.round(rain * 10) / 10 : Math.round(rain)} mm rain` : "Little or no rain";
       const wind = d.wind_speed_10m_max && d.wind_speed_10m_max[i], gust = d.wind_gusts_10m_max && d.wind_gusts_10m_max[i];
       return `<li><b>${name}</b><span class="t">${r(d.temperature_2m_max[i])}° / ${r(d.temperature_2m_min[i])}°</span><small>${esc(WX[d.weather_code && d.weather_code[i]] || "")}</small><small>${esc(wet)}</small>${wind != null ? `<small>Wind ${r(wind)}${gust != null && gust > wind + 10 ? `, gusts ${r(gust)}` : ""} km/h</small>` : ""}</li>`;
     }).join("");

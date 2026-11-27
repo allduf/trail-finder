@@ -84,7 +84,7 @@ const WFS = "https://openmaps.gov.bc.ca/geo/pub/wfs";
 const WINTER = /\b(winter|snowmobile|sled|ski|snowshoe|nordic)\b/i;
 
 // Every mtb* key counts (ownMtb), but a key-prefix regex is very slow on Overpass, so the keys mappers use on their own
-// are listed. Alpine Capone and Grim Ripper on Brohm Ridge (Squamish) have only mtb:scale:uphill.
+// are listed. Two trails on Brohm Ridge (Squamish) have only mtb:scale:uphill.
 function mtbQuery([s, w, n, e], areas = []) {
   const bb = [s, w, n, e].map((x) => x.toFixed(5)).join(",");
   const named = areas.map((a) => `  way["highway"~"^(path|bridleway)$"]["name"](around:${radius(a)},${a.c[0]},${a.c[1]});\n`).join("");

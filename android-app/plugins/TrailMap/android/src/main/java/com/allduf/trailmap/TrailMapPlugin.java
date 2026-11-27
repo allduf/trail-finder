@@ -121,7 +121,22 @@ public class TrailMapPlugin extends Plugin {
             };
             s.onReady = show;
             s.postDelayed(show, 2500);
+            // Still not one frame drawn 8 s after opening: the page goes back to its own flat map with a note ("notDrawn",
+            // as the iPhone's), instead of its buttons over a black screen.
+            checkDrawn(a, s);
         });
+    }
+
+    // Counted only while the app is on screen (in the background nothing draws): asked again 8 s later then.
+    private void checkDrawn(Activity a, TrailMapScreen s) {
+        s.postDelayed(() -> {
+            if (s.isLeft() || s.framesDrawn > 0) return;
+            if (!s.isShown() || !a.hasWindowFocus()) { checkDrawn(a, s); return; }
+            android.os.PowerManager pm = (android.os.PowerManager) a.getSystemService(android.content.Context.POWER_SERVICE);
+            JSObject d = new JSObject();
+            d.put("lowPower", pm != null && pm.isPowerSaveMode());
+            s.send("notDrawn", d);
+        }, 8000);
     }
 
     // A touch on the web view where the page shows nothing of its own goes to the map under it, for the whole gesture.

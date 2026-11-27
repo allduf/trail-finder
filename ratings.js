@@ -284,8 +284,8 @@
     // Kicking Horse
     { name: "Kranky Pants", c: [51.29, -117.06], r: 3000, d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
     { name: "Devil's Disco", c: [51.29, -117.06], r: 3000, d: "black", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
-    { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
-    { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
+    { nh: "eard2a", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
+    { nh: "ricx6e", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
     // BC's Trail is tagged blue (mtb:scale:imba 2) on OpenStreetMap; a rider's level beats the map's (rateTags in index.html).
     { name: "BC's Trail", c: [50.088, -122.981], r: 1500, d: "dbl", who: "alex", note: "a Whistler Bike Park trail in Creekside, by Kadenwood" },
     // Whistler Bike Park trails whose OpenStreetMap level differs from the park's own 2026 map (or that have none).
@@ -307,6 +307,12 @@
     // ... and two it kept blue with 2026 reroutes (OpenStreetMap has no level for them)
     { name: "99er", c: [50.1066, -123.001], r: 1500, d: "blue", src: "WORCA (trails update, May 15, 2026)", url: "https://www.worca.com/news/may15/2026" },
     { name: "Cherry On Top", c: [50.1049, -123.0055], r: 1500, d: "blue", src: "WORCA (trails update, May 29, 2026)", url: "https://www.worca.com/news/may29/2026" },
+    // WORCA's own re-ratings that OpenStreetMap doesn't have yet (checked 2026-11-27): Lower Sproatt (the old road up from
+    // the bottom, with its short trail pieces) re-signed black in October 2025, too steep for blue in either direction;
+    // Hot Dog Pass rebuilt as a blue trail in spring 2026 (OpenStreetMap spells it Hotdog Pass).
+    { name: "Lower Sproatt", c: [50.103, -123.004], r: 2000, d: "black", src: "WORCA (trails update, October 10, 2025)", url: "https://www.worca.com/news/october10/2025-29s6p" },
+    { name: "Lower Sproatt Trail", c: [50.096, -123.007], r: 1000, d: "black", src: "WORCA (trails update, October 10, 2025)", url: "https://www.worca.com/news/october10/2025-29s6p" },
+    { name: "Hotdog Pass", c: [50.1211, -122.9875], r: 1000, d: "blue", src: "WORCA (trails update, May 1, 2026)", url: "https://www.worca.com/news/may1/2026" },
     // RED Mountain (its map ranks Red Riding Hood with the beginner trails; OpenStreetMap says blue)
     { name: "Red Riding Hood", c: [49.099, -117.823], r: 1500, d: "green", src: "RED Mountain Resort, bike park trail map", url: "https://www.redresort.com/wp-content/uploads/2020/09/red-mtn-bike-park-trail-map-website-v12.1.jpg" },
     // Riding hubs and MTB centres: levels from the club's, town's or park's own trail list or map (checked 2026-10-22),
@@ -413,8 +419,8 @@
     { ids: [1562597865], c: [51.28, -117.078], r: 1000, named: "Dragon Chaser", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
-    { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
-    { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
+    { nh: "12f5pps", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
+    { nh: "ez9sj3", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail near the Upper Britannia paragliding launch, Squamish" },
     { ids: [1055222771, 1065048117, 1283478720, 1285445609, 1285445610, 1285445611, 1285445613], c: [49.6372, -123.1735], r: 1000, who: "alex",
       unoff: "alex, who rides it, says it's an unofficial trail", note: "unnamed trails, Britannia" },
     // Both pieces: the unnamed north one and the one mapped as "Ebb Flow" (informal=yes): alex says it's one official trail.

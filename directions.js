@@ -68,6 +68,8 @@
     { name: "XC Climb", c: [50.667, -120.262], r: 800, dir: "both", who: "the City of Kamloops' Bike Ranch trail map", where: "kamloops.ca",
       note: "the Bike Ranch's XC Trail, the main way up and the easiest way down, ridden both ways" },
     { name: "Leftovers Skid Road", c: [50.103, -123.016], r: 1500, dir: "climb", who: "alex, who rides it", note: "an access skid road ridden as a climbing trail (Whistler)" },
+    { name: "Chipmunk Rebellion", c: [50.1017, -123.0212], r: 1500, dir: "down", who: "WORCA", where: "worca.com, September 2019", note: "a downhill-only blue trail from Lord of the Squirrels toward the valley (Whistler)" },
+    { name: "Rock Rabbit", c: [50.0962, -123.0079], r: 1500, dir: "down", who: "WORCA", where: "worca.com, October 2025", note: "the all-downhill bypass of Danimal South (Whistler)" },
     { name: "Yummy Numby", c: [50.127, -122.926], r: 3000, dir: "climb", who: "Vital MTB's Whistler guide", where: "vitalmtb.com", note: "a singletrack climb (Whistler)" },
     { name: "Highline", c: [50.07, -123.028], r: 3000, dir: "climb", who: "MTB Project", where: "mtbproject.com", note: "the warm-up climb to the Cheakamus descents (Whistler)" },
     { name: "Stl'lhalem Sintl'", c: [49.745, -123.075], r: 4000, dir: "climb", who: "SORCA's trail report (Oct/Nov 2025) and the District of Squamish trail data", where: "sorca.ca", note: "SORCA calls it the Climb Trail; it was Legacy Climb (Squamish)" },
@@ -133,7 +135,7 @@
     if (one) return { dir: "oneway", along: one, src: "osm", why: "Tagged one-way for bikes on OpenStreetMap." };
     if (up && !dn) return { dir: "climb", along: 0, src: "name", why: "Its name says it's a climb." };
     if (dn && !up) return { dir: "down", along: 0, src: "name", why: "Its name says it's a descent." };
-    if (+t["mtb:scale:uphill"] >= 5) return { dir: "down", along: 0, src: "osm", weak: true, why: "OpenStreetMap rates it too steep or rough to ride up (mtb:scale:uphill 5), so it's ridden down." };
+    if (+t["mtb:scale:uphill"] >= 5) return { dir: "down", along: 0, src: "osm", weak: true, why: "OpenStreetMap rates it too steep or rough to ride up (mtb:scale:uphill 5), so it's likely ridden down." };
     if (one === 0) return { dir: "both", along: 0, src: "osm", why: "Tagged two-way on OpenStreetMap." };
     return null;
   }

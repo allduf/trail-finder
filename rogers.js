@@ -294,7 +294,7 @@
     const want = (cardWant = cardWanted());
     card.hidden = !want;
     if (!want) return;
-    if (!info) { card.innerHTML = `<summary>Rogers Pass today</summary><p class="sk-note">${err ? `Couldn't load the Rogers Pass details (${esc(err)}).` : "Loading…"}</p>`; return; }
+    if (!info) { card.innerHTML = `<summary>Rogers Pass today</summary><p class="sk-note">${err ? "Couldn't load the Rogers Pass details. Check your connection and try again." : "Loading…"}</p>`; return; }
     const runs = info.ates.runs, byCls = [3, 2, 1].map((c) => [c, runs.filter((r) => r.cls === c)]);
     const lots = status?.parking || [];
     card.innerHTML = `<summary><b>Rogers Pass today</b></summary>

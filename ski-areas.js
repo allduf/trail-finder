@@ -134,8 +134,8 @@ dialog.sa-dlg .sa-list button small { display: block; color: var(--muted); font-
   const linkHtml = (l) => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)} ↗</a>`;
   function forecastHtml(a) {
     const f = (doc.forecasters || {})[a.forecast] || {};
-    if (a.forecast === "jpnone") return `<p><b>No public avalanche bulletin here.</b> The nearest Japan Avalanche Network bulletins are for Niseko (SW Hokkaido) and Central Hokkaido: use them only as a rough guide, and go with a local guide if you can.</p>`;
-    if (a.forecast === "none") return `<p><b>No public avalanche forecast here.</b> You have to judge the snowpack yourself: go with someone trained (Avalanche Skills Training 2 or more), or hire a guide.</p>`;
+    if (a.forecast === "jpnone") return `<p><b>No public avalanche bulletin here.</b> The nearest Japan Avalanche Network bulletins are for Niseko (SW Hokkaido) and Central Hokkaido, and may not match the snowpack here.</p>`;
+    if (a.forecast === "none") return `<p><b>No public avalanche forecast here.</b> None is included, so the snowpack has to be judged on site, which takes advanced avalanche training (Avalanche Skills Training 2 or more) or a guide.</p>`;
     const url = /^(ac|pc|kc)$/.test(a.forecast) ? `https://avalanche.ca/map?lat=${a.lat.toFixed(4)}&lng=${a.lon.toFixed(4)}` : f.url;
     return `<p>${esc(f.name || "Avalanche Canada")}${a.sub ? ` · ${esc(a.sub)}` : ""}. <a href="${esc(url)}" target="_blank" rel="noopener">Today's forecast here ↗</a></p>`;
   }

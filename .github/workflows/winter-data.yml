@@ -1,7 +1,7 @@
 name: Winter data
 
 # For the site's "Winter" mode:
-#  - every 2 hours, Avalanche Canada's current avalanche forecasts for the region -> data/avalanche.json, and the
+#  - every 2 hours (and twice just after the daily bulletins), Avalanche Canada's current avalanche forecasts for the region -> data/avalanche.json, and the
 #    snowmobile clubs' grooming reports (data/snowmobile-clubs.json) -> data/grooming.json
 #    and the last 2 weeks of Avalanche Canada Mountain Information Network reports -> data/avalanche-reports.json
 #    and the BC snow pillow stations' snow depth, new snow and temperature -> data/snow-stations.json
@@ -14,6 +14,10 @@ name: Winter data
 on:
   schedule:
     - cron: "23 */2 * * *"   # avalanche forecasts
+    # and twice more just after Avalanche Canada's daily bulletins (issued about 3-4 PM Pacific, 23:00-00:00 UTC), when
+    # areas are often regrouped: GitHub starts scheduled runs late or skips them at busy times, so more chances.
+    - cron: "53 23 * * *"
+    - cron: "37 0 * * *"
     - cron: "41 10 * * *"    # ski routes, 10:41 UTC (early morning in BC)
   workflow_dispatch:          # "Run workflow" button on the Actions tab: both
   pull_request:
@@ -46,12 +50,12 @@ jobs:
           node-version: 20
       - name: Collect winter data
         env:
-          ONLY: ${{ github.event.schedule == '23 */2 * * *' && 'avy,groom' || (github.event.schedule == '41 10 * * *' && 'ski,canada' || '') }}
+          ONLY: ${{ github.event.schedule == '41 10 * * *' && 'ski,canada' || (github.event_name == 'schedule' && 'avy,groom' || '') }}
           PROBE: ${{ github.event_name == 'pull_request' && '1' || '' }}
           CANADA_OSM_MIN: ${{ github.event_name == 'pull_request' && '8' || '30' }}   # Canada-wide OpenStreetMap: minutes a run (the rest keep their last data)
         run: node scripts/build-winter.mjs
       - name: Avalanche terrain class of each ski route (with the ski routes; a failure keeps the last file)
-        if: github.event.schedule != '23 */2 * * *'
+        if: github.event_name != 'schedule' || github.event.schedule == '41 10 * * *'
         env:
           LIMIT_MIN: ${{ github.event_name == 'pull_request' && '5' || '25' }}
         run: node scripts/build-ski-terrain.mjs || echo "::warning::Ski terrain failed; keeping the last file"

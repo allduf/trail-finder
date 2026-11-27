@@ -1,0 +1,2 @@
+Avalanche alerts: the bell now reads Avalanche Canada's forecast live, and areas with long names show their own forecast title. ||| Alertes d'avalanche : la cloche lit maintenant les prévisions d'Avalanche Canada en direct, et les régions aux longs noms affichent le titre de leur propre bulletin.
+Avalanche Canada early season bulletin ||| Bulletin de début de saison d'Avalanche Canada

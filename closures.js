@@ -136,7 +136,7 @@
         const acts = row.act || [], bikes = acts.includes("bike") || acts.includes("fatbike");
         parts.push({ cls: c === "ok" ? "" : c, html: `<h4>Alberta Parks trail report: <span class="cl-st ${c}">${esc(row.st || "status not given")}</span></h4>
           ${row.warn ? `<p>${esc(row.warn)}</p>` : ""}${mine.length ? `<ul>${mine.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-          <p class="muted">${esc(area.name)}${area.updated ? `, updated ${esc(area.updated)}` : ""}. ${bikes ? `Bikes${acts.includes("ebike") ? " and e-bikes" : " (not e-bikes)"} allowed.` : "Not listed for bikes."}
+          <p class="muted">${esc(area.name)}${area.updated ? `, updated ${esc(area.updated)}` : ""}. ${bikes ? `Listed for bikes${acts.includes("ebike") ? " and e-bikes" : " (not e-bikes)"}.` : "Not listed for bikes."}
           <a href="${esc(row.url || area.url)}" target="_blank" rel="noopener">Alberta Parks</a></p>
           ${area.note ? `<details><summary>Conditions in ${esc(area.name)}</summary><p>${esc(area.note)}</p>${(area.closures || []).length ? `<p><b>Closures:</b></p><ul>${area.closures.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>` : ""}` });
       }
