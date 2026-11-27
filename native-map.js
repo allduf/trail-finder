@@ -47,19 +47,20 @@
   document.head.append(css);
 
   let open = false, hits = [], pending = 0;
-  // ---------- the flat map rests while the native map covers it ----------
-  // Hidden under (or behind) the native map, the flat map kept drawing as if it were on screen: in Skiing 4 screen-size
-  // line canvases repainted and ~200 map pictures downloaded per 12 moves, none of it seen (page test, 2026-11-27). It
-  // rests as it does under the web 3D map (map3d.js tfRestFlat); its trail lines, pins and taps, and what this file
-  // sends, don't use any of that. shown: the native map has opened and covers it. Where native 3D opens over the page as
-  // its own screen (all but alex's "under"), the page shows at times (native-tools.js, tfNative.aside): the native screen
-  // steps aside for a sheet of the page's, or a tool's bars take some of the screen and the page shows there. The flat
-  // map draws meanwhile. It also wakes as this page asks the native map to close, to be drawn where the native map was
-  // by the time that's gone (at most 2 s: a close that doesn't come rests it again).
-  let shown = false, aside = false, closing = false, closingT = 0;
+  // ---------- the flat map's lines rest while the native map covers it ----------
+  // Hidden under (or behind) the native map, the flat map kept redrawing its trail lines as if they were on screen: in
+  // Skiing 4 screen-size line canvases, after every move, none of it seen (page test, 2026-11-27). They rest as under the
+  // web 3D map (map3d.js tfRestFlat; the map pictures keep loading, so the flat map is ready when the native map goes);
+  // the trail lines, pins and taps this file sends don't use the canvases. shown: the native map has opened and covers
+  // it. Where native 3D opens over the page as its own screen (all but alex's "under"), the page shows at times
+  // (native-tools.js, tfNative.aside): the native screen steps aside for a sheet of the page's, or a tool's bars take
+  // some of the screen and the page shows there. The lines draw meanwhile. They also wake as this page asks the native
+  // map to close, right after asking (a full redraw can take a moment with many lines), to be drawn where the native
+  // map was by the time that's gone (at most 2 s: a close that doesn't come rests them again).
+  let shown = false, aside = false, closing = false, closingT = 0, asideT = 0;
   const rest = () => { try { if (window.tfRestFlat) window.tfRestFlat(open && shown && !closing && (under || !aside)); } catch {} };
   const wakeForClose = () => { closing = true; rest(); clearTimeout(closingT); closingT = setTimeout(() => { closing = false; rest(); }, 2000); };
-  const closeNative = () => { wakeForClose(); return TrailMap.close(); };
+  const closeNative = () => { const p = TrailMap.close(); wakeForClose(); return p; };
   // ---------- native 3D features, one file each (ios-app/.../NativeLayers.swift) ----------
   // A feature's page side (its own native-xxx.js) registers what it sends: window.tfNative.addLayer(key, get), where
   // get() returns its data as text (or null for nothing); it's sent with the 3D screen's opening, and again with
@@ -100,8 +101,14 @@
     },
     isOpen: () => open && open3d,
     // aside(on): the page shows around the native screen over it (a sheet of the page's, a tool's bars), or no more
-    // (native-tools.js).
-    aside(on) { if (aside !== !!on) { aside = !!on; rest(); } },
+    // (native-tools.js). The lines wake once the state that moves the native screen has gone (a full redraw can take a
+    // moment), and rest again once that screen has faded back in (0.2 s).
+    aside(on) {
+      if (aside === !!on) return;
+      aside = !!on;
+      clearTimeout(asideT);
+      asideT = setTimeout(rest, aside ? 0 : 400);
+    },
     // For a feature that talks with its native side (native-ground.js): its events from the 3D screen, and data sent
     // without waiting for its get().
     on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { try { fn(e || {}); } catch {} }); },
@@ -128,8 +135,9 @@
       if (!open || !under) return false;
       if (canFlat() && !cardUp && !tipped) return false;
       if (canFlat() && !cardUp && oneMap()) { tip(false); return true; }
+      TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {});
       if (!cardUp) wakeForClose();   // the native map closes (its own card, if one shows, closes first instead)
-      TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {}); return true;
+      return true;
     },
   };
   const detailFns = [];
@@ -504,7 +512,7 @@
     if (close && !flat) close.click();
     const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm";
     open = true; open3d = threeD; nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 };
-    shown = false; aside = false;
+    shown = false; aside = false; clearTimeout(asideT);
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
     const winter = threeD && document.body.classList.contains("sport-ski");
     // Skiing's 3D is always Winter when the flat map shows photos or Winter (alex 2026-11-21: "it should be winter",

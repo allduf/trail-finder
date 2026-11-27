@@ -575,10 +575,10 @@ async function appBuild(kind, desk = false) {
         if (await opens()) throw new Error("native 3D opened by itself at start (Skiing starts on the flat map)");
       });
       await check("3D button opens native 3D on Winter", () => nativeOpen("the 3D button", tap3d, true));
-      // Over the page too, the flat map rests behind native 3D (native-map.js tfRestFlat), and draws while the page shows:
-      // the native screen steps aside for a sheet of the page's (here its Layers), or a tool's bar takes some of the
+      // Over the page too, the flat map's lines rest behind native 3D (native-map.js tfRestFlat), and draw while the page
+      // shows: the native screen steps aside for a sheet of the page's (here its Layers), or a tool's bar takes some of the
       // screen (native-tools.js, here Plan a tour).
-      await check("the flat map rests behind native 3D, and draws while a page sheet or a tool's bar is over it", async () => {
+      await check("the flat map's lines rest behind native 3D, and draw while a page sheet or a tool's bar is over it", async () => {
         const big = () => ev(() => [...window.tfLeaflet.getContainer().querySelectorAll("canvas.leaflet-zoom-animated")].filter((c) => !c.closest(".leaflet-tile-container") && c.width > 1).length);
         if (!(await ev(() => window.__tm.screen))) throw new Error("native 3D isn't open");
         await wait(500);
@@ -701,11 +701,11 @@ async function appBuild(kind, desk = false) {
         if (!(await isUnder())) throw new Error("Winter again: the one map didn't come back");
         await noWeb3d("another style");
       });
-      // The flat map rests while the native map covers it (native-map.js, map3d.js tfRestFlat): under native 3D it kept
-      // redrawing its screen-size line canvases and loading map pictures nobody saw (page test 2026-11-27: ~200 pictures
-      // per 12 moves in Skiing). The page's own sheets still reach the touch grid, and the flat map draws again once the
-      // native map closes.
-      await check("the flat map rests under native 3D, and draws again after", async () => {
+      // The flat map's lines rest while the native map covers it (native-map.js, map3d.js tfRestFlat): under native 3D it
+      // kept redrawing its screen-size line canvases nobody saw (page test 2026-11-27: 4 in Skiing, after every move). Its
+      // map pictures keep loading, so it's ready when the native map goes; the page's own sheets still reach the touch
+      // grid; and lines rested through a zoom come back in place (worked out again before they're drawn).
+      await check("the flat map's lines rest under native 3D, and draw again in place after", async () => {
         const gridAt = (sel) => ev((sel) => {
           const l = (window.__tm.layers || []).filter((x) => x.key === "under" && /"m"/.test(x.data)).pop(), el = document.querySelector(sel);
           if (!l || !el) return null;
@@ -718,18 +718,33 @@ async function appBuild(kind, desk = false) {
         await ev(() => { const s = document.getElementById("basemap"); s.value = "topo"; s.dispatchEvent(new Event("change")); });
         await until(() => !document.documentElement.classList.contains("tf-under"), null, 5000).catch(() => {});
         const lines = await bigCanvases();
+        // Rested through an animated zoom (no view reset: Leaflet's own order isn't there to help), then woken.
+        const drift = await ev(async () => {
+          const m = window.tfLeaflet, cs = [...m.getContainer().querySelectorAll("canvas.leaflet-zoom-animated")].filter((c) => !c.closest(".leaflet-tile-container"));
+          if (!cs.length || !window.tfRestFlat) return 0;
+          const z = m.getZoom();
+          window.tfRestFlat(true);
+          await new Promise((r) => { m.once("zoomend", r); m.setZoom(z + 1, { animate: true }); setTimeout(r, 2000); });
+          window.tfRestFlat(false);
+          const a = cs.map((c) => c.toDataURL()), rs = [];
+          m.eachLayer((l) => { if (l instanceof L.Canvas) rs.push(l); });
+          rs.forEach((r) => { r._postponeUpdatePaths = true; r._reset(); });
+          const n = cs.filter((c, i) => c.toDataURL() !== a[i]).length;
+          m.setZoom(z, { animate: false });
+          return n;
+        });
+        if (drift) throw new Error(`${drift} of the flat map's line canvases came back drawn where the lines were before a zoom`);
         const n0 = await opens();
         await tap3d();
         await until((n) => window.__tm.opens.length > n && document.documentElement.classList.contains("tf-under"), n0, 5000).catch(() => {});
         if (!(await isUnder())) throw new Error("3D on Topo didn't open native 3D under the page");
-        let far = null;
         try {
           if (await bigCanvases()) throw new Error(`${await bigCanvases()} of the flat map's line canvases stay full size under native 3D`);
           await watchTiles();
-          far = await ev(() => { const m = window.tfLeaflet, c = m.getCenter(), e = { lat: c.lat + 0.05, lon: c.lng + 0.08, zoom: m.getZoom() - 1, bearing: 0, pitch: 60 }; window.__tm.fire("moved", e); return e; });
+          await ev(() => { const m = window.tfLeaflet, c = m.getCenter(); window.__tm.fire("moved", { lat: c.lat + 0.05, lon: c.lng + 0.08, zoom: m.getZoom() - 1, bearing: 0, pitch: 60 }); });
           await wait(1500);
-          const n = await tilesSeen();
-          if (n) throw new Error(`the hidden flat map loaded ${n} map pictures as native 3D moved`);
+          if (!(await tilesSeen())) throw new Error("the hidden flat map's pictures didn't follow native 3D (they would be missing once it closes)");
+          if (await bigCanvases()) throw new Error("native 3D moved: the flat map's line canvases came back full size under it");
           // The page's Layers over native 3D: its spot goes to the page, and back to the map once it closes.
           if ((await gridAt("#layersBtn")) !== "0") throw new Error("the grid gives the Layers button's touches to the native map");
           await ev(() => document.getElementById("layersBtn").click());
@@ -738,22 +753,19 @@ async function appBuild(kind, desk = false) {
           await ev(() => document.getElementById("lmClose").click());
           await wait(900);
         } finally {
-          await watchTiles();
           await tap3d();
           await until(() => !document.documentElement.classList.contains("tf-under"), null, 5000).catch(() => {});
         }
         if (await isUnder()) throw new Error("2D map on Topo didn't go back to the page's flat map");
         await wait(800);
-        const back = await tilesSeen();
         if (lines && !(await bigCanvases())) throw new Error("back on the flat map, its trail lines aren't drawn again");
-        if (far && !back) throw new Error("back on the flat map, it loads no map pictures where native 3D was");
         await ev(() => { const s = document.getElementById("basemap"); s.value = "winter"; s.dispatchEvent(new Event("change")); });
         await until(() => document.documentElement.classList.contains("tf-under") && window.__tm.opens[window.__tm.opens.length - 1].flat, null, 5000).catch(() => {});
         if (!(await isUnder())) throw new Error("Winter again: the one map didn't come back");
       });
       // The touch grid skips changes inside a box of the page's own that can't move its touches (native-map.js idle: the
       // Today button and the avalanche card, redone after each move), but never one reaching out over the map: here a
-      // piece added to the Layers button over the middle of the map, taken off, and again.
+      // piece added to the 3D button over the middle of the map, taken off, and again.
       await check("the touch grid follows what a button holds out over the map", async () => {
         const mid = () => ev(() => {
           const l = (window.__tm.layers || []).filter((x) => x.key === "under" && /"m"/.test(x.data)).pop();
@@ -769,7 +781,7 @@ async function appBuild(kind, desk = false) {
           const o = window.__gridProbeAt || { x: 0, y: 0 };
           s.id = "tfGridProbe";
           s.style.cssText = `position:fixed;left:${x - 20 - o.x}px;top:${y - 20 - o.y}px;width:${g.s + 40}px;height:${g.s + 40}px;background:#fff;z-index:99999`;
-          document.getElementById("layersBtn").append(s);
+          document.getElementById("btn3d").append(s);
           if (!window.__gridProbeAt) {
             const at = s.getBoundingClientRect();
             window.__gridProbeAt = { x: at.left - (x - 20), y: at.top - (y - 20) };
@@ -784,7 +796,7 @@ async function appBuild(kind, desk = false) {
           for (const round of ["", " again"]) {
             if (!(await add())) throw new Error("the test's piece didn't show over the map");
             await wait(900);
-            if ((await mid()) !== "0") throw new Error(`a piece of the Layers button over the map${round}: the grid still gives its touches to the native map`);
+            if ((await mid()) !== "0") throw new Error(`a piece of the 3D button over the map${round}: the grid still gives its touches to the native map`);
             await take();
             await wait(900);
             if ((await mid()) !== "1") throw new Error(`that piece taken off${round}: the grid still keeps its spot from the native map`);

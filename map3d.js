@@ -2760,21 +2760,23 @@
   // shrink to 1 px and skip their repaint, and map pictures don't load; trail lines, taps and copying to 3D don't
   // use either. Back on the flat map everything draws again where it is. Leaflet internals (1.9.4): any surprise
   // just draws as before.
-  // The phone apps' native map (native-map.js) covers the flat map the same way and rests it too, through
-  // window.tfRestFlat(on): in Skiing it kept 4 screen-size line canvases repainting and ~200 map pictures downloading per
-  // 12 moves under native 3D (page test, 2026-11-27). The flat map rests while either map covers it. While resting, a
-  // line layer's new spot isn't worked out either at each move (all of them, again, at each zoom): waking does it once.
-  let restFlat = false, restWeb = false, restNative = false;
+  // The phone apps' native map (native-map.js) covers the flat map the same way, and rests its line canvases through
+  // window.tfRestFlat(on): in Skiing 4 screen-size line canvases kept repainting under native 3D (page test, 2026-11-27).
+  // Its map pictures keep loading there, so the flat map shows at once after the native map's own Back, as before (its
+  // screen fades out as the page learns it closed). While the lines rest, their new spot isn't worked out either at each
+  // move (all of them, again, at each zoom): waking works it out first, then draws them (as Leaflet does on a view reset).
+  let restFlat = false, restPics = false, restWeb = false, restNative = false;
   function rest2d(on) { restWeb = !!on; restNow(); }
   window.tfRestFlat = (on) => { restNative = !!on; restNow(); };
   function restNow() {
-    const on = restWeb || restNative;
-    if (restFlat === on) return;
-    restFlat = on;
+    const lines = restWeb || restNative, pics = restWeb, wakeLines = restFlat && !lines, wakePics = restPics && !pics;
+    try { if (lines && !restFlat) map.eachLayer((l) => { if (l instanceof L.Canvas && l._container) { l._container.width = l._container.height = 1; } }); } catch {}
+    restFlat = lines; restPics = pics;
+    if (!wakeLines && !wakePics) return;
     try {
-      if (on) map.eachLayer((l) => { if (l instanceof L.Canvas && l._container) { l._container.width = l._container.height = 1; } });
-      else map.eachLayer((l) => {
-        if (l instanceof L.Canvas) l._reset ? l._reset() : l._update();
+      map.eachLayer((l) => {
+        if (l instanceof L.Canvas) { if (wakeLines) { if (l._reset) { l._postponeUpdatePaths = true; l._reset(); } else l._update(); } }
+        else if (!wakePics) return;
         else if (l instanceof L.GridLayer && l._resetView) l._resetView();
         else if (l._glMap && l._update) l._update();   // the vector flat map (maplibre-gl-leaflet)
       });
@@ -2782,13 +2784,14 @@
   }
   (() => {
     // A line layer that first appears while 3D is on sets itself up once (its lines need the area it covers).
-    const pause = (P, name, also) => {
+    // resting: whether it rests now (line canvases, or map pictures: under the web 3D map only).
+    const pause = (P, name, also, resting = () => restFlat) => {
       const f = P && P[name];
       if (typeof f !== "function" || f.rests) return;
       P[name] = function () {
-        if (restFlat && (this._bounds || !(this instanceof L.Renderer))) { if (also) also.call(this); return; }
+        if (resting() && (this._bounds || !(this instanceof L.Renderer))) { if (also) also.call(this); return; }
         const r = f.apply(this, arguments);
-        if (restFlat && also) also.call(this);
+        if (resting() && also) also.call(this);
         return r;
       };
       P[name].rests = true;
@@ -2797,9 +2800,9 @@
     pause(L.Canvas && L.Canvas.prototype, "_redraw", function () { this._redrawRequest = null; this._redrawBounds = null; });
     pause(L.Canvas && L.Canvas.prototype, "_reset");
     pause(L.Canvas && L.Canvas.prototype, "_onZoomEnd");
-    pause(L.GridLayer && L.GridLayer.prototype, "_update");
+    pause(L.GridLayer && L.GridLayer.prototype, "_update", null, () => restPics);
     // The vector flat map loads its library later: pause it once it's there.
-    const vec = () => pause(L.MaplibreGL && L.MaplibreGL.prototype, "_update");
+    const vec = () => pause(L.MaplibreGL && L.MaplibreGL.prototype, "_update", null, () => restPics);
     vec(); addEventListener("load", vec);
     map.on("layeradd", (e) => { if (e.layer && e.layer._glMap !== undefined) vec(); });
   })();
