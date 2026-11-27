@@ -138,7 +138,16 @@ async function pick(p, sport) {
 const todaySel = (sport) => (sport === "mtb" ? "dialog.today[open]" : `.tdy.open[data-sp=${sport}]`);
 async function today(p, sport) {
   await p.page.evaluate(() => window.tfTodayOpen && window.tfTodayOpen());
-  await p.page.waitForSelector(todaySel(sport), { timeout: 30_000 });
+  await p.page.waitForSelector(todaySel(sport), { timeout: 30_000 }).catch(async (e) => {
+    // What the sport's scripts were doing: added to the page, finished downloading or not (a download that never
+    // ends, with no error, keeps the sport from loading).
+    const s = await p.page.evaluate(() => [...document.querySelectorAll("script[src]")].map((x) => x.getAttribute("src").split("?")[0])
+      .filter((n) => !/^(vendor|https?:)/.test(n)).slice(-12).map((n) => {
+        const r = performance.getEntriesByType("resource").filter((x) => x.name.includes("/" + n));
+        return `${n}${r.length ? r.some((x) => x.responseEnd > 0 && x.transferSize + x.decodedBodySize > 0) ? "" : " (no answer)" : " (not asked)"}`;
+      }).join(", ")).catch(() => "");
+    throw new Error(`${String(e.message).split("\n")[0]}; the sport's panel: ${await p.page.locator(`#${{ ski: "skiPane", hunt: "huntPane", fish: "fishPane", moto: "motoPane", hike: "hikePane" }[sport] || "x"}`).count() ? "there" : "missing"}; scripts: ${s}`);
+  });
 }
 // What the Today card still waits on, after ms: [] when every part has its words.
 async function stillWaiting(p, sport, ms) {
