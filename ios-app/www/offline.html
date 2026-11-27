@@ -29,7 +29,9 @@
   function check() {
     if (busy) return;
     busy = true;
-    fetch(HOME, { mode: "no-cors", cache: "no-store" }).then(go, function () { busy = false; });
+    // A check that hangs (a stalled connection) is given up after 8 s, so the next one can go.
+    var ctl = window.AbortController ? new AbortController() : null, t = setTimeout(function () { if (ctl) ctl.abort(); busy = false; }, 8000);
+    fetch(HOME, { mode: "no-cors", cache: "no-store", signal: ctl ? ctl.signal : undefined }).then(function () { clearTimeout(t); go(); }, function () { clearTimeout(t); busy = false; });
   }
   document.getElementById("b").addEventListener("click", go);
   addEventListener("online", check);

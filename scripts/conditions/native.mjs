@@ -376,15 +376,16 @@ async function restart() {
     const ips = [...new Set(hosts.flatMap((h) => tryp(`dig +short ${h} A`).split("\n").filter((x) => /^\d+\.\d+\.\d+\.\d+$/.test(x.trim())).map((x) => x.trim())))];
     const blocked = ips.length && tryp(`echo "block drop out quick proto { tcp udp } to { ${ips.join(" ")} }" | sudo pfctl -a com.apple/tfconditions -f - 2>&1; sudo pfctl -E 2>&1; echo ok`).includes("ok");
     if (blocked) {
-      await step("Skiing: native 3D with the map servers silent", async () => { await pick("ski"); return (await open3d()) || (await drawn("map servers silent")); }, 15000);
-      await close3d();
-      await step("Hiking: Today card ends with words", async () => {
-        await pick("hike"); await jsq("window.tfTodayOpen && window.tfTodayOpen()"); await sleep(40000);
-        const t = await jsq(`(document.querySelector(".tdy.open") || {}).innerText || ""`, "");
-        return /Checking today's weather…|Loading…/.test(t) ? "still waiting after 40 s" : "";
-      });
-      await closeAll();
-      tryp("sudo pfctl -a com.apple/tfconditions -F all");
+      try {
+        await step("Skiing: native 3D with the map servers silent", async () => { await pick("ski"); return (await open3d()) || (await drawn("map servers silent")); }, 15000);
+        await close3d();
+        await step("Hiking: Today card ends with words", async () => {
+          await pick("hike"); await jsq("window.tfTodayOpen && window.tfTodayOpen()"); await sleep(40000);
+          const t = await jsq(`(document.querySelector(".tdy.open") || {}).innerText || ""`, "");
+          return /Checking today's weather…|Loading…/.test(t) ? "still waiting after 40 s" : "";
+        });
+        await closeAll();
+      } finally { tryp("sudo pfctl -a com.apple/tfconditions -F all"); }   // the servers answer again, whatever happened
     } else console.log("- No signal: the firewall couldn't be set here, skipped");
   }
 
