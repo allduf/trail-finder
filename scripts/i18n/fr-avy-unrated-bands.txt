@@ -1,0 +1,18 @@
+Avalanche: a band Avalanche Canada doesn't rate now shows its own word (Early season, No rating, No forecast), the Today card shows the ratings of bulletins that rate only some bands, and a tour through an unrated band shows no trip planner light. ||| Avalanche : une bande qu'Avalanche Canada ne cote pas affiche maintenant son propre mot (Début de saison, Sans cote, Aucune prévision), la carte Aujourd'hui affiche les cotes des bulletins qui ne cotent que certaines bandes, et une sortie qui traverse une bande sans cote n'a pas de feu du planificateur.
+Early season ||| Début de saison
+No forecast ||| Aucune prévision
+Spring ||| Printemps
+Off season ||| Hors saison
+This bulletin gives no danger ratings. ||| Ce bulletin ne donne aucune cote de danger.
+This bulletin gives no danger ratings ||| Ce bulletin ne donne aucune cote de danger
+No forecast for this area right now. ||| Aucune prévision pour cette zone en ce moment.
+No forecast for this area right now ||| Aucune prévision pour cette zone en ce moment
+no trip planner light ||| aucun feu du planificateur
+Simple terrain ||| Terrain simple
+Challenging terrain ||| Terrain exigeant
+Complex terrain ||| Terrain complexe
+No danger rating in the alpine today ||| Aucune cote de danger en alpin aujourd'hui
+No danger rating in the treeline today ||| Aucune cote de danger à la limite des arbres aujourd'hui
+No danger rating below treeline today ||| Aucune cote de danger sous la limite des arbres aujourd'hui
+No danger rating today for part of this line, so no Avaluator light. ||| Aucune cote de danger aujourd'hui pour une partie de cette ligne, donc pas de feu de l'Avaluator.
+No danger rating today for this line, so no Avaluator light. ||| Aucune cote de danger aujourd'hui pour cette ligne, donc pas de feu de l'Avaluator.

@@ -375,13 +375,16 @@ for (const s of subs) {
       if (!best || best.r < 3 || !zb.some((z) => z[0] <= b[2] && z[2] >= b[0] && z[1] <= b[3] && z[3] >= b[1])) continue;
       const key = "v:" + a.id;
       now[key] = best.r;
-      if (best.r > (was[key] || 0)) { const nm = a.forecast.title || a.name; names.push(nm); lines.push(`${nm}: ${DANGER[best.r]} ${avyDay(best.x)}`); keys.push(key); }
+      // The bands with that rating, named, as the bell does (notify.js): each band is rated on its own.
+      const at = Object.keys(BAND).filter((k) => best.x[k] === best.r).map((k) => BAND[k]), where = at.length === 3 ? " in all bands" : at.length ? ` in the ${at.join(" and ")}` : "";
+      if (best.r > (was[key] || 0)) { const nm = a.forecast.title || a.name; names.push(nm); lines.push(`${nm}: ${DANGER[best.r]}${where} ${avyDay(best.x)}`); keys.push(key); }
     }
     for (const t of (w.tours || []).filter((t) => t && t.k && Array.isArray(t.c))) {
       const a = TT.areaAt(avyAreas.map((x) => x.a), t.c[0], t.c[1]);
       if (!a) continue;
       let best = null;
-      for (const x of avySoon(a.forecast)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
+      // No light on a day with a band of the tour unrated (Early season, No rating), as on the tour's card.
+      for (const x of avySoon(a.forecast)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = dg.gaps && dg.gaps.length ? -1 : TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
       if (!best || best.l < 1) continue;
       const key = "t:" + t.k;
       now[key] = best.l;

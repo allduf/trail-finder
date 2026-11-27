@@ -233,14 +233,19 @@
     return null;
   }
   // The highest danger rating of a forecast day in the bands a route from lo to hi m goes through, and that band.
+  // gaps: the bands it goes through that have no rating that day ("Early season", "No rating"). The Avaluator light
+  // needs the danger all the way, so a route with a gap has none (light() callers check gaps.length).
   function dangerIn(day, bands, lo, hi) {
     let r = 0, band = "";
-    if (!day) return { r, band };
+    const gaps = [];
+    if (!day) return { r, band, gaps };
     for (const b of BAND_IDS) {
       const [bl, bh] = b === "alp" ? [bands.hi, Infinity] : b === "tln" ? [bands.lo, bands.hi] : [-Infinity, bands.lo];
-      if (hi >= bl && lo < bh && (day[b] || 0) > r) { r = day[b]; band = b; }
+      if (!(hi >= bl && lo < bh)) continue;
+      if (!day[b]) gaps.push(b);
+      else if (day[b] > r) { r = day[b]; band = b; }
     }
-    return { r, band };
+    return { r, band, gaps };
   }
 
   root.tfTerrain = { dist, chain, sampleLine, heights, overhead, info, terrainClass, light, minSlope, CLASSES, LIGHTS, ASPECTS, SAMPLE_M, ABOVE_M, ABOVE_DEG, TRAP_M,

@@ -312,6 +312,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   const TT = window.tfTerrain;
   const DANGER = ["No rating", "Low", "Moderate", "Considerable", "High", "Extreme"];
   const DANGER_C = ["#9aa3ad", "#52ba4a", "#fff300", "#f79218", "#ef1c29", "#1a1a1a"];
+  const BANDS = [["alp", "alpine"], ["tln", "treeline"], ["btl", "below treeline"]];
   const avyOn = () => store.get("avyAlert", false) === true;
   const skiWatch = () => store.get("skiWatch", []);
   let avyState = (() => { try { return JSON.parse(localStorage.getItem("tf:avyAlerts") || "{}") || {}; } catch { return {}; } })();
@@ -339,13 +340,17 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         const key = "v:" + a.id;
         if (!best || best.r < 3) { if (avyState[key]) { avyState[key] = { lv: best ? best.r : 0, r: 1 }; seen.add(key); } continue; }
         mark(key, best.r);
-        now.push({ key, name: f.title || a.name, lv: best.r, color: DANGER_C[best.r], label: `${DANGER[best.r]} ${dayWord(best.x)}`, why: "In your regions", c: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] });
+        // The bands with that rating, named ("Alpine and treeline, in your regions"): Avalanche Canada rates each band
+        // on its own, and the others can be lower or have none.
+        const at = BANDS.filter(([k]) => best.x[k] === best.r).map(([, n]) => n), where = at.length === 3 ? "all bands" : at.join(" and ");
+        now.push({ key, name: f.title || a.name, lv: best.r, color: DANGER_C[best.r], label: `${DANGER[best.r]} ${dayWord(best.x)}`, why: where ? `${where[0].toUpperCase()}${where.slice(1)}, in your regions` : "In your regions", c: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] });
       }
       for (const t of skiWatch()) {
         const a = t.c && TT.areaAt(d.areas, t.c[0], t.c[1]), f = a && a.forecast, key = "t:" + t.k;
         if (!live(f)) continue;
         let best = null;
-        for (const x of soon(f)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
+        // No light on a day with a band of the tour unrated (Early season, No rating), as on the tour's card.
+        for (const x of soon(f)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = dg.gaps && dg.gaps.length ? -1 : TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
         if (!best || best.l < 1) { if (avyState[key]) { avyState[key] = { lv: best ? best.l : 0, r: 1 }; seen.add(key); } continue; }
         mark(key, best.l);
         const L = TT.LIGHTS[best.l];
