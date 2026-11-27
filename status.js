@@ -18,7 +18,7 @@
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kmTo = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos(a[0] * Math.PI / 180), (a[0] - b[0]) * 110.57);
   const isPrime = (v) => v != null && v >= 40 && v < 60;
-  const LEVELS = [[20, "Dry", "#d9a35a"], [40, "Tacky", "#5aa86a"], [60, "Prime", "#3f8f8c"], [80, "Wet", "#3b6fb0"], [101, "Saturated", "#33468f"]];
+  const LEVELS = [[20, "Low moisture", "#d9a35a"], [40, "Tacky", "#5aa86a"], [60, "Prime", "#3f8f8c"], [80, "Wet", "#3b6fb0"], [101, "Saturated", "#33468f"]];
   const level = (v) => LEVELS.find((l) => v < l[0]);
   const dot = (v) => `<i class="td-dot" style="background:${v == null ? "#8a8f98" : level(v)[2]}"></i>`;
   const ago = (t) => { const d = Math.floor((Date.now() - t) / 864e5); return d < 1 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d} days ago` : d < 60 ? "a month ago" : `${Math.round(d / 30)} months ago`; };
