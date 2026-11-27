@@ -37,7 +37,24 @@ env:
   SPORTS: ${{ inputs.sports || 'mtb,ski,hike,fish,hunt,moto' }}
 
 jobs:
+  slot:
+    # At most 2 heavy test runs at once (scripts/ci/heavy-slot.sh, alex 2026-11-27): the jobs below wait here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ci
+      - name: Wait for a free heavy test slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/heavy-slot.sh
+
   iphone:
+    needs: slot
     runs-on: macos-15
     timeout-minutes: 75
     steps:
@@ -101,6 +118,7 @@ jobs:
           if-no-files-found: ignore
 
   android:
+    needs: slot
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
