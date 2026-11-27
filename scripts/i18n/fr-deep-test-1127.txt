@@ -1,0 +1,36 @@
+Hiking has no alerts of its own yet. You can turn on another sport's alerts below. ||| La randonnée n'a pas encore d'alertes à elle. Vous pouvez activer les alertes d'un autre sport ci-dessous.
+Adventure moto has no alerts of its own yet. You can turn on another sport's alerts below. ||| La moto d'aventure n'a pas encore d'alertes à elle. Vous pouvez activer les alertes d'un autre sport ci-dessous.
+Avalanche alerts are off. ||| Les alertes d'avalanche sont désactivées.
+Fresh stocking alerts are off. ||| Les alertes d'ensemencement sont désactivées.
+Change alerts ||| Changer les alertes
+These alerts show here when you open Trail Finder. Phone notifications are off: Change alerts has the switch to turn them on. ||| Ces alertes s'affichent ici quand vous ouvrez Trail Finder. Les notifications sont désactivées : l'interrupteur pour les activer est dans Changer les alertes.
+The route server didn't answer. Try again in a minute. ||| Le serveur d'itinéraires n'a pas répondu. Réessayez dans une minute.
+Or type your plan: start at…, ski…, finish… ||| Ou écrivez votre plan : départ à…, descendre…, arrivée à…
+Record tour ||| Enregistrer une sortie de ski
+Import tours (GPX, FIT, TCX) ||| Importer des sorties de ski (GPX, FIT, TCX)
+← My tours ||| ← Mes sorties de ski
+Delete tour ||| Supprimer la sortie de ski
+Save to My tours ||| Enregistrer dans Mes sorties de ski
+Tour saved. Press Start for the next one. ||| Sortie de ski enregistrée. Appuyez sur Démarrer pour la suivante.
+Tour discarded. Press Start when you're ready. ||| Sortie de ski supprimée. Appuyez sur Démarrer quand vous êtes prêt.
+Record hike ||| Enregistrer une rando
+Import hikes (GPX, FIT, TCX) ||| Importer des randos (GPX, FIT, TCX)
+← My hikes ||| ← Mes randos
+Delete hike ||| Supprimer la rando
+Record hunt ||| Enregistrer une chasse
+Import hunts (GPX, FIT, TCX) ||| Importer des chasses (GPX, FIT, TCX)
+← My hunts ||| ← Mes chasses
+Delete hunt ||| Supprimer la chasse
+Record adventure ride ||| Enregistrer une sortie d'aventure
+Import adventure rides (GPX, FIT, TCX) ||| Importer des sorties d'aventure (GPX, FIT, TCX)
+← My adventure rides ||| ← Mes sorties d'aventure
+Delete adventure ride ||| Supprimer la sortie d'aventure
+Save to My adventure rides ||| Enregistrer dans Mes sorties d'aventure
+Record fishing trip ||| Enregistrer une sortie de pêche
+My fishing trips ||| Mes sorties de pêche
+Import fishing trips (GPX, FIT, TCX) ||| Importer des sorties de pêche (GPX, FIT, TCX)
+← My fishing trips ||| ← Mes sorties de pêche
+Delete fishing trip ||| Supprimer la sortie de pêche
+Save to Fishing log ||| Enregistrer dans le journal de pêche
+Press Start when you're ready. ||| Appuyez sur Démarrer quand vous êtes prêt.
+Skiing's My tours now has its own page (Record tour, My tours, only your ski tours), each sport's own alerts come first in Notifications, and a failed download now says why in plain words. ||| Mes sorties de ski a maintenant sa propre page (Enregistrer une sortie de ski, Mes sorties de ski, seulement vos sorties de ski), les alertes de chaque sport passent en premier dans Notifications, et un téléchargement qui échoue dit maintenant pourquoi en mots simples.

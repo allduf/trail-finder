@@ -122,6 +122,8 @@ dialog.notify .nt-x { position: absolute; top: 8px; right: 8px; width: 40px; hei
 dialog.notify h2 { padding-right: 36px; }
 dialog.notify .nt-hunt { display: block; cursor: default; }
 dialog.notify .nt-other { margin: 4px 0 8px; }
+dialog.notify .nt-other summary::after { top: 7px; }
+dialog.notify .nt-none { margin: 0 0 6px; font-size: .9rem; color: var(--muted); }
 dialog.notify .nt-other summary { cursor: pointer; font-size: .86rem; font-weight: 700; color: var(--muted); padding: 6px 0; }
 dialog.notify .nt-hunt .nt-link { font: inherit; font-weight: 700; padding: 0; border: 0; background: none; color: var(--accent, #2f8f88); text-decoration: underline; cursor: pointer; }
 /* Save / Done stay in reach under the long region list */
@@ -470,13 +472,21 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (first) { groups[0].on = true; const all = q("ntZones").querySelector('input[value="all"]'); if (all) all.checked = false; }
     q("ntZones").insertAdjacentHTML("afterbegin", groups.map((g, i) => `<label class="nt-ca"><input type="checkbox" value="ca:${i}"${g.on ? " checked" : ""}>${esc(g.label || g.n)}</label>`).join(""));
   }
+  // The sport the app is in now (the body's sport-* class, set by index.html).
+  function sportNow() {
+    const b = document.body.classList;
+    return b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : b.contains("sport-hike") ? "hike" : "mtb";
+  }
   function paintPick() {
     const p = prefs(), on = new Set(p ? p.zones : ["all"]);
     q("ntZones").innerHTML = [["all", "All regions"], ...ZONES.map((z) => [z.id, z.name])]
       .map(([id, name]) => `<label><input type="checkbox" value="${id}"${on.has(id) ? " checked" : ""}>${esc(name)}</label>`).join("");
     paintCa();
-    q("ntLoamArea").checked = loamOn();
-    q("ntNewOn").checked = newOn();
+    // Someone setting up alerts for the first time from another sport (Skiing's avalanche alerts) doesn't get MTB's prime
+    // loam and new trails by default: those boxes, folded under "Alerts for other sports", start unticked there.
+    const firstOther = !p && sportNow() !== "mtb" && store.get("loamArea", null) == null && store.get("notifyNew", null) == null;
+    q("ntLoamArea").checked = !firstOther && loamOn();
+    q("ntNewOn").checked = !firstOther && newOn();
     q("ntAvyOn").checked = avyOn();
     q("ntFishOn").checked = fishOn();
     q("ntFishWhere").textContent = fishOn() ? `(within ${FISH_KM} km of the spot you picked; saving again moves it to where the map is now)` : `(within ${FISH_KM} km of where the map is now)`;
@@ -534,6 +544,15 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     }));
   }
   function paintList() {
+    paintList0();
+    // Skiing and Fishing: their own alert off says so (the list would hold only the folded other sports), and the
+    // button reads "Change alerts" (the regions are MTB's words).
+    const sp = sportNow(), own = { ski: ["ntAvy", "Avalanche alerts are off."], fish: ["ntFish", "Fresh stocking alerts are off."] }[sp];
+    if (own) { listNone.textContent = q(own[0]).hidden ? own[1] : ""; listNone.hidden = !listNone.textContent; if (!listNone.isConnected) q("ntList").insertBefore(listNone, listOther); }
+    else if (sp === "mtb") listNone.remove();
+    if (sp !== "mtb") q("ntEdit").textContent = "Change alerts";
+  }
+  function paintList0() {
     paintFish();
     paintAvy();
     paintLoam();
@@ -577,7 +596,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (row.hidden) return;
     const said = !!askState().no;
     q("ntPushRowText").textContent = said
-      ? "These alerts show here when you open Trail Finder. Phone notifications are off: Change regions has the switch to turn them on."
+      ? (sportNow() === "mtb" ? "These alerts show here when you open Trail Finder. Phone notifications are off: Change regions has the switch to turn them on."
+        : "These alerts show here when you open Trail Finder. Phone notifications are off: Change alerts has the switch to turn them on.")
       : "These alerts show here when you open Trail Finder. Turn on phone notifications to also get them on this phone.";
     q("ntPushGo").hidden = said;
   }
@@ -597,12 +617,19 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const a = document.getElementById("hnAlarms");
     if (a) { a.open = true; (window.tfPanelScrollTo || ((el) => el.scrollIntoView()))(a, "center", true); }
   });
+  const noneRow = document.createElement("p");
+  noneRow.className = "nt-none";
+  const noneText = (sp) => `${sp === "moto" ? "Adventure moto" : "Hiking"} has no alerts of its own yet. You can turn on another sport's alerts below.`;
   function sortOpts() {
-    const b = document.body.classList, sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : b.contains("sport-hike") ? "hike" : "mtb";
+    const sp = sportNow();
     const MINE = { mtb: ["ntLoamArea", "ntNewOn"], ski: ["ntAvyOn"], hunt: [], fish: ["ntFishOn"], moto: [], hike: [] }[sp];
     const opts = ["ntLoamArea", "ntNewOn", "ntAvyOn", "ntFishOn"].map((id) => q(id).closest("label"));
     const pick = q("ntPick"), first = pick.querySelector(".nt-push");
     if (sp === "hunt") pick.insertBefore(huntRow, first); else huntRow.remove();
+    // A sport without alerts of its own (Adventure moto, Hiking) says so, so the card isn't a lone "Also send them to this
+    // phone" under a closed list.
+    if (!MINE.length && sp !== "hunt") { noneRow.textContent = noneText(sp); pick.insertBefore(noneRow, first); }
+    else noneRow.remove();
     opts.filter((l) => MINE.includes(l.querySelector("input").id)).forEach((l) => pick.insertBefore(l, sp === "hunt" ? huntRow : first));
     opts.filter((l) => !MINE.includes(l.querySelector("input").id)).forEach((l) => other.append(l));
     pick.insertBefore(other, first);
@@ -610,8 +637,23 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const zh = pick.querySelector(".nt-zhead"), zs = q("ntZones"), row = pick.querySelector(".nt-row");
     if (sp === "hunt" || sp === "fish" || sp === "moto" || sp === "hike") other.append(zh, zs); else { pick.insertBefore(zh, row); pick.insertBefore(zs, row); }
   }
+  // The list (after saving) follows the same rule: this sport's alerts, then the other sports' folded under them, so
+  // Skiing's bell doesn't open on MTB's prime loam (deep test 2026-11-27).
+  const listOther = document.createElement("details");
+  listOther.className = "nt-other";
+  listOther.innerHTML = "<summary>Alerts for other sports</summary>";
+  const listNone = document.createElement("p");
+  listNone.className = "nt-none";
+  function sortList() {
+    const sp = sportNow(), list = q("ntList"), row = list.querySelector(".nt-row");
+    const groups = { ski: ["ntAvy"], fish: ["ntFish"], mtb: ["ntLoam", "ntWhere", "ntItems"] };
+    (groups[sp] || []).forEach((id) => list.insertBefore(q(id), row));
+    Object.keys(groups).filter((k) => k !== sp).forEach((k) => groups[k].forEach((id) => listOther.append(q(id))));
+    if (!groups[sp] && sp !== "hunt") { listNone.textContent = noneText(sp); listNone.hidden = false; list.insertBefore(listNone, row); } else listNone.remove();
+    list.insertBefore(listOther, row);
+  }
   function openBox() {
-    sortOpts();
+    sortOpts(); sortList();
     prefs() || (loamOn() && loamList.length) || (avyOn() && skiWatch().length) || fishOn() ? showList() : paintPick();
     if (!box.open) box.showModal();
     checkLoam(); checkAvy(); checkFish();
@@ -793,7 +835,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   const pushFail = (err) => (err.message === "blocked" ? "Notifications are blocked for Trail Finder. Allow them in your phone's settings, then try again."
     : err.message === "setup" ? "Phone notifications aren't set up on the site yet. Try again later."
     : err.message === "not allowed" ? "Tap Allow when your phone asks, to get notifications."
-    : `Couldn't turn on notifications (${err.message}). Try again in a moment.`);
+    : `Couldn't turn on notifications (${(window.tfErrText ? window.tfErrText(err) : err.message)}). Try again in a moment.`);
   q("ntPushOn").addEventListener("change", async (e) => {
     const on = e.target;
     on.disabled = true;

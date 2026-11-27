@@ -284,7 +284,7 @@
       });
       chartCursor();
     } catch (e) {
-      if (chartKey === key) el.innerHTML = `<p class="sm-note">Couldn't load the smoke forecast here (${String(e.message).replace(/[<>&]/g, "")}).</p>`;
+      if (chartKey === key) el.innerHTML = `<p class="sm-note">Couldn't load the smoke forecast here (${String((window.tfErrText ? window.tfErrText(e) : e.message)).replace(/[<>&]/g, "")}).</p>`;
     }
   }
   const CW = 340, CL = 30, CH = 90, CT = 6;
@@ -347,7 +347,7 @@
       place();
       note = "";
       here();
-      getRun().then(() => { note = ""; draw(); }, (e) => { note = `Couldn't load the smoke forecast (${e.message}).`; here(); });
+      getRun().then(() => { note = ""; draw(); }, (e) => { note = `Couldn't load the smoke forecast (${(window.tfErrText ? window.tfErrText(e) : e.message)}).`; here(); });
     } else {
       stop();
       place();

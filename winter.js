@@ -2807,7 +2807,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       $("skWx").innerHTML = wxHtml(w, ele) + (window.tfClouds ? `<div class="sk-sec" id="skClouds"></div>` : "");
       if (window.tfClouds) window.tfClouds.chart($("skClouds"), { lat, lon, lo: lo ?? ele, hi: ele, kind: lo != null && ele - lo >= 60 ? "route" : "here" });
     })
-      .catch((e) => { if (live()) $("skWx").innerHTML = `<h4>Weather</h4><p class="sk-note">Couldn't load the weather (${esc(e.message)}).</p>`; });
+      .catch((e) => { if (live()) $("skWx").innerHTML = `<h4>Weather</h4><p class="sk-note">Couldn't load the weather (${esc((window.tfErrText ? window.tfErrText(e) : e.message))}).</p>`; });
     showAvy(r.info || null);
     if (!minData && !minErr) loadMin().then(() => showAvy(r.info || null));
     if (isRoute) condStart(r, group, live);
@@ -2842,7 +2842,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       }
     }).catch((e) => {
       if (!live()) return;
-      $("skElev").innerHTML = `<h4>Elevation</h4><p class="sk-note">Couldn't load the heights (${esc(e.message)}).</p>`;
+      $("skElev").innerHTML = `<h4>Elevation</h4><p class="sk-note">Couldn't load the heights (${esc((window.tfErrText ? window.tfErrText(e) : e.message))}).</p>`;
       if (mine) renderPlan();
       showWx(pt[0], pt[1], null);
       showPh({ pts: group.flatMap((x) => x.lines.flat()).map(([lat, lon]) => ({ lat, lon })), top: { lat: pt[0], lon: pt[1] } });
@@ -3085,7 +3085,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         : `<b>${plan.wait ? esc(plan.wait) : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
       // Or typed in plain words (alex 2026-11-07: "When I click plan a route I want to be able to ask what I want to plan"):
       // Ask (ask.js) reads the plan of the day and makes the tour from it.
-      const askRow = !o && n === 0 && window.tfAsk ? `<form class="pb-ask" role="search"><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type your plan" placeholder="💬 Or type your plan: start at…, ski…, finish…"><button type="submit">Plan it</button></form>` : "";
+      const askRow = !o && n === 0 && window.tfAsk ? `<form class="pb-ask" role="search"><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type your plan" placeholder="Or type your plan: start at…, ski…, finish…"><button type="submit">Plan it</button></form>` : "";
       const was = planBar.querySelector(".pb-ask input"), wasQ = was ? was.value : "", wasF = was && document.activeElement === was;   // typing survives a redraw
       planBar.innerHTML = `<div class="pb-msg"><i class="pb-dot${o ? " line" : ""}${plan.wait && !o ? " busy" : ""}" aria-hidden="true"></i><span>${msg}</span></div>
         <div class="pb-btns">${o ? `<button type="button" data-p="line" class="go">＋ Add line</button><button type="button" data-p="point">Just a point</button><button type="button" data-p="nope" aria-label="Neither">✕</button>`
@@ -4123,7 +4123,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     weather(lat, lon, g.e).then((w) => {
       fill("skSpotSnow", spotSnowHtml(w, g));
       spotLayerNote(lat, lon, w, g).then((t) => { if (t) fill("skSpotLayer", t); }, () => {});
-    }, (e) => fill("skSpotSnow", `<p class="sk-note">Couldn't load the weather here: ${esc(e.message)}.</p>`));
+    }, (e) => fill("skSpotSnow", `<p class="sk-note">Couldn't load the weather here: ${esc((window.tfErrText ? window.tfErrText(e) : e.message))}.</p>`));
   }
   // The spot's slope, aspect, height and terrain estimate, with what they mean (the top of This spot).
   function spotGroundHtml(g, cls) {

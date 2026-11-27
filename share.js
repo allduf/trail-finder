@@ -139,7 +139,7 @@
         if (!on()) break;
         status = `Sharing ride ${++n} of ${todo.length}…`; paint();
         try { await shareOne(r, pl, sent); }
-        catch (e) { status = `Couldn't share just now (${e.message}). It tries again next time.`; paint(); running = null; return; }
+        catch (e) { status = `Couldn't share just now (${(window.tfErrText ? window.tfErrText(e) : e.message)}). It tries again next time.`; paint(); running = null; return; }
       }
       status = ""; running = null; refreshCount();
     })();
@@ -251,7 +251,7 @@ ${pl.length ? `<ul>${pl.map((p, i) => `<li>${esc(p[2] || "Private place")} (${fm
         store.set("shareOn", false, true); store.set("shareSent", {});
         status = ""; count = 0; paint();
         alert(`Deleted ${n} shared ride${n === 1 ? "" : "s"}.`);
-      } catch (err) { alert("Couldn't delete just now: " + err.message); b.disabled = false; }
+      } catch (err) { alert("Couldn't delete just now: " + (window.tfErrText ? window.tfErrText(err.message) : err.message) + "."); b.disabled = false; }
     }
   });
   async function addPlace(p) {
@@ -280,7 +280,7 @@ ${pl.length ? `<ul>${pl.map((p, i) => `<li>${esc(p[2] || "Private place")} (${fm
     const b = el.querySelector("button");
     if (b) b.addEventListener("click", async () => {
       b.disabled = true;
-      try { if (no || b.hasAttribute("data-yes")) await reshare(r); else await unshare(r); } catch (e) { alert("Couldn't change it just now: " + e.message); }
+      try { if (no || b.hasAttribute("data-yes")) await reshare(r); else await unshare(r); } catch (e) { alert("Couldn't change it just now: " + (window.tfErrText ? window.tfErrText(e) : e.message) + "."); }
       mountRide(el, r);
     });
   }

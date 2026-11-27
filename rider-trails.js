@@ -258,14 +258,14 @@ ${t.notes ? `<p class="rt-notes">${esc(t.notes)}</p>` : ""}
         if (!confirm(`Delete “${t.name}” for everyone?`)) return;
         const a = acct(); await a.load();
         const { error } = await a.client.from("rider_trails").delete().eq("id", t.id);
-        if (error) { paint("Couldn't delete it: " + error.message); return; }
+        if (error) { paint("Couldn't delete it: " + (window.tfErrText ? window.tfErrText(error.message) : error.message) + "."); return; }
         map.closePopup(); mine.delete(t.id); all = all.filter((x) => x.id !== t.id); lsSet(CACHE, all); draw(); paintBox();
       });
       btn("[data-rode]", async () => {
         if (!signedIn()) { askSignIn(); return; }
         const v = votes.get(t.id), undo = v && v.kind === "rode";
         const e = await vote(t, undo ? null : { kind: "rode" });
-        if (e) { paint("Couldn't save that: " + e); return; }
+        if (e) { paint("Couldn't save that: " + (window.tfErrText ? window.tfErrText(e) : e) + "."); return; }
         t.rode = Math.max(0, (t.rode || 0) + (undo ? -1 : 1)); if (!undo && v && v.kind === "report") t.reports = Math.max(0, (t.reports || 0) - 1);
         paint(undo ? "Taken back." : "Thanks! Other riders see that you rode it.");
       });
@@ -310,7 +310,7 @@ ${t.notes ? `<p class="rt-notes">${esc(t.notes)}</p>` : ""}
       const why = dlg.querySelector("input[name=why]:checked");
       if (!why) { msg.textContent = "Pick what's wrong first."; msg.className = "rt-msg err"; return; }
       const err = await vote(t, { kind: "report", reason: why.value, note: $("rtRepNote").value.trim().slice(0, 280) });
-      if (err) { msg.textContent = "Couldn't send it: " + err; msg.className = "rt-msg err"; return; }
+      if (err) { msg.textContent = "Couldn't send it: " + (window.tfErrText ? window.tfErrText(err) : err) + "."; msg.className = "rt-msg err"; return; }
       if (!had) t.reports = (t.reports || 0) + 1;
       if (v && v.kind === "rode") t.rode = Math.max(0, (t.rode || 0) - 1);
       dlg.close(); done();

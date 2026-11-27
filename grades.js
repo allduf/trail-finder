@@ -155,7 +155,7 @@
     const e = await save(rows, grade).catch((x) => x.message || String(x));
     if (current !== t) return;
     if (e && offlineErr(e)) { queue(); return; }
-    if (e) { paint(box, t, "Couldn't save your grade: " + e); return; }
+    if (e) { paint(box, t, "Couldn't save your grade: " + (window.tfErrText ? window.tfErrText(e) : e) + "."); return; }
     mine = grade; countHere(rows, was, grade);
     paint(box, t, grade ? "Thanks! Your grade is in." : "Your grade is taken back.");
   }

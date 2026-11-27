@@ -559,7 +559,7 @@
       place();
       note = "";
       here();
-      getSpan(true).then(() => { note = ""; setFrame(frames()); loadFc(); }, (e) => { note = `Couldn't load the radar (${e.message}).`; here(); });
+      getSpan(true).then(() => { note = ""; setFrame(frames()); loadFc(); }, (e) => { note = `Couldn't load the radar (${(window.tfErrText ? window.tfErrText(e) : e.message)}).`; here(); });
     } else {
       stop();
       place();

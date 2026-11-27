@@ -298,7 +298,7 @@ dialog.live .lv-pin { flex: none; }
       if (rows && rows.length) { showAll(); if (window.tfToast) window.tfToast(rows.length === 1 ? `Showing ${rows[0].name || "their"} live location` : `Showing ${rows.length} people's live locations`); }
       else open();
       poll();
-    }, (e) => { if (window.tfToast) window.tfToast(`Couldn't load the live location: ${e.message}`); });
+    }, (e) => { if (window.tfToast) window.tfToast(`Couldn't load the live location: ${(window.tfErrText ? window.tfErrText(e) : e.message)}.`); });
   }
   window.addEventListener("hashchange", fromHash);
   setTimeout(fromHash, 800);   // after the map has its first view
