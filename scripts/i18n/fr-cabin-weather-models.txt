@@ -1,0 +1,1 @@
+Cabin trips: the weather note now names the weather models it compares and the days they disagree on. ||| Séjours en refuge : la note météo nomme maintenant les modèles météo comparés et les jours où ils ne s'entendent pas.
