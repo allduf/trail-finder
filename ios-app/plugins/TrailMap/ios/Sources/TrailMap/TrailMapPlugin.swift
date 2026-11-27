@@ -131,7 +131,7 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak s] in
                     guard let s = s, !s.left, s.framesDrawn == 0 else { return }
                     if UIApplication.shared.applicationState != .active || s.view.window == nil { check(s); return }
-                    s.onEvent?("notDrawn", ["lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled])
+                    s.onEvent?("notDrawn", ["lowPower": TrailMapScreen.lowPower])
                 }
             }
             check(s)
@@ -247,6 +247,23 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     // Frames this map has drawn. None a while after opening: MapLibre isn't drawing on this phone (2026-11-27: alex's
     // iPhone showed a black map in every sport, buttons over nothing), and the page goes back to its own flat map.
     private(set) var framesDrawn = 0
+    // Low Power Mode on. The iPhone simulator has none: the "Low power 3D" test (.github/workflows/low-power.yml) starts
+    // the simulator's app with TF_TEST_LOW_POWER=1 to take this path, and TF_TEST_NO_DRAW=1 to stand in for a map that
+    // draws nothing (black over the map, no frame counted), as alex's iPhone did 2026-11-27. Simulator builds only:
+    // compiled out of every phone build.
+    static var lowPower: Bool {
+        #if targetEnvironment(simulator)
+        if ProcessInfo.processInfo.environment["TF_TEST_LOW_POWER"] == "1" { return true }
+        #endif
+        return ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
+    static var testNoDraw: Bool {
+        #if targetEnvironment(simulator)
+        return ProcessInfo.processInfo.environment["TF_TEST_NO_DRAW"] == "1"
+        #else
+        return false
+        #endif
+    }
     private var waitWinter = false   // Skiing's Winter asked for but its lists still coming: not ready on Satellite
     // False from the moment a new map style is asked for until it has loaded. Meanwhile MapLibre swaps the old layers
     // out from under their objects, so a feature touching the style then can crash the app (alex's crash 2026-11-21:
@@ -370,6 +387,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         map.setCenter(start, zoomLevel: startZoom, direction: startBearing, animated: false)
         map.showsUserLocation = true
         view.addSubview(map)
+        if TrailMapScreen.testNoDraw {   // the simulator's test only (see lowPower): black over the map, as alex's iPhone showed
+            let black = UIView(frame: view.bounds)
+            black.backgroundColor = .black
+            black.isUserInteractionEnabled = false
+            black.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            view.addSubview(black)
+        }
         view.addLayoutGuide(area)
         let mt = map.topAnchor.constraint(equalTo: view.topAnchor), mb = map.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         let at = area.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
@@ -812,11 +836,11 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         if t >= 1 { endTilt() }
     }
     private func lowPowerFrames() {
-        map.preferredFramesPerSecond = ProcessInfo.processInfo.isLowPowerModeEnabled ? .lowPower : .default
+        map.preferredFramesPerSecond = TrailMapScreen.lowPower ? .lowPower : .default
     }
     @objc private func powerChanged() { DispatchQueue.main.async { [weak self] in if let s = self, s.isViewLoaded, !s.left { s.lowPowerFrames() } } }
     func mapViewDidFinishRenderingFrame(_ mapView: MLNMapView, fullyRendered: Bool) {
-        framesDrawn += 1
+        if !TrailMapScreen.testNoDraw { framesDrawn += 1 }
     }
     func mapViewDidFinishRenderingMap(_ mapView: MLNMapView, fullyRendered: Bool) {
         guard fullyRendered, styleReady, !(waitWinter && base == "winter"), let ready = onReady else { return }

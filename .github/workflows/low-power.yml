@@ -1,0 +1,171 @@
+name: Low power 3D
+
+# alex 2026-11-27, after native 3D went black in every sport on alex's iPhone in Low Power Mode (2026-11-26, fixed in
+# PR #956): every app build also opens native 3D with power saving on, in every sport, on an iPhone simulator and an
+# Android simulator, and fails if the map is black or, when the map draws nothing, the page's own flat map doesn't come
+# back with its note. See scripts/side-by-side/low-power.mjs for the steps and what is and isn't simulated.
+# Runs on pull requests that change the apps or the page side of native 3D, on every main push that starts an app build,
+# once a week (new Xcode and simulators), and from Actions > Low power 3D > Run workflow.
+on:
+  pull_request:
+    paths: ["ios-app/**", "android-app/**", "native-map.js", "native.js", "scripts/side-by-side/**", ".github/workflows/low-power.yml"]
+  push:
+    branches: [main]
+    paths: ["ios-app/**", "android-app/**", "native-map.js", "native.js", "scripts/side-by-side/**", ".github/workflows/low-power.yml"]
+  schedule:
+    - cron: "23 10 * * 1"
+  workflow_dispatch:
+    inputs:
+      sports:
+        description: "Sports, comma separated (mtb,ski,hike,fish,hunt,moto)"
+        default: "mtb,ski,hike,fish,hunt,moto"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: low-power-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  # A new push to a pull request replaces its run; every main push keeps its own (each can start an app build).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  WALK: lowpower
+  TF_LANG: en
+  START: "0"
+  TAG: lowpower
+  SPORTS: ${{ inputs.sports || 'mtb,ski,hike,fish,hunt,moto' }}
+
+jobs:
+  slot:
+    # At most 2 heavy test runs at once (scripts/ci/heavy-slot.sh, alex 2026-11-27): the jobs below wait here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ci
+      - name: Wait for a free heavy test slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/heavy-slot.sh
+
+  iphone:
+    needs: slot
+    runs-on: macos-15
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90   # v1.7.0, pinned to one exact version
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: French words (i18n-fr.js)
+        run: node scripts/i18n/build.mjs
+      - name: Test build for the simulator (opens this runner's site)
+        working-directory: ios-app
+        # As side-by-side.yml. A simulator build: its TF_TEST_LOW_POWER / TF_TEST_NO_DRAW switches exist only there.
+        run: |
+          npm ci
+          node -e '
+            const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json"));
+            c.server.url = "http://localhost:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("localhost");
+            c.ios.limitsNavigationsToAppBoundDomains = false;
+            fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
+          npx cap sync ios
+          P=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :WKAppBoundDomains: string localhost" $P || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" $P || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" $P || true
+          set -o pipefail
+          # Up to 3 tries, 30 s and 60 s apart: fetching Capacitor's Swift package from github.com failed once
+          # (2026-11-27, "could not read Username for 'https://github.com'"), a passing hiccup, not the app.
+          for i in 1 2 3; do
+            if xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
+                 -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd" \
+                 CODE_SIGNING_ALLOWED=NO CURRENT_PROJECT_VERSION=99999 build | tail -30; then break; fi
+            [ "$i" = 3 ] && exit 1
+            echo "::warning::The simulator build failed (try $i of 3): trying again"; sleep $((30 * i))
+          done
+      - name: iPhone simulator
+        run: |
+          DEV=$(xcrun simctl list devices available -j | node -e '
+            const d = Object.values(JSON.parse(require("fs").readFileSync(0, "utf8")).devices).flat().filter((x) => /^iPhone/.test(x.name));
+            const p = d.find((x) => /Pro Max/.test(x.name)) || d.find((x) => /Plus/.test(x.name)) || d[0]; console.log(p.udid); console.error(p.name);')
+          xcrun simctl boot "$DEV"
+          xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl install booted "$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
+          xcrun simctl privacy booted grant location-always com.allduf.trailfinder || true
+          xcrun simctl location booted set 50.11,-122.95 || true
+      - name: Native 3D with Low Power Mode, every sport
+        run: PLATFORM=ios node scripts/side-by-side/run.mjs
+      - name: The app's crash reports, if it crashed
+        if: always()
+        run: |
+          mkdir -p out/ios-en/crashes
+          find ~/Library/Logs/DiagnosticReports -name 'App*' -newer ios-app/package.json -exec cp {} out/ios-en/crashes/ \; 2>/dev/null || true
+          for f in out/ios-en/crashes/*; do [ -f "$f" ] && { echo "::group::$f"; head -c 20000 "$f"; echo "::endgroup::"; }; done; true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: low-power-iphone
+          path: out/
+          if-no-files-found: ignore
+
+  android:
+    needs: slot
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: French words (i18n-fr.js)
+        run: node scripts/i18n/build.mjs
+      - name: Install
+        working-directory: android-app
+        run: npm ci
+      - name: Test build (opens this runner's site through adb reverse)
+        working-directory: android-app
+        # As side-by-side.yml, without phone notifications (not part of this test). A debuggable build: its tf_test_nodraw
+        # switch works only there.
+        run: |
+          npm uninstall --no-save @capacitor/push-notifications
+          node -e '
+            const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json"));
+            c.server.url = "http://localhost:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("localhost");
+            fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
+          npx cap sync android
+          # Up to 3 tries: Maven Central answered "429 Too Many Requests" when many Android builds started at once (2026-11-27).
+          cd android && for i in 1 2 3; do ./gradlew assembleDebug --no-daemon -q && break; [ "$i" = 3 ] && exit 1; echo "::warning::The Android build failed (try $i of 3): trying again"; sleep $((60 * i)); done
+      - name: Turn on the simulator's speed-up (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Native 3D with Battery Saver on, every sport (Android 14 simulator)
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d   # v2.38.0, pinned to one exact version
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swangle_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/side-by-side/android.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: low-power-android
+          path: out/
+          if-no-files-found: ignore
