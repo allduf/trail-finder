@@ -76,6 +76,15 @@
     { name: "50 Shades of Green", c: [49.776, -123.118], r: 3000, dir: "climb", who: "Tourism Squamish's Alice Lake and Highlands map", where: "exploresquamish.com", note: "a well built climb into the Alice Lake and Mashiter trails (Squamish)" },
     { name: "Of Mice and Men", c: [49.77, -123.111], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "an intermediate climbing trail in the Alice Lake network (Squamish)" },
     { name: "Upstream", c: [49.79, -123.099], r: 3000, dir: "climb", who: "Outmap", where: "outmap.pro", note: "built to be ridden uphill (Squamish)" },
+    // Tourism Squamish's own trail pages and bike guides (checked 2026-11-27) say these are ridden both ways.
+    ...[["Jack's", [49.776, -123.12], "a forest trail from Garibaldi Highlands to Alice Lake, ridden both ways"],
+      ["Through the Looking Glass", [49.763, -123.135], "a connector between Brackendale and Alice Lake, built to be ridden either way"],
+      ["Live Wire", [49.783, -123.147], "a gentle trail under the power lines, ridden both ways"],
+      ["Sweet Judy", [49.768, -123.139], "a short trail beside the highway, ridden either way"],
+      ["Section 57", [49.795, -123.125], "a trail ridden in more than one direction, also used to reach Cheshire Cat"],
+      ["Wonderland", [49.787, -123.132], "a beginner cross-country trail ridden either way"],
+      ["Tracks from Hell", [49.773, -123.106], "a fairly flat trail between Edith Lake and Mashiter Trail, ridden both ways"]]
+      .map(([name, c, note]) => ({ name, c, r: 2000, dir: "both", who: "Tourism Squamish", where: "exploresquamish.com", note: `${note} (Squamish)` })),
     { name: "Cardiac Bypass", c: [49.328, -122.986], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
     { name: "Academy Climb", c: [49.329, -122.987], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
     { name: "Rapid Transit", c: [49.329, -122.986], r: 3000, dir: "climb", who: "the NSMBA", where: "nsmba.ca", note: "part of the singletrack climb up Mount Seymour" },
