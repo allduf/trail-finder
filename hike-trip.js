@@ -250,7 +250,7 @@
       const [lat, lon] = k.split(",");
       const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly: "freezing_level_height",
         daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,sunset", forecast_days: "16", timezone: "auto" });
-      try { got[k] = await H.wx(`https://api.open-meteo.com/v1/forecast?${q}`); } catch (e) { err = e.message || "no signal"; }
+      try { got[k] = await H.wx(`https://api.open-meteo.com/v1/forecast?${q}`); } catch (e) { err = navigator.onLine ? "the weather service is busy" : "no signal"; }
     }
     if (!Object.keys(got).length) return { err: err || "no signal" };
     const tops = await dayTops(t, dates.length).catch(() => dates.map(() => null)), topWx = {};
@@ -293,7 +293,7 @@
     const rows = v.rows.map((r) => {
       const wet = r.code != null && (r.rain >= 5 || r.snow >= 2 || r.code >= 95), c = r.code == null ? "var(--line)" : wet ? "#1c7ed6" : r.lo != null && r.lo <= 0 ? "#74c0fc" : COL;
       const wx = r.code != null ? `<span class="tp-wx"><big>${deg(r.hi)}</big><br><span>low ${deg(r.lo)}</span></span>` : `<span class="tp-wx sk-note">${v.end && r.date > v.end ? "Too far<br>ahead" : "–"}</span>`;
-      const bits = r.code != null ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain` : "Dry", ...(r.pop != null && r.rain >= 1 ? [`${r.pop}% chance`] : []),
+      const bits = r.code != null ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain` : "Little or no rain", ...(r.pop != null && r.rain >= 1 ? [`${r.pop}% chance`] : []),
         `wind ${Math.round(r.wind || 0)} km/h${r.gust >= 50 ? `, gusts ${Math.round(r.gust)}` : ""}`, ...(r.line != null ? [r.line < 200 ? "snow down to the valley" : `snow above about ${r.line.toLocaleString()} m`] : []), ...(r.sunset ? [`sunset ${hm(r.sunset)}`] : [])] : [];
       return `<li style="--c:${c}"><b>${esc(dayWord(r.date))}${r.tag ? ` · ${r.tag === "first" ? "first day" : "last day"}` : ""}</b>${wx}<span>${esc(wxWord(r.code))}${r.at ? ` <span class="sk-note">at ${esc(r.at)}</span>` : ""}</span>${bits.length ? `<small>${bits.map((x) => `<span>${esc(x)}</span>`).join(" · ")}</small>` : ""}${topHtml(r.top)}</li>`;
     }).join("");

@@ -642,7 +642,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       setTimeout(() => {
         const t = document.createElement("div");
         t.className = "acct-toast"; t.setAttribute("role", "status");
-        t.textContent = "Signed out. Your saved trails, folders, rides and pins were taken off this device. They're safe in your account.";
+        t.textContent = "Signed out. Your saved trails, folders, rides and pins were taken off this device. They're still in your account.";
         document.body.appendChild(t);
         setTimeout(() => t.remove(), 6000);
       }, 600);

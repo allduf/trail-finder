@@ -263,7 +263,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
       <h3>Before you go</h3>
       <ul>${(rs.rules || []).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
       ${(l.src || []).length ? `<h3>Sources</h3><ul>${l.src.map((s) => `<li>${linkHtml(s)}</li>`).join("")}</ul>` : ""}
-      <p class="sc-small">${l.approx ? "The line is drawn from the terrain model, not a GPS track: pick your own way. " : ""}Steepness and aspect come from terrain tiles about 30 m apart, so short steeper rolls and cliffs don't show. This map doesn't replace avalanche training, the day's forecast or a guide.</p>`;
+      <p class="sc-small">${l.approx ? "The line is drawn from the terrain model, not a GPS track: the way on the ground can differ. " : ""}Steepness and aspect come from terrain tiles about 30 m apart, so short steeper rolls and cliffs don't show. This map doesn't replace avalanche training, the day's forecast or a guide.</p>`;
     dlg.querySelector(".sc-x").onclick = () => dlg.close();
     dlg.querySelector('[data-act="show"]').onclick = () => { keep = true; dlg.close(); sel = l; map.fitBounds(L.latLngBounds([...l.up, ...l.ski, ...l.out]), { padding: [40, 40], maxZoom: 15 }); draw(); };
     dlg.querySelector('[data-act="list"]').onclick = () => openList(rs);

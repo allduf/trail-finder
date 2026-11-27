@@ -1,0 +1,9 @@
+Public land bought for wildlife: hunting and walking are often allowed in season, and vehicles may be limited to trails. Check the current rules. ||| Terres publiques achetées pour la faune : la chasse et la marche y sont souvent permises en saison, et les véhicules peuvent être limités aux sentiers. Vérifiez les règles en vigueur.
+Legal light (estimate) ||| Lumière légale (estimation)
+Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in most provinces (some hunts and provinces differ: the regulations decide). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. Times on this device's clock. ||| La lumière légale va d'une demi-heure avant le lever du soleil à une demi-heure après le coucher, les heures de chasse habituelles dans la plupart des provinces (certaines chasses et provinces diffèrent : les règlements décident). Les périodes d'alimentation sont solunaires : la lune au-dessus ou en dessous (majeure) et le lever ou coucher de la lune (mineure), un guide traditionnel. Heures selon l'horloge de cet appareil.
+Thermals likely rising: your scent drifts uphill, so stay above the animals. ||| Thermiques probablement montants : votre odeur monte la pente, restez au-dessus des animaux.
+Thermals likely sinking: your scent drifts downhill, so stay below the animals. ||| Thermiques probablement descendants : votre odeur descend la pente, restez sous les animaux.
+Little or no snow at the top ||| Peu ou pas de neige au sommet
+Weather model, not a trail report ||| Modèle météo, pas un rapport de sentier
+Damp ground likely ||| Sol humide probable
+Firm ground likely, little recent rain ||| Sol ferme probable, peu de pluie récente

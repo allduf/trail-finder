@@ -912,7 +912,7 @@
      "about": "The closest slackcountry to the lifts: a short skin past the gate, then open slopes and trees facing south-west, back toward the resort's south side.",
      "access": "Through the gate below Sub Peak, then a short skin east along the ridge to the top of the bowl.",
      "exit": "Traverse west at the bottom of the bowl back inside the boundary, near the bottom of Jalapeno and the Ninja Traverse.",
-     "hazards": ["Sun-baked south-west slopes: wet slides in the afternoon and in spring.", "Cornices on the ridge above.", "Easy to drift too far down, below the traverse back."],
+     "hazards": ["Sun-baked south-west slopes: wet slides in the afternoon and in spring.", "Cornices on the ridge.", "Easy to drift too far down, below the traverse back."],
      "src": [
       {
        "t": "Revelstoke Mountain Resort: boundary and backcountry safety",

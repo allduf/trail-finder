@@ -109,7 +109,7 @@
         onPart();
       } catch (e) {
         if (retry && !/too many/.test(e.message)) return one(part, false);
-        err = e.name === "TimeoutError" ? new Error("the weather server is slow, try again soon") : e;
+        err = e.name === "TimeoutError" ? new Error("the weather server is slow, try again soon") : /^too many/.test(e.message) ? e : new Error("no signal or the weather server is busy, try again soon");
       }
     };
     const queue = parts.slice();
@@ -533,7 +533,7 @@
     const list = spans.filter((x) => x.end - x.start >= 1).slice(0, 4).map((x) => `${x.st === "above" ? "<b>above the clouds</b>" : "clear"} ${day(x.start)} ${t(x.start)} to ${t(x.end + 1)}`);
     if (states[0]) {
       const first = `${what} now: <b>${STATES[states[0]][1].toLowerCase()}</b>.`;
-      return list.length ? `${first} Good views in daylight: ${list.join("; ")}.` : `${first} No clear daylight hours ${what === "Here" ? "here" : "at " + what.toLowerCase()} in the next 3 days.`;
+      return list.length ? `${first} Likely views in daylight (forecast): ${list.join("; ")}.` : `${first} No clear daylight hours ${what === "Here" ? "here" : "at " + what.toLowerCase()} in the forecast for the next 3 days.`;
     }
     return "";
   }
@@ -565,7 +565,7 @@
       const sync = (e) => { if (!el.isConnected) return window.removeEventListener("tf:cloudhour", sync); cur(e.detail); };
       window.addEventListener("tf:cloudhour", sync);
     } catch (e) {
-      if (el.isConnected) el.innerHTML = `<p class="cl-note">Couldn't load clouds by height (${esc(e.message)}).</p>`;
+      if (el.isConnected) el.innerHTML = `<p class="cl-note">Couldn't load clouds by height (${esc(/^too many/.test(e.message) ? e.message : "no signal or the weather server is busy, try again soon")}).</p>`;
     }
   }
   let chartKey = "";

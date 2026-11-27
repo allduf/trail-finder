@@ -166,12 +166,12 @@
     rules: { g: "Roads", label: "Where you can't ride", sub: "Parks, reserves and motor vehicle closures", on: true, minZoom: 7, icon: ["#e03131", "box"] },
     crown: { g: "Roads", label: "Crown land", sub: "Public land: green, private: yellow (ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     fuel: { g: "Stops", label: "Gas stations", sub: "All of Canada", on: true, minZoom: 7, icon: ["#1971c2", "dot"] },
-    range: { g: "Stops", label: "My fuel range", sub: "How far a tank takes you from here (with 20% left)", on: true, icon: ["#1971c2", "ring"] },
+    range: { g: "Stops", label: "My fuel range", sub: "Estimate of how far a tank takes you, as the crow flies (with 20% left)", on: true, icon: ["#1971c2", "ring"] },
     camp: { g: "Stops", label: "Campsites, huts and rec sites", sub: "Free BC rec sites marked", on: true, minZoom: 8, icon: ["#2b8a3e", "dot"] },
     hot: { g: "Stops", label: "Hot springs", sub: "", on: true, minZoom: 7, icon: ["#e64980", "dot"] },
     shop: { g: "Stops", label: "Moto shops", sub: "Dealers and repair", minZoom: 8, icon: ["#5f3dc4", "dot"] },
     ferry: { g: "Stops", label: "Ferries", sub: "Landings, inland ferries too", on: true, minZoom: 7, icon: ["#0b7285", "dot"] },
-    cell: { g: "Safety", label: "Cell signal on roads", sub: "LTE or 5G from any carrier (ISED). No shading: likely no signal", minZoom: 8, icon: ["#4c6ef5", "box"] },
+    cell: { g: "Safety", label: "Cell signal on roads", sub: "Likely LTE or 5G from any carrier (ISED data). No shading: likely no signal", minZoom: 8, icon: ["#4c6ef5", "box"] },
   };
   const GROUPS = ["Roads", "Stops", "Safety"];
   const VIEWS = {
@@ -259,6 +259,7 @@ body.sport-moto .leaflet-ridesPane-pane { display: none; }
 #motoPane .mt-warn { border-left: 4px solid #e03131; background: color-mix(in srgb, #e03131 8%, var(--panel)); padding: 6px 9px; border-radius: 0 8px 8px 0; font-size: .82rem; }
 #motoPane .mt-warn.hard { border-left-color: #f08c00; background: color-mix(in srgb, #f08c00 9%, var(--panel)); }
 #motoPane .mt-warn.ok { border-left-color: #2f9e44; background: color-mix(in srgb, #2f9e44 8%, var(--panel)); }
+#motoPane .mt-warn.info { border-left-color: #8a929b; background: color-mix(in srgb, #8a929b 8%, var(--panel)); }
 #motoPane .mt-leave { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .82rem; }
 #motoPane .mt-leave input { font: inherit; font-size: 16px; padding: 4px 6px; border: 1px solid var(--line, #ccc); border-radius: 8px; background: var(--panel); color: inherit; max-width: 100%; }
 #motoPane .mt-warn button { font: inherit; border: 0; background: none; color: var(--accent); text-decoration: underline; padding: 0; cursor: pointer; }
@@ -819,8 +820,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // Open-Meteo (free, no key), several squares per call: rain of the last 3 days and the next day, the top soil's
   // moisture, snow on the ground and the temperature.
   const MUD = {
-    good: ["Dry", "#2f9e44", "Dry and firm in the weather model"], dust: ["Dusty", "#d4a017", "Dry and dusty in the weather model"], slick: ["Slick", "#f08c00", "Damp: slick on clay and rock"],
-    mud: ["Muddy", "#8b5a2b", "Wet: mud and ruts, can ride a grade harder"], snow: ["Snow", "#4dabf7", "Snow on the ground"],
+    good: ["Dry", "#2f9e44", "Dry and firm in the weather model"], dust: ["Dusty", "#d4a017", "Dry and dusty in the weather model"], slick: ["Slick", "#f08c00", "Damp in the weather model: may be slick on clay and rock"],
+    mud: ["Muddy", "#8b5a2b", "Wet in the weather model: may be muddy and rutted, can ride a grade harder"], snow: ["Snow", "#4dabf7", "Snow on the ground in the weather model"],
   };
   const mudCache = new Map();   // "lat,lon" (cell centre) -> { at, w }
   const MUD_TTL = 3600e3;
@@ -856,7 +857,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const c = [+(Math.round(at.lat / 0.05) * 0.05).toFixed(3), +(Math.round(at.lon / 0.05) * 0.05).toFixed(3)];
     const [w] = await weatherAt([c]);
     const m = mudOf(w), t = mudOf(w, true);
-    if (!m) { el.innerHTML = `<span>${svg(IC.drop, 16)} Dirt today: no weather right now</span>`; return; }
+    if (!m) { el.innerHTML = `<span>${svg(IC.drop, 16)} Dirt today: no forecast right now</span>`; return; }
     const [label, color, what] = MUD[m.k];
     el.innerHTML = `<span><i class="mt-light" style="--c:${color}"></i><b>Dirt today: ${esc(label)}</b></span><span>${esc(what)}</span>
       <span>${m.r24 >= 0.5 ? `${m.r24.toFixed(0)} mm of rain in 24 h` : m.r72 >= 0.5 ? `${m.r72.toFixed(0)} mm in 3 days` : "No rain in 3 days"}${m.t != null ? ` · ${Math.round(m.t)}°C` : ""}</span>
@@ -889,9 +890,9 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       rangeland: "Grazing land: ask the leaseholder.", pasture: "Provincial pasture: ask the pasture manager.",
     } },
     open: { color: "#2f9e44", label: "Public land", kinds: {
-      provforest: "Manitoba provincial forest: Crown forest land. Public roads and trails open to vehicles.",
-      green: "Alberta Green Area: public forest land. Roads and designated trails; random camping is allowed (a Public Lands Camping Pass on the eastern slopes).",
-      wmaopen: "Wildlife management area: public roads open, gates may close for the season.", wild: "Wilderness area or biodiversity reserve: vehicles only on open roads.",
+      provforest: "Manitoba provincial forest: Crown forest land. Public roads and trails are usually open to vehicles unless posted closed.",
+      green: "Alberta Green Area: public forest land. Roads and designated trails; random camping is usually permitted (a Public Lands Camping Pass on the eastern slopes).",
+      wmaopen: "Wildlife management area: public roads are usually open; gates may close for the season.", wild: "Wilderness area or biodiversity reserve: vehicles only on open roads.",
     } },
   };
   const ruleOf = (k) => { for (const [g, r] of Object.entries(RULES)) if (r.kinds[k]) return { g, color: r.color, label: r.label, text: r.kinds[k] }; return null; };
@@ -931,7 +932,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     ab: ["Alberta", "On public land, ride the roads and designated trails only. In a Public Land Use Zone, off-highway riding is only on its designated trails, and some zones close trails for the season. Random camping on the eastern slopes needs a Public Lands Camping Pass, 100 m or more from water.",
       [["Alberta Public Land Use Zones", "https://alberta.ca/about-public-land-use-zones"]]],
     on: ["Ontario", "Your bike must be plated and insured. Crown land roads are generally open unless they're posted closed; many logging roads are gated, and private forests often ban motorcycles. No 400-series highways off a road bike's plate.", [["Ontario off-road vehicle rules", "https://www.ontario.ca/atv"]]],
-    qc: ["Quebec", "Most forest roads on public land are open, but ZECs and wildlife reserves charge at their gates. Off-road trails are run by clubs (FQMHR for motorcycles) and need their trail pass; most cross private land with the owners' permission.", []],
+    qc: ["Quebec", "Forest roads on public land are usually open, but ZECs and wildlife reserves charge at their gates. Off-road trails are run by clubs (FQMHR for motorcycles) and need their trail pass; most cross private land with the owners' permission.", []],
   };
   const PROV_OTHER = "Crown land roads are mostly open to plated, insured bikes; off-highway trails follow the province's off-highway vehicle rules. Watch for posted closures and private land.";
   const PROV_NAME = { mb: "Manitoba", sk: "Saskatchewan", nb: "New Brunswick", ns: "Nova Scotia", pe: "Prince Edward Island", nl: "Newfoundland and Labrador", yt: "Yukon", nt: "Northwest Territories", nu: "Nunavut" };
@@ -969,7 +970,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // The top of a dot's card: what it is, and how far it is from you (and, for gas, whether a tank gets you there).
   function pinHead(k, p) {
     const d = you ? kmBetween([you.lat, you.lon], [p[0], p[1]]) : null, b = cur();
-    const far = d == null ? "" : `${fmtKm(d)} from you as the crow flies${k === "fuel" && b ? (d > usable(b) ? `: <b style="color:#e03131">past your ${usable(b)} km range</b>` : `, within your ${usable(b)} km range`) : ""}`;
+    const far = d == null ? "" : `${fmtKm(d)} from you as the crow flies${k === "fuel" && b ? (d > usable(b) ? `: <b style="color:#e03131">past your estimated ${usable(b)} km range</b>` : `, within your estimated ${usable(b)} km range`) : ""}`;
     return `<p><b style="color:${PT[k].c}">${PT[k].t} ${esc(kindLine(k, p))}</b>${far ? `<br><span class="mt-note">${far}</span>` : ""}</p>`;
   }
   // The rest from OpenStreetMap (the id is in the nightly file: "n", "w" or "r" and the number in base 36) and the
@@ -1087,7 +1088,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const bits = [...d.why, d.slope ? `steepest about ${Math.round(d.slope)}%` : "", t.ford === "yes" ? "a ford (water crossing)" : "", t.seasonal === "yes" || t.seasonal ? "seasonal road" : "",
         /^(no|private)$/.test(t.motorcycle || t.motor_vehicle || t.access || "") ? `<b style="color:#e03131">closed to motorcycles (${esc(t.motorcycle || t.motor_vehicle || t.access)})</b>` : ""].filter(Boolean);
       box.innerHTML = `${bits.length ? esc("From OpenStreetMap: ").replace(/$/, "") + bits.map((x) => (x.startsWith("<b") ? x : esc(x))).join(", ") + "." : "OpenStreetMap has no surface details for it."}${d.way ? ` <a href="https://www.openstreetmap.org/way/${d.way}" target="_blank" rel="noopener">See it on OpenStreetMap</a>` : ""}`;
-      if (d.ften) box.insertAdjacentHTML("afterend", `<p class="mt-note"><b>BC ${esc(d.ften.FILE_TYPE_DESCRIPTION || "road")}</b> ${esc(d.ften.MAP_LABEL || "")}${d.ften.ROAD_SECTION_NAME ? ` (${esc(titleCase(d.ften.ROAD_SECTION_NAME))})` : ""}: ${d.ften.LIFE_CYCLE_STATUS_CODE === "RETIRED" ? "<b>retired</b>, no longer maintained, often deactivated" : d.ften.LIFE_CYCLE_STATUS_CODE === "ACTIVE" ? "active, held and maintained" : esc((d.ften.LIFE_CYCLE_STATUS_CODE || "").toLowerCase())}${d.ften.CLIENT_NAME ? `, ${esc(titleCase(d.ften.CLIENT_NAME))}` : ""}.</p>`);
+      if (d.ften) box.insertAdjacentHTML("afterend", `<p class="mt-note"><b>BC ${esc(d.ften.FILE_TYPE_DESCRIPTION || "road")}</b> ${esc(d.ften.MAP_LABEL || "")}${d.ften.ROAD_SECTION_NAME ? ` (${esc(titleCase(d.ften.ROAD_SECTION_NAME))})` : ""}: ${d.ften.LIFE_CYCLE_STATUS_CODE === "RETIRED" ? "listed as <b>retired</b>, likely no longer maintained, often deactivated" : d.ften.LIFE_CYCLE_STATUS_CODE === "ACTIVE" ? "listed as active (held under a permit, so likely maintained; its condition isn't recorded)" : d.ften.LIFE_CYCLE_STATUS_CODE ? `listed as ${esc(d.ften.LIFE_CYCLE_STATUS_CODE.toLowerCase())}` : "no status listed"}${d.ften.CLIENT_NAME ? `, ${esc(titleCase(d.ften.CLIENT_NAME))}` : ""}. From BC's forest tenure road data (DataBC), which may be out of date.</p>`);
     });
     // Can I ride here: the land at the spot and the province's rules.
     const pv = provOf(s.lat, s.lon);
@@ -1097,14 +1098,14 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const P = PROV[pv];
     const can = el.querySelector("[data-can]");
     can.innerHTML = `<h4>Can I ride here?</h4>
-      ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "ok" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn ok">No park, reserve or closure mapped here.</div>`}
-      <details class="mt-fold"><summary>${esc(P ? P[0] : PROV_NAME[pv] || "Canada")}: riding rules</summary><p>${esc(P ? P[1] : PROV_OTHER)}</p>${P && P[2].length ? `<p>${P[2].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}</details>`;
+      ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "ok" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn info">No park, reserve or closure mapped here.</div>`}
+      <details class="mt-fold"><summary>${esc(P ? P[0] : PROV_NAME[pv] || "Canada")}: riding rules</summary><p>${esc(P ? P[1] : PROV_OTHER)}</p><p class="mt-note">A summary in our own words: rules change, so check the province's current rules.</p>${P && P[2].length ? `<p>${P[2].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}</details>`;
     const land = await crownHtml(s.lat, s.lon, pv);
     if (my !== spotSeq) return;
     if (land) can.querySelector("h4").insertAdjacentHTML("afterend", land);
     const c = await loadCell();
     if (my !== spotSeq) return;
-    if (c) can.insertAdjacentHTML("afterend", `<p class="mt-note">${svg(IC.cell, 14)} ${cellNear(s.lat, s.lon) ? "Cell signal likely on the roads here (LTE or 5G)." : "<b>Likely no cell signal</b> on the roads here: tell someone your plan."}</p>`);
+    if (c) can.insertAdjacentHTML("afterend", `<p class="mt-note">${svg(IC.cell, 14)} ${cellNear(s.lat, s.lon) ? "Cell signal likely on the roads here (LTE or 5G, from ISED's coverage data)." : "<b>Likely no cell signal</b> on the roads here (ISED's coverage data): tell someone your plan."}</p>`);
     renderSpotNear(el.querySelector("[data-near]"), s);
   }
   // The road under a tap: the router's map gives the OpenStreetMap way, its slopes and who may drive it, then its tags.
@@ -1148,7 +1149,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (!f.length && !c.length) { el.hidden = true; return; }
     el.hidden = false;
     el.innerHTML = `<header>${svg(IC.fuel)}<h3>Near you</h3></header>
-      ${f.length ? `<p>${f[0][0] > usable(cur()) ? `<b style="color:#e03131">The nearest gas is ${fmtKm(f[0][0])} away: past your range.</b>` : `Nearest gas ${fmtKm(f[0][0])} away. A tank takes you about ${usable(cur())} km with 20% left.`}</p>` : `<p class="mt-note">Gas stations are loading…</p>`}
+      ${f.length ? `<p>${f[0][0] > usable(cur()) ? `<b style="color:#e03131">The nearest gas is ${fmtKm(f[0][0])} away as the crow flies: past your estimated range.</b>` : `Nearest gas ${fmtKm(f[0][0])} away as the crow flies. A tank takes you about ${usable(cur())} km with 20% left (estimate).`}</p>` : `<p class="mt-note">Gas stations are loading…</p>`}
       <ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].rec ? "rec" : "camp", x])].map(([k, [d, p]]) =>
         `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(kindLine(k, p))}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>`;
     el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
@@ -1634,7 +1635,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // Dirt roads that close with snow (months 0-11): stop = snowed in, warn = may be. Matched by the route's road names.
   const SEASONAL = [
     { re: /hurley/i, name: "Hurley River FSR (Pemberton to Gold Bridge)", stop: [11, 0, 1, 2, 3], warn: [9, 10, 4, 5],
-      why: "it isn't plowed, so snow closes it from about November to June; Highway 99 by Duffey Lake and Highway 40 by Lillooet are kept open in winter (check DriveBC)" },
+      why: "it isn't plowed, so snow usually closes it from about November to June; Highway 99 by Duffey Lake and Highway 40 by Lillooet are usually maintained in winter (check DriveBC)" },
   ];
   function seasonalOn(r) {
     const m = new Date().getMonth(), out = [];
@@ -1644,7 +1645,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const es = r.edges.filter((e) => (e.names || []).some((n) => x.re.test(n)));
       if (!es.length) return;
       const a = es[0].begin_shape_index, b = es[es.length - 1].end_shape_index, mid = r.line[Math.min(r.line.length - 1, Math.round((a + b) / 2))];
-      out.push({ type: "season", stop: on === "stop", label: `${x.name}: ${on === "stop" ? "snowed in" : "may be snowed in"} (${x.why})`, p: mid, a, b });
+      out.push({ type: "season", stop: on === "stop", label: `${x.name}: ${on === "stop" ? "likely snowed in" : "may be snowed in"} (${x.why})`, p: mid, a, b });
     });
     return out;
   }
@@ -1814,7 +1815,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     if (r.avoided.length) h += `<div class="mt-warn ok"><b>Went around ${r.avoided.length === 1 ? "a closure" : `${r.avoided.length} closures`}:</b> ${r.avoided.map((x) => esc(x.label)).join("; ").replace(/([^.…])$/, "$1.")}</div>`;
     h += stops.map((x) => `<div class="mt-warn"><b>Closed on this route:</b> ${esc(dot(x.label))} ${x.atPoint ? "One of your points is right there: move it to go around." : r.longWay && (x.type === "feat" || x.type === "cond") ? `Going around it adds ${r.longWay} km, so the route goes through: check it before you go.` : r.noWay ? "No way around it was found for this style." : ""} ${show(x)}</div>`).join("");
     h += warns.slice(0, 6).map((x) => `<div class="mt-warn hard">${esc(dot(x.label))} ${show(x)}${x.p && !x.atPoint ? ` <button type="button" data-avoid="${x.p[0].toFixed(5)},${x.p[1].toFixed(5)}">Go around</button>` : ""}</div>`).join("");
-    if (!stops.length && !warns.length) h += `<div class="mt-warn ok">No ${r.avoided.length ? "other " : ""}closures, locked gates, washouts, bad forest roads or fire closures mapped on this route.</div>`;
+    if (!stops.length && !warns.length) h += `<div class="mt-warn info">No ${r.avoided.length ? "other " : ""}closures, locked gates, washouts, bad forest roads or fire closures mapped on this route.</div>`;
     if (avoidMine.length) h += `<p class="mt-note">You chose to go around ${avoidMine.length} spot${avoidMine.length === 1 ? "" : "s"}. <button type="button" class="mt-link" data-r="unavoid">Stop going around them</button></p>`;
     h += `<p class="mt-note">${r.offline ? "Checked with what is saved on this phone (no signal)" : "Checked"}: forest road status and gates (BC and Alberta from the government and OpenStreetMap, the rest of Canada from OpenStreetMap), motor vehicle closures, reserves, wildfire closures and evacuations, and every province's 511 (highway closures, washouts, bridges out, incidents, roadwork, winter road conditions), checked again every 10 minutes while this route is open${c.at ? ` (last ${new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})` : ""}.${c.failed.length ? ` <b>Couldn't load ${esc(c.failed.join(", "))}</b>: try again with signal.` : ""} Gates and washouts change faster than any map.</p>`;
     return h;
@@ -1938,18 +1939,18 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const bar = r.edges ? `<div class="mt-bar" aria-label="Surfaces along the route">${[1, 2, 3, 4, 5].map((g) => st.byG[g] > 0 ? `<i style="width:${(100 * st.byG[g]) / r.km}%;background:${g === 1 ? "#495057" : FIT[fitOf(g, cap)][1]}" title="Grade ${g}: ${fmtKm(st.byG[g])}"></i>` : "").join("")}</div>
         <p class="mt-note">${[1, 2, 3, 4, 5].filter((g) => st.byG[g] >= 0.1).map((g) => `${esc(GRADES[g][0])} ${fmtKm(st.byG[g])}`).join(" · ")}</p>` : `<p class="mt-note">Reading the surfaces…</p>`;
       const hard = st.hard.length ? st.hard.slice(0, 4).map((h) => `<div class="mt-warn ${h.f === "no" ? "" : "hard"}"><b>${esc(FIT[h.f][0])}:</b> ${fmtKm(h.km)} of ${esc(GRADES[h.g][0].toLowerCase())}${h.name ? ` on ${esc(h.name)}` : ""}. <button type="button" data-show="${h.a},${h.b}">Show</button></div>`).join("")
-        : r.edges ? `<div class="mt-warn ok">Every road on it is good for your ${esc(b.name || TYPES[b.type].label)}.</div>` : "";
+        : r.edges ? `<div class="mt-warn info">Every road on it is within your ${esc(b.name || TYPES[b.type].label)}'s grade, from the map's surface data.</div>` : "";
       let fuel = "";
       if (!fp) fuel = `<p class="mt-note">Gas stations are still loading.</p>`;
       else {
         const over = fp.gaps.filter((g) => g.km > usable(b));
-        fuel = over.length ? over.map((g) => `<div class="mt-warn"><b>${svg(IC.fuel, 14)} ${fmtKm(g.km)} with no gas</b> from ${esc(g.from.name)} to ${esc(g.to.name)}: more than your ${usable(b)} km. Carry fuel or add a stop.</div>`).join("")
-          : `<div class="mt-warn ok">${svg(IC.fuel, 14)} Gas is never more than ${fmtKm(fp.longest)} apart (your range: ${usable(b)} km with 20% left). ${fp.stops.length} station${fp.stops.length === 1 ? "" : "s"} on the way.</div>`;
+        fuel = over.length ? over.map((g) => `<div class="mt-warn"><b>${svg(IC.fuel, 14)} ${fmtKm(g.km)} with no mapped gas</b> from ${esc(g.from.name)} to ${esc(g.to.name)}: more than your estimated ${usable(b)} km. Carry fuel or add a stop.</div>`).join("")
+          : `<div class="mt-warn info">${svg(IC.fuel, 14)} Mapped gas stations are at most ${fmtKm(fp.longest)} apart (your estimated range: ${usable(b)} km with 20% left). ${fp.stops.length} station${fp.stops.length === 1 ? "" : "s"} on the way.</div>`;
       }
       const end = r.line[r.line.length - 1], camps = nearest(campsAll(), end[0], end[1], 3, 25);
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
-        <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time + (tr ? tr.delay : 0))}</b><span>riding</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
-        ${r.offline ? `<div class="mt-warn ok">${svg(IC.cell, 14)} Planned with no signal, from the roads in your saved offline maps. Closures and road reports from today weren't checked: plan again when you have signal.</div>` : ""}
+        <div class="mt-stats"><div><b>${fmtKm(r.km)}</b><span>distance</span></div><div><b>${fmtH(r.time + (tr ? tr.delay : 0))}</b><span>riding, estimate</span></div><div><b>${dirtPct == null ? "…" : dirtPct + "%"}</b><span>dirt</span></div><div><b>${r.edges ? fmtKm(st.longest) : "…"}</b><span>longest dirt</span></div></div>
+        ${r.offline ? `<div class="mt-warn info">${svg(IC.cell, 14)} Planned with no signal, from the roads in your saved offline maps. Closures and road reports from today weren't checked: plan again when you have signal.</div>` : ""}
         ${askedHtml(r)}${bar}${hard}${trafficHtml(r)}${closuresHtml(r)}${fuel}${highHtml(r)}${ferryHtml(r)}${roadsHtml(r)}${cellHtml(r)}
         ${camps.length ? `<details class="mt-fold"><summary>${svg(IC.camp, 14)} Camping near the end (${camps.length})</summary><ul class="mt-list">${camps.map(([d, p]) => `<li style="--c:${PT.camp.c}"><b>${esc(p[2] || "Campsite")}</b><small>${p[3] ? esc(p[3]) + " · " : ""}${fmtKm(d)} from the end</small></li>`).join("")}</ul></details>` : ""}
         <details class="mt-fold"><summary>Turns (${r.parts.length})</summary><ol class="mt-note" style="margin:0;padding-left:18px">${r.parts.map((x) => `<li>${esc(x.text)}${x.km >= 0.1 ? ` <i>${fmtKm(x.km)}</i>` : ""}</li>`).join("")}</ol></details>
@@ -2164,7 +2165,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
       ${!listOf("fuel").length ? `<p class="mt-note">${liveMode && map.getZoom() < 8 ? "Zoom in to load the gas stations." : "Gas stations are loading…"}</p>` : ""}
       <ul class="mt-list">${[...f.map((x) => ["fuel", x]), ...c.map((x) => [x[1].rec ? "rec" : "camp", x]), ...h.map((x) => ["hot", x])].map(([k, [d, p]]) =>
         `<li style="--c:${PT[k].c}"><button type="button" class="mt-go" data-ll="${p[0]},${p[1]}"><b>${PT[k].t} ${esc(p[2] || PT[k].name)}</b><small>${esc(kindLine(k, p))}</small><em>${fmtKm(d)}</em></button></li>`).join("")}</ul>
-      <details class="mt-fold"><summary>Camping rules</summary><p>BC: free camping on most Crown land up to 14 days; rec sites are first come, some have fees. Alberta: random camping on public land, with a Public Lands Camping Pass on the eastern slopes. Ontario: free on Crown land for Canadians, up to 21 days in one spot. Quebec: in ZECs and wildlife reserves, ask at the gate. Parks: campgrounds only.</p></details>`;
+      <details class="mt-fold"><summary>Camping rules</summary><p>A summary of each province's rules, which change; closures and fire bans can apply. BC: free camping is usually permitted on most Crown land up to 14 days; rec sites are first come, some have fees. Alberta: random camping on public land, with a Public Lands Camping Pass on the eastern slopes. Ontario: usually free on Crown land for Canadian residents, up to 21 days in one spot. Quebec: in ZECs and wildlife reserves, ask at the gate. Parks: campgrounds only. Check the province's current rules.</p></details>`;
     el.querySelector("[data-fill]").onclick = () => { filledUp(); renderStops(); };
     el.querySelectorAll("[data-ll]").forEach((x) => (x.onclick = () => { const [la, lo] = x.dataset.ll.split(",").map(Number); if (phone() && window.tfSnapTo) window.tfSnapTo("peek"); map.setView([la, lo], Math.max(map.getZoom(), 12)); }));
     showCard(el);
@@ -2361,10 +2362,10 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (!r.high.top.length) return `<p class="mt-note">${svg(IC.peak, 14)} Highest point about ${Math.round(r.high.max).toLocaleString()} m: no high passes.</p>`;
     const rows = r.high.top.map((t) => {
       const bad = t.snow >= 0.03 || t.fall >= 1, cold = t.low <= 0;
-      const say = t.snow >= 0.03 ? `snow on the ground (${Math.round(t.snow * 100)} cm)` : t.fall >= 1 ? `${Math.round(t.fall)} cm of snow coming` : cold ? `no snow, but ${Math.round(t.low)}°C: ice in the shade` : t.low != null && isFinite(t.low) ? `no snow, low ${Math.round(t.low)}°C` : "no weather";
-      return `<div class="mt-warn ${bad ? "" : cold ? "hard" : "ok"}">${svg(IC.peak, 14)} <b>${Math.round(t.m).toLocaleString()} m</b> at km ${Math.round(t.km)}: ${esc(say)}. <button type="button" data-ll="${t.p[0]},${t.p[1]}">Show</button></div>`;
+      const say = t.snow >= 0.03 ? `snow on the ground (${Math.round(t.snow * 100)} cm)` : t.fall >= 1 ? `${Math.round(t.fall)} cm of snow forecast` : cold ? `no snow forecast, but ${Math.round(t.low)}°C: ice possible in the shade` : t.low != null && isFinite(t.low) ? `no snow forecast, low ${Math.round(t.low)}°C` : "no forecast";
+      return `<div class="mt-warn ${bad ? "" : cold ? "hard" : "info"}">${svg(IC.peak, 14)} <b>${Math.round(t.m).toLocaleString()} m</b> at km ${Math.round(t.km)}: ${esc(say)}. <button type="button" data-ll="${t.p[0]},${t.p[1]}">Show</button></div>`;
     }).join("");
-    return `<h4>High points</h4>${rows}`;
+    return `<h4>High points</h4>${rows}<p class="mt-note">Snow and temperatures at each point's height, now and the next 24 h: a weather model's estimate (Open-Meteo).</p>`;
   }
   // Road conditions and ferries: the province's own sites (511 and friends), for each province the route crosses.
   const ROAD511 = { bc: ["DriveBC", "https://www.drivebc.ca/"], ab: ["511 Alberta", "https://511.alberta.ca/"], sk: ["SK Highway Hotline", "https://hotline.gov.sk.ca/"], mb: ["Manitoba 511", "https://www.manitoba511.ca/"],
@@ -2425,8 +2426,8 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     if (!cellRows) { loadCell().then((c) => { if (c && route === r) renderRoute(); }); return ""; }
     const c = cellStats(r);
     if (!c) return "";
-    if (c.none < 2) return `<p class="mt-note">${svg(IC.cell, 14)} Cell signal on about all of it (LTE or 5G, ISED's coverage data).</p>`;
-    return `<div class="mt-warn ${c.longest > 40 ? "" : "hard"}">${svg(IC.cell, 14)} <b>About ${fmtKm(c.none)} with no cell signal</b>, the longest ${fmtKm(c.longest)}. Tell someone your plan; a satellite messenger works there. <button type="button" data-ll="${r.line[c.at][0]},${r.line[c.at][1]}">Show</button></div>`;
+    if (c.none < 2) return `<p class="mt-note">${svg(IC.cell, 14)} Cell signal likely on about all of it (LTE or 5G, ISED's coverage data).</p>`;
+    return `<div class="mt-warn ${c.longest > 40 ? "" : "hard"}">${svg(IC.cell, 14)} <b>About ${fmtKm(c.none)} likely with no cell signal</b>, the longest ${fmtKm(c.longest)} (ISED's coverage data). Tell someone your plan; a satellite messenger can work where phones don't. <button type="button" data-ll="${r.line[c.at][0]},${r.line[c.at][1]}">Show</button></div>`;
   }
   // ---------- Crown land ----------
   // Each province's own Crown land map (crownland.js), as pictures under the roads.
@@ -2438,7 +2439,7 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
   }
   // The land at the spot, for a motorcycle.
   const CROWN_SAY = {
-    crown: "Public land: ride the existing roads and trails open to vehicles, and random camping is usually allowed (each province limits how long).",
+    crown: "Public land: riding is usually permitted on existing roads and trails open to vehicles, and random camping is usually allowed (each province limits how long; closures can apply).",
     private: "Private land: stay on the public road, and ask the owner before you ride or camp off it.",
     lease: "Someone leases this Crown land: stay on the road and ask the leaseholder before you camp.",
   };
@@ -2731,9 +2732,9 @@ ${route.line.map((p) => `<trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}
     const photo = t.photo && t.photo.img ? `<figure class="mt-tphoto"><img src="${esc(t.photo.img)}" alt="${esc(t.n)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()">${t.photo.page ? `<figcaption><a href="${esc(t.photo.page)}" target="_blank" rel="noopener">${t.photo.by ? `Photo: ${esc(t.photo.by)}, ${esc(t.photo.lic || "")}, Wikimedia Commons` : "Photo: Wikimedia Commons"}</a></figcaption>` : ""}</figure>` : "";
     return `${photo}<p><b>${esc(t.n)}</b></p>
       <div class="mt-stats"><div><b>${fmtKm(t.km || 0)}</b><span>${t.loop ? "loop" : "distance"}</span></div><div><b>${t.dirtPct != null ? t.dirtPct + "%" : "…"}</b><span>dirt</span></div><div><b style="color:${(t.grade || 2) === 1 ? "#495057" : FIT[f][1]}">${t.grade || 2} of 5</b><span>grade</span></div><div><b>${gap ? fmtKm(gap) : "…"}</b><span>longest no gas</span></div></div>
-      <div class="mt-warn ${f === "ok" ? "ok" : f === "hard" ? "hard" : ""}"><b>${esc(FIT[f][0])}</b> (${esc(GRADES[t.grade || 2][0].toLowerCase())}).${gap && gap > use ? ` <b>${fmtKm(gap)} with no gas</b> is more than your ${use} km: carry fuel.` : ""}</div>
+      <div class="mt-warn ${f === "ok" ? "ok" : f === "hard" ? "hard" : ""}"><b>${esc(FIT[f][0])}</b> (${esc(GRADES[t.grade || 2][0].toLowerCase())}).${gap && gap > use ? ` <b>${fmtKm(gap)} with no mapped gas</b> is more than your estimated ${use} km: carry fuel.` : ""}</div>
       ${t.desc ? `<p style="font-size:.86rem;margin:2px 0">${esc(t.desc)}</p>` : ""}
-      ${sec("Best months", t.best || t.season ? `<p>${esc(t.best || t.season)}${t.season && t.best && t.season !== t.best ? ` (open ${esc(t.season)})` : ""}</p>` : "")}
+      ${sec("Best months", t.best || t.season ? `<p>${esc(t.best || t.season)}${t.season && t.best && t.season !== t.best ? ` (usually open ${esc(t.season)})` : ""}</p>` : "")}
       ${sec("Highlights", ul((t.hi || []).map(esc)))}
       ${sec("Hardest part", t.hard ? `<p>${esc(t.hard)}</p>` : "")}
       ${sec("Water crossings", `<p>${t.water ? esc(t.water) : "None known."}</p>`)}
