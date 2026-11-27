@@ -139,7 +139,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   box.innerHTML = `
 <h2>Notifications</h2>
 <div id="ntPick" hidden>
-  <label class="nt-opt"><input type="checkbox" id="ntLoamArea">Tell me when trails in my regions or on my To ride list are in prime loam</label>
+  <label class="nt-opt"><input type="checkbox" id="ntLoamArea">Tell me when trails in my regions or on my To ride list are likely in prime loam</label>
   <label class="nt-opt"><input type="checkbox" id="ntNewOn">Tell me when a new trail is mapped in my regions</label>
   <label class="nt-opt"><input type="checkbox" id="ntAvyOn">⚠ Tell me when the avalanche danger goes up in my regions or on ski tours I watch</label>
   <label class="nt-opt"><input type="checkbox" id="ntFishOn"><span>🎣 Tell me when a lake or river near me is stocked with fish <small id="ntFishWhere"></small></span></label>
@@ -369,7 +369,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     q("ntAvyWhere").textContent = `Avalanche Canada's forecast, today and tomorrow: Considerable or more ${prefs() ? "in your regions" : "(pick regions to watch them)"}${n ? `, and Extra caution or Not recommended on the ${n} tour${n > 1 ? "s" : ""} you watch` : ". Watch a tour with the bell in its details in Skiing"}.`;
     q("ntAvyItems").innerHTML = avyList.length ? avyList.map((t, i) => `<li class="${fresh.has(t.key) ? "unread" : ""}"><button type="button" data-v="${i}"><strong>${esc(t.name)}</strong>
       <small><span class="lv" style="--c:${t.color}"><i></i>${esc(t.label)}</span> · ${esc(t.why)}</small></button></li>`).join("")
-      : `<li><p>${avyAt ? "No raised danger in what you watch right now." : "Checking the avalanche forecast…"}</p></li>`;
+      : `<li><p>${avyAt ? "No alert right now. Always read the full forecast before you go." : "Checking the avalanche forecast…"}</p></li>`;
     q("ntAvyItems").querySelectorAll("button[data-v]").forEach((b) => b.addEventListener("click", () => {
       const t = avyList[+b.dataset.v];
       markAvyRead([t.key]);
@@ -525,14 +525,14 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (!loamOn()) return;
     const fresh = new Set(loamUnread().map((t) => t.key)), items = loamList;
     const what = [prefs() && "the trails in your regions", "your To ride trails"].filter(Boolean);
-    q("ntLoamWhere").textContent = `Damp hero dirt (Loam index 40 to 59) on ${what.join(" and ")}, now and in the next 3 days.`;
+    q("ntLoamWhere").textContent = `Damp hero dirt (Loam index 40 to 59, an estimate from Open-Meteo soil moisture) on ${what.join(" and ")}, now and in the next 3 days.`;
     const trailBtn = (t, data) => `<button type="button" ${data}><strong>${esc(t.name)}</strong>
       <small><span class="lv${t.soon ? " soon" : ""}"><i></i>Loam ${t.v}${t.soon ? ` ${esc(t.soon.day)}` : ""}</span>${t.why ? ` · ${esc(t.why)}` : t.kind ? ` · ${esc(t.kind)}` : ""}</small></button>`;
     q("ntLoamItems").innerHTML = items.length ? items.map((t, i) => `<li class="${fresh.has(t.key) ? "unread" : ""}">${t.area
       ? `<details data-a="${i}"><summary><strong>${esc(t.name)}</strong><small><span class="lv${t.soon ? " soon" : ""}"><i></i>${esc(t.why)}</span></small></summary>
         <ol>${t.trails.map((x, j) => `<li>${trailBtn(x, `data-l="${i}" data-j="${j}"`)}</li>`).join("")}</ol></details>`
       : trailBtn(t, `data-l="${i}"`)}</li>`).join("")
-      : `<li><p>${loamBusy || (!loamAt && watching()) ? "Checking the loam…" : watching() ? "Nothing is in prime loam now or in the next 3 days. You'll see trails here when they are." : "Pick regions, or add trails to your To ride list (☆ To ride in a trail's details), to hear when they're in prime loam."}</p></li>`;
+      : `<li><p>${loamBusy || (!loamAt && watching()) ? "Checking the loam…" : watching() ? "Nothing you watch is likely in prime loam now or in the next 3 days. You'll see trails here when they are." : "Pick regions, or add trails to your To ride list (☆ To ride in a trail's details), to hear when they're in prime loam."}</p></li>`;
     q("ntLoamItems").querySelectorAll("details[data-a]").forEach((d) => d.addEventListener("toggle", () => {
       if (d.open) { const t = items[+d.dataset.a]; if (alertState[t.key] && !alertState[t.key].r) { alertState[t.key].r = 1; putAlerts(); d.parentNode.classList.remove("unread"); paint(); } }
     }));
@@ -750,7 +750,26 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (!force && last.h === hash && Date.now() - last.at < 3 * 86400e3) return;   // nothing new (re-saved every few days anyway)
     await rpc("push_save", body);
     lsSet("tf:pushSaved", JSON.stringify({ h: hash, at: Date.now() }));
+    lsSet("tf-alertPhone", null);   // a fresh save may have re-made this phone's row: ask again for the alert list
   }
+  // alex's own phone (signed in with an admin account: friends.js "tf-admin") also gets the crash and error alerts
+  // (scripts/app-alert.mjs, alex 2026-11-27). The server checks the account and adds this phone's push id
+  // (supabase/alert-phones.sql). Asked once per push id; nothing for anyone else.
+  async function alertPhone() {
+    let admin = false;
+    try { admin = localStorage.getItem("tf-admin") === "1"; } catch {}
+    const a = window.tfAccount, id = pushId();
+    if (!admin || !id || !a || !a.client || typeof a.client.rpc !== "function" || lsGet("tf-alertPhone") === id) return;
+    try { const { data, error } = await a.client.rpc("tf_alert_phone_set", { p_id: id }); if (!error && data === true) lsSet("tf-alertPhone", id); } catch {}
+  }
+  // Signed out (or another account): this phone leaves the alert list.
+  window.addEventListener("tf:admin", () => {
+    let admin = false;
+    try { admin = localStorage.getItem("tf-admin") === "1"; } catch {}
+    if (admin) { if (pushId() && perm() === "granted") alertPhone(); return; }
+    const id = lsGet("tf-alertPhone");
+    if (id) rpc("tf_alert_phone_drop", { p_id: id }).then(() => lsSet("tf-alertPhone", null), () => {});
+  });
   // Keep the job's copy of this phone's settings and To ride list up to date, and renew an expired push address.
   // A failure is kept (tf:pushErr) and shown on the 📱 line, so a phone that stops updating says why.
   let syncT = 0, pushErr = lsGet("tf:pushErr") || "";
@@ -772,6 +791,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
             .catch(() => { throw new Error("the phone dropped its push address: turn “Also send them to this phone” off and on again"); });
         }
         await pushSave(sub, force);
+        alertPhone();
         pushErr = "";
       } catch (e) { pushErr = (e && e.message) || String(e); }
       lsSet("tf:pushErr", pushErr || null);

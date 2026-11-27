@@ -291,7 +291,7 @@ body.sport-alt #bkTripBtn { display: none; }`;
       const [lat, lon] = k.split(",");
       const q = new URLSearchParams({ latitude: lat, longitude: lon, daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,sunset", forecast_days: "16", timezone: "auto" });
       const url = `https://api.open-meteo.com/v1/forecast?${q}`;
-      try { got[k] = await (window.tfWx ? window.tfWx.getChecked(url) : getJ(url)); } catch (e) { err = e.message || "no signal"; }
+      try { got[k] = await (window.tfWx ? window.tfWx.getChecked(url) : getJ(url)); } catch { err = "no signal or the weather service is busy"; }
       const qs = new URLSearchParams({ latitude: lat, longitude: lon, hourly: "soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,snow_depth,soil_temperature_0cm", forecast_days: "16", timezone: "auto" });
       try { soil[k] = await getJ(`https://api.open-meteo.com/v1/forecast?${qs}`); } catch {}
     }

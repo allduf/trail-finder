@@ -510,7 +510,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
       uploadSoon(p.id);
     } catch (err) {
       $("spfSave").disabled = false;
-      $("spfMsg").textContent = "Couldn't save the point: " + (err && err.message || err);
+      console.warn("Couldn't save the point:", err); $("spfMsg").textContent = "Couldn't save the point. Try again.";
     }
   });
 
@@ -580,7 +580,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
         if (!$("spfLen").value && data.length_cm) $("spfLen").value = Math.round(data.length_cm);
         el.querySelectorAll(".pick").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
       }));
-    } catch (e) { if (idFor === ph) { idFor = null; say2(`Couldn't tell: ${esc(e && e.message || e)}.`); } }
+    } catch (e) { if (idFor === ph) { idFor = null; say2(`Couldn't tell: ${e && e.message === "no connection" ? "no connection" : "the photo AI didn't answer"}. Try again later.`); } }
   }
 
   // ---------- viewing a point ----------
@@ -650,7 +650,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
       chkForm.close();
       await reload(); uploadSoon(p.id);
       if (logDlg.open) renderLog(); else view(p.id);
-    } catch (err) { $("spcSave").disabled = false; $("spcMsg").textContent = "Couldn't save: " + (err && err.message || err); }
+    } catch (err) { $("spcSave").disabled = false; console.warn("Couldn't save the check:", err); $("spcMsg").textContent = "Couldn't save the check. Try again."; }
   });
 
   async function view(id) {
@@ -693,7 +693,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
         if (p.owner && acct.user && p.owner === acct.user.id) deleteRemote(p.id).catch((e) => console.warn("Couldn't delete the point from your account:", e));
         viewer.close();
         await reload();
-      } catch (err) { del.disabled = false; viewer.querySelector(".sp-msg").textContent = "Couldn't delete: " + (err && err.message || err); }
+      } catch (err) { del.disabled = false; console.warn("Couldn't delete the point:", err); viewer.querySelector(".sp-msg").textContent = "Couldn't delete the point. Try again."; }
     });
     if (!viewer.open) viewer.showModal();
   }
@@ -934,7 +934,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
       if (navigator.share) { await navigator.share(data); return; }
       await navigator.clipboard.writeText(`${text}\n${url}`);
       if (msg) msg.textContent = "Link copied: paste it in a message.";
-    } catch (e) { if (msg && e && e.name !== "AbortError") msg.textContent = `Couldn't share: ${e.message || e}`; }
+    } catch (e) { if (msg && e && e.name !== "AbortError") msg.textContent = "Couldn't share this spot. Try again."; }
   }
   // "This spot" cards in every sport put in a Share button: window.tfShareBtn(lat, lon, { sport, name, about }) gives its
   // HTML, and one listener here sends it (the phone's share sheet, else the link and coordinates are copied).

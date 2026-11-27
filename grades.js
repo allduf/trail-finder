@@ -37,7 +37,7 @@
   function rating(id, mapped) {
     const g = of(id);
     if (!g) return null;
-    return { d: g.d, src: "riders", why: `Graded ${LABEL[g.d].toLowerCase()} by ${g.n === 1 ? "1 rider" : `${g.n} riders`} in Trail finder${g.n > 1 ? ` (${byText(g)})` : ""}.${mapped || ""}` };
+    return { d: g.d, src: "riders", why: `Graded ${LABEL[g.d].toLowerCase()} by ${g.n === 1 ? "1 rider" : `${g.n} riders`} in Trail Finder${g.n > 1 ? ` (${byText(g)})` : ""}.${mapped || ""}` };
   }
 
   // ---------- counts for the whole map ----------

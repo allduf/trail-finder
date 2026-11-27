@@ -769,7 +769,14 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     await A.load();
     if (!A.client) throw new Error("couldn't reach the app's database");
     const { data, error } = await A.client.rpc(fn, args);
-    if (error) throw new Error(/function .* does not exist|Could not find the function/i.test(error.message) ? "shared trips aren't switched on yet" : error.message);
+    if (error) {
+      const m = error.message || "";
+      console.warn("trip " + fn, m);
+      throw new Error(/function .* does not exist|Could not find the function/i.test(m) ? "trip sharing isn't available right now"
+        : /no such trip/i.test(m) ? "the shared trip isn't there any more" : /too big/i.test(m) ? "the trip is too big to share"
+        : /bad trip/i.test(m) ? "this trip can't be shared" : /busy/i.test(m) ? "the server is busy, try again later"
+        : "the server couldn't do that right now, try again soon");
+    }
     return data;
   }
   const appBase = () => (location.protocol === "https:" ? location.origin + location.pathname : "https://trailfinderapp.ca/");

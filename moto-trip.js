@@ -46,6 +46,7 @@
 #motoPane .tp-warn { border-left: 4px solid #e8590c; padding: 4px 0 4px 9px; font-size: .82rem; }
 #motoPane .tp-warn.bad { border-color: #c92a2a; }
 #motoPane .tp-warn.ok { border-color: #2f9e44; }
+#motoPane .tp-warn.info { border-color: #8a929b; }
 #motoPane .tp-warn small { display: block; color: var(--muted); }
 #motoPane .tp-rider { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 #motoPane .tp-rider b { font-size: .88rem; }
@@ -267,7 +268,7 @@
       if (!fp) return `<h5>Day ${i + 1}: ${esc(x.name)}</h5><p class="sk-note">Couldn't check this route.</p>`;
       const rows = gas.map((r) => {
         const u = usableKm(r.b), bad = fp.gaps.filter((g) => g.km > u);
-        if (!bad.length) return `<div class="tp-warn ok"><b>${esc(r.n)}</b> (${esc(r.b.n)}, about ${u} km with 20% left): gas mapped at least every ${fmtKm(fp.longest)}.</div>`;
+        if (!bad.length) return `<div class="tp-warn info"><b>${esc(r.n)}</b> (${esc(r.b.n)}, about ${u} km with 20% left): gas mapped at least every ${fmtKm(fp.longest)}.</div>`;
         over++;
         return bad.map((g) => { const L = Math.ceil(((g.km - u) * (r.b.l100 || H.TYPES[r.b.type].l100)) / 100 + 0.01); return `<div class="tp-warn bad"><b>${esc(r.n)}: ${fmtKm(g.km)} with no gas mapped</b><small>From ${esc(g.from.name)} to ${esc(g.to.name)}, more than ${esc(r.b.n)}'s ${u} km with 20% left. About ${L} L more would cover it (estimate).</small></div>`; }).join("");
       }).join("");
@@ -344,7 +345,7 @@
       const a = `around:2000,${ll(chunks[ci])}`;
       const lodge = ci === 0 ? ends.map((p) => `nwr(around:4000,${p[0].toFixed(4)},${p[1].toFixed(4)})["tourism"~"^(motel|hotel|guest_house|hostel|chalet)$"]["name"];`).join("") : "";
       const q = `[out:json][timeout:35];(nwr(${a})["tourism"="viewpoint"];nwr(${a})["natural"~"^(waterfall|hot_spring)$"];nwr(${a})["man_made"="lighthouse"];nwr(${a})["tourism"~"^(attraction|museum)$"]["name"];nwr(${a})["historic"~"^(monument|ruins|fort|castle|archaeological_site|ship|locomotive|mine|wreck|building|church|aircraft|aqueduct)$"]["name"];${lodge});out center tags qt;`;
-      try { const j = await overpass(q); for (const x of j.elements || []) els.set(x.type[0] + x.id, x); } catch (e) { err = e.message || "no answer"; }
+      try { const j = await overpass(q); for (const x of j.elements || []) els.set(x.type[0] + x.id, x); } catch (e) { err = navigator.onLine ? "the map server is busy" : "no signal"; }
       if (my !== sightSeq) return;
     }
     const tt = E.tripById(t.id) || t;
@@ -410,7 +411,7 @@
   function sightsHtml(t) {
     const s = t.sights, lines = E.linesOf(t);
     if (t.sightWait && !(s && s.list)) return `<p class="tp-wait">Looking for viewpoints and places to see along your routes…</p>`;
-    if (!s || !s.list) return t.sightErr ? `<p class="sk-note">Couldn't look them up right now (${esc(t.sightErr)}). <button type="button" class="tp-linkbtn" data-sightre="1">Try again</button></p>` : `<p class="sk-note">${navigator.onLine ? "Looking…" : "Places along the way load when you have signal."}</p>`;
+    if (!s || !s.list) return t.sightErr ? `<p class="sk-note">Couldn't look them up right now. <button type="button" class="tp-linkbtn" data-sightre="1">Try again</button></p>` : `<p class="sk-note">${navigator.onLine ? "Looking…" : "Places along the way load when you have signal."}</p>`;
     const by = lines.map((x, i) => ({ x, i, l: s.list.filter((p) => p.li === i) }));
     const row = (p) => `<li><button type="button" class="tp-sight${p.img ? " ph" : ""}" data-sight="${esc(p.id)}" style="--c:${SIGHT[p.k].c}">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : svg(SIGHT[p.k].d, 20)}<span>${esc(p.n)}<small>${esc(SIGHT[p.k].n)}${p.d ? ` · ${esc(p.d)}` : ""}</small></span><small>km ${p.km}</small></button></li>`;
     const old = s.key !== linesKey(t);
@@ -494,7 +495,7 @@
     for (const k of keys) {
       const [lat, lon] = k.split(",");
       const q = new URLSearchParams({ latitude: lat, longitude: lon, daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,sunset", forecast_days: "16", timezone: "auto" });
-      try { got[k] = await getWx(`https://api.open-meteo.com/v1/forecast?${q}`); } catch (e) { err = e.message || "no signal"; }
+      try { got[k] = await getWx(`https://api.open-meteo.com/v1/forecast?${q}`); } catch (e) { err = navigator.onLine ? "the weather service is busy" : "no signal"; }
     }
     if (!Object.keys(got).length) return { err: err || "no signal" };
     let end = "";
@@ -516,7 +517,7 @@
     const rows = v.rows.map((r) => {
       const wet = r.code != null && (r.rain >= 5 || r.snow >= 1 || r.code >= 95), c = r.code == null ? "var(--line)" : wet ? "#1c7ed6" : r.lo != null && r.lo <= 3 ? "#74c0fc" : COL;
       const wx = r.code != null ? `<span class="tp-wx"><big>${deg(r.hi)}</big><br>low ${deg(r.lo)}</span>` : `<span class="tp-wx sk-note">${v.end && r.date > v.end ? "Too far<br>ahead" : "–"}</span>`;
-      const bits = r.code != null ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain` : "Dry", ...(r.pop != null && r.rain >= 1 ? [`${r.pop}% chance`] : []),
+      const bits = r.code != null ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain` : "Little or no rain", ...(r.pop != null && r.rain >= 1 ? [`${r.pop}% chance`] : []),
         `wind ${Math.round(r.wind || 0)} km/h${r.gust >= 50 ? `, gusts ${Math.round(r.gust)}` : ""}`, ...(r.sunset ? [`sunset ${hm(r.sunset)}`] : [])] : [];
       return `<li style="--c:${c}"><b>${esc(dayWord(r.date))}${r.tag ? ` · ${r.tag === "first" ? "first day" : "last day"}` : ""}</b>${wx}<span>${esc(wxWord(r.code))}${r.at ? ` <span class="sk-note">at ${esc(r.at)}</span>` : ""}</span>${bits.length ? `<small>${bits.map(esc).join(" · ")}</small>` : ""}</li>`;
     }).join("");

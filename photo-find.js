@@ -145,7 +145,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   </div>
   <details class="pf-how"><summary>A copy goes to Google to place it · How it works</summary><p>With the spot where it was taken, you get that trail. Without it, the app reads the words in it (trail names, places, hashtags, labels from riding apps) and lists the likely trails. The words are read on your device; to place the picture, a copy goes to Google's AI (Gemini) and Google's image search, which may keep it. “Yes, that's it” saves a small copy for Trail Finder to learn from (never shown in the app).</p></details>
   <div class="pf-prev" id="pfPrev" hidden><span class="pf-tw"><span id="pfThumb"></span><button type="button" class="pf-rm" id="pfRemove" aria-label="Remove this picture to add another" title="Remove this picture" hidden>✕</button></span><div style="flex:1;min-width:0"><div class="pf-status" id="pfStatus" role="status"></div><div class="pf-bar" id="pfBar" hidden><span></span></div>
-    <div class="pf-here"><button type="button" class="btn" id="pfHere" hidden>📍 I took it here, just now</button><span id="pfTip" hidden>No location in this photo. If it's yours, choose it again with its location: in the photo picker tap Options, turn on Location, then pick it. The spot finds the exact trail.</span></div></div></div>
+    <div class="pf-here"><button type="button" class="btn" id="pfHere" hidden>📍 I took it here, just now</button><span id="pfTip" hidden>No location in this photo. If it's yours, choose it again with its location: in the photo picker tap Options, turn on Location, then pick it. The spot can find the trail.</span></div></div></div>
   <ul class="pf-res" id="pfRes" role="list"></ul>
   <p class="pf-note" id="pfNote"></p>
   <div class="pf-areas" id="pfAreas" hidden></div>
@@ -605,8 +605,8 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         const st = error.context && error.context.status;
         let msg = "";
         try { const j = await error.context.json(); msg = j.error || ""; aiDetail = j.detail || ""; } catch { /* not JSON */ }
-        const plain = { 401: "the function still has Verify JWT on", 404: "not set up yet", 546: "the function ran out of time", 504: "too slow" };
-        aiWhy = msg || (st ? plain[st] || "error " + st : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
+        const plain = { 401: "the AI isn't available right now", 404: "not available yet", 546: "it took too long", 504: "too slow" };
+        aiWhy = msg || (st ? plain[st] || "the AI didn't answer" : error.name === "AbortError" || /abort/i.test(error.message || "") ? "too slow" : error.message || "failed");
         if (st === 404 || st === 503 || /Failed to send/i.test(error.message || "")) aiOff = true;   // not set up (or key refused): don't ask again this visit
         return null;
       }
@@ -811,7 +811,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         if (!error) return data;
         let msg = "";
         try { msg = (await error.context.json()).error || ""; } catch { /* not JSON */ }
-        why = msg || (error.context && error.context.status === 546 ? "the function ran out of time" : "it failed");
+        why = msg || (error.context && error.context.status === 546 ? "it took too long" : "it failed");
         return null;
       }).catch(() => { why = "it failed"; return null; });
       got = await Promise.race([look, new Promise((res) => setTimeout(() => { why = "too slow"; res(null); }, CMP_WAIT + 2000))]);
@@ -829,7 +829,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     // Each trail's fit (0-1) moves it up or down; a found photo of the same place counts extra, a picture a rider
     // confirmed more. Above 0.6 the online check had to say what lines up (the same rock, tree, skyline): proof.
     // It never makes a "Best match" on its own: the free AI calls look-alikes the same place, proof and all (2026-10-24:
-    // one unofficial bridge line, Pretty Slabs, Hanging Gardens and Peak Express Traverse, each 0.7 to 1 "with proof", all wrong).
+    // one unofficial bridge line, an unofficial slab line, Hanging Gardens and Peak Express Traverse, each 0.7 to 1 "with proof", all wrong).
     // That stays for the trail's name in the words or a past confirmed match.
     const fitOf = new Map((got.ranks || []).map((k) => [F.norm(String(k.trail).replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, "")), k]));
     const fitted = (r, k) => ({ ...r, s: r.s + 0.4 * (k.fit - 0.5) + (k.photo ? 0.1 : 0) + (k.confirmed && k.fit > 0.6 ? 0.15 : 0), web: k });
@@ -1027,7 +1027,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
   };
   const LEVEL = { green: 1, blue: 2, black: 3, dbl: 4, pro: 5 };
   // The same things on a trail: from its pieces' tags (bridges, surface, a track), its rating, and its name or description
-  // ("a log bridge line", "Pretty Slabs", "rock roll line").
+  // ("a log bridge line", "rock roll line").
   function looksOf(g) {
     const ts = [g.tags, ...g.items.map((i) => i.tags)].filter(Boolean);
     const text = F.norm([g.name, ...ts.map((t) => t.description || "")].join(" "));

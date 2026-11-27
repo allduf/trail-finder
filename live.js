@@ -35,7 +35,7 @@
     });
     if (!r.ok) {
       const t = await r.text().catch(() => "");
-      throw new Error(/busy/.test(t) ? "Too many people sharing right now, try again later." : /not yours/.test(t) ? "This share belongs to another phone." : /live_put|function|schema/i.test(t) ? "Live location isn't set up on the server yet." : `The server said ${r.status}.`);
+      throw new Error(/busy/.test(t) ? "Too many people sharing right now, try again later." : /not yours/.test(t) ? "This share belongs to another phone." : /live_put|function|schema/i.test(t) ? "Live location isn't available right now. Try again later." : "The server couldn't do that right now. Try again in a moment.");
     }
     return r.status === 204 ? null : r.json();
   }

@@ -67,7 +67,7 @@
     const around = (sel) => lines.map((l) => `way${sel}(around:${AROUND_M},${l});`).join("");
     const q = `[out:json][timeout:60];(${around("[highway]")}${around('["abandoned:highway"]')}${around('["disused:highway"]')});out tags geom;`;
     const ask = (url) => fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(70000) })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("OpenStreetMap answered " + r.status))))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("OpenStreetMap was too busy"))))
       .then((j) => {
         if (j.remark && /error/i.test(j.remark)) throw new Error("OpenStreetMap was too busy");
         return j.elements.filter((x) => x.type === "way" && x.geometry && x.tags && x.tags.highway !== "proposed")
@@ -76,7 +76,7 @@
     // The main Overpass first; if it hasn't answered in 3 s (busy), the other one races it.
     const wait = (f) => new Promise((ok) => setTimeout(ok, 3000)).then(f);
     try { return await Promise.any([ask(OVERPASS[0]), wait(() => ask(OVERPASS[1]))]); }
-    catch (e) { throw new Error((e.errors && e.errors[0] && e.errors[0].message) || "Couldn't reach OpenStreetMap"); }
+    catch (e) { const m = e.errors && e.errors[0] && e.errors[0].message; throw new Error(/^OpenStreetMap/.test(m || "") ? m : "Couldn't reach OpenStreetMap"); }
   }
 
   // ---------- finding the stretches ----------

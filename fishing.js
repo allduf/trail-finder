@@ -101,7 +101,7 @@
     crown: { g: "Highlight on the map", tile: true, label: "Crown land", sub: "Public (Crown) land: green; private: yellow, from provincial maps that can be out of date (BC, AB, ON, QC, NB, NS, SK, NL; zoom in)", minZoom: 9, icon: ["#2f9e44", "box"] },
     tides: { g: "Ocean", label: "Tide stations", sub: "Tap one for the next high and low tides", on: true, minZoom: 6, icon: [C.tide, "dot"] },
     zones: { g: "Rules", label: "Fishing zones and regions", sub: "The areas the rules are written for, tap one for its rules", icon: [C.zone, "dash"] },
-    areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "Red: ecological reserves, no fishing. National parks (Parks Canada permit), Quebec zecs, wildlife reserves and parks (fishing allowed with an access fee)", on: true, minZoom: 5, icon: [C.park, "dot"] },
+    areas: { g: "Rules", label: "Parks, zecs and reserves", sub: "Red: ecological reserves, no fishing. National parks (Parks Canada permit), Quebec zecs, wildlife reserves and parks (fishing with an access fee)", on: true, minZoom: 5, icon: [C.park, "dot"] },
   };
   const GROUPS = ["Water", "Highlight on the map", "Access", "Ocean", "Rules"];
   const HL = ["rivers", "lakes", "creeks", "ocean"];   // the water colours (WATER below)
@@ -471,7 +471,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const xli = xs.map((x) => `<li><b>${esc(x.t[0].toUpperCase() + x.t.slice(1))}</b><small>From ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.src)}</a>` : esc(x.src)}</small></li>`).join("");
     const xSum = [...new Set(xs.map((x) => boatShort(x.t)))].slice(0, 2).join(", ");
     if (!rules.length && xs.length) return out(esc(xSum), `<ul class="fs-list">${xli}</ul><p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters, but the sources above give these limits: follow any signs at the launch.</p>${general}`);
-    if (!rules.length) return nm || nearestTide(lat, lon, 3) || sign ? out("No special limits", `<p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters.</p>${general}`) : "";
+    if (!rules.length) return nm || nearestTide(lat, lon, 3) || sign ? out("None listed", `<p class="fs-note">${esc(name || "This water")} isn't on Transport Canada's list of restricted waters.</p>${general}`) : "";
     const li = rules.map((r) => `<li><b>${esc(BOAT[r[2]](r[6]))}${part(r) ? " (part of the water)" : ""}</b>${esc(clean(r[4]))}${r[5] ? ` (${esc(clean(r[5]))})` : ""}</li>`).join("");
     const whole = rules.filter((r) => !part(r)), sum = [...new Set((whole.length ? whole : rules).map((r) => BOAT_SHORT[r[2]](r[6])))].slice(0, 2).join(", ");
     return out(esc(whole.length ? sum : `${sum} in parts`), `${sign ? '<p class="fs-note">Transport Canada\'s list:</p>' : ""}<ul class="fs-list">${li}${xli}</ul>${general}`);
@@ -500,11 +500,11 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // Each gauge: [id, name, lat, lon, province, usual flow by month (m³/s) or null, usual level by month (m) or null].
   const readings = new Map();   // id -> { t, q, h } the latest reading
   const LIGHTS = {
-    vlow: ["Very low", C.vlow, "Warm, skinny water: go early in the day and keep fish in the water."],
-    low: ["Low and clear", C.low, "Fish are spooky: long light leaders, small flies, stay back from the bank."],
-    ok: ["Normal", C.ok, "Good flow for this time of year."],
+    vlow: ["Very low", C.vlow, "Likely warm, skinny water: go early in the day and keep fish in the water."],
+    low: ["Low", C.low, "Fish may be spooky: long light leaders, small flies, stay back from the bank."],
+    ok: ["Normal", C.ok, "Close to the usual flow for this time of year."],
     high: ["High", C.high, "Fish the soft edges and slow water; bigger, darker flies."],
-    blown: ["Blown out", C.blown, "Too high and dirty to fish well: try a lake, or come back when it drops."],
+    blown: ["Blown out", C.blown, "Likely too high and dirty to fish well: try a lake, or come back when it drops."],
     none: ["No usual flow known", C.none, ""],
   };
   function lightOf(g, r) {
@@ -786,7 +786,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   }
   // The land at the spot, for getting to the water.
   const CROWN_SAY = {
-    crown: "Public land: you can usually walk in to the shore and fish from it.",
+    crown: "Public land: walking in to the shore is often possible; check local rules and closures.",
     private: "Private land: ask the owner before you cross it to the water, or use a public access or a boat.",
     lease: "Leased Crown land: keep clear of camps and ask the leaseholder before you cross it.",
   };
@@ -906,7 +906,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const on = shown.has(k), far = on && l.minZoom && z < l.minZoom;
       // Gauges are only on bigger rivers, so say how many are in view (alex 2026-10-26: "is that supposed to do anything?").
       let sub = l.sub;
-      if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view. Green: good flow, light green: low, orange: very low or high, red: blown out, grey: no reading. Tap one for more` : "None in view: government gauges are only on bigger rivers"; }
+      if (k === "gauges" && on && !far && gauges) { const b = map.getBounds(), n = gauges.filter((g) => b.contains([g[2], g[3]])).length; sub = n ? `${n} in view. Green: normal flow, light green: low, orange: very low or high, red: blown out, grey: no reading. Tap one for more` : "None in view: government gauges are only on bigger rivers"; }
       if (k === "areas" && on && !far && zones) { const b = map.getBounds(), n = zones.filter((q) => isArea(q) && b.intersects([[q.b[0], q.b[1]], [q.b[2], q.b[3]]])).length; sub = n ? `${n} in view: tap inside one for its rules and fees` : "None in view: this shows national parks, Quebec zecs, wildlife reserves and parks, and ecological reserves (no fishing, in red)"; }
       return `<label class="fs-layer">${icon(k, l.icon)}<span><b>${esc(l.label)}</b><small${far ? ' class="z"' : ""}>${far ? "Zoom in closer to see it" : esc(sub)}</small></span><input type="checkbox" class="fs-sw" role="switch" data-k="${k}"${on ? " checked" : ""} aria-label="${esc(l.label)}"></label>`;
     }).join(""))).join("");
@@ -1586,7 +1586,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       for (const [t, d] of own.notes) if (out.length < 4) out.push([`${esc(t)}${d ? ` (${esc(d.replace(" to ", "-"))})` : ""}`, d ? shut(d) : ""]);
       if (own.lim.length) out.push([esc(own.lim.slice(0, 3).map(([sp, l]) => `${sp} ${l.replace(/^(\d+) a day/, "$1")}`).join("; ")), ""]);
     } else {
-      out.push(["General Waters: open all year, no special rules listed for this water", ""]);
+      out.push(["Yukon's summary lists no special rules for this water: General Waters, open all year", ""]);
       out.push([esc(YT_GEN.slice(0, 3).map(([sp, l]) => `${sp} ${l.replace(/ a day/, "")}`).join("; ")), ""]);
     }
     return out;
@@ -1946,7 +1946,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       const r = last ? { t: new Date(last[0]).toISOString(), q: last[1], h: last[2] } : readings.get(g[0]);
       if (r) readings.set(g[0], r);
       const l = lightOf(g, r), tr = trendOf(pts), [name, color, tip] = LIGHTS[l];
-      const clearing = tr && /dropping/.test(tr.word) && (l === "high" || l === "blown") ? " Dropping: it should clear and fish better soon." : tr && /rising/.test(tr.word) && l === "ok" ? " Rising: it may colour up." : "";
+      const clearing = tr && /dropping/.test(tr.word) && (l === "high" || l === "blown") ? " Dropping: it may clear and fish better soon." : tr && /rising/.test(tr.word) && l === "ok" ? " Rising: it may colour up." : "";
       return `<h4>${svg(IC.gauge, 14)}${esc(g[1])}${d > 0.3 ? ` <small>(${fmtKm(d)})</small>` : ""}</h4>
         <p><span class="fs-light" style="--c:${color}"></span><b>${esc(name)}</b>${tr ? ` · ${esc(tr.word)} (24 h)` : ""}</p>
         <p class="fs-note">${esc(tip + clearing)}</p>${sparkline(pts, g)}
@@ -2165,7 +2165,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       ${c ? `<div class="fs-stats"><div><b>${Math.round(c.temperature_2m)}°</b><span>${esc(WX[c.weather_code] || "Air")}</span></div><div><b>${Math.round(c.wind_speed_10m)}</b><span>km/h ${compass(c.wind_direction_10m)}</span></div>
         <div><b>${Math.round(c.pressure_msl)}</b><span>hPa ${pt ? esc(pt.word) : ""}</span></div><div><b>${sea && sea.sea_surface_temperature != null ? `${Math.round(sea.sea_surface_temperature)}°` : `${Math.round(c.cloud_cover)}%`}</b><span>${sea && sea.sea_surface_temperature != null ? "Sea" : "Cloud"}</span></div></div>
         ${sea && sea.wave_height != null ? `<p class="fs-note">Waves ${sea.wave_height.toFixed(1)} m${sea.wave_period ? ` every ${Math.round(sea.wave_period)} s` : ""} offshore (Open-Meteo marine forecast).</p>` : ""}` : `<p class="fs-note">Getting the weather…</p>`}
-      ${fold("days", IC.star, "Next 3 days", days.length ? days.map((d) => `<span class="fs-mini">${d.s}★</span>`).join("") : "", days.length ? `<ul class="fs-days">${days.map((d, i) => `<li><b>${i === 0 ? "Today" : esc(new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" }))}</b>${stars(d.s)}<span></span><small>${esc(d.why.join(", "))}</small></li>`).join("")}</ul>` : "")}
+      ${fold("days", IC.star, "Next 3 days", days.length ? days.map((d) => `<span class="fs-mini">${d.s}★</span>`).join("") : "", days.length ? `<ul class="fs-days">${days.map((d, i) => `<li><b>${i === 0 ? "Today" : esc(new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" }))}</b>${stars(d.s)}<span></span><small>${esc(d.why.join(", "))}</small></li>`).join("")}</ul><p class="fs-note">A 1 to 5 estimate from the weather forecast, the moon and river flow: what many anglers go by, not a promise of fish.</p>` : "")}
       ${fold("sun", IC.sun, "Sun and moon", `${hm(s.rise)}–${hm(s.set)} · ${(window.tfLineName && window.tfLineName("moon", 14)) || p[2]} ${Math.round(ph.fraction * 100)}%`, `<dl class="fs-sun"><dt>Sunrise · sunset</dt><dd>${hm(s.rise)} · ${hm(s.set)}</dd><dt>Moon</dt><dd>${p[2]} ${p[1]}, ${Math.round(ph.fraction * 100)}%</dd>
         <dt>Feeding times</dt><dd>${major || "none"}${minor ? ` <small>· minor ${minor}</small>` : ""}</dd></dl>
       <p class="fs-note">The first and last hour of light are often best. Feeding times are solunar, a traditional guide. Weather: Open-Meteo.</p>${wx && window.tfWx ? window.tfWx.noteHtml(wx, { cls: "fs-note" }) : ""}`)}`;
@@ -2175,7 +2175,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     if (!spot || !wx) { b.hidden = true; return; }
     const d = castDays()[0], pt = pressureTrend(), c = wx.current, f = nearFlowLight();
     b.hidden = false;
-    b.innerHTML = `${d ? `<span>${svg(IC.star, 15)}<b>Bite today ${d.s}/5</b></span>` : ""}${f && f !== "none" ? `<span><span class="fs-light" style="--c:${LIGHTS[f][1]}"></span>River ${esc(LIGHTS[f][0].toLowerCase())}</span>` : ""}${c ? `<span>${Math.round(c.wind_speed_10m)} km/h ${compass(c.wind_direction_10m)}</span>` : ""}${pt ? `<span>Pressure ${esc(pt.word)}</span>` : ""}`;
+    b.innerHTML = `${d ? `<span>${svg(IC.star, 15)}<b>Bite estimate ${d.s}/5</b></span>` : ""}${f && f !== "none" ? `<span><span class="fs-light" style="--c:${LIGHTS[f][1]}"></span>River ${esc(LIGHTS[f][0].toLowerCase())}</span>` : ""}${c ? `<span>${Math.round(c.wind_speed_10m)} km/h ${compass(c.wind_direction_10m)}</span>` : ""}${pt ? `<span>Pressure ${esc(pt.word)}</span>` : ""}`;
   }
   $("fsNow").addEventListener("click", () => { if (window.tfPanelScrollTo) window.tfPanelScrollTo($("fsCond")); });
 
@@ -2192,10 +2192,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       return { k: "ice", lake: "Ice likely (a guess from the air temperature): the app can't see how thick the ice is", w: 0.45,
         note: "Lakes here are likely frozen or freezing (a guess from the air temperature). Rivers and the coast usually stay open water. The app can't see how thick the ice is." };
     if (winter || shoulder || m === 10 && air != null && air < 6)
-      return { k: "cold", lake: "Cold water: fish slow and deep, midday is best", w: 0.8,
-        note: "The water is cold this time of year. Trout feed slowly and deep, best in the warmest hours; stocking from months ago still holds fish. Check in-season closures for rivers." };
+      return { k: "cold", lake: "Likely cold water: fish slow and deep, midday is often best", w: 0.8,
+        note: "The water is likely cold this time of year. Trout feed slowly and deep, best in the warmest hours; stocking from months ago still holds fish. Check in-season closures for rivers." };
     if ((m === 7 || m === 8) && (air == null || air > 17))
-      return { k: "warm", lake: "Warm water: fish early, late and deep", w: 0.9, note: "Summer: lake trout go deep in the heat. Mornings and evenings are best." };
+      return { k: "warm", lake: "Likely warm water: fish early, late and deep", w: 0.9, note: "Summer: lake trout go deep in the heat. Mornings and evenings are often best." };
     return { k: "open", lake: "", w: 1, note: "" };
   }
   const flowing = (w) => /\b(river|creek|brook|rivière|ruisseau)\b/i.test(w.n);   // stocked rivers stay open in winter
@@ -2232,7 +2232,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
       ${top.length ? `<ul class="fs-list fs-top">${top.slice(0, 3).map(row).join("")}</ul>
         ${top.length > 3 ? `<details class="fs-more"><summary>${top.length - 3} more</summary><ul class="fs-list fs-top">${top.slice(3).map((x, i) => row(x, i + 3)).join("")}</ul></details>` : ""}
         ${sea.note ? `<p class="fs-note fs-season">${esc(sea.note)}</p>` : ""}
-        <p class="fs-note">Near ${spot.how === "you" ? "you" : spot.how === "tap" ? "the spot" : "the map"}: ${sea.k === "ice" ? "open rivers and good flows first, then lakes" : "fresh stocking and good flows first"}.</p>`
+        <p class="fs-note">Near ${spot.how === "you" ? "you" : spot.how === "tap" ? "the spot" : "the map"}: ${sea.k === "ice" ? "rivers with good flows first, then lakes" : "fresh stocking and good flows first"}.</p>`
         : `<p class="fs-note">Nothing stocked or with a river reading within ${R} km. Move the map or zoom in.</p>`}`;
     el.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => { const x = top[+b.dataset.i]; map.setView([x.lat, x.lon], Math.max(map.getZoom(), 12)); x.open(); }));
   }
