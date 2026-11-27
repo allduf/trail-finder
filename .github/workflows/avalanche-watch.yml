@@ -3,40 +3,45 @@ name: Avalanche watch
 # Every hour: the live app's avalanche forecast against Avalanche Canada's, area by area, bulletin by bulletin and band
 # by band, and whether Avalanche Canada changed its areas (scripts/avy-watch.mjs; alex 2026-11-27, after the
 # 2026-11-26 regroup left the expired bulletin on the map). A difference is a push on alex's own phone
-# (scripts/admin-push.mjs), never an email: the hourly job stays green and its summary lists what was found.
-# A pull request that changes the avalanche code runs the same check on its own scripts (with the live data files),
-# and fails on a difference.
+# (scripts/admin-push.mjs), never an email: the job stays green and its summary lists what was found.
+# GitHub runs this repository's schedules hours late or not at all (27 Nov 2026: this hourly schedule didn't run once
+# in its first 5 hours). So one run keeps watching, as the crash and error alert does (app-alert.yml): it checks every
+# hour for about 5 h 40 min, then starts the next run itself. The schedule only restarts that chain if it ever breaks;
+# a second watcher waits in the queue rather than running beside it.
+# A pull request that changes the avalanche code runs the same check once on its own scripts (with the live data
+# files), and fails on a difference.
 on:
   schedule:
-    - cron: "23 * * * *"   # every hour (GitHub can start it late)
+    - cron: "23 */2 * * *"   # only restarts a broken chain
   pull_request:
     paths: ["winter.js", "ski-terrain.js", "today.js", "scripts/avy-watch.mjs", ".github/workflows/avalanche-watch.yml"]
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: write   # the watcher starts the next one (and keeps its state in the cache)
 
 concurrency:
-  group: avalanche-watch-${{ github.ref }}
+  group: avalanche-watch-${{ github.event_name == 'pull_request' && github.ref || 'watch' }}
   cancel-in-progress: false
 
 jobs:
   watch:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # The hourly job never goes red (a failed scheduled job emails alex): a failed install shows as "couldn't run"
-      # in the check's own summary, and alex gets a push after 3 hours of it.
+      # Never red when watching (a failed scheduled job emails alex): a failed install shows as "couldn't run" in the
+      # check's own output, and alex gets a push after 3 checks of it.
       - name: Browser
         continue-on-error: ${{ github.event_name != 'pull_request' }}
         run: |
           npm install --no-save --no-package-lock playwright@1.48.2
           npx playwright install --with-deps chromium
-      # The last run's areas and when alex was last told, kept from run to run.
+      # The last check's areas and when alex was last told, kept from run to run.
       - uses: actions/cache/restore@v4
         if: github.event_name != 'pull_request'
         with:
@@ -47,14 +52,23 @@ jobs:
         env:
           LOCAL: ${{ github.event_name == 'pull_request' && '1' || '' }}
           DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          WATCH: ${{ github.event_name != 'pull_request' && '1' || '' }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
           APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
-        timeout-minutes: 20
-        continue-on-error: ${{ github.event_name != 'pull_request' }}
-        run: node scripts/avy-watch.mjs
+        run: |
+          if [ -z "$WATCH" ]; then node scripts/avy-watch.mjs; exit $?; fi
+          end=$(( $(date +%s) + 340 * 60 ))
+          while :; do
+            start=$(date +%s)
+            git pull -q --ff-only 2>/dev/null || true   # a change merged while watching is used from the next check
+            timeout 25m node scripts/avy-watch.mjs || echo "::warning::The avalanche watch stopped early; the next check tries again."
+            next=$(( start + 3600 ))
+            [ $next -lt $end ] || break
+            sleep $(( next - $(date +%s) > 0 ? next - $(date +%s) : 0 ))
+          done
       - uses: actions/cache/save@v4
         if: always() && github.event_name != 'pull_request'
         with:
@@ -67,3 +81,10 @@ jobs:
           path: out/avy-watch/
           retention-days: 7
           if-no-files-found: ignore
+      - name: Start the next watcher
+        if: always() && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run avalanche-watch.yml --ref "${{ github.event.repository.default_branch }}" -R "${{ github.repository }}" \
+            || echo "::warning::Couldn't start the next watcher; the schedule restarts it."
