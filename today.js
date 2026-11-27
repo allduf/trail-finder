@@ -203,6 +203,8 @@
     const snow = (s) => (s ? `New snow ${cm(s.snowPast)} in the last 24 h, ${cm(s.snowNext)} forecast in the next 24 h` : "");
     return {
       near, saved, fish: false,
+      // The first bulletin on the card to run out: its ratings come off then (refreshIfOld).
+      until: Math.min(Infinity, ...avys.filter((a) => a && a.bands && a.until).map((a) => a.until)),
       brief: (s) => [["New snow, last 24 h", cm(s.snowPast)], ["Snow forecast, next 24 h", cm(s.snowNext)], ["High and low", `${deg(s.hi)} / ${deg(s.lo)}`]],
       here: (s) => `${s ? kv("New snow, last 24 h", cm(s.snowPast)) + kv("Snow forecast, next 24 h", cm(s.snowNext)) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) : ""}${avyLine(avys[0])}`,
       why: (x, s, k) => snow(s),
@@ -321,7 +323,8 @@
     const W = WORDS[sp], c = card(sp);
     if (!W || !c) return;
     const from = whereFrom(), full = c.el.classList.contains("open");
-    if (!force && c.at && (c.full || !full) && Date.now() - c.at < 20 * 60000 && c.from && c.how === from.how && kmTo(c.from, from.ll) < 5) return;
+    if (!force && c.at && (c.full || !full) && Date.now() - c.at < 20 * 60000 && Date.now() < c.until && c.day === localDay() && c.from && c.how === from.how && kmTo(c.from, from.ll) < 5) return;
+    c.until = Infinity; c.day = localDay();   // refreshIfOld leaves a read in progress alone
     c.at = Date.now(); c.from = from.ll; c.how = from.how; c.full = full; c.acts = [];
     const my = ++c.seq, el = c.el, q = (s) => el.querySelector(s);
     const go = (f) => { c.acts.push(f); return c.acts.length - 1; };
@@ -335,6 +338,7 @@
     // Didn't load, or the weather service busy (it limits calls a minute): read again once, a little later, if this
     // sport is still the one picked.
     const retry = () => { if (!c.retried) { c.retried = true; setTimeout(() => { if (my === c.seq && sportNow() === sp) fill(sp, true); }, 45000); } };
+    c.until = (S && S.until) || Infinity;
     if (!S) { retry(); c.at = 0; q(".tdy-sum").innerHTML = q(".tdy-here").innerHTML = `<span class="tdy-wait">Today couldn't load. Try again in a minute.</span>`; q(".tdy-near").innerHTML = q(".tdy-saved").innerHTML = ""; return; }
     const places = full ? [from.ll, ...S.near.filter((x) => x.ll).map((x) => x.ll), ...S.saved.map((x) => x.ll)] : [from.ll];
     let wx = [], err = "";
@@ -390,6 +394,24 @@
     if (window.tfSnapTo) window.tfSnapTo("half");   // phones: the sheet up from the map so the card shows
     setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(c.el); }, 300);
   }
+
+  // Numbers that are no longer today's (2026-11-27 test: Skiing left open, the phone put away overnight and taken out
+  // with no signal still showed yesterday's avalanche ratings and weather as today's): read again when the app comes
+  // back to the front and the numbers are over 20 minutes old or the last read failed, when the signal comes back after
+  // a failed read, and,
+  // checked each minute while on screen, as soon as an avalanche bulletin on the card runs out or the day changes.
+  // With no signal the read says so, and an expired bulletin shows no rating (winter.js avyToday).
+  function refreshIfOld(e) {
+    if (document.hidden) return;
+    const sp = sportNow(), c = cards[sp];
+    if (!c || !c.seq || !c.el.isConnected) return;
+    const now = Date.now();
+    if (now >= c.until || c.day !== localDay() || (e && e.type === "visibilitychange" && (!c.at || now - c.at > 20 * 60000))
+      || (e && e.type === "online" && !c.at)) fill(sp, true);
+  }
+  document.addEventListener("visibilitychange", refreshIfOld);
+  window.addEventListener("online", refreshIfOld);
+  setInterval(refreshIfOld, 60000);
 
   // The More page's Today and the map sheet (index.html) call tfTodayOpen: MTB keeps status.js's card.
   window.tfTodayOpen0 = window.tfTodayOpen0 || window.tfTodayOpen;

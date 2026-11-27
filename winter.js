@@ -5932,8 +5932,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const d = f.days[0];
       if (!d.date || d.date !== localDay()) return { none: "forecast", area: a.name };
       const band = (b) => ({ r: d[b] || 0, label: DANGER[d[b] || 0].label, color: DANGER[d[b] || 0].color });
+      // until: when the bulletin runs out, so the card can take the ratings off then (today.js, also with no signal).
       return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(f),
-        bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
+        until: f.validUntil ? Date.parse(f.validUntil) || null : null, bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
     },
     // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded, and
     // when the bulletin there has no day for today: in the evening it's already on tomorrow).

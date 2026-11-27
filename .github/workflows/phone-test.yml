@@ -9,6 +9,8 @@ name: Phone test
 # Next to it, "computer" runs the same steps on the website at computer size (and 3D turning with the mouse), and "switch" (alex 2026-11-22: "test every sport to switch to other sport to see every mode") switches every
 # sport to every other one on the flat map, the 3D map, each map style, and the iPhone and Android apps' native 3D, and
 # fails if anything of the sport before stays (scripts/sport-switch-test.mjs). Screenshots: "switch-test-screenshots".
+# "conditions" (alex 2026-11-27) runs the website through tough conditions: weak, dead and dropping signal, airplane mode,
+# no signal overnight, location off, background, low memory, dark mode, small screens (scripts/conditions-test.mjs).
 on:
   pull_request:
     # ios-app/ runs it too since 2026-11-21: the "App builds" checks read the iPhone's native 3D keys (NativeLayers.swift),
@@ -157,4 +159,44 @@ jobs:
         with:
           name: switch-test-screenshots
           path: switch-test-shots
+          retention-days: 14
+
+  conditions:
+    # Tough conditions (alex 2026-11-27: "can we test the app in all different situation ? like low data , off line"):
+    # the website at iPhone size in weak signal, a signal that doesn't answer, downloads cut, signal in and out,
+    # airplane mode mid-use, opened again with no signal, Skiing overnight with no signal (no old avalanche rating as
+    # today's), location off, background and back, the 3D map's memory dropped, dark mode, small screens and a phone
+    # turned sideways (scripts/conditions-test.mjs).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add the data jobs' files
+        run: bash scripts/site-data.sh get
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Version number, What's new and French as the website gets them (scripts/stamp.mjs)
+        run: node scripts/stamp.mjs --test
+      - name: Trim the scripts as the website gets them (scripts/trim-site.mjs)
+        run: node scripts/trim-site.mjs . --strict
+      - name: Install the test browser
+        # The same mirror fixes as the phone job above.
+        run: |
+          sudo sed -i -E 's#http://[a-z0-9.-]+\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g; s#mirror\+file:/etc/apt/apt-mirrors\.txt#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          [ -f /etc/apt/apt-mirrors.txt ] && echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt >/dev/null || true
+          printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
+          printf 'Acquire::Languages "none";\nAcquire::IndexTargets::deb::CNF::DefaultEnabled "false";\n' | sudo tee /etc/apt/apt.conf.d/99tf-lean >/dev/null
+          npm install --no-save --no-package-lock playwright@1.48.2
+          npx playwright install --with-deps webkit
+      - name: Tough conditions at iPhone size
+        run: node scripts/conditions-test.mjs
+        env:
+          OUT: conditions-shots
+          NODE_OPTIONS: --max-old-space-size=4096
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conditions-screenshots
+          path: conditions-shots
           retention-days: 14
