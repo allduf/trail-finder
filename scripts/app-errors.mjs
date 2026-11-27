@@ -3,11 +3,11 @@
 // issue "App errors", so alex sees each morning what broke for testers without opening the usage report.
 // Each error is counted once, with how many times it happened, on how many phones, in which sport, and what the
 // person tapped just before (that's usually what to try to make it happen again). An error not seen in the 14 days
-// before is marked 🆕 and the comment mentions OWNER (GitHub emails them); a day with only known errors still gets
+// before is marked 🆕 (no mention: alex 2026-11-27 wants no email; new ones reach alex's phone through app-alert.mjs); a day with only known errors still gets
 // its comment, without the mention. A day with no errors gets no comment.
 //
 // Run: SUPABASE_SECRET_KEY=... node scripts/app-errors.mjs
-// Optional: HOURS (24), DRY=1 (summary only, no issue comment), GITHUB_TOKEN + GITHUB_REPOSITORY (the issue), OWNER (allduf).
+// Optional: HOURS (24), DRY=1 (summary only, no issue comment), GITHUB_TOKEN + GITHUB_REPOSITORY (the issue).
 
 import { appendFile } from "node:fs/promises";
 import { isTestDevice } from "./test-devices.mjs";
@@ -15,7 +15,7 @@ import { isTestDevice } from "./test-devices.mjs";
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://fohdmserpbkurcvcrbbb.supabase.co";
 const KEY = process.env.SUPABASE_SECRET_KEY;
 const HOURS = Math.max(1, +(process.env.HOURS || 24));
-const REPO = process.env.GITHUB_REPOSITORY, TOKEN = process.env.GITHUB_TOKEN, OWNER = process.env.OWNER || "allduf";
+const REPO = process.env.GITHUB_REPOSITORY, TOKEN = process.env.GITHUB_TOKEN;
 const DRY = !!process.env.DRY || !REPO || !TOKEN;
 const TITLE = "App errors", MARK = "<!-- trail-finder-app-errors -->";
 const SPORTS = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto" };
@@ -186,11 +186,11 @@ async function github(path, method = "GET", body) {
 const issues = await github(`/issues?state=all&creator=${encodeURIComponent("github-actions[bot]")}&per_page=100`);
 let issue = issues.find((i) => !i.pull_request && (i.body || "").includes(MARK));
 const body = `${MARK}\nEach morning \`.github/workflows/app-errors.yml\` writes here the errors the iPhone app sent the day before ` +
-  `(the same as the Errors list on usage.html), with what testers tapped just before. New errors mention @${OWNER}. ` +
+  `(the same as the Errors list on usage.html), with what testers tapped just before. New crashes and errors also reach alex's phone within minutes (app-alert.yml). ` +
   `Last checked ${day}: ${errors.length} error(s).`;
-if (!issue) issue = await github("/issues", "POST", { title: TITLE, body, assignees: [OWNER] });
+if (!issue) issue = await github("/issues", "POST", { title: TITLE, body });
 else await github(`/issues/${issue.number}`, "PATCH", { body, state: "open" });
 if (list.length || crashMd) {
-  await github(`/issues/${issue.number}/comments`, "POST", { body: `### ${day}\n${fresh.length ? `@${OWNER} ${fresh.length} new error${fresh.length > 1 ? "s" : ""} in the app.\n\n` : "\n"}${list.length ? md : ""}${crashMd ? `\n\n#### Crashes\n${crashMd}` : ""}` });
+  await github(`/issues/${issue.number}/comments`, "POST", { body: `### ${day}\n${fresh.length ? `${fresh.length} new error${fresh.length > 1 ? "s" : ""} in the app.\n\n` : "\n"}${list.length ? md : ""}${crashMd ? `\n\n#### Crashes\n${crashMd}` : ""}` });
   console.log(`Commented on issue #${issue.number}.`);
 }

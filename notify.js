@@ -708,6 +708,17 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     await rpc("push_save", body);
     lsSet("tf:pushSaved", JSON.stringify({ h: hash, at: Date.now() }));
   }
+  // alex's own phone (signed in with an admin account: friends.js "tf-admin") also gets the crash and error alerts
+  // (scripts/app-alert.mjs, alex 2026-11-27). The server checks the account and adds this phone's push id
+  // (supabase/alert-phones.sql). Asked once per push id; nothing for anyone else.
+  async function alertPhone() {
+    let admin = false;
+    try { admin = localStorage.getItem("tf-admin") === "1"; } catch {}
+    const a = window.tfAccount, id = pushId();
+    if (!admin || !id || !a || !a.client || typeof a.client.rpc !== "function" || lsGet("tf-alertPhone") === id) return;
+    try { const { data, error } = await a.client.rpc("tf_alert_phone_set", { p_id: id }); if (!error && data === true) lsSet("tf-alertPhone", id); } catch {}
+  }
+  window.addEventListener("tf:admin", () => { if (pushId() && perm() === "granted") alertPhone(); });
   // Keep the job's copy of this phone's settings and To ride list up to date, and renew an expired push address.
   // A failure is kept (tf:pushErr) and shown on the 📱 line, so a phone that stops updating says why.
   let syncT = 0, pushErr = lsGet("tf:pushErr") || "";
@@ -729,6 +740,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
             .catch(() => { throw new Error("the phone dropped its push address: turn “Also send them to this phone” off and on again"); });
         }
         await pushSave(sub, force);
+        alertPhone();
         pushErr = "";
       } catch (e) { pushErr = (e && e.message) || String(e); }
       lsSet("tf:pushErr", pushErr || null);

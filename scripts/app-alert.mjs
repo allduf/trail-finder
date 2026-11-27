@@ -1,34 +1,34 @@
 // Quick crash and error alert (see .github/workflows/app-alert.yml): every 15 minutes, reads the crashes and errors the
 // app sent since the last check (usage.js → supabase/usage.sql, the same data as usage.html's Problems tab) and, when
-// there is a crash restart or a kind of error not seen in the 14 days before, comments on the GitHub issue
-// "New crash or error alerts" with a mention of OWNER, so GitHub emails alex and its phone app sends a notice within
-// minutes (alex 2026-11-27: crashes were only found by looking at the usage page). The daily "App errors" issue
-// (app-errors.mjs) still gives the full picture each morning.
+// there is a crash restart or a kind of error not seen in the 14 days before, sends a notification to alex's own phone
+// (alex 2026-11-27: crashes were only found by looking at the usage page; no email, so not through GitHub).
+// The phones are the ones in tf_alert_phones (supabase/alert-phones.sql): Trail Finder notifications on and signed in
+// with an admin account (notify.js adds them). The daily "App errors" issue (app-errors.mjs) still has the full list.
 //
 // As on usage.html, test and review devices are left out (scripts/test-devices.mjs) and cancelled downloads aren't
-// faults. alex's own phone still alerts (its crashes are real too). The issue is public: phones by model only, never by name or device code, and no web
-// addresses' query strings.
-// The last event id checked is kept in the issue's text, so each crash or error is looked at once, even when it
-// arrives late (a phone sends its queue at the next visit). A row whose insert commits after a later id was read can be
+// faults. alex's own phone still alerts (its crashes are real too). Phones by model only, never by name or device code.
+// The last event id checked is kept in tf_alert_state, so each crash or error is looked at once, even when it arrives
+// late (a phone sends its queue at the next visit). A row whose insert commits after a later id was read can be
 // missed here (rare: two phones sending at the same moment); the daily "App errors" issue still lists it.
+// The workflow never fails on it (a failed scheduled run would email alex): a problem is a warning on the run.
 //
 // Run: SUPABASE_SECRET_KEY=... node scripts/app-alert.mjs
-// Optional: DRY=1 (print only, no issue), HOURS (on a dry run: look back this many hours, default 24),
-// GITHUB_TOKEN + GITHUB_REPOSITORY (the issue), OWNER (allduf).
+// Optional: DRY=1 (print only, no notification, nothing saved), HOURS (on a dry run: look back this many hours, default 24).
+// Secrets for sending: see scripts/admin-push.mjs.
 
 import { appendFile } from "node:fs/promises";
 import { isTestDevice } from "./test-devices.mjs";
+import { adminPush } from "./admin-push.mjs";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://fohdmserpbkurcvcrbbb.supabase.co";
 const KEY = process.env.SUPABASE_SECRET_KEY;
-const REPO = process.env.GITHUB_REPOSITORY, TOKEN = process.env.GITHUB_TOKEN, OWNER = process.env.OWNER || "allduf";
-const DRY = !!process.env.DRY || !REPO || !TOKEN;
+const DRY = !!process.env.DRY;
 const HOURS = Math.max(1, +(process.env.HOURS || 24));
-const TITLE = "New crash or error alerts", MARK = "<!-- trail-finder-app-alert -->";
-const LAST = /<!-- last-id: (\d+) -->/;
 const KNOWN_DAYS = 14;
 const SPORTS = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
-if (!KEY) { console.log("No SUPABASE_SECRET_KEY secret: nothing to read."); process.exit(0); }
+const warn = (m) => console.log(process.env.GITHUB_ACTIONS ? `::warning::${m}` : m);
+if (!KEY) { warn("No SUPABASE_SECRET_KEY secret: nothing to read."); process.exit(0); }
+
 
 const headers = { apikey: KEY, ...(KEY.startsWith("sb_") ? {} : { Authorization: `Bearer ${KEY}` }) };
 async function rows(path) {
@@ -41,23 +41,6 @@ async function rows(path) {
     if (page.length < 1000) return all;
   }
 }
-async function github(path, method = "GET", body) {
-  const r = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
-    method, body: body && JSON.stringify(body),
-    headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/vnd.github+json", "User-Agent": "trail-finder-app-alert" },
-  });
-  if (!r.ok) throw new Error(`GitHub ${method} ${path}: ${r.status} ${await r.text()}`);
-  return r.json();
-}
-// The alert issue: the bot's issue that carries MARK, looked for page by page (other workflows open issues too).
-async function findIssue() {
-  for (let page = 1; page <= 20; page++) {
-    const list = await github(`/issues?state=all&creator=${encodeURIComponent("github-actions[bot]")}&per_page=100&page=${page}`);
-    const hit = list.find((i) => !i.pull_request && (i.body || "").includes(MARK));
-    if (hit || list.length < 100) return hit || null;
-  }
-  return null;
-}
 const ago = (h) => new Date(Date.now() - h * 3600e3).toISOString();
 const inList = (xs) => `(${xs.map((x) => `"${String(x).replace(/["\\]/g, "")}"`).join(",")})`;
 // The same rules as app-errors.mjs: cancelled downloads aren't faults; an error is the same after a change moves its
@@ -67,11 +50,11 @@ const key = (w) => String(w || "error").replace(/\?v=\d+/g, "").replace(/:\d+(:\
 const cell = (s) => String(s).replace(/https?:\/\/[^\s?#]+[?#]\S*/g, (u) => u.replace(/[?#].*/, "")).replace(/[|`<>@#]/g, " ").replace(/[\r\n]+/g, " ").trim();
 
 // ---------- where the last check stopped ----------
-let issue = null, lastId = null;
+let lastId = null;
 if (!DRY) {
-  issue = await findIssue();
-  const m = issue && LAST.exec(issue.body || "");
-  if (m) lastId = +m[1];
+  const state = await fetch(`${SUPABASE_URL}/rest/v1/tf_alert_state?select=last_id&id=eq.1`, { headers });
+  if (!state.ok) { warn(`tf_alert_state isn't readable (HTTP ${state.status}): paste supabase/alert-phones.sql into the Supabase SQL Editor and run it.`); process.exit(0); }
+  lastId = ((await state.json())[0] || {}).last_id ?? null;
 }
 const newest = (await rows("tf_use_events?select=id&order=id.desc&limit=1"))[0];
 const top = newest ? newest.id : 0;
@@ -145,20 +128,22 @@ console.log(`Checked ${fresh.length} crash and error events${lastId != null ? ` 
   `${fresh.length - people.length} from test devices or cancelled downloads.`);
 console.log(md || "Nothing new to alert.");
 if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Crash and error alert\n\n${md || "Nothing new to alert."}\n`);
-if (DRY) { console.log("Dry run: no issue comment."); process.exit(0); }
+if (DRY) { console.log("Dry run: no notification, nothing saved."); process.exit(0); }
 
-// ---------- alert, then move the mark ----------
-const body = (id) => `${MARK}\n<!-- last-id: ${id} -->\nEvery 15 minutes \`.github/workflows/app-alert.yml\` checks the crashes and errors the app sent ` +
-  `(the Problems tab on usage.html, test devices left out). Each crash restart and each kind of error not seen in the ${KNOWN_DAYS} days before ` +
-  `gets a comment here that mentions @${OWNER}. The daily "App errors" issue still has the full list each morning.`;
-if (!issue) issue = await github("/issues", "POST", { title: TITLE, body: body(lastId ?? top), assignees: [OWNER] });
-if (md) {
-  // The comment goes first: if moving the mark then fails, the next check alerts again rather than never.
-  await github(`/issues/${issue.number}/comments`, "POST", {
-    body: `@${OWNER} ${[crashLines.length && `${crashLines.length} crash${crashLines.length > 1 ? "es" : ""}`, newErrLines.length && `${newErrLines.length} new error${newErrLines.length > 1 ? "s" : ""}`].filter(Boolean).join(" and ")} in the app.\n\n${md}\n\n` +
-      `More on the Problems tab of https://trailfinderapp.ca/usage.html`,
-  });
-  console.log(`Alerted on issue #${issue.number}.`);
+// ---------- notify, then move the mark ----------
+async function db(path, opts = {}) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...opts, headers: { ...headers, "Content-Type": "application/json", ...(opts.headers || {}) } });
+  if (!r.ok) throw new Error(`Supabase ${path.split("?")[0]}: HTTP ${r.status} ${(await r.text()).slice(0, 300)}`);
+  return r.status === 204 || r.status === 201 ? null : r.json().catch(() => null);
 }
-// Reopened only with a new alert, so a closed issue stays closed on quiet checks.
-if (top !== lastId || (md && issue.state !== "open")) await github(`/issues/${issue.number}`, "PATCH", { body: body(top), ...(md ? { state: "open" } : {}) });
+if (md) {
+  const what = [restarts.length && `${restarts.length} crash${restarts.length > 1 ? "es" : ""}`, newErrLines.length && `${newErrLines.length} new error${newErrLines.length > 1 ? "s" : ""}`].filter(Boolean).join(" and ");
+  // The first line of each kind, short: the full list is on the usage page.
+  const first = [crashLines[0], newErrLines[0]].filter(Boolean).map((l) => l.replace(/^- [^:]+ UTC: /, "").replace(/`/g, "")).join("\n");
+  const r = await adminPush({ title: `Trail Finder: ${what}`, body: `${first}\nMore on the usage page, Problems tab.`, tag: `tf-alert-${top}`, url: "https://trailfinderapp.ca/usage.html" });
+  // Nothing got through because of a passing problem (network, Apple or Google busy): keep the mark, so the next check
+  // tries again (the 30-line cap keeps it short). A phone that can't get them at all doesn't hold the mark back.
+  if (!r.sent && r.retry) process.exit(0);
+}
+if (top !== lastId)
+  await db("tf_alert_state?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id: 1, last_id: top }) });

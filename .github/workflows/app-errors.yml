@@ -1,8 +1,8 @@
 name: Daily app errors
 
 # Each morning: the errors (and crash restarts, with what the phone did just before) the iPhone app sent the day before (usage report, supabase/usage.sql), counted once each,
-# with the sport and what the tester tapped just before, written on the GitHub issue "App errors". New errors mention
-# alex (GitHub emails them). See scripts/app-errors.mjs. On a pull request that changes it: summary only, no comment.
+# with the sport and what the tester tapped just before, written on the GitHub issue "App errors" (no mention, so no
+# email: alex 2026-11-27; new crashes and errors reach alex's phone through app-alert.yml). See scripts/app-errors.mjs. On a pull request that changes it: summary only, no comment.
 # Needs the repository secret SUPABASE_SECRET_KEY (the same one the loam alerts use).
 on:
   schedule:
@@ -28,7 +28,6 @@ jobs:
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
-          OWNER: allduf
           DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
           # A pull request looks back 14 days of errors and crashes, to see what they have in common.
           HOURS: ${{ github.event_name == 'pull_request' && '336' || '' }}
