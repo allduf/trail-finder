@@ -15,6 +15,8 @@
   // empty, nothing shows: no More › Tutorials, no button in How it works, no Watch how in a feature.
   // cabin-trip: alex 2026-11-11 ("you can add that in the tutorial video for skiing mode").
   const LIST = [
+    // avalanche-map: alex 2026-11-27 ("perfect add it to the app"). Filmed in the iPhone app with an example forecast.
+    { id: "avalanche-map", sport: "ski", title: "The avalanche map", sub: "Avalanche Canada's ratings on the slopes, stripes for today's problems, why a slope is striped, and hiding the card (an example forecast)", src: "videos/avalanche-map.mp4", poster: "videos/avalanche-map.jpg", secs: 83 },
     // snow-rain, avalanche-terrain: alex 2026-11-14 ("add those two video in the tutorial section").
     { id: "snow-rain", sport: "ski", title: "Snow and rain layers", sub: "See where snow and rain fell in the last 24 hours, and where they're forecast in the next 24 hours, 2 days or 3 days", src: "videos/snow-rain.mp4", poster: "videos/snow-rain.jpg", secs: 42 },
     { id: "avalanche-terrain", sport: "ski", title: "Avalanche and terrain layers", sub: "Avalanche Canada's rating on the slopes, then slope angle, slope direction, flats and elevation bands (an example forecast)", src: "videos/avalanche-terrain.mp4", poster: "videos/avalanche-terrain.jpg", secs: 51 },
