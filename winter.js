@@ -4402,7 +4402,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   const AC_PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
   const acAreaName = (v) => { const s = acText(v); return /^[0-9a-f]{24,}$/i.test(s) ? "" : s; };
   const acEarly = (p) => { const r = p.report || p; return (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(acText(r.title)); };
-  const acTitle = (p) => { const t = acText(p.report?.title) || acAreaName(p.area?.name), o = acVal(p.owner?.value || p.owner);
+  const acTitle = (p) => { const t = acText((p.report || p).title) || acAreaName(p.area?.name), o = acVal(p.owner?.value || p.owner);
     return !t || t.split("-").length <= 8 ? t : AC_PARKS[o] || (acEarly(p) && (o === "avalanche-canada" || !p.owner) ? "Avalanche Canada early season bulletin" : t); };
   const acName = (p) => acAreaName(p.area?.name) || acTitle(p);
   async function avyRegroup(list) {
@@ -5906,20 +5906,21 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       const h = (ski?.huts || []).find((x) => Math.abs(x.lat - lat) < 1e-5 && Math.abs(x.lon - lon) < 1e-5);
       if (h) select(h, true); else map.setView([lat, lon], 14);
     },
-    // The Today card (today.js): Avalanche Canada's ratings for today at a point, each band exactly as given, or
-    // { none } with the reason. Never the simulated example, never an old bulletin, never a day other than today.
     // notify.js (the bell's avalanche alerts): the forecast areas as this page has them, live bulletins and Avalanche
-    // Canada's current outlines included (a regroup shows at once, not after the saved file's next rebuild); read
-    // live again when over 10 minutes old. null with the example on (never alerts from it) or no forecast at all.
+    // Canada's current outlines included (a regroup shows at once, not after the saved file's next rebuild), read live
+    // again when over 10 minutes old. null (the bell reads the saved file) with the example on, before Skiing has
+    // loaded the forecast in another sport (nothing loaded or redrawn for it there), or when the live read failed.
     avyAreas: async () => {
       if (example) return null;
-      if (!avy) { try { await loadAvy(); } catch {} }
+      if (!avy) { if (sport !== "ski") return null; try { await loadAvy(); } catch {} }
       else if (Date.now() - avyAt > 10 * 60000) {
         if (!avyLoading && !avyBg) avyBg = avyLive(true).catch(() => {}).finally(() => { avyBg = null; });
         await (avyLoading || avyBg);
       }
-      return avy && !example ? avy.areas : null;
+      return avy && !example && avy.liveAt && Date.now() - avy.liveAt < 15 * 60000 ? avy.areas : null;
     },
+    // The Today card (today.js): Avalanche Canada's ratings for today at a point, each band exactly as given, or
+    // { none } with the reason. Never the simulated example, never an old bulletin, never a day other than today.
     avyToday: async (lat, lon) => {
       if (example) return { none: "example" };
       if (!avy) { try { await loadAvy(); } catch {} }

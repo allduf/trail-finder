@@ -34,6 +34,7 @@ jobs:
       - name: Fresh avalanche forecasts (live from Avalanche Canada, current area outlines; a failure keeps the saved file)
         env:
           ONLY: avy
+          STRICT: "1"   # a failed read fails this step, so the warning below shows (the push still goes, from the saved file)
         run: node scripts/build-winter.mjs || echo "::warning::Avalanche read failed; using the saved file"
       - name: Send loam alerts
         env:
