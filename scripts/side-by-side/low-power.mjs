@@ -48,15 +48,16 @@ export function readPng(file) {
 // varies. Black = dark and even (a map, even a dark forest on Satellite, varies; the sky or a blank page is bright).
 export function middle(file) {
   const { w, h, bpp, px } = readPng(file);
-  let n = 0, s = 0, s2 = 0;
+  let n = 0, s = 0, s2 = 0, dark = 0;
   for (let y = Math.floor(h * 0.3); y < h * 0.7; y += 4) {
     for (let x = Math.floor(w * 0.15); x < w * 0.85; x += 4) {
       const i = (y * w + x) * bpp, l = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-      n++; s += l; s2 += l * l;
+      n++; s += l; s2 += l * l; if (l < 25) dark++;
     }
   }
   const mean = s / n, sd = Math.sqrt(Math.max(0, s2 / n - mean * mean));
-  return { mean: Math.round(mean), sd: Math.round(sd), black: mean < 35 && sd < 12 };
+  // Black: most of the middle is near black (a few of the page's or the map's own buttons may sit over it).
+  return { mean: Math.round(mean), sd: Math.round(sd), dark: Math.round((dark / n) * 100), black: dark / n >= 0.8 };
 }
 
 // ---------- the walk ----------
@@ -140,10 +141,10 @@ export async function lowPowerWalk(h) {
           if (sa.web3d) problems.push("the web 3D map opened");
           if (run.noDraw) {
             // (The fallback may already be done on the one map opened with the sport: then the page's own map shows, fine.)
-            if (sawNative && !sawBlack && !a.error) problems.push(`the test's stand-in didn't black out the map (middle brightness ${a.mean}, spread ${a.sd})`);
+            if (sawNative && !sawBlack && !a.error) problems.push(`the test's stand-in didn't black out the map (${a.dark}% of the middle near black)`);
           } else {
             if (!sa.native) problems.push("native 3D didn't open");
-            if (!a.error && a.black) problems.push(`the map is black (middle brightness ${a.mean}, spread ${a.sd})`);
+            if (!a.error && a.black) problems.push(`the map is black (${a.dark}% of the middle near black)`);
           }
           // The fallback comes 8 s after the native map opened, or later if the app wasn't in front then: up to 30 s after
           // the tap, and at least 15 s (a map that draws must still be up then).
@@ -158,7 +159,7 @@ export async function lowPowerWalk(h) {
           if (crash) problems.push(crash);
           if (b.error) problems.push(`screenshot not read: ${b.error}`);
           if (sb.web3d) problems.push("the web 3D map opened");
-          if (!b.error && b.black) problems.push(`the screen is black after 3D (middle brightness ${b.mean}, spread ${b.sd})`);
+          if (!b.error && b.black) problems.push(`the screen is black after 3D (${b.dark}% of the middle near black)`);
           const notes = (sb.toasts || []).join(" | ");
           if (run.noDraw) {
             if (sb.native) problems.push("the native map that draws nothing is still up 30 s later (no fallback to the flat map)");

@@ -540,7 +540,7 @@ async function appBuild(kind, desk = false) {
           if (st.screen || st.under) { out.push(`${s}: the native map that drew nothing stayed up`); continue; }
           if (!st.mapShown) out.push(`${s}: the page's own flat map isn't shown`);
           if (!NOTE.test(st.note)) out.push(`${s}: no note naming ${kind === "android" ? "Battery Saver" : "Low Power Mode"} (note: "${st.note || "none"}")`);
-          if (kind !== "android" && (await web3d())) out.push(`${s}: the web 3D map opened`);
+          if (await web3d()) out.push(`${s}: the web 3D map opened`);
           const n1 = await opens();
           await wait(2500);
           if (await opens() !== n1) out.push(`${s}: native 3D opened again by itself`);
