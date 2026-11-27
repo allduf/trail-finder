@@ -1,1 +1,1 @@
-Phone app 3D map: the flat map hidden behind it no longer keeps redrawing its trail lines while 3D is open. ||| Carte 3D de l'app mobile : la carte plate cachée derrière ne redessine plus ses sentiers pendant que la 3D est ouverte.
+Phone app 3D map: the 2D map hidden behind it no longer keeps redrawing its trail lines while 3D is open. ||| Carte 3D de l'app mobile : la carte 2D cachée derrière ne redessine plus ses sentiers pendant que la 3D est ouverte.
