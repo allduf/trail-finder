@@ -623,6 +623,9 @@
       if (open && flatOpening) { tipOnOpen = true; return true; }
       if (open && under && canFlat()) { if (!tipped) tip(true); return true; }
       if (auto && !open && oneMap()) { tipOnOpen = true; return true; }
+      // The phone's own map drew nothing this visit ("notDrawn" below): the 3D a sport opens on by itself stays on the
+      // flat map (a tap on 3D tries native 3D again), never the web 3D map (Android's Skiing opened it, Low power 3D test).
+      if (auto && notDrawn) return true;
       if (!ios) return false;
       if (!nativeKeys) { if (typeof retry === "function") keysWait.push(retry); return true; }
       if (!fullNative() || webOnly()) return false;
@@ -717,7 +720,7 @@
   // native map's own gesture), and the button follows. Picking another style or sport, the page's own flat map comes
   // back as before (in 3D, other styles stay on native 3D, as today). alex only first (as the page over native 3D was).
   // If the native map can't open under the page, the page's own flat map stays.
-  let flatFails = 0, syncT = 0, cardUp = false;
+  let flatFails = 0, syncT = 0, cardUp = false, notDrawn = false;
   function canFlat() { return !!nativeKeys && nativeKeys.has("under") && nativeKeys.has("flat"); }
   // Also Hiking, Fishing and Hunting on their summer photos (alex 2026-11-22: "it should be by default a satelite map like
   // skiing using the 3d map for the 2d too", Summer, "but not mtb, leave mtb like it is now").
@@ -761,7 +764,7 @@
   // lowPower: the phone's Low Power Mode (iPhone) or Battery Saver (Android) was on, the cause on alex's iPhone 2026-11-27.
   TrailMap.addListener("notDrawn", (e) => {
     if (!open) return;
-    flatFails = 2;
+    flatFails = 2; notDrawn = true;
     const low = !!(e && e.lowPower);
     if (isAdmin() && window.tfUse) window.tfUse("view", `Native map drew nothing${low ? " · power saving on" : ""}`, 0);
     TrailMap.close().catch(() => {});

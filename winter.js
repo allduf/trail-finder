@@ -255,7 +255,15 @@ window.tfDragSort = (root, o) => {
   body.sport-hunt .map-tools #compassBtn svg { width: 20px; height: 20px; }
   body.sport-hunt .map-tools #spAdd { width: 44px; min-width: 44px; padding: 0; justify-content: center; }
   body.sport-hunt .map-tools #spAdd::before { content: "📍"; font-size: 1.15rem; }
-  .sport-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 12px; right: auto; width: min(260px, calc(100vw - 24px)); }
+  .sport-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 12px; right: auto; width: min(260px, calc(100vw - 24px));
+    /* Small phones (iPhone SE, zoomed display): the list scrolls above the bottom sheet instead of going under it. */
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - 72px - var(--sheet-vis, 0px));
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 72px - var(--sheet-vis, 0px));   /* Safari's bar showing */
+    overflow-y: auto; overscroll-behavior: contain; }
+}
+@media (max-width: 760px) and (max-height: 700px) {
+  .sport-menu { gap: 4px; padding: 6px; }
+  .map-tools .sport-menu button { min-height: 40px; padding: 6px 12px; }
 }
 body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBtn, body.sport-alt .box-row-btns, body.sport-alt .tap-hint, body.sport-alt #boxRes,
 body.sport-alt #status, body.sport-alt #debug, body.sport-alt #list, body.sport-alt #detail, body.sport-alt #allBtn,
@@ -1850,9 +1858,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!list.length) return `${head}<p class="sk-note">None near here (few people post, so that doesn't mean no avalanches).</p>`;
     return `${head}<p>${seen ? `<b>${seen} report${seen === 1 ? "" : "s"} of avalanches</b>` : "No avalanches in these reports"}, ${list.length} report${list.length === 1 ? "" : "s"} in all.</p>
       <ul class="sk-min">${list.slice(0, 8).map(({ m, km }) => {
-        const a = m.av || {}, what = [a.what, a.signs && a.signs.length && (a.what ? "also " : "") + a.signs.join(", ")].filter(Boolean).join("; ");
-        const extra = [a.trigger && "trigger: " + a.trigger, a.aspect && "aspect " + a.aspect].filter(Boolean).join(", ");
-        return `<li class="${a.seen ? "av" : ""}"><b>${esc(when(m.date) || "")}</b>, ${km.toFixed(0)} km away${m.title ? `: ${esc(m.title)}` : ""}${what ? `<br>${esc(what)}${extra ? ` (${esc(extra)})` : ""}` : ""}${m.text ? `<br><span class="sk-note">${esc(m.text.slice(0, 220))}${m.text.length > 220 ? "…" : ""}</span>` : ""}
+        // Each word in its own span, so the French page can put each one in its own words. The avalanche's trigger,
+        // aspect and band right after it, then the signs the rider ticked (Avalanche Canada's own words).
+        const a = m.av || {}, sp = (t) => `<span>${esc(t)}</span>`, list2 = (s) => String(s).split(", ").map(sp).join(", ");
+        const extra = [a.trigger && `${sp("trigger")}: ${list2(a.trigger)}`, a.aspect && `${sp("aspect")} ${esc(a.aspect)}`, a.band && list2(a.band)].filter(Boolean).join(", ");
+        const what = [a.what && `${sp(a.what)}${extra ? ` (${extra})` : ""}`, a.signs && a.signs.length && `${a.what ? `${sp("also")} ` : ""}${a.signs.map(sp).join(", ")}`].filter(Boolean).join("; ");
+        return `<li class="${a.seen ? "av" : ""}"><b>${esc(when(m.date) || "")}</b>, ${km.toFixed(0)} km away${m.title ? `: ${esc(m.title)}` : ""}${what ? `<br>${what}` : ""}${m.text ? `<br><span class="sk-note">${esc(m.text.slice(0, 220))}${m.text.length > 220 ? "…" : ""}</span>` : ""}
           ${m.id ? `<br><a href="https://avalanche.ca/mountain-information-network/submissions/${encodeURIComponent(m.id)}" target="_blank" rel="noopener">Full report</a>` : ""}</li>`;
       }).join("")}</ul>${list.length > 8 ? `<p class="sk-note">…and ${list.length - 8} more on <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a>.</p>` : ""}`;
   }
@@ -6004,8 +6015,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         return { none: early ? "early" : "forecast", area: a.name };
       }
       const band = (b) => ({ r: d[b] || 0, label: bandLabel(d, b), color: DANGER[d[b] || 0].color });
+      // until: when the bulletin runs out, so the card can take the ratings off then (today.js, also with no signal).
       return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(f),
-        bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
+        until: f.validUntil ? Date.parse(f.validUntil) || null : null, bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
     },
     // slackcountry.js: today's danger at a line's top, for its go/caution light (null until the forecast is loaded, and
     // when the bulletin there has no day for today: in the evening it's already on tomorrow).
@@ -6137,20 +6149,39 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     moto: ["crownland", "hunting", "trip-core", "moto", "moto-trip", "moto-day"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
     mtb: ["trip-core", "bike-trip"],   // MTB's own scripts are in index.html; its Bike trips (bike-trip.js) come with it
   };
-  const jsLoads = {};
+  const jsLoads = {}, preloads = {}, jsFails = {};
+  // A script's address; after a failed download, a new one each try: Safari keeps the failure of an address and gives
+  // it again at once, even with the signal back (2026-11-27 tough conditions test, the iPhone's engine).
+  const jsSrc = (n) => `${n}.js${jsVer}${jsFails[n] ? `${jsVer ? "&" : "?"}r=${jsFails[n]}` : ""}`;
   const pageReady = new Promise((ok) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok, { once: true }) : ok()));
   function loadJs(n) {
     if (jsLoads[n]) return jsLoads[n];
-    const src = `${n}.js${jsVer}`;
-    const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "script"; pre.href = src;   // downloads now, runs below
-    document.head.append(pre);
+    preload(n);
+    const src = jsSrc(n);
     return (jsLoads[n] = pageReady.then(() => new Promise((ok, no) => {
-      const el = document.createElement("script"); el.src = src; el.async = false;   // in the order asked
-      el.onload = ok; el.onerror = () => { delete jsLoads[n]; no(new Error(src)); };
+      // Each script on its own (not the browser's one ordered line): a download that never answers on a weak signal
+      // held up every sport picked after it until the app was opened again (2026-11-27 tough conditions test).
+      // loadSport keeps each sport's order.
+      const el = document.createElement("script"); el.src = src; el.async = true;
+      el.onload = ok; el.onerror = () => { delete jsLoads[n]; preloads[n] && preloads[n].remove(); delete preloads[n]; jsFails[n] = (jsFails[n] || 0) + 1; no(new Error(src)); };
       document.body.append(el);
     })));
   }
-  const loadSport = (s) => Promise.all(SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n)).map(loadJs));
+  // Starts a script's download now (it runs when loadJs adds it); a failed one is started afresh on the next try.
+  function preload(n) {
+    if (jsLoads[n] || preloads[n]) return;
+    const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "script"; pre.href = jsSrc(n);
+    document.head.append(pre);
+    preloads[n] = pre;
+  }
+  // A sport's scripts run one after the other, in SPORT_JS order, and all start downloading at once (preload). One that
+  // fails stops the ones after it, which need it; loadSportAgain tries again from there. A download that never ends
+  // holds up only the sports that need that script: once the offline helper (sw.js) has them, they come from the phone.
+  const loadSport = (s) => {
+    const list = SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n));
+    list.forEach(preload);
+    return list.reduce((p, n) => p.then(() => loadJs(n)), Promise.resolve());
+  };
   window.tfLoadSport = loadSport;
   // A cabin trip (or a hike trip) starting tomorrow or under way: that sport's files load a few seconds after the app
   // opens, whatever the sport, so the trip's forecast and offline copy update by themselves (trip-core.js refreshAhead, alex 2026-11-11).
@@ -6170,9 +6201,26 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     } catch (_) {}
   }, 6000);
   window.tfLoadMoto = () => loadSport("moto");
+  // A sport's scripts that didn't come (the signal dropped just as the sport was picked, 2026-11-27 tough conditions
+  // test: the sport's panel stayed without its Today card and tools) are asked for again while that sport is still on:
+  // as soon as the signal is back, else after 5, 10, 20... s (at most 6 times). Each script draws itself when it arrives.
+  // The Today card is put in once the scripts are there (today.js gives up waiting for the sport's panel after 15 s).
+  const again = {};   // sport: a retry waiting (one per sport, however often it is picked)
+  function loadSportAgain(s, n = 0) {
+    if (n >= 6 || sport !== s || (!n && again[s])) { if (n >= 6 || sport !== s) delete again[s]; return; }
+    let done = false;
+    const go = () => {
+      if (done) return; done = true; window.removeEventListener("online", go);
+      if (sport !== s) { delete again[s]; return; }
+      loadSport(s).then(() => { delete again[s]; if (sport === s && window.tfTodaySport && window.tfTodaySport.mount) window.tfTodaySport.mount(); }, () => loadSportAgain(s, n + 1));
+    };
+    again[s] = true;
+    window.addEventListener("online", go);
+    setTimeout(go, 5000 * 2 ** n);
+  }
   function setSport(s) {
     sport = SPORTS.includes(s) ? s : "mtb";
-    loadSport(sport).catch(() => {});
+    loadSport(sport).catch(() => loadSportAgain(sport));
     store.set("sport", sport);
     sel.value = sport;
     for (const s of SPORTS) document.body.classList.toggle(`sport-${s}`, sport === s);

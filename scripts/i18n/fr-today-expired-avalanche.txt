@@ -1,0 +1,3 @@
+Skiing: the Today card takes an avalanche rating off as soon as its bulletin runs out, also when the app comes back after hours with no signal. ||| Ski : la carte Aujourd'hui retire un niveau de danger d'avalanche dès que son bulletin expire, même quand l'app revient après des heures sans réseau.
+Website on a phone turned sideways: every map button stays on the screen. ||| Site Web sur un téléphone tourné à l'horizontale : tous les boutons de la carte restent à l'écran.
+Dark mode: the words on selected buttons (Touring, Snowmobile and the other sports' tools) are dark on the light green, so they can be read. ||| Mode sombre : le texte des boutons sélectionnés (Randonnée, Motoneige et les outils des autres sports) est foncé sur le vert pâle, pour qu'il se lise.
