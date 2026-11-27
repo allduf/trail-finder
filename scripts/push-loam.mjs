@@ -203,6 +203,8 @@ const kmApart = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos(a[0] * Ma
 const avyData = readJson("data/avalanche.json");
 const DANGER = ["No rating", "Low", "Moderate", "Considerable", "High", "Extreme"];
 const BAND = { alp: "alpine", tln: "treeline", btl: "below treeline" };
+// After a rating, as the bell says it (notify.js): "Considerable in the alpine", "in the alpine and treeline", "below treeline".
+const inBands = (ks) => (ks.length === 3 ? "in all bands" : ks.length === 1 && ks[0] === "btl" ? "below treeline" : `in the ${ks.map((k) => BAND[k]).join(" and ")}`);
 const avyToday = new Date().toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
 const avyLive = (f) => f && f.days && !(f.validUntil && new Date(f.validUntil) < new Date());
 const avySoon = (f) => f.days.filter((x) => x.date >= avyToday).slice(0, 2);
@@ -303,17 +305,26 @@ for (const s of subs) {
       if (!best || best.r < 3 || !zb.some((z) => z[0] <= b[2] && z[2] >= b[0] && z[1] <= b[3] && z[3] >= b[1])) continue;
       const key = "v:" + a.id;
       now[key] = best.r;
-      if (best.r > (was[key] || 0)) { const nm = a.forecast.title || a.name; names.push(nm); lines.push(`${nm}: ${DANGER[best.r]} ${avyDay(best.x)}`); keys.push(key); }
+      // The bands with that rating, named, as the bell does (notify.js): each band is rated on its own.
+      const at = Object.keys(BAND).filter((k) => best.x[k] === best.r), where = at.length ? ` ${inBands(at)}` : "";
+      if (best.r > (was[key] || 0)) { const nm = a.forecast.title || a.name; names.push(nm); lines.push(`${nm}: ${DANGER[best.r]}${where} ${avyDay(best.x)}`); keys.push(key); }
     }
     for (const t of (w.tours || []).filter((t) => t && t.k && Array.isArray(t.c))) {
       const a = TT.areaAt(avyAreas.map((x) => x.a), t.c[0], t.c[1]);
       if (!a) continue;
       let best = null;
+      // A band of the tour with no rating that day (Early season, No rating) can't lower its light: the rated bands'
+      // light still rings, shown as their rating with the band that has none named, as the bell (notify.js).
       for (const x of avySoon(a.forecast)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
       if (!best || best.l < 1) continue;
-      const key = "t:" + t.k;
+      const key = "t:" + t.k, dg = best.dg, gaps = dg.gaps || [];
       now[key] = best.l;
-      if (best.l > (was[key] || 0)) { names.unshift(t.n); lines.unshift(`${t.n}: ${TT.LIGHTS[best.l].label} ${avyDay(best.x)} (${DANGER[best.dg.r]} in the ${BAND[best.dg.band]})`); keys.push(key); }
+      if (best.l > (was[key] || 0)) {
+        names.unshift(t.n);
+        lines.unshift(gaps.length ? `${t.n}: ${DANGER[dg.r]} ${inBands([dg.band])} ${avyDay(best.x)} (${gaps.map((b) => `${BAND[b]}: ${TT.noWord(best.x, b)}`).join(", ")})`
+          : `${t.n}: ${TT.LIGHTS[best.l].label} ${avyDay(best.x)} (${DANGER[dg.r]} ${inBands([dg.band])})`);
+        keys.push(key);
+      }
     }
     if (lines.length) msgs.unshift({ title: `⚠ Avalanche danger up: ${list(names, 2)}`, body: lines.slice(0, 5).join("\n") + (lines.length > 5 ? `\nand ${lines.length - 5} more` : "") + "\nRead the full forecast before you go.", keys });
   } else if (w.avy) Object.keys(was).forEach((k) => { if (/^[vt]:/.test(k)) now[k] = was[k]; });   // no forecasts read: leave them as they were

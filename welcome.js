@@ -37,7 +37,7 @@
       here: "The map opens where you are and lists the trails around you, starting with the ones you probably haven't ridden yet.",
       lines: [
         ["New", "new", "Trails added to the map in the last 6 months: the ones you likely don't know yet. Pick how new in Find."],
-        ["Loam", "loam", "An estimate of how damp the dirt is, from Open-Meteo soil moisture. <b>Prime loam</b> (teal dots) is likely the best riding, <b>Tacky</b> is good, dry or wet less so."],
+        ["Loam", "loam", "An estimate of how damp the dirt is, from Open-Meteo soil moisture. <b>Prime loam</b> (teal dots) is likely the best riding, <b>Tacky</b> is good, low moisture or wet less so."],
         ["Tap", "tap", "Tap any trail for its level, weather and loam. Colours: green, blue, black, red."],
       ],
       go: "Find new trails",

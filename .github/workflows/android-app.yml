@@ -72,6 +72,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # Keeps Gradle's downloads between runs, so parallel runs don't hit Maven Central's download limit (429).
+          cache: gradle
+          cache-dependency-path: |
+            android-app/android/**/*.gradle*
+            android-app/android/gradle/wrapper/gradle-wrapper.properties
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -159,6 +164,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # Keeps Gradle's downloads between runs, so parallel runs don't hit Maven Central's download limit (429).
+          cache: gradle
+          cache-dependency-path: |
+            android-app/android/**/*.gradle*
+            android-app/android/gradle/wrapper/gradle-wrapper.properties
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -212,6 +222,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # Keeps Gradle's downloads between runs, so parallel runs don't hit Maven Central's download limit (429).
+          cache: gradle
+          cache-dependency-path: |
+            android-app/android/**/*.gradle*
+            android-app/android/gradle/wrapper/gradle-wrapper.properties
       - uses: actions/setup-node@v4
         with:
           node-version: 22
