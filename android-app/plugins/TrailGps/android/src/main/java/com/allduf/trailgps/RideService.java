@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat;
 // iPhone's lock screen. Tapping it opens the app.
 public class RideService extends Service {
     private static final String CHANNEL = "ride";
+    private static final String CHANNEL_NAME = "Trip recording and live location";
     private static final int ID = 4711;
     private static boolean on = false;
 
@@ -46,8 +47,10 @@ public class RideService extends Service {
     private static Notification build(Context ctx) {
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-            if (nm != null && nm.getNotificationChannel(CHANNEL) == null) {
-                NotificationChannel ch = new NotificationChannel(CHANNEL, "Trip recording and live location", NotificationManager.IMPORTANCE_LOW);
+            // Made again when its name changed, so phones that had the old "Ride recording" name get the new one.
+            NotificationChannel had = nm == null ? null : nm.getNotificationChannel(CHANNEL);
+            if (nm != null && (had == null || !CHANNEL_NAME.contentEquals(had.getName()))) {
+                NotificationChannel ch = new NotificationChannel(CHANNEL, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
                 ch.setDescription("Shows while Trail Finder records a trip or shares your location.");
                 ch.setShowBadge(false);
                 nm.createNotificationChannel(ch);

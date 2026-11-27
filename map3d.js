@@ -54,7 +54,7 @@
     if (!gl) return "";
     try {
       const vis = (id) => gl.getLayer(id) && gl.getLayoutProperty(id, "visibility") !== "none";
-      const photo = vis("winter") ? "Winter" : vis("live") ? "Live" : "Summer";
+      const photo = vis("winter") ? "Winter" : vis("live") ? "Latest" : "Summer";
       const extra = baseIds ? gl.getLayersOrder().filter((id) => !baseIds.has(id) && /raster|hillshade/.test(gl.getLayer(id).type) && vis(id)) : [];
       return [sportNow(), photo, extra.join("+"), `${Math.round((Date.now() - since3d) / 60000)} min`, resumes ? `back ${resumes}x` : ""].filter(Boolean).join(" · ");
     } catch { return ""; }

@@ -1098,7 +1098,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const P = PROV[pv];
     const can = el.querySelector("[data-can]");
     can.innerHTML = `<h4>Riding access</h4>
-      ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "ok" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn info">No park, reserve or closure mapped here.</div>`}
+      ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "info" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn info">No park, reserve or closure mapped here.</div>`}
       <details class="mt-fold"><summary>${esc(P ? P[0] : PROV_NAME[pv] || "Canada")}: riding rules</summary><p>${esc(P ? P[1] : PROV_OTHER)}</p><p class="mt-note">A summary in our own words: rules change, so check the province's current rules.</p>${P && P[2].length ? `<p>${P[2].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}</details>`;
     const land = await crownHtml(s.lat, s.lon, pv);
     if (my !== spotSeq) return;

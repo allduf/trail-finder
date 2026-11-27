@@ -4632,7 +4632,7 @@ out body;`;
       ${lmi == null ? "" : `<div class="lmi-scale" role="img" aria-label="Loam moisture index ${lmi} out of 100"><i style="left:${lmi}%"></i></div>
       <div class="lmi-ends">${["Low", "Tacky", "Damp", "Wet", "Saturated"].map((x, k) => `<span style="left:${10 + 20 * k}%">${x}</span>`).join("")}</div>
       ${lmiKey(frozen ? null : lvl)}
-      ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "dry" : "wet"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
+      ${tune.n ? `<p class="muted lmi-tune">Tuned by ${tune.n} rider report${tune.n > 1 ? "s" : ""} of dry, tacky or muddy dirt${tune.zone ? ` around ${esc(tune.zone)}` : ""}${tune.shift ? `: the soil model reads ${tune.shift > 0 ? "too low" : "too high"} here, so the number is moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"}` : ": they match the soil model, so no change"}.</p>`
         : tune.shift ? `<p class="muted lmi-tune">Moved ${Math.abs(tune.shift)} ${tune.shift > 0 ? "up" : "down"} from rider reports in this region.</p>` : ""}`}
       ${lmi != null && w.gemLmi != null && !isSnowy(snow) && !frozen ? (() => {
         const g = lmiLevel(w.gemLmi), same = g === lvl;
