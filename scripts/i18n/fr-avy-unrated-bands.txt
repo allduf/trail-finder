@@ -1,4 +1,4 @@
-Avalanche: a band Avalanche Canada doesn't rate now shows its own word (Early season, No rating, No forecast), the Today card shows the ratings of bulletins that rate only some bands, and a tour through an unrated band shows no trip planner light. ||| Avalanche : une bande qu'Avalanche Canada ne cote pas affiche maintenant son propre mot (Début de saison, Sans cote, Aucune prévision), la carte Aujourd'hui affiche les cotes des bulletins qui ne cotent que certaines bandes, et une sortie qui traverse une bande sans cote n'a pas de feu du planificateur.
+Avalanche: a band Avalanche Canada doesn't rate now shows its own word (Early season, No rating, No forecast), the Today card shows the ratings of bulletins that rate only some bands, and a tour through an unrated band shows no trip planner light, while its alerts show the rated bands' danger. ||| Avalanche : un étage qu'Avalanche Canada ne cote pas affiche maintenant son propre mot (Début de saison, Sans cote, Aucune prévision), la carte Aujourd'hui affiche les cotes des bulletins qui ne cotent que certains étages, et une sortie qui traverse un étage sans cote n'a pas de feu du planificateur, tandis que ses alertes montrent le danger des étages cotés.
 Early season ||| Début de saison
 No forecast ||| Aucune prévision
 Spring ||| Printemps
@@ -16,3 +16,15 @@ No danger rating in the treeline today ||| Aucune cote de danger à la limite de
 No danger rating below treeline today ||| Aucune cote de danger sous la limite des arbres aujourd'hui
 No danger rating today for part of this line, so no Avaluator light. ||| Aucune cote de danger aujourd'hui pour une partie de cette ligne, donc pas de feu de l'Avaluator.
 No danger rating today for this line, so no Avaluator light. ||| Aucune cote de danger aujourd'hui pour cette ligne, donc pas de feu de l'Avaluator.
+in the alpine on this route ||| en alpin sur ce trajet
+in the treeline on this route ||| à la limite des arbres sur ce trajet
+below treeline on this route ||| sous la limite des arbres sur ce trajet
+in the alpine ||| en alpin
+in the treeline ||| à la limite des arbres
+below treeline ||| sous la limite des arbres
+None of today's avalanche problems are in the alpine. ||| Aucun des problèmes d'avalanche du jour n'est en alpin.
+None of today's avalanche problems are in the treeline. ||| Aucun des problèmes d'avalanche du jour n'est à la limite des arbres.
+None of today's avalanche problems are below treeline. ||| Aucun des problèmes d'avalanche du jour n'est sous la limite des arbres.
+before you go. ||| avant de partir.
+Tour you watch ||| Sortie que vous suivez
+In your regions ||| Dans vos régions

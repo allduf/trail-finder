@@ -851,7 +851,7 @@ const val = (v) => (v == null ? "" : typeof v === "object" ? String(v.value ?? v
 // "considerable", "3", "3 - Considerable", {value: "considerable"}... -> 0 (no rating) to 5. Whole words only, so a word
 // that only holds one ("below") is never read as a level; a known no-level word ("earlyseason") is never a level.
 const LEVELS = { low: 1, moderate: 2, considerable: 3, high: 4, extreme: 5 };
-// Avalanche Canada's words for a band with no level, as the kinds the app shows in words (winter.js NO_LEVEL: Early
+// Avalanche Canada's words for a band with no level, as the kinds the app shows in words (ski-terrain.js noWord: Early
 // season, No forecast...); "norating" and any word not known: "No rating". Same as winter.js AC_NO.
 const NO_KIND = { norating: "", earlyseason: "early", noforecast: "nofc", spring: "spring", offseason: "off" };
 const word = (r) => val(r && typeof r === "object" && r.rating ? r.rating : r).toLowerCase().replace(/[^a-z]/g, "");
@@ -877,7 +877,10 @@ const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const s
 // other title stays whole, however many areas it lists: Avalanche Canada's regrouped BC areas can list 13 (2026-11-26),
 // and were read as the early season bulletin. Same as winter.js acName().
 const PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
-const isEarlyP = (p) => { const r = p?.report || p || {}; return (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(text(r.title)); };
+// The early season bulletin: no level on any day, and its ratings or title say early season (a bulletin that rates some
+// bands and says "Early season" for the others isn't it, Banff 2026-11-27). Same as winter.js acEarly().
+const isEarlyP = (p) => { const r = p?.report || p || {}, ds = r.dangerRatings || [];
+  return !ds.some((d) => ["alp", "tln", "btl"].some((b) => level((d.ratings || d)[b]))) && (ds.some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(text(r.title))); };
 const shortTitle = (t, p) => (t.split("-").length <= 8 ? t : PARKS[val(p?.owner?.value)]
   || (isEarlyP(p) && (val(p?.owner?.value) === "avalanche-canada" || !p?.owner) ? "Avalanche Canada early season bulletin" : t));
 // Each day's date: Avalanche Canada gives a time in UTC and the day's name. BC's and Parks Canada's bulletins are issued

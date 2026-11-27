@@ -313,6 +313,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   const DANGER = ["No rating", "Low", "Moderate", "Considerable", "High", "Extreme"];
   const DANGER_C = ["#9aa3ad", "#52ba4a", "#fff300", "#f79218", "#ef1c29", "#1a1a1a"];
   const BANDS = [["alp", "alpine"], ["tln", "treeline"], ["btl", "below treeline"]];
+  const bandN = (k) => (BANDS.find((b) => b[0] === k) || ["", ""])[1];
+  const inBand = (k) => (k === "btl" ? "below treeline" : `in the ${bandN(k)}`);   // after a rating: "Considerable in the alpine"
   const avyOn = () => store.get("avyAlert", false) === true;
   const skiWatch = () => store.get("skiWatch", []);
   let avyState = (() => { try { return JSON.parse(localStorage.getItem("tf:avyAlerts") || "{}") || {}; } catch { return {}; } })();
@@ -349,12 +351,16 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         const a = t.c && TT.areaAt(d.areas, t.c[0], t.c[1]), f = a && a.forecast, key = "t:" + t.k;
         if (!live(f)) continue;
         let best = null;
-        // No light on a day with a band of the tour unrated (Early season, No rating), as on the tour's card.
-        for (const x of soon(f)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = dg.gaps && dg.gaps.length ? -1 : TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
+        // A band of the tour with no rating that day (Early season, No rating) can't lower its light, so the rated bands'
+        // light still rings (alex 2026-11-27). The tour's card shows no light then: the alert shows the rating instead,
+        // and names the band with none.
+        for (const x of soon(f)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
         if (!best || best.l < 1) { if (avyState[key]) { avyState[key] = { lv: best ? best.l : 0, r: 1 }; seen.add(key); } continue; }
         mark(key, best.l);
-        const L = TT.LIGHTS[best.l];
-        now.push({ key, name: t.n, k: t.k, lv: best.l, color: L.color, label: `${L.label} ${dayWord(best.x)}`, why: `Tour you watch · ${DANGER[best.dg.r]} in the ${{ alp: "alpine", tln: "treeline", btl: "below treeline" }[best.dg.band]}`, c: t.c });
+        const L = TT.LIGHTS[best.l], dg = best.dg, gaps = dg.gaps || [];
+        const none = gaps.map((b) => `${bandN(b)}: ${TT.noWord ? TT.noWord(best.x, b) : "No rating"}`).join(", ");
+        now.push(gaps.length ? { key, name: t.n, k: t.k, lv: best.l, color: DANGER_C[dg.r], label: `${DANGER[dg.r]} ${inBand(dg.band)} ${dayWord(best.x)}`, why: `Tour you watch · ${none}`, c: t.c }
+          : { key, name: t.n, k: t.k, lv: best.l, color: L.color, label: `${L.label} ${dayWord(best.x)}`, why: `Tour you watch · ${DANGER[dg.r]} ${inBand(dg.band)}`, c: t.c });
       }
       Object.keys(avyState).forEach((k) => { if (!seen.has(k)) delete avyState[k]; });
       putAvy();

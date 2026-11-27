@@ -247,7 +247,11 @@
     }
     return { r, band, gaps };
   }
+  // Avalanche Canada's word for a band with no danger level that day: forecast days keep its kind in day.no
+  // ({ tln: "early" }, winter.js acForecast and scripts/build-winter.mjs), and any other is "No rating".
+  const NO_WORDS = { early: "Early season", nofc: "No forecast", spring: "Spring", off: "Off season" };
+  const noWord = (day, b) => { const w = day && day.no && NO_WORDS[day.no[b]]; return typeof w === "string" ? w : "No rating"; };
 
   root.tfTerrain = { dist, chain, sampleLine, heights, overhead, info, terrainClass, light, minSlope, CLASSES, LIGHTS, ASPECTS, SAMPLE_M, ABOVE_M, ABOVE_DEG, TRAP_M,
-    bandsFor, inRing, areaAt, dangerIn };
+    bandsFor, inRing, areaAt, dangerIn, noWord };
 })(typeof window !== "undefined" ? window : globalThis);
