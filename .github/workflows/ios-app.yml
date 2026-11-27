@@ -29,7 +29,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  slot:
+    # At most 2 heavy test runs at once (scripts/ci/heavy-slot.sh, alex 2026-11-27): the jobs below wait here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ci
+      - name: Wait for a free heavy test slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/heavy-slot.sh
+
   build-check:
+    needs: slot
     if: github.event_name == 'pull_request'
     # Intel Macs: the arm64 ones were out of capacity on 2026-10-27 (jobs never got a runner, cancelled after 15 min).
     runs-on: macos-15-intel
@@ -70,6 +87,7 @@ jobs:
           "$RUNNER_TEMP/near-names" "$bin"
 
   testflight:
+    needs: slot
     if: github.event_name != 'pull_request'
     # Intel Macs: the arm64 ones were out of capacity on 2026-10-27 (jobs never got a runner, cancelled after 15 min).
     runs-on: macos-15-intel

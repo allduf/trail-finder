@@ -32,12 +32,34 @@ on:
 permissions:
   contents: read
 
+env:
+  # Gradle tries a failed download again 6 times, waiting 2 s then longer each time (default 3 tries from 0.1 s), so a
+  # short Maven Central limit (429) or server error passes instead of failing the build.
+  GRADLE_RETRY: -Dorg.gradle.internal.repository.max.retries=6 -Dorg.gradle.internal.repository.initial.backoff=2000
+
 concurrency:
   group: android-app-${{ github.event_name == 'pull_request' && github.ref || inputs.deep && format('deep-{0}', github.ref) || 'release' }}
   cancel-in-progress: false
 
 jobs:
+  slot:
+    # At most 2 heavy test runs at once (scripts/ci/heavy-slot.sh, alex 2026-11-27): the jobs below wait here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ci
+      - name: Wait for a free heavy test slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/heavy-slot.sh
+
   phone-check:
+    needs: slot
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -81,7 +103,7 @@ jobs:
             c.server.url = "http://10.0.2.2:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("10.0.2.2");
             fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
           npx cap sync android
-          cd android && ./gradlew assembleDebug --no-daemon -q
+          cd android && ./gradlew assembleDebug --no-daemon -q $GRADLE_RETRY
       - name: Check native 3D names near the camera (near-names.gradle)
         # The test build's own libmaplibre.so: MapLibre's name and dot shaders carry the change and compile as OpenGL
         # ES 3.0 with Khronos' GLSL compiler (skipped with a notice if the package doesn't install). test/near-names.mjs
@@ -123,6 +145,7 @@ jobs:
   # layer, the native 3D map with a real finger tap, the phone's Back button, sideways, big text, dark mode. It never
   # fails: each sport's summary lists what it found, screenshots in the "android-deep-<sport>" artifact.
   deep-check:
+    needs: slot
     if: github.event_name == 'workflow_dispatch' && inputs.deep
     runs-on: ubuntu-latest
     timeout-minutes: 75
@@ -157,7 +180,7 @@ jobs:
             c.server.url = "http://10.0.2.2:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("10.0.2.2");
             fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
           npx cap sync android
-          cd android && ./gradlew assembleDebug --no-daemon -q
+          cd android && ./gradlew assembleDebug --no-daemon -q $GRADLE_RETRY
       - name: Serve this branch's website (with the live site's data files)
         run: nohup node test/serve.mjs > /tmp/web.log 2>&1 &
       - name: Turn on the simulator's speed-up (KVM)
@@ -184,6 +207,7 @@ jobs:
           if-no-files-found: ignore
 
   play-build:
+    needs: slot
     if: github.event_name != 'pull_request' && !inputs.deep
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -249,12 +273,12 @@ jobs:
       - name: Test .apk only (no upload key yet)
         if: steps.key.outputs.ok != 'true'
         run: |
-          cd android && ./gradlew assembleDebug --no-daemon -q
+          cd android && ./gradlew assembleDebug --no-daemon -q $GRADLE_RETRY
           mkdir -p ../out && cp app/build/outputs/apk/debug/app-debug.apk ../out/trail-finder-test.apk
       - name: Google Play build (.aab) and test .apk, signed
         if: steps.key.outputs.ok == 'true'
         run: |
-          cd android && ./gradlew bundleRelease assembleRelease --no-daemon -q
+          cd android && ./gradlew bundleRelease assembleRelease --no-daemon -q $GRADLE_RETRY
           mkdir -p ../out && cp app/build/outputs/apk/release/app-release.apk ../out/trail-finder-${{ github.run_number }}.apk
           echo "::notice::Google Play build ${{ github.run_number }} made (artifact android-play-build)."
       - uses: actions/upload-artifact@v4
