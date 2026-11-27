@@ -121,6 +121,9 @@ public class TrailMapPlugin extends Plugin {
             };
             s.onReady = show;
             s.postDelayed(show, 2500);
+            // Still not one frame drawn 8 s after opening: the page goes back to its own flat map with a note ("notDrawn",
+            // as the iPhone's), instead of its buttons over a black screen.
+            s.postDelayed(() -> { if (!s.isLeft() && s.framesDrawn == 0) s.send("notDrawn", new JSObject()); }, 8000);
         });
     }
 

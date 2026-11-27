@@ -124,6 +124,12 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             s.onReady = show
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: show)
+            // Still not one frame drawn 8 s after opening (slow tiles still draw the background and what's in): the page
+            // is told ("notDrawn") and goes back to its own flat map with a note, instead of buttons over a black screen.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak s] in
+                guard let s = s, !s.left, s.framesDrawn == 0 else { return }
+                s.onEvent?("notDrawn", [:])
+            }
         }
     }
 
@@ -233,6 +239,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private var uiTop: CGFloat = 0, uiBottom: CGFloat = 0
     // The first frame of the same spot and style as the page's flat map is drawn (open() then shows this screen).
     var onReady: (() -> Void)?
+    // Frames this map has drawn. None a while after opening: MapLibre isn't drawing on this phone (2026-11-27: alex's
+    // iPhone showed a black map in every sport, buttons over nothing), and the page goes back to its own flat map.
+    private(set) var framesDrawn = 0
     private var waitWinter = false   // Skiing's Winter asked for but its lists still coming: not ready on Satellite
     // False from the moment a new map style is asked for until it has loaded. Meanwhile MapLibre swaps the old layers
     // out from under their objects, so a feature touching the style then can crash the app (alex's crash 2026-11-21:
@@ -792,6 +801,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         map.setCenter(f.center, zoomLevel: f.zoom, direction: f.heading, animated: false)   // keeps the new tilt
         stepping = false
         if t >= 1 { endTilt() }
+    }
+    func mapViewDidFinishRenderingFrame(_ mapView: MLNMapView, fullyRendered: Bool) {
+        framesDrawn += 1
     }
     func mapViewDidFinishRenderingMap(_ mapView: MLNMapView, fullyRendered: Bool) {
         guard fullyRendered, styleReady, !(waitWinter && base == "winter"), let ready = onReady else { return }
