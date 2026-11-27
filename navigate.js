@@ -100,7 +100,7 @@
   }
   async function saveOrSay(r) {
     try { await saveRide(r); return true; }
-    catch (e) { alert("Couldn't save the ride: " + (e && e.message ? e.message : e) + ". It's still kept on this phone: open the map again to save it."); return false; }
+    catch (e) { console.warn(e); alert("Couldn't save the ride. It's still kept on this phone: open the map again to save it."); return false; }
   }
 
   // ---------- geometry: metres on a flat patch around the rider (fine over a few km) ----------
@@ -579,7 +579,7 @@ body.sport-hunt #navRideBtn, body.sport-fish #navRideBtn { display: none; }
       if (!rec || skiAt !== p) return;
       const steep = slope >= 30;
       $("navBar").style.background = steep ? "#e8590c" : "#1f5fe0";
-      $("navSub").innerHTML = `${Math.round(e).toLocaleString()} m high · slope here ${Math.round(slope)}°${steep ? ` · <b>avalanche terrain</b>` : ""}`;
+      $("navSub").innerHTML = `${Math.round(e).toLocaleString()} m high · slope about ${Math.round(slope)}°${steep ? ` · <b>likely avalanche terrain</b>` : ""} (terrain map estimate)`;
     }).catch(() => { $("navSub").textContent = "Heights not available here"; });
   }
   // A moto ride (moto.js): the road you're on, how it rides for your bike, and the next fuel.

@@ -68,7 +68,7 @@
     conservancy: { label: "Conservancy", color: C.vary, rule: "Hunting is often allowed in season in BC conservancies, with each one's own rules: check BC Parks." },
     rec: { label: "Recreation area", color: C.vary, rule: "Rules vary: check BC Parks." },
     pra: { label: "Provincial recreation area (Alberta)", color: C.vary, rule: "Hunting isn't allowed in most of Alberta's provincial recreation areas; the Alberta Guide to Hunting Regulations lists the exceptions." },
-    wildland: { label: "Wildland park (Alberta)", color: C.open, rule: "Hunting is allowed in season in Alberta's wildland parks (and Willmore Wilderness Park), with the usual licences." },
+    wildland: { label: "Wildland park (Alberta)", color: C.open, rule: "Hunting is generally allowed in season in Alberta's wildland parks (and Willmore Wilderness Park), with the usual licences: check the Alberta Guide to Hunting Regulations." },
     natural: { label: "Natural area (Alberta)", color: C.open, rule: "Hunting is usually allowed in Alberta's natural areas, with some closures: check the Alberta Guide to Hunting Regulations." },
     rangeland: { label: "Heritage rangeland (Alberta)", color: C.vary, rule: "Grazing land: ask the leaseholder and check the Alberta Guide to Hunting Regulations first." },
     wma: { label: "Wildlife management area", color: C.open, rule: "Hunting is usually allowed in BC wildlife management areas, but some have their own closures or rules: check the regulations." },
@@ -76,7 +76,7 @@
     metis: { label: "Metis settlement", color: C.reserve, no: true, rule: "Metis settlement land: no hunting without the settlement's permission." },
     town: { label: "Town or city", color: C.town, rule: "Shooting is banned inside most cities, towns and villages by bylaw, often with a no-shooting buffer around them (BC also has no-shooting areas in the regional synopses). Check the local firearm discharge bylaw before you hunt here." },
     mvpr: { label: "Motor vehicle closure", color: C.closure, line: true, dash: "2 5", rule: "Closed to motor vehicles under BC's Motor Vehicle Prohibition Regulation." },
-    green: { label: "Green Area (Alberta public forest)", color: C.green, line: true, dash: "6 4", rule: "Alberta's Green Area: mostly public forest land, where you can usually hunt in season without asking a landowner (leases and dispositions still have rules)." },
+    green: { label: "Green Area (Alberta public forest)", color: C.green, line: true, dash: "6 4", rule: "Alberta's Green Area: mostly public forest land, where hunting in season is usually allowed without asking a landowner (leases and dispositions still have rules)." },
     provforest: { label: "Provincial forest (Manitoba)", color: C.green, line: true, dash: "6 4", rule: "Crown forest land: usually open to hunting in season without asking a landowner (cottage lots, leases and closures still have rules)." },
     // the other provinces and territories (data/hunting/areas-<pv>.json)
     qcpark: { label: "Quebec national park", color: C.no, no: true, rule: "No hunting in Quebec's national parks (Sépaq)." },
@@ -86,12 +86,12 @@
     closed: { label: "Closed to hunting (Manitoba)", color: C.no, no: true, rule: "Manitoba closes this land to hunting, or to some hunting, under the Wildlife Act." },
     mbs: { label: "Migratory bird sanctuary", color: C.vary, rule: "No hunting of migratory birds in a migratory bird sanctuary (and often no firearms in season). Other hunting depends on the land's own rules." },
     nwa: { label: "National wildlife area", color: C.vary, rule: "Hunting only where the area's notice allows it, often with a permit from the Canadian Wildlife Service." },
-    zec: { label: "ZEC (controlled harvesting zone)", color: C.open, rule: "Public land run by a local association: you can hunt in season, but you must register at the ZEC's entry station and pay the daily fee. Some ZECs have their own seasons (see Seasons)." },
+    zec: { label: "ZEC (controlled harvesting zone)", color: C.open, rule: "Public land run by a local association: hunting is usually allowed in season once you register at the ZEC's entry station and pay the daily fee. Some ZECs have their own seasons (see Seasons)." },
     qcwres: { label: "Wildlife reserve (Quebec)", color: C.vary, rule: "Big game hunting in wildlife reserves is mostly by Sépaq draw or hunting package; small game with a Sépaq day pass. Check the reserve's page on sepaq.com." },
     outfit: { label: "Outfitter with exclusive rights", color: C.vary, rule: "An outfitter holds the hunting rights here: you can only hunt as the outfitter's client." },
     afc: { label: "Community wildlife area (Quebec)", color: C.vary, rule: "Run by a local organisation, mostly for fishing: check its rules before you hunt." },
     wmaopen: { label: "Wildlife management area", color: C.open, rule: "Public land kept for wildlife: hunting is usually allowed in season, but some areas have their own rules or closures." },
-    consres: { label: "Conservation reserve (Ontario)", color: C.open, rule: "Hunting is allowed in most of Ontario's conservation reserves, in season, with the usual licences." },
+    consres: { label: "Conservation reserve (Ontario)", color: C.open, rule: "Hunting is generally allowed in most of Ontario's conservation reserves, in season, with the usual licences: check the Ontario summary." },
     consarea: { label: "Conservation area", color: C.vary, rule: "Conservation authority land: hunting only where the authority allows it, often with a permit." },
     wild: { label: "Wilderness area", color: C.open, rule: "Hunting is usually allowed in season in wilderness areas and biodiversity reserves (vehicles only on open roads)." },
     pasture: { label: "Provincial pasture (Saskatchewan)", color: C.vary, rule: "Grazing land: ask the pasture manager before you hunt." },
@@ -246,7 +246,7 @@
     rules: { g: "Boundaries", label: "Parks, towns and closures", sub: "Where hunting is banned or has its own rules (ZECs and outfitters in Quebec)", on: true, sw: [C.no, "hatch"] },
     land: { g: "Land", label: "Private and public land", sub: "Crown land and private land from each province's map (BC private parcels, Alberta Green Area)", where: "no open map for this province", on: false, sw: [C.open, "fill"], minZoom: 9 },
     lots: { g: "Land", label: "Property lines", sub: "Lot lines from each province's land registry (lot numbers, never owner names)", where: "no open map for this province", on: false, sw: ["#e64980", "lot"], minZoom: 13 },
-    reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: few hunters walk that far", where: "BC and Alberta", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
+    reach: { g: "Land", label: "Far from roads", sub: "Clear where you're over 1.5 km from any road: likely fewer hunters that far", where: "BC and Alberta", on: false, sw: [REACH[1][1], "fill"], minZoom: 9 },
     forest: { g: "Habitat", label: "Forest types", sub: "Thick timber, open timber, aspen, young forest and brush, meadows", where: "BC and Alberta", on: false, sw: ["#1b5e20", "fill"], minZoom: 8 },
     burns: { g: "Habitat", label: "Old burns", sub: "Fire scars by age: young burns grow feed", where: "BC and Alberta", on: false, sw: [BURN, "burn"], minZoom: 7 },
     cut: { g: "Habitat", label: "Cut blocks by age", sub: "Logged areas (BC): 5-20 year old ones are prime browse", where: "BC only", on: false, sw: [CUTS[1][2], "cut"], minZoom: 10 },
@@ -826,7 +826,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
   const KEYS = {
     zones: () => [`<li class="wide">${sw(C.zone, "line")}Hunting zone edge (MU, WMU, zone, GHA...)</li>`],
     leh: () => [`<li>${sw(C.leh, "dash")}Limited entry zone</li>`],
-    rules: () => [`<li>${sw(C.no, "hatch")}No hunting</li>`, `<li>${sw(C.vary, "soft")}Park: rules vary</li>`, `<li>${sw(C.open, "edge")}Usually open in season (ZEC: register)</li>`,
+    rules: () => [`<li>${sw(C.no, "hatch")}No hunting</li>`, `<li>${sw(C.vary, "soft")}Park: rules vary</li>`, `<li>${sw(C.open, "edge")}Hunting often allowed in season (ZEC: register)</li>`,
       `<li>${sw(C.reserve, "edge")}Reserve: ask first</li>`, `<li>${sw(C.town, "soft")}Town: no shooting</li>`, `<li>${sw(C.closure, "dot")}Vehicle closure</li>`],
     land: () => [`<li>${sw(C.open)}Crown land: public</li>`, `<li>${sw(C.private)}Private land: ask</li>`, `<li>${sw(GRAZE_COLOR)}Grazing lease: ask</li>`, `<li class="wide">${sw(C.green, "dash")}Alberta Green Area: public forest</li>`,
       `<li class="wide hn-tip">BC and Newfoundland: private land shaded, the rest is mostly Crown. Manitoba: provincial forests only. PEI and the territories: not mapped.</li>`],
@@ -1021,12 +1021,12 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const al = alarms();
     el.innerHTML = `<p class="hn-sub">${svg(IC.sun, 16)}Light and moon today</p>
       <dl class="hn-sun">
-        <dt>Legal light</dt><dd>${legal}</dd>
+        <dt>Legal light (estimate)</dt><dd>${legal}</dd>
         <dt>Sunrise · sunset</dt><dd>${hm(s.rise)} · ${hm(s.set)}</dd>
         <dt>Moon</dt><dd>${p[2]} ${p[1]}, ${Math.round(ph.fraction * 100)}% <small>· rises ${hm(s.moonRise)}, sets ${hm(s.moonSet)}</small></dd>
         <dt>Feeding times</dt><dd>${major || "none"}${minor ? ` <small>· minor ${minor}</small>` : ""}</dd>
       </dl>
-      <details><summary>What these times mean</summary><p class="hn-note">Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in most provinces (some hunts and provinces differ). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. ${wx && wx.timezone_abbreviation ? `Local time at the spot (${esc(wx.timezone_abbreviation)}).` : "Times on this device's clock."}</p></details>
+      <details><summary>What these times mean</summary><p class="hn-note">Legal light is half an hour before sunrise to half an hour after sunset, the usual hunting hours in most provinces (some hunts and provinces differ: the regulations decide). Feeding times are solunar: the moon overhead or underfoot (major) and moonrise or moonset (minor), a traditional guide. ${wx && wx.timezone_abbreviation ? `Local time at the spot (${esc(wx.timezone_abbreviation)}).` : "Times on this device's clock."}</p></details>
       <details id="hnAlarms"${al.open ? " open" : ""}><summary>⏰ Alarms${Object.values(al.on).some(Boolean) ? `: ${LIGHT_EVENTS.filter(([k]) => al.on[k]).map(([, n]) => n.toLowerCase()).join(", ")}` : ""}</summary>
         <div class="hn-checks">${LIGHT_EVENTS.map(([k, n]) => `<label><input type="checkbox" data-al="${k}"${al.on[k] ? " checked" : ""}>${n}</label>`).join("")}</div>
         <div class="hn-row" style="margin-top:8px"><label for="hnBefore" class="hn-note">Ring</label><select id="hnBefore">${[0, 5, 10, 15, 30, 45, 60].map((m) => `<option value="${m}"${al.before === m ? " selected" : ""}>${m ? `${m} min before` : "right on time"}</option>`).join("")}</select>
@@ -1060,7 +1060,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }
     const today = castDays()[0];
     if (today) parts.push([IC.star, `Today: <b>${SCORE[today.n]}</b>`]);
-    if (spotOpen) parts.push([IC.pin, spotOpen.length ? `Open: <b>${esc(spotOpen.slice(0, 3).join(", "))}${spotOpen.length > 3 ? ` +${spotOpen.length - 3}` : ""}</b>` : "Nothing open here today"]);
+    if (spotOpen) parts.push([IC.pin, spotOpen.length ? `In season: <b>${esc(spotOpen.slice(0, 3).join(", "))}${spotOpen.length > 3 ? ` +${spotOpen.length - 3}` : ""}</b>` : "No general season today"]);
     el.innerHTML = parts.map(([ic, t]) => `<span>${svg(ic, 15)}${t}</span>`).join("");
     el.hidden = !parts.length;
   }
@@ -1161,8 +1161,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const local = (d) => { const x = new Date(d.valueOf() + tzOff()); return x.getUTCHours() + x.getUTCMinutes() / 60; };
     const h = t ? +t.slice(11, 13) + 0.5 : local(new Date());
     return h >= local(s.rise) + 2 && h < local(s.set) - 1
-      ? "⬆ Thermals rising: your scent drifts uphill, so stay above the animals."
-      : "⬇ Thermals sinking: your scent drifts downhill, so stay below the animals.";
+      ? "⬆ Thermals likely rising: your scent drifts uphill, so stay above the animals."
+      : "⬇ Thermals likely sinking: your scent drifts downhill, so stay below the animals.";
   }
   const wxCache = new Map();
   async function loadWeather() {
@@ -1198,7 +1198,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     if (!spot) { el.innerHTML = `<p class="hn-note">Move the map or tap it to pick a spot.</p>`; renderNow(); return; }
     const where = spot.how === "you" ? "Where you are" : spot.how === "tap" ? "At your spot" : "At the map centre";
     let body;
-    if (wxErr && !wx) body = `<p class="hn-note">Couldn't load the weather: ${esc(wxErr)}.</p>`;
+    if (wxErr && !wx) body = `<p class="hn-note">Couldn't load the weather: ${/busy/.test(wxErr) ? "the free weather service is busy, try again in a minute" : "check the connection and try again"}.</p>`;
     else if (!wx) body = `<p class="hn-note">Loading the wind and weather…</p>`;
     else {
       const c = wx.current || {}, w = windAt(), g = Math.round(c.wind_gusts_10m ?? 0), sp = Math.round(c.wind_speed_10m ?? 0);
@@ -1555,8 +1555,8 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     ]);
     if (parcel) {
       const own = String(parcel.OWNER_TYPE || "");
-      out.push(`<li style="border-color:${/private/i.test(own) ? C.private : C.open}"><b>Land: ${esc(own || "parcel")}</b>${/private/i.test(own) ? "Private land: you need the owner's permission to hunt here." : /crown/i.test(own) ? "Crown land: usually open to hunting in season, unless a park, lease or closure says otherwise." : ""}${parcel.PID_FORMATTED ? ` <span class="hn-note">PID ${esc(parcel.PID_FORMATTED)}</span>` : ""}</li>`);
-    } else if (parcel === null) out.push(`<li style="border-color:#2f9e44"><b>Land: no titled parcel mapped</b>Most likely Crown land, usually open to hunting in season, unless a park, reserve, lease or closure above says otherwise.</li>`);
+      out.push(`<li style="border-color:${/private/i.test(own) ? C.private : C.open}"><b>Land: ${esc(own || "parcel")}</b>${/private/i.test(own) ? "Private land: you need the owner's permission to hunt here." : /crown/i.test(own) ? "Crown land on ParcelMap BC: hunting is often allowed in season, but parks, leases and closures have their own rules. Check the regulations." : ""}${parcel.PID_FORMATTED ? ` <span class="hn-note">PID ${esc(parcel.PID_FORMATTED)}</span>` : ""}</li>`);
+    } else if (parcel === null) out.push(`<li style="border-color:#2f9e44"><b>Land: no titled parcel mapped</b>Most likely Crown land: hunting is often allowed in season, but parks, reserves, leases and closures (see above) have their own rules. Check the regulations.</li>`);
     const fc = stand && FOREST_BY[standClass(stand)];
     if (fc || (stand && stand.SPECIES_CD_1)) {
       const sp = (c, p) => (c ? `${esc(SPECIES[c] || c)}${p ? ` ${p}%` : ""}` : "");
@@ -1586,7 +1586,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     const out = [];
     const g = graze && graze.features && graze.features[0] && graze.features[0].attributes;
     if (g) out.push(`<li style="border-color:${GRAZE_COLOR}"><b>Land: ${esc(GRAZE[g.ACTIVITY_TYPE] || g.ACTIVITY_TYPE || "Agricultural lease")} on public land</b>Under Alberta's Recreational Access Regulation, contact the leaseholder before you hunt here (the lease's contact is on <a href="https://mywildalberta.ca/hunting/land-access.aspx" target="_blank" rel="noopener">My Wild Alberta: land access</a>).</li>`);
-    else if (graze) out.push(`<li style="border-color:#2f9e44"><b>Land: no grazing lease here</b>In the Green Area (public forest) you can usually hunt in season. In the White Area (farm country) most land is private: ask the landowner first.</li>`);
+    else if (graze) out.push(`<li style="border-color:#2f9e44"><b>Land: no grazing lease here</b>In the Green Area (public forest), hunting is usually allowed in season: check the Alberta guide. In the White Area (farm country) most land is private: ask the landowner first.</li>`);
     const f = fuel && fuel.results && fuel.results[0] && fuel.results[0].attributes;
     const ft = f && (f["Raster.FUEL_TYPE_LONG"] || f.FUEL_TYPE_LONG);
     const afc = ft && FOREST_BY[fuelClass(ft)];

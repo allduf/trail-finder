@@ -3442,7 +3442,7 @@
     // Winter outside last winter's photos shows today's snow (NASA, as in Live): say so. Live where NASA sees no
     // snow today is the Summer photo as it is: say that too, so it doesn't look like the button did nothing.
     const noWinter = document.createElement("div");
-    noWinter.textContent = "No winter photos here yet: today's snow";
+    noWinter.textContent = "No winter photos here yet: NASA snow map";
     noWinter.style.cssText = "display:none;position:absolute;right:0;bottom:100%;margin-bottom:4px;white-space:nowrap;padding:3px 8px;border-radius:6px;background:rgba(20,30,25,.85);color:#fff;font:600 12px var(--font-body, system-ui)";
     const winterHere = async () => {
       if (!navigator.onLine) { noWinter.textContent = "No signal: the saved map"; noWinter.style.display = ""; return; }
@@ -3454,10 +3454,10 @@
           const d = new Date(day + "T12:00:00Z"), mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
           noWinter.textContent = `${liveSource} photo of ${mon} ${d.getUTCDate()}`; noWinter.style.display = ""; return;
         }
-        if (liveTiles) { noWinter.textContent = "No clear photo lately: today's snow"; noWinter.style.display = ""; }
+        if (liveTiles) { noWinter.textContent = "No clear photo lately: NASA snow map"; noWinter.style.display = ""; }
         return;
       }
-      noWinter.textContent = "No winter photos here yet: today's snow";
+      noWinter.textContent = "No winter photos here yet: NASA snow map";
       if (photos !== "winter") { noWinter.style.display = "none"; return; }
       const have = await loadWinterBlocks(), c = gl.getCenter(), n = 2048;
       const x = Math.floor((c.lng + 180) / 360 * n), y = Math.floor((1 - Math.asinh(Math.tan(c.lat * Math.PI / 180)) / Math.PI) / 2 * n);

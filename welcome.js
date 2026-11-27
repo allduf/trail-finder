@@ -24,12 +24,12 @@
   const set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   const SPORTS = [
-    ["mtb", "🚵", "Mountain biking", "Trails new to you, and where the dirt is best today"],
+    ["mtb", "🚵", "Mountain biking", "Trails new to you, and where the dirt is likely best today"],
     ["ski", "⛷", "Skiing", "Ski tours, avalanche forecast, huts and resorts"],
     ["hunt", "🦌", "Hunting", "Zones, open seasons, no-shooting areas and wind"],
     ["fish", "🎣", "Fishing", "Stocked lakes, fishing rules and river flow"],
     ["moto", "🏍", "Adventure moto (ADV)", "Gravel and back roads graded for your bike"],
-    ["hike", "🥾", "Hiking", "Hikes by grade, snow on the trail, park passes"],
+    ["hike", "🥾", "Hiking", "Hikes by grade, likely snow on the trail, park passes"],
   ];
   // Step 2 (why location helps) and step 3 (what you'll see), in each sport's own words.
   const WORDS = {
@@ -37,7 +37,7 @@
       here: "The map opens where you are and lists the trails around you, starting with the ones you probably haven't ridden yet.",
       lines: [
         ["New", "new", "Trails added to the map in the last 6 months: the ones you likely don't know yet. Pick how new in Find."],
-        ["Loam", "loam", "How damp the dirt is right now. <b>Prime loam</b> (teal dots) is the best riding today, <b>Tacky</b> is good, dry or wet less so."],
+        ["Loam", "loam", "An estimate of how damp the dirt is, from Open-Meteo soil moisture. <b>Prime loam</b> (teal dots) is likely the best riding, <b>Tacky</b> is good, dry or wet less so."],
         ["Tap", "tap", "Tap any trail for its level, weather and loam. Colours: green, blue, black, red."],
       ],
       go: "Find new trails",
@@ -54,9 +54,9 @@
     hunt: {
       here: "The map opens where you are, with the hunting zone you're in and its open seasons.",
       lines: [
-        ["Zones", "zone", "Hunting zones with their numbers. Tap the map for that zone's open seasons (● Open today) and rules."],
-        ["Red", "red", "Red means no shooting: towns, parks and closures where hunting isn't allowed."],
-        ["Wind", "wind", "The orange cone shows where the wind takes your scent, right now."],
+        ["Zones", "zone", "Hunting zones with their numbers. Tap the map for that zone's open seasons (● Open today) and rules, from the province's regulations."],
+        ["Red", "red", "Red marks no-shooting areas on the map: towns, parks and closures. Some may be missing: the regulations decide."],
+        ["Wind", "wind", "The orange cone shows where the wind likely takes your scent now (a weather model's estimate)."],
       ],
       go: "Start hunting",
     },
@@ -73,8 +73,8 @@
       here: "The map opens where you are, with the hiking trails around you coloured by grade.",
       lines: [
         ["Colours", "road", "<b style=\"color:#2f9e44\">Green</b> easy, <b style=\"color:#1c7ed6\">blue</b> moderate, <b style=\"color:#e8590c\">orange</b> hard, <b style=\"color:#c92a2a\">red</b> expert."],
-        ["Tap", "tap", "Tap a hike for its time, the snow at the top today, the park pass and closures."],
-        ["Snow", "new", "Snow line: how high the snow comes down in the next 3 days."],
+        ["Tap", "tap", "Tap a hike for its time, the likely snow at the top today, the park pass and closures."],
+        ["Snow", "new", "Snow line: a forecast of how low the snow comes in the next 3 days."],
       ],
       go: "Start hiking",
     },
@@ -82,7 +82,7 @@
       here: "The map opens where you are, with the roads around you coloured for your bike.",
       lines: [
         ["Bike", "tour", "Set up your bike first (in the panel): every road is graded for it and your fuel range."],
-        ["Colours", "road", "<b style=\"color:#2f9e44\">Green</b> fine for your bike, <b style=\"color:#f08c00\">orange</b> hard, <b style=\"color:#e03131\">red</b> not for it."],
+        ["Colours", "road", "<b style=\"color:#2f9e44\">Green</b> likely fine for your bike, <b style=\"color:#f08c00\">orange</b> hard, <b style=\"color:#e03131\">red</b> not for it."],
         ["Tap", "tap", "Tap a road for its surface, closures and what's on the way."],
       ],
       go: "Start riding",

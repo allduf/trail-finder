@@ -416,7 +416,7 @@
     kind = b.dataset.k; store.set("radarKind", kind); keyFor = "";
     shownUrl = ""; span = null; fc = null; syncKind();
     getSpan().then(() => { setFrame(frames()); loadFc().then(() => { if (was !== "radar") goTo(was, wasT); }); },
-      (er) => { note = `Couldn't load the radar (${er.message}).`; here(); });
+      () => { note = "Couldn't load the radar, try again soon."; here(); });
   });
   // The forecast's times come in next to the radar's; the slider grows to the right of Latest.
   function loadFc(force) {
@@ -479,8 +479,8 @@
 
   // ---------- what's falling at the map centre ----------
   const RATE = {   // mm/h for rain, cm/h for snow (Environment Canada's legend steps)
-    rain: [[0.1, "dry"], [2.5, "light rain"], [7.6, "moderate rain"], [50, "heavy rain"], [Infinity, "very heavy rain"]],
-    snow: [[0.1, "no snow"], [0.5, "light snow"], [1.5, "moderate snow"], [4, "heavy snow"], [Infinity, "very heavy snow"]],
+    rain: [[0.1, "no rain on the radar"], [2.5, "light rain"], [7.6, "moderate rain"], [50, "heavy rain"], [Infinity, "very heavy rain"]],
+    snow: [[0.1, "no snow on the radar"], [0.5, "light snow"], [1.5, "moderate snow"], [4, "heavy snow"], [Infinity, "very heavy snow"]],
   };
   const wordOf = (v) => RATE[kind].find(([max]) => v < max)[1];
   const cache = new Map();
@@ -516,7 +516,7 @@
       const bits = [];
       if (r >= 0.1) bits.push(`${amt(r, "mm")} rain`);
       if (sn >= 0.1) bits.push(`${amt(sn, "cm")} snow`);
-      el.textContent = `Forecast, ${when}, map centre: ${bits.length ? bits.join(", ") : "dry"}.`;
+      el.textContent = `Forecast, ${when}, map centre: ${bits.length ? bits.join(", ") : "little or no rain or snow"}.`;
       if (bits.length === 1 && (kind === "rain" ? sn >= 0.1 : r >= 0.1)) el.textContent += ` Tap ${kind === "rain" ? "Snow" : "Rain"} to see it on the map.`;
     }, () => { if (n === hereN) el.textContent = "Couldn't read the forecast at the map centre, try again soon."; });
   }
@@ -559,7 +559,7 @@
       place();
       note = "";
       here();
-      getSpan(true).then(() => { note = ""; setFrame(frames()); loadFc(); }, (e) => { note = `Couldn't load the radar (${e.message}).`; here(); });
+      getSpan(true).then(() => { note = ""; setFrame(frames()); loadFc(); }, () => { note = "Couldn't load the radar, try again soon."; here(); });
     } else {
       stop();
       place();

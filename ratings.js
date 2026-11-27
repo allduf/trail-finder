@@ -284,8 +284,8 @@
     // Kicking Horse
     { name: "Kranky Pants", c: [51.29, -117.06], r: 3000, d: "blue", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
     { name: "Devil's Disco", c: [51.29, -117.06], r: 3000, d: "black", src: "Kicking Horse Mountain Resort, bike trail report", url: "https://kickinghorseresort.com/conditions/trail-report/" },
-    { name: "Alpine Capone", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
-    { name: "Just a Cough", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish, like Flying Whales" },
+    { nh: "eard2a", c: [49.845, -123.092], r: 3000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
+    { nh: "ricx6e", c: [49.823, -123.118], r: 2000, d: "black", who: "alex", note: "an unsanctioned trail on Brohm Ridge, Squamish" },
     // BC's Trail is tagged blue (mtb:scale:imba 2) on OpenStreetMap; a rider's level beats the map's (rateTags in index.html).
     { name: "BC's Trail", c: [50.088, -122.981], r: 1500, d: "dbl", who: "alex", note: "a Whistler Bike Park trail in Creekside, by Kadenwood" },
     // Whistler Bike Park trails whose OpenStreetMap level differs from the park's own 2026 map (or that have none).
@@ -413,8 +413,8 @@
     { ids: [1562597865], c: [51.28, -117.078], r: 1000, named: "Dragon Chaser", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
-    { name: "Pretty Slabs", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
-    { name: "Stepping Stones", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail below Pretty Slabs, Britannia" },
+    { nh: "12f5pps", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
+    { nh: "ez9sj3", c: [49.636, -123.177], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail near the Upper Britannia paragliding launch, Squamish" },
     { ids: [1055222771, 1065048117, 1283478720, 1285445609, 1285445610, 1285445611, 1285445613], c: [49.6372, -123.1735], r: 1000, who: "alex",
       unoff: "alex, who rides it, says it's an unofficial trail", note: "unnamed trails, Britannia" },
     // Both pieces: the unnamed north one and the one mapped as "Ebb Flow" (informal=yes): alex says it's one official trail.

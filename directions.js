@@ -133,7 +133,7 @@
     if (one) return { dir: "oneway", along: one, src: "osm", why: "Tagged one-way for bikes on OpenStreetMap." };
     if (up && !dn) return { dir: "climb", along: 0, src: "name", why: "Its name says it's a climb." };
     if (dn && !up) return { dir: "down", along: 0, src: "name", why: "Its name says it's a descent." };
-    if (+t["mtb:scale:uphill"] >= 5) return { dir: "down", along: 0, src: "osm", weak: true, why: "OpenStreetMap rates it too steep or rough to ride up (mtb:scale:uphill 5), so it's ridden down." };
+    if (+t["mtb:scale:uphill"] >= 5) return { dir: "down", along: 0, src: "osm", weak: true, why: "OpenStreetMap rates it too steep or rough to ride up (mtb:scale:uphill 5), so it's likely ridden down." };
     if (one === 0) return { dir: "both", along: 0, src: "osm", why: "Tagged two-way on OpenStreetMap." };
     return null;
   }
