@@ -1850,9 +1850,12 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!list.length) return `${head}<p class="sk-note">None near here (few people post, so that doesn't mean no avalanches).</p>`;
     return `${head}<p>${seen ? `<b>${seen} report${seen === 1 ? "" : "s"} of avalanches</b>` : "No avalanches in these reports"}, ${list.length} report${list.length === 1 ? "" : "s"} in all.</p>
       <ul class="sk-min">${list.slice(0, 8).map(({ m, km }) => {
-        const a = m.av || {}, what = [a.what, a.signs && a.signs.length && (a.what ? "also " : "") + a.signs.join(", ")].filter(Boolean).join("; ");
-        const extra = [a.trigger && "trigger: " + a.trigger, a.aspect && "aspect " + a.aspect].filter(Boolean).join(", ");
-        return `<li class="${a.seen ? "av" : ""}"><b>${esc(when(m.date) || "")}</b>, ${km.toFixed(0)} km away${m.title ? `: ${esc(m.title)}` : ""}${what ? `<br>${esc(what)}${extra ? ` (${esc(extra)})` : ""}` : ""}${m.text ? `<br><span class="sk-note">${esc(m.text.slice(0, 220))}${m.text.length > 220 ? "…" : ""}</span>` : ""}
+        // Each word in its own span, so the French page can put each one in its own words. The avalanche's trigger,
+        // aspect and band right after it, then the signs the rider ticked (Avalanche Canada's own words).
+        const a = m.av || {}, sp = (t) => `<span>${esc(t)}</span>`, list2 = (s) => String(s).split(", ").map(sp).join(", ");
+        const extra = [a.trigger && `${sp("trigger")}: ${list2(a.trigger)}`, a.aspect && `${sp("aspect")} ${esc(a.aspect)}`, a.band && list2(a.band)].filter(Boolean).join(", ");
+        const what = [a.what && `${sp(a.what)}${extra ? ` (${extra})` : ""}`, a.signs && a.signs.length && `${a.what ? `${sp("also")} ` : ""}${a.signs.map(sp).join(", ")}`].filter(Boolean).join("; ");
+        return `<li class="${a.seen ? "av" : ""}"><b>${esc(when(m.date) || "")}</b>, ${km.toFixed(0)} km away${m.title ? `: ${esc(m.title)}` : ""}${what ? `<br>${what}` : ""}${m.text ? `<br><span class="sk-note">${esc(m.text.slice(0, 220))}${m.text.length > 220 ? "…" : ""}</span>` : ""}
           ${m.id ? `<br><a href="https://avalanche.ca/mountain-information-network/submissions/${encodeURIComponent(m.id)}" target="_blank" rel="noopener">Full report</a>` : ""}</li>`;
       }).join("")}</ul>${list.length > 8 ? `<p class="sk-note">…and ${list.length - 8} more on <a href="https://avalanche.ca/map" target="_blank" rel="noopener">avalanche.ca</a>.</p>` : ""}`;
   }

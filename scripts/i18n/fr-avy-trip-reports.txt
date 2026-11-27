@@ -1,0 +1,24 @@
+Avalanche: riders' reports near a route or spot show again. Avalanche Canada moved them to its new trip reports this season, which the app didn't read, so it showed none. ||| Avalanche : les rapports des usagers près d'un trajet ou d'un endroit s'affichent de nouveau. Avalanche Canada les a déplacés vers ses nouveaux rapports de sortie cette saison, que l'appli ne lisait pas, alors elle n'en montrait aucun.
+30 cm or more of new snow in past 24 hours ||| 30 cm ou plus de neige fraîche en 24 heures
+substantial wind loading ||| accumulation éolienne importante
+shooting cracks ||| fissures de tir
+critical warming from sun, warm air temperature, or rain ||| réchauffement critique (soleil, air chaud ou pluie)
+also ||| aussi
+trigger ||| déclenchement
+natural ||| naturelle
+accidental ||| accidentelle
+intentional ||| volontaire
+remote ||| à distance
+unsure ||| incertain
+aspect ||| orientation
+alpine ||| alpin
+treeline ||| limite des arbres
+avalanche incident ||| incident d'avalanche
+avalanche observation ||| observation d'avalanche
+recent slab avalanches seen ||| avalanches de plaque récentes vues
+recent slab avalanches ||| avalanches de plaque récentes
+whumpfing or shooting cracks ||| whumpfing ou fissures de tir
+30 cm or more of new snow or wind loading ||| 30 cm ou plus de neige fraîche ou accumulation éolienne
+rapid warming ||| réchauffement rapide
+Full report ||| Rapport complet
+yesterday ||| hier

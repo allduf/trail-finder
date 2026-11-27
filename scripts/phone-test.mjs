@@ -39,8 +39,8 @@ const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").
 // The devices this run goes through: "phone" (iPhone size, touch) and "desk" (a computer: 1440 x 900, mouse).
 const DEVICES = [PHONE_PART && "phone", COMPUTER_PART && "desk"].filter(Boolean);
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer", site: "Website" };
-// Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
-const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
+// Code libraries (the 3D map's MapLibre) and the map pictures and heights: everything else outside is cut off.
+const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
 // alex's iPhone: 430 x 932 points (iPhone 15/16 Pro Max size).
 const PHONE = {
@@ -58,7 +58,7 @@ const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|
 
 // ---------- the site, on localhost ----------
 const root = fileURLToPath(new URL("../", import.meta.url));
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
+const TYPES = { ".woff2": "font/woff2", ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".pbf": "application/x-protobuf" };
 const server = createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
@@ -562,6 +562,54 @@ async function appBuild(kind, desk = false) {
       await until(() => [...document.querySelectorAll(".maplibregl-ctrl-group button[data-on]")].length > 0, null, 30_000).catch(() => {});
       return ev(() => [...document.querySelectorAll(".maplibregl-ctrl-group button[data-on]")].map((b) => b.textContent).join(", ") || "none");
     };
+    // Low Power Mode (alex 2026-11-27, "How can we make sure that things like yesterday never happen again?"): on
+    // 2026-11-26 alex's iPhone showed the page's buttons over a black native 3D map in every sport. When the native map
+    // has drawn nothing 8 s after opening, the app says "notDrawn" (builds 204 / 141 on) and the page must go back to its
+    // own flat map (shown, not hidden under the page), with a note naming Low Power Mode / Battery Saver, never the web
+    // 3D map on the iPhone, not open native 3D again by itself, and a tap on 3D must try again. In every sport given.
+    // The simulators' own run of this (a real map, power saving on) is .github/workflows/low-power.yml.
+    const notDrawn = async (sports, admin = false) => {
+      const out = [];
+      const NOTE = kind === "android" ? /Battery Saver/ : /Low Power Mode/;
+      for (const s of sports) {
+        try {
+          if (await ev(() => window.__tm.screen)) { await back(); await wait(600); }
+          await sport(s);
+          await until((s) => document.body.classList.contains("sport-" + s), s, 10_000).catch(() => {});
+          await wait(1500);
+          if (admin) await ev(() => localStorage.setItem("tf-admin", "1"));
+          if (!(await ev(() => window.__tm.screen))) {
+            const n0 = await opens();
+            await tap3d();
+            await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+          }
+          if (!(await ev(() => window.__tm.screen))) { out.push(`${s}: 3D didn't open native 3D`); continue; }
+          const c0 = await ev(() => window.__tm.closes);
+          await ev(() => { const t = document.getElementById("tfToast"); if (t) t.textContent = ""; window.__tm.fire("notDrawn", { lowPower: true }); });
+          await until((c) => window.__tm.closes > c && !window.__tm.screen && !document.documentElement.classList.contains("tf-under"), c0, 5000).catch(() => {});
+          const st = await ev(() => {
+            const m = document.getElementById("map"), tile = window.tfLeaflet && window.tfLeaflet.getPane("tilePane");
+            return { screen: window.__tm.screen, under: document.documentElement.classList.contains("tf-under"),
+              mapShown: !!m && m.getClientRects().length > 0 && getComputedStyle(m).visibility !== "hidden" && !!tile && getComputedStyle(tile).visibility !== "hidden",
+              note: ((document.getElementById("tfToast") || {}).textContent || "").trim() };
+          });
+          if (st.screen || st.under) { out.push(`${s}: the native map that drew nothing stayed up`); continue; }
+          if (!st.mapShown) out.push(`${s}: the page's own flat map isn't shown`);
+          if (!NOTE.test(st.note)) out.push(`${s}: no note naming ${kind === "android" ? "Battery Saver" : "Low Power Mode"} (note: "${st.note || "none"}")`);
+          if (await web3d()) out.push(`${s}: the web 3D map opened`);
+          const n1 = await opens();
+          await wait(2500);
+          if (await opens() !== n1) out.push(`${s}: native 3D opened again by itself`);
+          await tap3d();
+          await until((c) => window.__tm.opens.length > c, n1, 5000).catch(() => {});
+          if (await opens() === n1) out.push(`${s}: a tap on 3D didn't try native 3D again`);
+          if (await ev(() => window.__tm.screen)) await back();
+          await wait(600);
+        } catch (e) { out.push(`${s}: ${String(e.message || e).split("\n")[0].slice(0, 160)}`); }
+      }
+      if (out.length) throw new Error(out.join(" · "));
+    };
+    const ALL = ["mtb", "ski", "hike", "fish", "hunt", "moto"];
 
     await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
@@ -600,6 +648,20 @@ async function appBuild(kind, desk = false) {
         await sport("mtb"); await wait(2500); await sport("ski");
         await flatWinter("back in Skiing");
         await nativeOpen("the 3D button back in Skiing", tap3d);
+      });
+      await check("native map draws nothing (Low Power Mode), every sport: flat map back with a note", () => notDrawn(ALL));
+      await check("native map draws nothing, power saving off: plain note", async () => {
+        if (await ev(() => window.__tm.screen)) await back();
+        await sport("mtb"); await wait(1500);
+        const n0 = await opens();
+        await tap3d();
+        await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+        if (!(await ev(() => window.__tm.screen))) throw new Error("3D didn't open native 3D");
+        await ev(() => { const t = document.getElementById("tfToast"); if (t) t.textContent = ""; window.__tm.fire("notDrawn", { lowPower: false }); });
+        await until(() => !window.__tm.screen, null, 5000).catch(() => {});
+        const note = await ev(() => ((document.getElementById("tfToast") || {}).textContent || "").trim());
+        if (!/couldn't draw on this phone/.test(note)) throw new Error(`note: "${note || "none"}"`);
+        await sport("ski"); await wait(1500);
       });
     } else if (kind === "iosu") {
       // alex 2026-11-22: "i want to keep the same interface for both i never want the map to switch from web to native
@@ -795,6 +857,7 @@ async function appBuild(kind, desk = false) {
           else await back();
         }
       });
+      await check("the one map draws nothing (Low Power Mode): flat map back with a note", () => notDrawn(["ski", "hike"]));
     } else if (kind === "android") {
       // Testers: the web 3D map (Android's native 3D is alex's only for now). friends.js keeps "tf-admin" for alex's
       // account only, so it's set again just before alex's tap.
@@ -818,6 +881,7 @@ async function appBuild(kind, desk = false) {
         await ev(() => { localStorage.setItem("tf-admin", "1"); localStorage.removeItem("tf-native-ground"); localStorage.removeItem("tf-native-avy"); localStorage.setItem("tf:avy", "true"); });
         await tap3d();
       }).finally(() => ev(() => localStorage.removeItem("tf:avy")).catch(() => {})));
+      await check("native map draws nothing (Battery Saver), every sport: flat map back with a note", () => notDrawn(ALL, true));
     } else {
       await check("3D photos are Winter (Live picked there before)", async () => {
         await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {});
@@ -880,8 +944,28 @@ async function seasonCheck() {
     console.log(`${note ? "✗" : "✓"} App builds: Season: ${name}${note ? "\n    " + note : ""}`);
   }
 }
+// Fonts come from the site itself (vendor/fonts-<version>), never from Google Fonts or another font host: opening a page
+// must send nothing to Google (security and privacy check 2026-11-27). Reads the pages, scripts and stylesheets at the
+// site's root for a font host, and each font stylesheet a page links from vendor/ for its font files.
+async function fontsCheck() {
+  const problems = [], HOSTS = /fonts\.(googleapis|gstatic)\.com|use\.typekit\.net|fonts\.bunny\.net/i;
+  for (const f of (await readdir(root)).filter((n) => /\.(html|js|css)$/.test(n) && n !== "i18n-fr.js")) {
+    const text = await readFile(join(root, f), "utf8");
+    if (HOSTS.test(text)) problems.push(`${f} loads fonts from another site`);
+    for (const m of text.matchAll(/href="\/?(vendor\/fonts[\w.-]*\/[\w.-]+\.css)"/g)) {
+      const css = await readFile(join(root, m[1]), "utf8").catch(() => null);
+      if (css == null) { problems.push(`${f}: ${m[1]} is missing`); continue; }
+      for (const u of css.matchAll(/url\(\s*["']?([^"')]+?)["']?\s*\)/g))
+        if (!(await readFile(join(root, m[1], "..", u[1])).catch(() => null))) problems.push(`${m[1]}: ${u[1]} is missing`);
+    }
+  }
+  results.push({ sport: "app", step: "Fonts come from the site", ok: !problems.length, note: problems.join(" · "), shot: "" });
+  console.log(`${problems.length ? "✗" : "✓"} App builds: fonts come from the site${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
+}
+
 async function appBuilds() {
 await seasonCheck().catch((e) => results.push({ sport: "app", step: "Season sport", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
+await fontsCheck().catch((e) => results.push({ sport: "app", step: "Fonts come from the site", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await usagePrivateCheck().catch((e) => results.push({ sport: "app", step: "Usage holds nothing personal", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));

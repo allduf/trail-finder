@@ -55,8 +55,6 @@ if (typeof Object.hasOwn !== "function") addEventListener("DOMContentLoaded", ()
 </head>
 <body>
 <title>Trail Finder</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- The map pictures' servers: connect while the page is still loading, so the first pictures don't wait for it. -->
 <link rel="preconnect" href="https://tile.openstreetmap.org">
 <link rel="preconnect" href="https://ibasemaps-api.arcgis.com">
@@ -1336,10 +1334,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
-<!-- Archivo and Inter (theme.css) and JetBrains Mono (tag tables): one request. The old Barlow fonts are only fallbacks now. -->
-<!-- Not blocking (media=print until it arrives): a stylesheet from another site holds up every script after it, ~0.3 s on
-     a phone's first open; the text shows in the fallback font for that moment instead (display=swap does the same). -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..900&family=Inter:wght@400..700&family=JetBrains+Mono:wght@400&display=swap" media="print" onload="this.media='all'">
+<!-- Archivo and Inter (theme.css) and JetBrains Mono (tag tables): one small stylesheet, and the browser fetches only the
+     font files the page's letters need. The old Barlow fonts are only fallbacks now. -->
+<!-- Served from this site (vendor/fonts-5.3.0), not Google Fonts, so opening the app sends nothing to Google. Not blocking
+     (media=print until it arrives); the text shows in the fallback font for that moment instead (display=swap). -->
+<link rel="stylesheet" href="vendor/fonts-5.3.0/app-fonts.css" media="print" onload="this.media='all'">
 <style>
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar { display: none; }
