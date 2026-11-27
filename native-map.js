@@ -47,6 +47,19 @@
   document.head.append(css);
 
   let open = false, hits = [], pending = 0;
+  // ---------- the flat map rests while the native map covers it ----------
+  // Hidden under (or behind) the native map, the flat map kept drawing as if it were on screen: in Skiing 4 screen-size
+  // line canvases repainted and ~200 map pictures downloaded per 12 moves, none of it seen (page test, 2026-11-27). It
+  // rests as it does under the web 3D map (map3d.js tfRestFlat); its trail lines, pins and taps, and what this file
+  // sends, don't use any of that. shown: the native map has opened and covers it. Where native 3D opens over the page as
+  // its own screen (all but alex's "under"), the page shows at times (native-tools.js, tfNative.aside): the native screen
+  // steps aside for a sheet of the page's, or a tool's bars take some of the screen and the page shows there. The flat
+  // map draws meanwhile. It also wakes as this page asks the native map to close, to be drawn where the native map was
+  // by the time that's gone (at most 2 s: a close that doesn't come rests it again).
+  let shown = false, aside = false, closing = false, closingT = 0;
+  const rest = () => { try { if (window.tfRestFlat) window.tfRestFlat(open && shown && !closing && (under || !aside)); } catch {} };
+  const wakeForClose = () => { closing = true; rest(); clearTimeout(closingT); closingT = setTimeout(() => { closing = false; rest(); }, 2000); };
+  const closeNative = () => { wakeForClose(); return TrailMap.close(); };
   // ---------- native 3D features, one file each (ios-app/.../NativeLayers.swift) ----------
   // A feature's page side (its own native-xxx.js) registers what it sends: window.tfNative.addLayer(key, get), where
   // get() returns its data as text (or null for nothing); it's sent with the 3D screen's opening, and again with
@@ -86,6 +99,9 @@
       if (d != null) TrailMap.layer({ key: String(key), data: String(d) }).catch(() => {});
     },
     isOpen: () => open && open3d,
+    // aside(on): the page shows around the native screen over it (a sheet of the page's, a tool's bars), or no more
+    // (native-tools.js).
+    aside(on) { if (aside !== !!on) { aside = !!on; rest(); } },
     // For a feature that talks with its native side (native-ground.js): its events from the 3D screen, and data sent
     // without waiting for its get().
     on(name, fn) { if (typeof fn === "function") TrailMap.addListener(String(name), (e) => { try { fn(e || {}); } catch {} }); },
@@ -112,6 +128,7 @@
       if (!open || !under) return false;
       if (canFlat() && !cardUp && !tipped) return false;
       if (canFlat() && !cardUp && oneMap()) { tip(false); return true; }
+      if (!cardUp) wakeForClose();   // the native map closes (its own card, if one shows, closes first instead)
       TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {}); return true;
     },
   };
@@ -249,6 +266,7 @@
     leaveUnder();
     follow(e);
     if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
+    shown = false; closing = false; clearTimeout(closingT); rest();   // drawn again where the native map was
     if (e.details) openDetails(e);
   });
   // Under the page (below): Details on a native card opens here while the native map stays; a trail tapped there opens
@@ -335,6 +353,7 @@
     gridT = 0;
     if (!under || !open) return;
     const g = underGrid(), k = g.m + g.t + "," + g.b;
+    for (const b of boxes.keys()) { if (b.isConnected) boxes.set(b, boxNow(b)); else boxes.delete(b); }   // as this grid saw them (idle, below)
     if (k === gridKey) return;
     gridKey = k;
     TrailMap.layer({ key: "under", data: JSON.stringify(g) }).catch(() => {});
@@ -342,6 +361,58 @@
   let gridAt = 0;
   const gridSoon = () => { if (under && !gridT) gridT = setTimeout(() => { gridAt = Date.now(); sendGrid(); }, Math.max(120, 300 - (Date.now() - gridAt))); };
   const ownMap = (n) => { const el = n && n.nodeType === 1 ? n : n && n.parentElement; return !!el && (el === mapEl || (mapEl.contains(el) && !!el.closest(".leaflet-pane") && !el.closest(".leaflet-popup-pane"))); };
+  // A change that can't change the grid. Each grid looks at every 12 px of the screen (~2,800 looks), and it ran after
+  // nearly every move of the native map, for changes like these (page test, 2026-11-27):
+  // - on something taken off the page since (its going is a change of what held it, seen there): the hidden flat map's
+  //   own tiles and pins, after each move;
+  // - inside something not drawn (a closed menu);
+  // - the same again: an attribute set to the value it had, words replaced by the same words;
+  // - new contents of a box of the page's own (a background or a button, taking touches) whose part on the screen is
+  //   where the last grid saw it, with all of its contents there inside that part, then and now: every spot in it took
+  //   touches before and still does, and nothing of it reaches out over the map (the Today button, and the avalanche
+  //   card below the screen, redone after each move). The first change in a box counts, and a change of a box's own
+  //   looks (class, style, hidden) always does.
+  const CLEAR = /^(?:transparent|rgba\(\d+,\s*\d+,\s*\d+,\s*0\))$/, CONTROL = /^(BUTTON|INPUT|SELECT|TEXTAREA|A|LABEL)$/i;
+  const boxes = new Map();   // box -> its part on the screen as the last grid saw it, all it holds inside it (null: not so)
+  const ownBox = (el) => {
+    for (let e = el; e && e !== document.body && e !== document.documentElement && e !== mapEl; e = e.parentElement) {
+      if (CONTROL.test(e.tagName)) return e;
+      const cs = getComputedStyle(e);
+      if (cs.backgroundImage !== "none" || !CLEAR.test(cs.backgroundColor)) return e;
+    }
+    return null;
+  };
+  const boxNow = (box) => {
+    const cs = getComputedStyle(box);
+    if (cs.pointerEvents === "none" || cs.visibility !== "visible") return null;
+    const all = box.getElementsByTagName("*");
+    if (all.length > 800) return null;
+    const W = innerWidth, H = innerHeight, on = (r) => [Math.max(0, r.left), Math.max(0, r.top), Math.min(W, r.right), Math.min(H, r.bottom)];
+    const [l, t, rr, b] = on(box.getBoundingClientRect());
+    for (const e of all) {
+      const [x0, y0, x1, y1] = on(e.getBoundingClientRect());
+      if (x1 > x0 && y1 > y0 && (x0 < l - 1 || y0 < t - 1 || x1 > rr + 1 || y1 > b + 1)) return null;
+    }
+    return rr > l && b > t ? `${Math.round(l)},${Math.round(t)},${Math.round(rr)},${Math.round(b)}` : "off";
+  };
+  const textOf = (nodes) => { let t = ""; for (const n of nodes) { if (n.nodeType !== 3 && n.nodeType !== 8) return null; t += n.nodeValue; } return t; };
+  // memo: each box looked at once for the changes seen together (they all see the page as it is now).
+  const idle = (r, memo) => {
+    const el = r.target && r.target.nodeType === 1 ? r.target : r.target && r.target.parentElement;
+    if (!el || !el.isConnected) return true;
+    const h = (r.type === "childList" ? el : el.parentElement || el).closest("[hidden]");
+    if (h && !h.getClientRects().length) return true;
+    if (r.type === "attributes") return r.oldValue === el.getAttribute(r.attributeName);
+    const added = textOf(r.addedNodes);
+    if (added !== null && added === textOf(r.removedNodes)) return true;
+    const box = ownBox(el);
+    if (!box) return false;
+    if (!boxes.has(box)) { boxes.set(box, null); return false; }   // first seen: the grid it brings takes note of it
+    const was = boxes.get(box);
+    if (!was) return false;
+    if (!memo.has(box)) memo.set(box, boxNow(box));
+    return memo.get(box) === was;
+  };
   const b3 = document.getElementById("btn3d");
   let b3Was = null;
   function enterUnder() {
@@ -355,8 +426,8 @@
       b3Was = { h: b3.innerHTML, ti: b3.title, p: b3.getAttribute("aria-pressed"), on: b3.classList.contains("on") };
       b3Label();
     }
-    gridObs = new MutationObserver((recs) => { if (recs.some((r) => !ownMap(r.target))) gridSoon(); });
-    gridObs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "hidden", "style", "open"] });
+    gridObs = new MutationObserver((recs) => { const memo = new Map(); if (recs.some((r) => !ownMap(r.target) && !idle(r, memo))) gridSoon(); });
+    gridObs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ["class", "hidden", "style", "open"] });
     addEventListener("resize", gridSoon);
     map.on("popupopen popupclose", gridSoon);
     document.addEventListener("transitionend", gridSoon, true);
@@ -376,6 +447,7 @@
     if (!under) return;
     under = false; clearTimeout(gridT); gridT = 0;
     if (gridObs) { gridObs.disconnect(); gridObs = null; }
+    boxes.clear();
     removeEventListener("resize", gridSoon);
     map.off("popupopen popupclose", gridSoon);
     document.removeEventListener("transitionend", gridSoon, true);
@@ -432,6 +504,7 @@
     if (close && !flat) close.click();
     const c = map.getCenter(), sel = (document.getElementById("basemap") || {}).value || "osm";
     open = true; open3d = threeD; nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 };
+    shown = false; aside = false;
     // winter: Skiing's own Winter map in native 3D (alex 2026-11-20), never in other sports. Older app builds ignore it.
     const winter = threeD && document.body.classList.contains("sport-ski");
     // Skiing's 3D is always Winter when the flat map shows photos or Winter (alex 2026-11-21: "it should be winter",
@@ -456,6 +529,7 @@
         flatOpening = false;
         if (und && open && r && r.under) {
           enterUnder();
+          shown = true; rest();
           if (flat) { flatFails = 0; if (tipOnOpen) tip(true); syncSoon(); }   // a sport or style picked while it opened
           tipOnOpen = false;
           return true;
@@ -464,8 +538,9 @@
         // The one map must be under the page (never a native screen over it): anything else closes again, and after
         // twice the page's own flat map stays for this visit.
         if (flat && open) { flatFails++; TrailMap.close().catch(() => {}); return false; }
+        shown = true; rest();
         return true;
-      }, () => { note(false); open = false; sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
+      }, () => { note(false); open = false; shown = false; rest(); sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -561,7 +636,7 @@
       if (canFlat() && !tipped) { tip(true); return; }
       // "2D map": on Winter it tips back down (the one map); on another style, back to the page's own flat map.
       if (!e.isTrusted) return;
-      if (canFlat() && oneMap()) tip(false); else TrailMap.close().catch(() => {});
+      if (canFlat() && oneMap()) tip(false); else closeNative().catch(() => {});
       return;
     }
     if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return;
@@ -602,7 +677,7 @@
       if (tiles) tiles.removeEventListener("click", layersPick);
       layersPick = null;
       if (!open) return;
-      if (webOnly()) { toWeb = true; TrailMap.close().catch(() => { toWeb = false; }); return; }
+      if (webOnly()) { toWeb = true; closeNative().catch(() => { toWeb = false; }); return; }
       const base = (document.getElementById("basemap") || {}).value;
       if (under && canFlat() && !tipped && !oneMap()) return;   // the one map seen from above, off Winter: closes (below)
       if (base && (picked || base !== base0)) TrailMap.layer({ key: "base", data: base }).catch(() => {});
@@ -660,7 +735,7 @@
     syncT = 0;
     if (open) {
       // Seen from above on a style or sport without the one map now: the page's own flat map, as before.
-      if (under && canFlat() && !tipped && !oneMap()) TrailMap.close().catch(() => {});
+      if (under && canFlat() && !tipped && !oneMap()) closeNative().catch(() => {});
       return;
     }
     if (!oneMap() || document.hidden || mapEl.classList.contains("is3d") || (lmenu && !lmenu.hidden)) return;
@@ -684,7 +759,7 @@
     flatFails = 2;
     const low = !!(e && e.lowPower);
     if (isAdmin() && window.tfUse) window.tfUse("view", `Native map drew nothing${low ? " · power saving on" : ""}`, 0);
-    TrailMap.close().catch(() => {});
+    closeNative().catch(() => {});
     const m = !low ? "The map couldn't draw on this phone, so the 2D map is shown."
       : ios ? "The map may not draw while Low Power Mode is on. Turn it off in Settings to see 3D."
       : "The map may not draw while Battery Saver is on. Turn it off in Settings to see 3D.";

@@ -2760,8 +2760,15 @@
   // shrink to 1 px and skip their repaint, and map pictures don't load; trail lines, taps and copying to 3D don't
   // use either. Back on the flat map everything draws again where it is. Leaflet internals (1.9.4): any surprise
   // just draws as before.
-  let restFlat = false;
-  function rest2d(on) {
+  // The phone apps' native map (native-map.js) covers the flat map the same way and rests it too, through
+  // window.tfRestFlat(on): in Skiing it kept 4 screen-size line canvases repainting and ~200 map pictures downloading per
+  // 12 moves under native 3D (page test, 2026-11-27). The flat map rests while either map covers it. While resting, a
+  // line layer's new spot isn't worked out either at each move (all of them, again, at each zoom): waking does it once.
+  let restFlat = false, restWeb = false, restNative = false;
+  function rest2d(on) { restWeb = !!on; restNow(); }
+  window.tfRestFlat = (on) => { restNative = !!on; restNow(); };
+  function restNow() {
+    const on = restWeb || restNative;
     if (restFlat === on) return;
     restFlat = on;
     try {
@@ -2788,6 +2795,8 @@
     };
     pause(L.Canvas && L.Canvas.prototype, "_update", function () { if (this._container && this._container.width > 1) this._container.width = this._container.height = 1; });
     pause(L.Canvas && L.Canvas.prototype, "_redraw", function () { this._redrawRequest = null; this._redrawBounds = null; });
+    pause(L.Canvas && L.Canvas.prototype, "_reset");
+    pause(L.Canvas && L.Canvas.prototype, "_onZoomEnd");
     pause(L.GridLayer && L.GridLayer.prototype, "_update");
     // The vector flat map loads its library later: pause it once it's there.
     const vec = () => pause(L.MaplibreGL && L.MaplibreGL.prototype, "_update");
