@@ -80,6 +80,8 @@
   const sportNow = () => SPORTS.find((s) => document.body.classList.contains("sport-" + s)) || "mtb";
   const sportOf = (a) => a.sport || (a.ski ? "ski" : "mtb");   // areas saved before 2026-10-27 only had "ski"
   const ICON = { mtb: "🚵", ski: "⛷", hunt: "🦌", fish: "🎣", moto: "🏍", hike: "🥾" };
+  // The sport's line drawing (line-icons.js), not the colour emoji: no emoji in the app (alex 2026-11-25).
+  const sportIcon = (sp) => { const svg = window.tfLine ? window.tfLine(ICON[sp] || ICON.mtb, 16) : ""; return /^<svg/.test(svg) ? svg + " " : ""; };
   const WHAT = {
     mtb: "the map, trails and forest roads",
     ski: "the map, ski routes, huts, the avalanche forecast, snow stations and slope angles",
@@ -298,7 +300,7 @@
     const areas = load();
     drawOutlines();
     $("[data-saved-h]").hidden = !areas.length;
-    $("[data-list]").innerHTML = areas.map((a) => { const up = upTo(a); return `<li><div><b>${ICON[sportOf(a)]} ${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}${a.d3 && (+a.dz || 12) < 15 && !(busy && a.name === savingName) ? `<span class="muted" style="display:block">${esc(lessDetail(+a.dz || 12, sportOf(a)).replace(/^h/, "H"))}</span>` : ""}</div>
+    $("[data-list]").innerHTML = areas.map((a) => { const up = upTo(a); return `<li><div><b>${sportIcon(sportOf(a))}${esc(a.name)}</b><span class="muted">${a.d3 ? "3D · " : ""}${mb(a.bytes)} · ${new Date(a.at).toLocaleDateString()}</span>${busy && a.name === savingName ? `<span class="muted">Saving now…</span>` : a.missing ? `<span class="warn">⚠ Not finished: ${files(a.missing)} missing${a.missingUrls ? ` (${whatsMissing(a.missingUrls)})` : ""}</span>` : `<span class="ok">✓ Works with no signal</span>`}${a.d3 && (+a.dz || 12) < 15 && !(busy && a.name === savingName) ? `<span class="muted" style="display:block">${esc(lessDetail(+a.dz || 12, sportOf(a)).replace(/^h/, "H"))}</span>` : ""}</div>
 ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-finish="${a.id}">Try again</button>` : up && !busy ? `<button type="button" data-up="${a.id}">${up >= 15 ? "Full detail" : "More detail"}</button>` : ""}<button type="button" data-show="${a.id}">Show</button><button type="button" class="del" data-del="${a.id}">Delete</button></li>`; }).join("");
     const use = $("[data-use]");
     use.textContent = "";
@@ -322,7 +324,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   // The style's own URLs: its tile sources (via their TileJSON), sprites and the fonts for labels.
   async function styleParts(cache) {
     const style = await getJson(cache, STYLE);
-    const sources = [], extra = [];
+    const sources = [], extra = [], tjUrls = [];
     for (const s of Object.values(style.sources || {})) {
       if (s.type !== "vector" && s.type !== "raster") continue;
       let tj = s;
@@ -330,13 +332,29 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
       const tmpl = tj.tiles && tj.tiles[0];
       if (tmpl) sources.push({ tmpl, minz: tj.minzoom || 0, maxz: Math.min(tj.maxzoom == null ? MAX_Z : tj.maxzoom, MAX_Z) });
     }
+    tjUrls.push(...Object.values(style.sources || {}).map((s) => s.url).filter(Boolean));
     const sprites = typeof style.sprite === "string" ? [style.sprite] : (style.sprite || []).map((s) => s.url);
     sprites.forEach((s) => ["", "@2x"].forEach((r) => extra.push(`${s}${r}.json`, `${s}${r}.png`)));
     const stacks = new Set();
     (style.layers || []).forEach((l) => { const f = l.layout && l.layout["text-font"]; if (Array.isArray(f) && f.every((x) => typeof x === "string")) stacks.add(f.join(",")); });
     if (style.glyphs) stacks.forEach((f) => GLYPH_RANGES.forEach((r) => extra.push(new URL(style.glyphs.replace("{fontstack}", f).replace("{range}", r)).href)));
-    return { sources, extra };
+    return { sources, extra, tj: tjUrls };
   }
+  // The OpenFreeMap addresses the saved areas use, for sw.js with no signal (ofmElsewhere there): each week's map has its
+  // own address, and the 3D map asks for another copy than the style's. tj: the TileJSON addresses saved.
+  const OFM_SAVED = "https://tiles.openfreemap.org/tf-saved";
+  async function ofmSaved(tjNow) {
+    try {
+      const cache = await store();
+      const old = (await cache.match(OFM_SAVED).then((r) => (r ? r.json() : null)).catch(() => null)) || {};
+      const next = { tiles: [...new Set(load().flatMap((a) => (a.sources || []).map((x) => x.tmpl)).filter((t) => /\.pbf$/.test(t)))],
+        tj: [...new Set([...(old.tj || []), ...(tjNow || [])])] };
+      if (!next.tiles.length || JSON.stringify(old) === JSON.stringify(next)) return;
+      await cache.put(OFM_SAVED, new Response(JSON.stringify(next), { headers: { "content-type": "application/json" } }));
+    } catch {}
+  }
+  // Areas saved before 2026-11-27 get the list once the app has settled.
+  setTimeout(() => { if (load().length) ofmSaved(); }, 16000);
   async function getJson(cache, url) {
     const res = await fetch(url, { cache: "no-cache" });
     if (!res.ok) throw new Error(`${url} answered ${res.status}`);
@@ -751,6 +769,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
       let done = 0, shown = 0;
       busy.left = total;
       record(true);
+      await ofmSaved(parts.tj);
       keepGoing(true, name, 0);
       const tick = (size) => {
         runBytes += size || 0;
@@ -792,6 +811,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     // A cabin trip saved again with a new square: the old save under its name goes once the new one is in the list,
     // finished or not (its tiles the new one shares stay).
     if (busy.replace && id) for (;;) { const areas = load(), o = areas.find((x) => x.name === name && x.id !== id); if (!o) break; await remove(o, areas).catch(() => {}); if (load().includes(o) || load().some((x) => x.id === o.id)) break; }
+    if (sources) await ofmSaved();
     if (lock) lock.release().catch(() => {});
     leftNotice(false);
     keepGoing(false);
@@ -873,6 +893,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     const keep = new Set([...(await Promise.all(rest.map(urlsOf))).flat(), ...hunts]);
     const cache = await store();
     const drop = (await urlsOf(a)).filter((u) => !keep.has(u));
+    await ofmSaved();
     for (let i = 0; i < drop.length; i += 50) await Promise.all(drop.slice(i, i + 50).map((u) => cache.delete(u)));
   }
 
@@ -889,13 +910,45 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   // Topo with no signal: the saved map with elevation lines from the saved heights (contours.js), as close to Topo as
   // can be saved (OpenTopoMap's own pictures can't be bulk-downloaded).
   const contourForce = (on) => { if (window.tfContourForce) window.tfContourForce("offline-flat", on); };
+  let wasBase = null, wasSport = null;   // the style on before the saved map took over, in that sport (back with the signal)
   function goOffline() {
     if (!load().length || !window.tfSetBasemap) return;
     const sel = document.getElementById("basemap");
     if (sel && sel.value === "topo") contourForce(true);
-    if (sel && sel.value !== "vector") window.tfSetBasemap("vector", false);
+    if (sel && sel.value !== "vector") { wasBase = sel.value; wasSport = sportNow(); window.tfSetBasemap("vector", false); }
+  }
+  // Signal back (test 2026-11-27): the style that was on again, or after a change of sport that sport's own (Winter in
+  // Skiing), not the saved map until the app is opened again. A style picked meanwhile stays.
+  function goOnline() {
+    contourForce(false);
+    const sel = document.getElementById("basemap");
+    if (wasBase && sel && sel.value === "vector" && window.tfSetBasemap) window.tfSetBasemap(wasSport !== sportNow() && window.tfSavedBase ? window.tfSavedBase() : wasBase, false);
+    wasBase = null;
   }
   if (!navigator.onLine) goOffline();
-  window.addEventListener("offline", () => { goOffline(); estimate(); });
-  window.addEventListener("online", () => { contourForce(false); estimate(); });
+  window.addEventListener("offline", () => { goOffline(); estimate(); noteHere(); });
+  window.addEventListener("online", () => { goOnline(); estimate(); noteHere(); });
+
+  // Outside every saved area with no signal (test 2026-11-27: a blank map in Squamish with nothing saying why): one line
+  // on the map says so, flat or 3D.
+  const note = document.createElement("div");
+  note.className = "off-here-note";
+  note.setAttribute("role", "status");
+  note.hidden = true;
+  document.querySelector(".mapwrap").append(note);
+  const css2 = document.createElement("style");
+  css2.textContent = `.off-here-note { position: absolute; z-index: 1000; left: 50%; top: 66px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
+  padding: 5px 10px; border-radius: 8px; background: rgba(20,30,25,.85); color: #fff; font: 600 12px/1.3 var(--font-body, system-ui); text-align: center; pointer-events: none; }
+body.box-on .off-here-note { display: none; }`;
+  document.head.append(css2);
+  function noteHere() {
+    if (navigator.onLine) { note.hidden = true; return; }
+    const gl = gl3d(), c = gl ? gl.getCenter() : map.getCenter(), lat = c.lat, lon = c.lng;
+    const inside = load().some((a) => lat >= a.box[0] && lat <= a.box[2] && lon >= a.box[1] && lon <= a.box[3]);
+    note.textContent = load().length ? "No signal: this spot isn't in your saved offline maps." : "No signal: no offline maps saved on this device yet.";
+    note.hidden = inside;
+  }
+  map.on("moveend", noteHere);
+  window.addEventListener("tf:map3d", (e) => { const gl = e.detail || window.trailMap3d; if (gl && !gl.tfOffNote) { gl.tfOffNote = true; gl.on("moveend", noteHere); } setTimeout(noteHere, 0); });
+  setTimeout(noteHere, 0);
 })();

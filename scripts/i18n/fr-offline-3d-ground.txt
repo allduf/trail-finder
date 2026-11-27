@@ -1,0 +1,5 @@
+Offline maps: with no signal, the 3D map shows the saved map's lakes, roads and forest again in every sport, areas saved in different weeks all show, the map says when a spot isn't saved, and your map style comes back with the signal. ||| Cartes hors ligne : sans réseau, la carte 3D montre de nouveau les lacs, routes et forêts de la carte enregistrée dans tous les sports, les zones enregistrées à des semaines différentes s'affichent toutes, la carte indique quand un endroit n'est pas enregistré, et votre style de carte revient avec le réseau.
+No signal: the loam estimate needs a connection. ||| Pas de réseau : l'estimation du loam a besoin d'une connexion.
+No signal: rider reports need a connection. ||| Pas de réseau : les rapports des cyclistes ont besoin d'une connexion.
+No signal: this spot isn't in your saved offline maps. ||| Pas de réseau : cet endroit n'est pas dans vos cartes hors ligne enregistrées.
+No signal: no offline maps saved on this device yet. ||| Pas de réseau : aucune carte hors ligne enregistrée sur cet appareil pour l'instant.
