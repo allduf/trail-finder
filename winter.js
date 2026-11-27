@@ -6073,27 +6073,36 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     moto: ["crownland", "hunting", "trip-core", "moto", "moto-trip", "moto-day"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
     mtb: ["trip-core", "bike-trip"],   // MTB's own scripts are in index.html; its Bike trips (bike-trip.js) come with it
   };
-  const jsLoads = {};
+  const jsLoads = {}, preloads = {};
   const pageReady = new Promise((ok) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok, { once: true }) : ok()));
   function loadJs(n) {
     if (jsLoads[n]) return jsLoads[n];
     const src = `${n}.js${jsVer}`;
-    if (!document.querySelector(`link[rel=preload][href="${src}"]`)) {
-      const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "script"; pre.href = src;   // downloads now, runs below
-      document.head.append(pre);
-    }
+    preload(n);
     return (jsLoads[n] = pageReady.then(() => new Promise((ok, no) => {
       // Each script on its own (not the browser's one ordered line): a download that never answers on a weak signal
       // held up every sport picked after it until the app was opened again (2026-11-27 tough conditions test).
       // loadSport keeps each sport's order.
       const el = document.createElement("script"); el.src = src; el.async = true;
-      el.onload = ok; el.onerror = () => { delete jsLoads[n]; no(new Error(src)); };
+      el.onload = ok; el.onerror = () => { delete jsLoads[n]; preloads[n] && preloads[n].remove(); delete preloads[n]; no(new Error(src)); };
       document.body.append(el);
     })));
   }
-  // A sport's scripts one after the other, in SPORT_JS order (they all download at once through the preloads above).
-  // One that fails stops the ones after it, which need it; loadSportAgain tries again from there.
-  const loadSport = (s) => SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n)).reduce((p, n) => p.then(() => loadJs(n)), Promise.resolve());
+  // Starts a script's download now (it runs when loadJs adds it); a failed one is started afresh on the next try.
+  function preload(n) {
+    if (jsLoads[n] || preloads[n]) return;
+    const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "script"; pre.href = `${n}.js${jsVer}`;
+    document.head.append(pre);
+    preloads[n] = pre;
+  }
+  // A sport's scripts run one after the other, in SPORT_JS order, and all start downloading at once (preload). One that
+  // fails stops the ones after it, which need it; loadSportAgain tries again from there. A download that never ends
+  // holds up only the sports that need that script: once the offline helper (sw.js) has them, they come from the phone.
+  const loadSport = (s) => {
+    const list = SPORT_JS.filter((n) => (NEEDS[s] || []).includes(n));
+    list.forEach(preload);
+    return list.reduce((p, n) => p.then(() => loadJs(n)), Promise.resolve());
+  };
   window.tfLoadSport = loadSport;
   // A cabin trip (or a hike trip) starting tomorrow or under way: that sport's files load a few seconds after the app
   // opens, whatever the sport, so the trip's forecast and offline copy update by themselves (trip-core.js refreshAhead, alex 2026-11-11).
