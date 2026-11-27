@@ -504,10 +504,15 @@ function appStandIn({ platform, keys, admin, photos }) {
     close: () => { if (!tm.screen) return ok(); tm.closes++; setTimeout(() => { const c = window.tfLeaflet.getCenter(); tm.fire("closed", { lat: c.lat, lon: c.lng, zoom: 12, bearing: 0, details: false, layers: false, open: -1 }); }, 0); return ok(); },
     addListener: (name, fn) => { (tm.on[name] = tm.on[name] || []).push(fn); return ok({ remove() {} }); },
   };
-  // The app's other plugins: every call answers with nothing.
+  // The app's other plugins: every call answers with nothing. App keeps the page's Back button listener (Android's
+  // Back, native.js): window.__app.back(), and counts the times the page put the app away (minimizeApp).
   const other = () => new Proxy({}, { get: (_, k) => (k === "then" ? undefined : () => ok(k === "addListener" ? { remove() {} } : {})) });
+  const app = (window.__app = { fns: [], minimized: 0, back: () => app.fns.forEach((f) => f({ canGoBack: history.length > 1 })) });
+  const App = new Proxy({}, { get: (_, k) => (k === "then" ? undefined
+    : k === "addListener" ? (name, fn) => { if (name === "backButton" && typeof fn === "function") app.fns.push(fn); return ok({ remove() {} }); }
+    : k === "minimizeApp" ? () => { app.minimized++; return ok(); } : () => ok({})) });
   window.Capacitor = { isNativePlatform: () => true, getPlatform: () => platform, isPluginAvailable: (n) => n === "TrailMap",
-    registerPlugin: (n) => (n === "TrailMap" ? TrailMap : other()), Plugins: { TrailMap } };
+    registerPlugin: (n) => (n === "TrailMap" ? TrailMap : n === "App" ? App : other()), Plugins: { TrailMap } };
 }
 // desk: the website (kind "web") at computer size, in the computer's run.
 async function appBuild(kind, desk = false) {
@@ -882,6 +887,25 @@ async function appBuild(kind, desk = false) {
         await tap3d();
       }).finally(() => ev(() => localStorage.removeItem("tf:avy")).catch(() => {})));
       await check("native map draws nothing (Battery Saver), every sport: flat map back with a note", () => notDrawn(ALL, true));
+      // The phone's Back button closes a spot card that shows (Fishing: a tapped spot, a river gauge, a tide station)
+      // before it puts the app away (native.js data-back-close; side-by-side test 2026-11-27: Back left the app with
+      // Fishing's and Hunting's spot cards open, over the flat map and native 3D).
+      await check("Back closes Fishing's spot card first", async () => {
+        await ev(() => localStorage.removeItem("tf-admin"));   // a tester: the page's own flat map
+        if (await ev(() => window.__tm.screen)) { await back(); await wait(1200); }
+        await sport("fish");
+        await until(() => document.body.classList.contains("sport-fish") && !!window.tfLeaflet, null, 10_000);
+        await wait(1500);
+        await ev(() => { const m = window.tfLeaflet, c = m.getCenter(); m.fire("click", { latlng: L.latLng(c.lat + 0.004, c.lng + 0.004), originalEvent: new MouseEvent("click") }); });
+        await until(() => { const e = document.getElementById("fsSpot"); return !!e && !e.hidden; }, null, 8000).catch(() => {});
+        await wait(800);
+        if (!(await ev(() => { const e = document.getElementById("fsSpot"); return !!e && !e.hidden; }))) throw new Error("a tap on the map showed no spot card");
+        const m0 = await ev(() => window.__app.minimized);
+        await ev(() => window.__app.back());
+        await wait(600);
+        if (await ev((m) => window.__app.minimized > m, m0)) throw new Error("Back put the app away with the spot card open");
+        if (await ev(() => { const e = document.getElementById("fsSpot"); return !!e && !e.hidden; })) throw new Error("Back left the spot card open");
+      });
     } else {
       await check("3D photos are Winter (Live picked there before)", async () => {
         await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {});
