@@ -1082,7 +1082,7 @@ async function buildGrooming() {
 // Riders' own reports of avalanches, snowpack and conditions, public on avalanche.ca. The last 14 days in the region,
 // so a ski route's details can list the avalanche activity reported near it. The API isn't documented in detail,
 // so the fields are read loosely and the first report's shape is logged. Since the 2026-27 season they're Avalanche
-// Canada's trip reports (/min/submissions, see tripAvalanche); the old list is still read for reports from before.
+// Canada's trip reports (/min/submissions, see tripAvalanche), which also serves the older reports.
 const MIN_APIS = process.env.MIN_API ? [process.env.MIN_API] : ["https://avcan-services-api.prod.avalanche.ca", AVCAN];
 const MIN_DAYS = 14;
 const num = (v) => (v == null || v === "" ? NaN : +v);
@@ -1133,7 +1133,8 @@ const TRIP_SIGNS = {   // wording-ok: Avalanche Canada's labels, shown as theirs
   shootingCracks: "shooting cracks", warming: "critical warming from sun, warm air temperature, or rain",
 };
 const TRIP_BANDS = { alpine: "alpine", treeline: "treeline", belowTreeline: "below treeline", btl: "below treeline", tln: "treeline", alp: "alpine" };
-const isTrip = (s) => !!s && (s.submissionID != null || s.sawAvalanche != null || /^data_3/.test(s.schemaVersions?.dataSchemaId || ""));
+// A trip report by its schema: /min/submissions also serves the older reports (data_1.x: observations, datetime).
+const isTrip = (s) => !!s && (/^data_[3-9]/.test(s.schemaVersions?.dataSchemaId || "") || (!s.observations && !s.obs && s.sawAvalanche != null));
 function tripAvalanche(s) {
   const avs = (Array.isArray(s.avalanches) ? s.avalanches : []).filter((a) => a && typeof a === "object");
   const seen = s.sawAvalanche === "yes" || avs.length > 0;
@@ -1142,7 +1143,7 @@ function tripAvalanche(s) {
   const sizes = avs.map((a) => parseFloat(val(a.size))).filter((x) => x > 0), lo = Math.min(...sizes), hi = Math.max(...sizes);
   const uniq = (f) => [...new Set(avs.flatMap((a) => [].concat(a[f] ?? []).map(val)).filter(Boolean))];
   const what = !seen ? "" : `${avs.length ? `${avs.length} ${avs.length === 1 ? "avalanche" : "avalanches"}` : "avalanche seen"}${sizes.length ? ` size ${lo === hi ? hi : `${lo}-${hi}`}` : ""}${s.caught === "yes" ? ", someone caught" : ""}`;
-  return { seen, what, signs, trigger: uniq("startedBy").join(", "), aspect: uniq("aspect").map((x) => x.toUpperCase()).join(" "),
+  return { seen, what, signs, trigger: uniq("startedBy").join(", "), aspect: uniq("aspect").map((x) => x.toUpperCase()).filter((x) => /^(N|NE|E|SE|S|SW|W|NW)$/.test(x)).join(" "),
     band: uniq("elevation").map((x) => TRIP_BANDS[x] || "").filter(Boolean).join(", ") };
 }
 // The day a report is about: a trip report's own day (YYYY-MM-DD) at noon, local time where it's read, so "yesterday"
@@ -1160,31 +1161,40 @@ async function buildMin() {
   log("Mountain Information Network reports");
   const to = new Date(), from = new Date(to - MIN_DAYS * 86400e3), d = (x) => x.toISOString().slice(0, 10), span = `fromdate=${d(from)}&todate=${d(to)}`;
   let lastErr;
-  // The first list one of these answers with (each API in turn).
+  // The first list one of these answers with (each API in turn). Logged without the rider's name or account id: the
+  // job's log is public.
+  const safe = (x) => (x && typeof x === "object" ? Object.fromEntries(Object.entries(x).filter(([k]) => !/^user|email/i.test(k))) : x);
   const firstList = async (paths) => {
     for (const base of MIN_APIS) for (const path of paths) {
       try {
         const json = await getJson(base + path), list = findList(json);
-        if (list) { log(`  ${base}${path}: ${list.length} reports; first: ${JSON.stringify(list[0] || null).slice(0, 1500)}`); return list; }
-        log(`  ${base}${path}: no list of reports in the answer; keys ${JSON.stringify(Object.keys(json || {}))}: ${JSON.stringify(json).slice(0, 600)}`);
+        if (list) { log(`  ${base}${path}: ${list.length} reports; first: ${JSON.stringify(safe(list[0]) || null).slice(0, 1500)}`); return list; }
+        log(`  ${base}${path}: no list of reports in the answer; keys ${JSON.stringify(Object.keys(json || {}))}`);
       } catch (e) { lastErr = e; }
     }
     return null;
   };
-  // Trip reports (this season on) and the old list (reports from before), both kept while the old one still answers.
-  const trips = await firstList([`/min/submissions?${span}`]);
-  const old = await firstList([`/min/en/submissions?${span}&pagesize=2000`, `/min/en/submissions?${span}`]);
-  if (!trips && !old) throw lastErr || new Error("no answer");
-  const out = [], ids = new Set();
-  for (const s of [...(trips || []), ...(old || [])]) {
+  // Trip reports and the older reports both come from /min/submissions (the old /min/en/submissions list has the older
+  // ones only, so it's not read: it answers an empty list this season, which would wipe the file when this one fails).
+  const list = await firstList([`/min/submissions?${span}`]);
+  if (!list) throw lastErr || new Error("no answer");
+  const out = [], ids = new Set(), t0 = +from - 86400e3, t1 = +to + 86400e3;
+  // When a report was sent and the day it's about, for the window (a report sent in March with its day typed as
+  // 2026-11-28 isn't one of the last 14 days).
+  const when = (x) => Date.parse(String(x || "").replace(/T12:00:00$/, "T12:00:00Z"));
+  for (const s of list) {
     const [lat, lon] = minLatLon(s);
     if (!isFinite(lat) || !isFinite(lon) || !REGIONS.some((b) => lat >= b[0] - 0.2 && lat <= b[2] + 0.2 && lon >= b[1] - 0.3 && lon <= b[3] + 0.3)) continue;
     const trip = isTrip(s), obs = trip ? {} : minObs(s), id = String(s.submissionID || s.subid || s.id || s.submissionId || "");
     if (id && ids.has(id)) continue;
+    const date = trip ? tripDate(s) : val(s.datetime || s.dateTime || s.date || s.observationDate || s.createdAt || "");
+    const sent = when(s.submissionDatetime), at = when(date);
+    if ((isFinite(sent) && sent < t0) || (isFinite(at) && (at < t0 || at > t1))) continue;
     if (id) ids.add(id);
-    const comments = (trip ? [text(s.comments)] : [...new Set(flatText(obs).map((t) => text(t)).filter(Boolean))]).join(" ").slice(0, 400);
+    // Trip comments are plain text (a "<30 cm ... >1 m" isn't a tag); the older reports' may hold HTML.
+    const comments = (trip ? [String(s.comments || "").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim()] : [...new Set(flatText(obs).map((t) => text(t)).filter(Boolean))]).join(" ").slice(0, 400);
     out.push({
-      id, lat: round(lat), lon: round(lon), date: trip ? tripDate(s) : val(s.datetime || s.dateTime || s.date || s.observationDate || s.createdAt || ""),
+      id, lat: round(lat), lon: round(lon), date,
       title: text(s.title || s.locationName || s.location?.name || "").slice(0, 120), types: trip ? [].concat(s.activities || []).map(val).filter(Boolean) : Object.keys(obs).filter(Boolean),
       av: trip ? tripAvalanche(s) : minAvalanche(obs), text: comments,
     });

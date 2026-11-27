@@ -117,6 +117,10 @@
     [/^(\d+) avalanches?(?: size ([\d.]+(?:-[\d.]+)?))?(, someone caught)?$/, function (m, n, z, c) { return n + " avalanche" + (n === "1" ? "" : "s") + (z ? " de taille " + z.replace(/\./g, ",") : "") + (c ? ", une personne prise" : ""); }],
     [/^avalanche seen(, someone caught)?$/, function (m, c) { return "avalanche vue" + (c ? ", une personne prise" : ""); }],
     [/^(\d+) reports? of avalanches$/, function (m, n) { return n + " rapport" + (n === "1" ? "" : "s") + " d'avalanches"; }],
+    // The rest of a riders' report line (winter.js minHtml): ", 3 km away: Metal Dome", ", 3 reports in all.", "…and 4 more on".
+    [/^(\d+) km away(?:: (.+))?$/, function (m, n, t) { return "à " + n + " km" + (t ? " : " + t : ""); }],
+    [/^(\d+) reports? in all$/, function (m, n) { return n + " rapport" + (n === "1" ? "" : "s") + " en tout"; }],
+    [/^and (\d+) more on$/, "et $1 de plus sur"],
     [/^No avalanches in these reports, (\d+) reports? in all\.$/, function (m, n) { return "Aucune avalanche dans ces rapports, " + n + " rapport" + (n === "1" ? "" : "s") + " en tout."; }],
     [/^(.+): the closest paved road or lot \(usually plowed\) for a less exposed way in\. Logging roads past it are usually not plowed, so they're part of the ski\.$/, function (m, p) { return tt(p) + " : la route asphaltée ou le stationnement le plus proche (habituellement déneigé) pour un chemin moins exposé. Les chemins forestiers au-delà ne sont habituellement pas déneigés : ils font partie de la sortie à ski."; }],
     // ask.js: a mountain or ridge with no tour mapped on it, planned from the closest road (2026-11-10)
