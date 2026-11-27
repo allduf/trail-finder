@@ -3387,7 +3387,21 @@
       if (e.detail === "ski" && was !== "ski" && skiPhotos !== "winter") { skiPhotos = "winter"; if (gl && gl.style) pick(); }
     });
     const savedPhotos = () => { const s = sportNow(); return s === "ski" ? skiPhotos : bySport("3dPhotosBy", s) || store.get("3dPhotos", "sharp"); };
+    // While the 3D map's style is (re)loading (a sport switch from More, the GPU giving the map back), its layers can't
+    // change yet: the latest pick waits for the style (deep phone test 2026-11-27: "Style is not done loading").
+    let photoWait = null, photoGl = null;
     const setPhotos = (mode) => {
+      if (!gl) return;
+      if (!gl.style || !gl.style._loaded) {
+        photoWait = mode == null ? "" : mode;
+        if (photoGl !== gl) {
+          const m3 = photoGl = gl;
+          const go = () => { if (m3 !== gl) return; if (!gl.style || !gl.style._loaded) { gl.once("styledata", go); return; } const m = photoWait; photoWait = null; photoGl = null; setPhotos(m); };
+          gl.once("styledata", go);
+        }
+        return;
+      }
+      photoWait = null;
       photos = ["sharp", "winter", "live", "topo", "map", "adv"].includes(mode) ? mode : "sharp";
       if (photos === "adv" && !moto()) photos = "sharp";   // ADV topo is Adventure moto's   // (an old saved "2023" choice becomes Summer)
       if (photos === "winter" && !ski()) photos = "sharp";   // last winter's snow photos are for Skiing only

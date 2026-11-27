@@ -11,6 +11,20 @@ window.tfReload = window.tfReload || function () {
   window.tfReloading = true; setTimeout(function () { window.tfReloading = false; }, 10000);
   location.reload();
 };
+// Why something failed, in plain words for the interface (CLAUDE.md: no raw error codes): never a browser's "Failed to
+// fetch", an "HTTP 503" or a script's own error. A sentence the app wrote itself is kept. Used as "Couldn't load X (...)".
+window.tfErrText = window.tfErrText || function (e) {
+  var m = String((e && (e.message || e.error_description)) || e || "");
+  if (navigator.onLine === false) return "no signal";
+  if (/too many|\b429\b/i.test(m)) return "too many requests just now";
+  var code = /\b(?:HTTP|error|status|said)\s*:?\s*([45]\d\d)\b/i.exec(m);   // "HTTP 503", "error 503", "The server said 404"
+  if (code && code[1] === "404") return "not found";
+  if (code && code[1][0] === "4") return "the server turned the request down";
+  if (code) return "no answer from the server";
+  if (/HTTP|fetch|load failed|network|abort|timed? ?out/i.test(m)) return "no answer from the server";
+  if (!m || /[A-Z][a-z]+Error\b|undefined|null|NaN|JSON|token|is not a function|Cannot read|is not defined|violates|\bpolicy\b/.test(m)) return "something went wrong";
+  return m.replace(/[.!?\s]+$/, "");
+};
 (function () {
   "use strict";
   var KEY = "tf:lang", lang = null;

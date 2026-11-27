@@ -349,8 +349,9 @@
     let k = 1;
     const nearS = S.near.map((x) => (x.ll ? wx[k++] : null)), savedS = S.saved.map(() => wx[k++]);
     const here = S.here(wx[0]) || "";
-    q(".tdy-here").innerHTML = (err ? `<span class="tdy-wait">${esc(err)}</span>` : "") + here;
-    q(".tdy-here").hidden = !err && !here;
+    // A weather error already shows in the line under the title: not a second time just below it.
+    q(".tdy-here").innerHTML = here;
+    q(".tdy-here").hidden = !here;
     // The avalanche line's index: 0 is here, then the near places, then the saved ones (ski only uses it).
     let ai = 1;
     const nearAi = S.near.map((x) => (x.ll ? ai++ : -1)), savedAi = S.saved.map(() => ai++);

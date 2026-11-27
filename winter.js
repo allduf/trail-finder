@@ -3119,7 +3119,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         : `<b>${plan.wait ? esc(plan.wait) : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
       // Or typed in plain words (alex 2026-11-07: "When I click plan a route I want to be able to ask what I want to plan"):
       // Ask (ask.js) reads the plan of the day and makes the tour from it.
-      const askRow = !o && n === 0 && window.tfAsk ? `<form class="pb-ask" role="search"><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type your plan" placeholder="💬 Or type your plan: start at…, ski…, finish…"><button type="submit">Plan it</button></form>` : "";
+      const askRow = !o && n === 0 && window.tfAsk ? `<form class="pb-ask" role="search"><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type your plan" placeholder="Or type your plan: start at…, ski…, finish…"><button type="submit">Plan it</button></form>` : "";
       const was = planBar.querySelector(".pb-ask input"), wasQ = was ? was.value : "", wasF = was && document.activeElement === was;   // typing survives a redraw
       planBar.innerHTML = `<div class="pb-msg"><i class="pb-dot${o ? " line" : ""}${plan.wait && !o ? " busy" : ""}" aria-hidden="true"></i><span>${msg}</span></div>
         <div class="pb-btns">${o ? `<button type="button" data-p="line" class="go">＋ Add line</button><button type="button" data-p="point">Just a point</button><button type="button" data-p="nope" aria-label="Neither">✕</button>`

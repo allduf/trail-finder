@@ -761,6 +761,17 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
             icon: L.divIcon({ className: "fs-zlabel", html: `<span style="--c:${c}">${esc(z.n)}</span>`, iconSize: null }) }).addTo(boatLabels);
         }
       }
+      // Zoomed out, a lake's names can land on each other ("No wake" over "Float planes"): the later one is left out
+      // (drawn again from the data at the next move or zoom).
+      const kept = [], drop = [];
+      boatLabels.eachLayer((m) => {
+        const el = m.getElement && m.getElement(), sp = el && el.firstElementChild;
+        if (!sp) return;
+        const r = sp.getBoundingClientRect();
+        if (!r.width) return;   // the map isn't on screen: nothing to compare
+        if (kept.some((k) => r.left < k.right + 2 && r.right > k.left - 2 && r.top < k.bottom + 1 && r.bottom > k.top - 1)) drop.push(m); else kept.push(r);
+      });
+      drop.forEach((m) => boatLabels.removeLayer(m));   // removed, not hidden: the 3D map's names come from this group too
       sync3d();
     });
   }
