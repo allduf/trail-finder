@@ -294,16 +294,16 @@ async function scrollBy(dy, k) {
   const y0 = await jsq(scroller, null); if (y0 == null) { log("no scroller"); return; }
   for (let i = 1; i <= k; i++) { await jsq(`(window.__sc.scrollTop = ${Math.round(y0 + dy * ease(i / k))}, 1)`); await sleep(150); snap(); }
 }
-async function camSeq(name, n, at, settle = SET) {
+async function camSeq(name, n, at, settle = SET, from = 0, to = n) {
   mark(name);
-  await cam(at(0)); await sleep(5000);
+  await cam(at(from / (n - 1))); await sleep(5000);
   const t0 = T();
-  for (let i = 0; i < n; i++) { await cam(at(i / (n - 1))); await sleep(settle); snap(); }
+  for (let i = from; i < to; i++) { await cam(at(i / (n - 1))); await sleep(settle); snap(); }
   log(`${name}: ${n} frames in ${Math.round((T() - t0) / 1000)} s`);
 }
 
-const C0 = { lat: 50.077, lon: -122.925, zoom: 12.55 };
-const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
+const C0 = { lat: 50.128, lon: -122.812, zoom: 12.55 };
+const SLOPE = (process.env.SLOPE || "50.135,-122.816").split(",").map(Number);
 (async () => {
   phone.launch();
   for (let i = 0; i < 4 && !(await pageUp(i ? 60000 : 120000)); i++) { phone.kill(); await sleep(2000); phone.launch(); }
@@ -323,12 +323,17 @@ const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
   await cam({ ...C0, bearing: 160 }); await sleep(12000);
   await film({ fold: false }); await sleep(500);
 
-  // 0. The fly-over: an orbit around the Spearhead Range peaks, the map alone (page buttons hidden), stripes on.
-  await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
-  await sleep(4000);
-  const SP = (process.env.SPEAR || "50.045,-122.835").split(",").map(Number);
-  await camSeq("fly", Number(process.env.NF || 300), (u) => ({ lat: SP[0], lon: SP[1], zoom: Number(process.env.FZ || 12.7), bearing: 100 + 140 * ease(u) }));
-  await jsq(`document.getElementById("__clean")?.remove()`);
+  // 0. The fly-over (PART=fly: only its frames FROM..TO of NF, then stop; PART=ui: skipped): an orbit over the
+  // Wedge Mountain backcountry, the map alone (page buttons hidden), stripes on.
+  const PART = process.env.PART || "all";
+  if (PART !== "ui") {
+    await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
+    await sleep(4000);
+    const SP = (process.env.SPEAR || "50.13,-122.80").split(",").map(Number), NF = Number(process.env.NF || 900);
+    await camSeq("fly", NF, (u) => ({ lat: SP[0], lon: SP[1], zoom: Number(process.env.FZ || 12.6), bearing: 60 + 140 * ease(u) }), SET, Number(process.env.FROM || 0), Number(process.env.TO || NF));
+    if (PART === "fly") { mark("END"); log("done, frames " + fi); process.exit(0); }
+    await jsq(`document.getElementById("__clean")?.remove()`);
+  }
   await cam({ ...C0, bearing: 160 }); await sleep(10000);
   // 1. The Today line on the map's sheet: Avalanche Canada's ratings in their colours.
   mark("map"); snap(); snap();
@@ -348,7 +353,7 @@ const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
   L.rects.bars = await rect("#skBars");
   // 5. A slow turn with the app's buttons.
   // 6. In to a slope, and tap it: Striped because.
-  await camSeq("glide", Number(process.env.NG || 75), (u) => { const e = ease(u); return { lat: C0.lat + (SLOPE[0] - C0.lat) * e, lon: C0.lon + (SLOPE[1] - C0.lon) * e, zoom: C0.zoom + (14.1 - C0.zoom) * e, bearing: 190 - 40 * e }; });
+  await camSeq("glide", Number(process.env.NG || 150), (u) => { const e = ease(u); return { lat: C0.lat + (SLOPE[0] - C0.lat) * e, lon: C0.lon + (SLOPE[1] - C0.lon) * e, zoom: C0.zoom + (14.1 - C0.zoom) * e, bearing: 190 - 40 * e }; });
   // The slope cards (the page's This spot card): a striped slope, then a plain one beside it.
   const spotAt = async (name, pt) => {
     L.taps.push({ f: fi, x: 220, y: Number(process.env.TAPY || 478), name }); snap();
@@ -360,8 +365,8 @@ const SLOPE = (process.env.SLOPE || "50.0495,-122.913").split(",").map(Number);
     await sleep(2500); mark(name + "closed"); snap();
   };
   await spotAt("slope", SLOPE);
-  const P2 = (process.env.SLOPE2 || "50.0675,-122.968").split(",").map(Number);
-  await camSeq("move2", 45, (u) => { const e = ease(u); return { lat: SLOPE[0] + (P2[0] - SLOPE[0]) * e, lon: SLOPE[1] + (P2[1] - SLOPE[1]) * e, zoom: 14.1, bearing: 150 + 30 * e }; });
+  const P2 = (process.env.SLOPE2 || "50.135,-122.808").split(",").map(Number);
+  await camSeq("move2", 90, (u) => { const e = ease(u); return { lat: SLOPE[0] + (P2[0] - SLOPE[0]) * e, lon: SLOPE[1] + (P2[1] - SLOPE[1]) * e, zoom: 14.1, bearing: 150 - 90 * e }; });
   await spotAt("plain", P2);
   mark("spotclosed");
   // 7. Hide the card: a small Avalanche chip under the key; tap it, the card is back.
