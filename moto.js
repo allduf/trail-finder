@@ -177,7 +177,7 @@
   const VIEWS = {
     roads: { label: "Roads", sub: "for my bike", layers: ["roads", "rules", "fuel", "ferry"] },
     stops: { label: "Fuel & camp", sub: "range, sleep", layers: ["roads", "fuel", "range", "camp", "hot", "ferry", "crown"] },
-    rules: { label: "Rules", sub: "can I ride", layers: ["roads", "rules", "crown"] },
+    rules: { label: "Rules", sub: "riding access", layers: ["roads", "rules", "crown"] },
   };
   // The "Mud and dust today" squares layer is gone (alex 2026-11-08: not relevant); the Dirt today card stays.
   let shown = new Set(store.get("motoLayers", Object.keys(LAYERS).filter((k) => LAYERS[k].on)).filter((k) => LAYERS[k]));
@@ -1097,8 +1097,8 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
     const rs = areas.map((a) => ({ a, r: ruleOf(a.k) })).filter((x) => x.r).sort((x, y) => Object.keys(RULES).indexOf(x.r.g) - Object.keys(RULES).indexOf(y.r.g));
     const P = PROV[pv];
     const can = el.querySelector("[data-can]");
-    can.innerHTML = `<h4>Can I ride here?</h4>
-      ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "ok" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn info">No park, reserve or closure mapped here.</div>`}
+    can.innerHTML = `<h4>Riding access</h4>
+      ${rs.length ? rs.map(({ a, r }) => `<div class="mt-warn ${r.g === "no" ? "" : r.g === "open" ? "info" : "hard"}"><b>${esc(a.n || r.label)}</b><br>${esc(r.text)}</div>`).join("") : `<div class="mt-warn info">No park, reserve or closure mapped here.</div>`}
       <details class="mt-fold"><summary>${esc(P ? P[0] : PROV_NAME[pv] || "Canada")}: riding rules</summary><p>${esc(P ? P[1] : PROV_OTHER)}</p><p class="mt-note">A summary in our own words: rules change, so check the province's current rules.</p>${P && P[2].length ? `<p>${P[2].map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join(" · ")}</p>` : ""}</details>`;
     const land = await crownHtml(s.lat, s.lon, pv);
     if (my !== spotSeq) return;
