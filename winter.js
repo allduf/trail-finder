@@ -4373,29 +4373,54 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // the saved file is rebuilt, its outlines carry the old ids, which no live bulletin matches, so the old (expired)
   // bulletin stayed on the map. When a live bulletin's area isn't in the file, the current outlines are read live too
   // (same service, ~160 KB) and replace the file's Avalanche Canada areas; Japan's areas stay as they are.
-  let liveAreas = null;   // { ids: Set, areas: [{ id, name, rings }] } from the last live read of the outlines
+  let liveAreas = null, liveAreasAt = 0;   // the last live read of the outlines: { ids: Set, areas: [{ id, name, rings }] }, and when
+  // Outlines simplified to ~150 m, as scripts/build-winter.mjs areaRings() and simplify() (fewer points to test and paint).
+  function acSimplify(r, tol = 150) {
+    const n = r.length / 2;
+    if (n < 3) return r;
+    const k = Math.cos((r[0] * Math.PI) / 180) * 111320, X = (i) => r[i * 2 + 1] * k, Y = (i) => r[i * 2] * 110540;
+    // A closed ring (first point = last) is split at its point farthest from the first, as simplify() does.
+    let m = 0, dm = -1;
+    for (let i = 1; i < n - 1; i++) { const d = (X(i) - X(0)) ** 2 + (Y(i) - Y(0)) ** 2; if (d > dm) { dm = d; m = i; } }
+    const keep = new Uint8Array(n); keep[0] = keep[n - 1] = keep[m] = 1;
+    const stack = m ? [[0, m], [m, n - 1]] : [[0, n - 1]];
+    while (stack.length) {
+      const [a, b] = stack.pop(); let far = -1, best = tol;
+      const ax = X(a), ay = Y(a), dx = X(b) - ax, dy = Y(b) - ay, len = Math.hypot(dx, dy) || 1;
+      for (let i = a + 1; i < b; i++) { const d = Math.abs(dy * (X(i) - ax) - dx * (Y(i) - ay)) / len; if (d > best) { best = d; far = i; } }
+      if (far > 0) { keep[far] = 1; stack.push([a, far], [far, b]); }
+    }
+    const out = [];
+    for (let i = 0; i < n; i++) if (keep[i]) out.push(r[i * 2], r[i * 2 + 1]);
+    return out;
+  }
   const acRings = (g) => (g?.type === "MultiPolygon" ? g.coordinates : g?.type === "Polygon" ? [g.coordinates] : [])
-    .map((poly) => (poly[0] || []).flatMap(([x, y]) => [Math.round(y * 1e5) / 1e5, Math.round(x * 1e5) / 1e5])).filter((r) => r.length >= 8);
-  // Same short names as scripts/build-winter.mjs shortTitle(): a title listing many areas is a park's or the early season bulletin.
+    .map((poly) => acSimplify((poly[0] || []).flatMap(([x, y]) => [Math.round(y * 1e5) / 1e5, Math.round(x * 1e5) / 1e5]))).filter((r) => r.length >= 8);
+  // Names as scripts/build-winter.mjs: the outline's name, the bulletin's area name (never an id), then its title, a
+  // title listing many areas shortened to the park's name or the early season bulletin (shortTitle()).
   const AC_PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
-  const acName = (p) => { const t = acText(p.report?.title) || acText(p.area?.name), o = acVal(p.owner?.value || p.owner);
-    return t.split("-").length <= 8 ? t : AC_PARKS[o] || (o === "avalanche-canada" || !p.owner ? "Avalanche Canada early season bulletin (all of BC)" : `${acText(p.owner?.display) || "Avalanche"} forecast`); };
+  const acAreaName = (v) => { const s = acText(v); return /^[0-9a-f]{24,}$/i.test(s) ? "" : s; };
+  const acName = (p) => { const t = acText(p.report?.title), o = acVal(p.owner?.value || p.owner);
+    return acAreaName(p.area?.name) || (!t || t.split("-").length <= 8 ? t : AC_PARKS[o] || (o === "avalanche-canada" || !p.owner ? "Avalanche Canada early season bulletin (all of BC)" : `${acText(p.owner?.display) || "Avalanche"} forecast`)); };
   async function avyRegroup(list) {
     const known = new Set(avy.areas.map((a) => a.id)), missing = list.filter((p) => p.area?.id != null && !known.has(String(p.area.id)));
     if (!missing.length) return false;
-    if (!liveAreas || missing.some((p) => !liveAreas.ids.has(String(p.area.id)))) {
+    // Read again only for an id the last read didn't have, and at most every 30 minutes (an id that never has an outline).
+    if (!liveAreas || (missing.some((p) => !liveAreas.ids.has(String(p.area.id))) && Date.now() - liveAreasAt > 30 * 60000)) {
+      liveAreasAt = Date.now();
       const r = await fetch(AVCAN.replace(/\/products$/, "/areas"), { cache: "no-store", signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const fc = await r.json(), areas = (fc.features || []).map((f) => ({ id: String(f.id ?? f.properties?.id ?? ""), rings: acRings(f.geometry) })).filter((a) => a.id && a.rings.length);
+      const fc = await r.json(), areas = (fc.features || []).map((f) => ({ id: String(f.id ?? f.properties?.id ?? ""), name: acAreaName(f.properties?.name), rings: acRings(f.geometry) })).filter((a) => a.id && a.rings.length);
       if (!areas.length) return false;
       liveAreas = { ids: new Set(areas.map((a) => a.id)), areas };
     }
-    if (!avy) return false;
+    if (!avy || !missing.some((p) => liveAreas.ids.has(String(p.area.id)))) return false;
     const old = new Map(avy.areas.map((a) => [a.id, a])), byId = new Map(list.map((p) => [String(p.area?.id ?? ""), p]));
-    // Only the outlines of areas that have a bulletin, or that the file already had (a quiet area keeps its "no forecast").
+    // Live outlines of areas with a bulletin, or that the file already had (a quiet area keeps its "no forecast"), then
+    // the file's areas the outlines don't have but a live bulletin still names (a bulletin drawn from its box) and Japan's.
     const fresh = liveAreas.areas.filter((a) => byId.has(a.id) || old.has(a.id))
-      .map((a) => ({ id: a.id, name: (old.get(a.id) || {}).name || (byId.has(a.id) ? acName(byId.get(a.id)) : ""), rings: a.rings, forecast: (old.get(a.id) || {}).forecast || null }));
-    avy.areas = [...fresh, ...avy.areas.filter((a) => /^jan-/.test(a.id))];
+      .map((a) => { const o = old.get(a.id) || {}; return { id: a.id, name: o.name || a.name || (byId.has(a.id) ? acName(byId.get(a.id)) : ""), rings: a.rings, forecast: o.forecast || null }; });
+    avy.areas = [...fresh, ...avy.areas.filter((a) => !liveAreas.ids.has(a.id) && (/^jan-/.test(a.id) || byId.has(a.id)))];
     return true;
   }
   async function avyLive(quiet) {
@@ -4405,23 +4430,26 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       .filter((p) => p && (p.report || p.dangerRatings) && (!acVal(p.type) || /forecast/i.test(acVal(p.type))));
     if (!avy) return;
     const before = quiet ? avySig() : "", wasStale = quiet && avy.areas.some((a) => a.forecast && avyStale(a.forecast)), now = Date.now();
-    await avyRegroup(list).catch(() => false);   // no outlines: the file's areas stay (its newer copy comes with the next rebuild)
-    if (!avy) return;
     let n = 0;
-    for (const p of list) {
-      const a = avy.areas.find((x) => x.id === String(p.area?.id ?? ""));
-      if (!a) continue;
-      const f = acForecast(p, a.forecast);
-      if (a.forecast && a.forecast.issued && f.issued && Date.parse(f.issued) < Date.parse(a.forecast.issued)) { a.forecast.liveAt = now; continue; }   // the saved one is newer: still current
-      if (a.forecast && a.forecast.title) f.title = a.forecast.title;
-      else f.title = acText(p.report?.title) || a.name;
-      f.liveAt = now;
-      a.forecast = f; n++;
-    }
-    avy = prepAreas(avy);
-    avy.liveAt = now;
-    avyAt = now;
+    const apply = () => {
+      for (const p of list) {
+        const a = avy.areas.find((x) => x.id === String(p.area?.id ?? ""));
+        if (!a || (a.forecast && a.forecast.liveAt === now)) continue;
+        const f = acForecast(p, a.forecast);
+        if (a.forecast && a.forecast.issued && f.issued && Date.parse(f.issued) < Date.parse(a.forecast.issued)) { a.forecast.liveAt = now; continue; }   // the saved one is newer: still current
+        if (a.forecast && a.forecast.title) f.title = a.forecast.title;
+        else f.title = acText(p.report?.title) || a.name;
+        f.liveAt = now;
+        a.forecast = f; n++;
+      }
+      avy = prepAreas(avy);
+      avy.liveAt = now;
+      avyAt = now;
+    };
+    apply();   // the areas the file knows at once, then (when Avalanche Canada regrouped them) the new ones
     if (!quiet || wasStale || avySig() !== before) refreshAvy();
+    const sig = avySig();
+    if (await avyRegroup(list).catch(() => false) && avy) { apply(); if (avySig() !== sig) refreshAvy(); }   // no outlines: the file's areas stay until its next rebuild
     return n;
   }
   // A new day (the app back after midnight, or left open on the map): past days dropped, a day picked before today
