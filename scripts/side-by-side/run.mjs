@@ -147,7 +147,14 @@ if (PLATFORM === "web") {
 }
 const phone = {
   shot(f) { if (web) return web.page ? web.page.screenshot({ path: f }).catch(() => {}) : null; ios ? tryp(`xcrun simctl io booted screenshot --type=png "${f}"`, 30000) : tryp(`adb exec-out screencap -p > "${f}"`, 30000); },
-  launch() { if (web) { web.open(); return; } ios ? tryp(`xcrun simctl launch booted ${APP}`) : tryp(`adb shell am start -W -n ${APP}/.MainActivity`); },
+  // test.lowPower / test.noDraw: the Low power 3D test's stand-ins (low-power.mjs), in the simulator's app only.
+  test: {},
+  launch() {
+    if (web) { web.open(); return; }
+    const t = phone.test;
+    ios ? tryp(`${t.lowPower ? "SIMCTL_CHILD_TF_TEST_LOW_POWER=1 " : ""}${t.noDraw ? "SIMCTL_CHILD_TF_TEST_NO_DRAW=1 " : ""}xcrun simctl launch booted ${APP}`)
+      : tryp(`adb shell am start -W -n ${APP}/.MainActivity${t.noDraw ? " --ez tfTestNoDraw true" : ""}`);
+  },
   kill() { if (web) { if (web.page) web.page.close().catch(() => {}); return; } ios ? tryp(`xcrun simctl terminate booted ${APP}`) : tryp(`adb shell am force-stop ${APP}`); },
   // Android's own Back button (iPhones have none: the page's own close buttons are used there, as a person would).
   back() { if (!ios) tryp("adb shell input keyevent KEYCODE_BACK"); },
@@ -308,6 +315,13 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
     await sleep(4000); await pageUp();
     await jsq(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); })()`);
     await closeAll("start");
+  }
+
+  // The Low power 3D test (low-power.yml): its own steps instead of the side-by-side walk, and it fails on a problem.
+  if (process.env.WALK === "lowpower") {
+    const { lowPowerWalk } = await import("./low-power.mjs");
+    const bad = await lowPowerWalk({ PLATFORM, SPORTS, NAMES, OUT, TAG, js, jsq, phone, pageUp, click, tap, agree, closeAll, closeNative, sleep, tryp, steps, save, setSport: (s) => { sport = s; } });
+    process.exit(bad ? 1 : 0);
   }
 
   for (const sp of SPORTS) {
