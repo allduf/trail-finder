@@ -1,0 +1,20 @@
+Colours the slopes by steepness: 27° and up, where most avalanches start ||| Colore les pentes selon leur inclinaison : 27° et plus, là où partent la plupart des avalanches
+Nearly flat ground (under 5°): where you may have to skate, pole or skin out, and where a splitboard has to switch to walk mode ||| Terrain presque plat (moins de 5°) : où il faudra peut-être patiner, pousser ou remettre les peaux, et où une planche fractionnée doit passer en mode marche
+Est. time ||| Durée est.
+No rain or snow ||| Ni pluie ni neige
+Hours ||| Heures
+Whistler Blackcomb's status today ||| État de Whistler Blackcomb aujourd'hui
+Alerts in the bell when this tour turns to Extra caution or Not recommended ||| Alertes dans la cloche quand cette sortie passe à Prudence accrue ou Non recommandé
+Find a way between your points that tries to keep off steep and exposed slopes ||| Trouver un chemin entre vos points qui tente d'éviter les pentes raides et exposées
+Looking for a less exposed way in from a paved road… ||| Recherche d'un chemin moins exposé depuis une route asphaltée…
+No paved road or parking within 9 km of this spot that the map knows of. Use ✎ Plan a tour and tap where you start. ||| Aucune route asphaltée ni stationnement connu de la carte à moins de 9 km de cet endroit. Utilisez ✎ Planifier une sortie et touchez où vous partez.
+Tap where you start and where you want to go: the way between them keeps off steep slopes and today's avalanche problem aspects where it can. ||| Touchez où vous partez et où vous voulez aller : le chemin entre les deux évite les pentes raides et les orientations des problèmes d'avalanche du jour quand c'est possible.
+Keeps off 30°+ slopes where it can, however much longer that makes it. ||| Évite les pentes de 30°+ quand c'est possible, même si c'est beaucoup plus long.
+Band heights are an estimate. ||| Les hauteurs des étages d'altitude sont une estimation.
+Couldn't load the weather. Check your connection and try again. ||| Impossible de charger la météo. Vérifiez votre connexion et réessayez.
+Couldn't load the heights. Check your connection and try again. ||| Impossible de charger les altitudes. Vérifiez votre connexion et réessayez.
+Couldn't load the weather here. Check your connection and try again. ||| Impossible de charger la météo ici. Vérifiez votre connexion et réessayez.
+Snow forecast, next 24 h (cm) ||| Neige prévue, 24 prochaines heures (cm)
+Snow forecast, next 2 days (cm) ||| Neige prévue, 2 prochains jours (cm)
+Snow forecast, next 3 days (cm) ||| Neige prévue, 3 prochains jours (cm)
+Storm forecast ||| Tempête prévue

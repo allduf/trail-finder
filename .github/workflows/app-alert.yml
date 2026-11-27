@@ -1,0 +1,40 @@
+name: Crash and error alert
+
+# Every 15 minutes: a new crash restart, or a kind of error not seen in the 14 days before, from a real phone (test and
+# review devices left out, as on usage.html) sends a notification to alex's own phone through the app's notifications
+# (alex 2026-11-27, after crashes were only found by looking at the usage page; no email). See scripts/app-alert.mjs
+# and supabase/alert-phones.sql. On a pull request that changes it: a dry run over the last 3 days, nothing sent.
+# A problem shows as a warning, never a failed run (GitHub emails failed scheduled runs).
+on:
+  schedule:
+    - cron: "4,19,34,49 * * * *"
+  pull_request:
+    paths: ["scripts/app-alert.mjs", "scripts/test-devices.mjs", "scripts/push-send.mjs", "scripts/admin-push.mjs", ".github/workflows/app-alert.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-alert
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check for new crashes and errors
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
+          DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          HOURS: ${{ github.event_name == 'pull_request' && '72' || '' }}
+        run: node scripts/app-alert.mjs || echo "::warning::The crash and error alert stopped early; the next check tries again."

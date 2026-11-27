@@ -172,8 +172,8 @@
   //  - Simple: none of that.
   const CLASSES = [null,
     { key: "simple", label: "Simple", color: "#2f9e44", what: "Mostly gentle ground or open slopes, with little avalanche terrain." },
-    { key: "challenging", label: "Challenging", color: "#1971c2", what: "Some avalanche paths or steep slopes to cross or pass under: choose the way carefully." },
-    { key: "complex", label: "Complex", color: "#1a1a1a", what: "Long stretches on or under steep slopes, with few ways to avoid them." }];
+    { key: "challenging", label: "Challenging", color: "#1971c2", what: "Some avalanche paths or steep slopes along the way." },
+    { key: "complex", label: "Complex", color: "#1a1a1a", what: "Long stretches on or near steep slopes, with few ways around them." }];
   function terrainClass(i) {
     if (!i) return null;
     const above = i.above || 0, traps = i.traps || 0, why = [];
@@ -192,9 +192,9 @@
   // Avaluator trip planner chart: rows = danger rating 1 Low to 5 Extreme, columns = Simple, Challenging, Complex.
   const CHART = [null, [0, 0, 1], [0, 0, 1], [0, 1, 2], [1, 2, 2], [2, 2, 2]];
   const LIGHTS = [
-    { key: "go", label: "Normal caution", color: "#2f9e44", what: "Fewer accidents happen in this mix of danger and terrain. It doesn't mean the slope is safe: use your training and watch the conditions." },
-    { key: "care", label: "Extra caution", color: "#f2b705", what: "Most accidents happen here. Go only with avalanche skills and be ready to turn back." },
-    { key: "no", label: "Not recommended", color: "#e03131", what: "On Avalanche Canada's Avaluator chart, this terrain at this danger rating is not recommended. Pick simpler terrain or another day." }];
+    { key: "go", label: "Normal caution", color: "#2f9e44", what: "On Avalanche Canada's Avaluator chart, fewer accidents happen in this mix of danger and terrain. It doesn't mean the slope is safe." },
+    { key: "care", label: "Extra caution", color: "#f2b705", what: "On Avalanche Canada's Avaluator chart, most accidents happen in this mix of danger and terrain, and it calls for avalanche training." },
+    { key: "no", label: "Not recommended", color: "#e03131", what: "On Avalanche Canada's Avaluator chart, this terrain at this danger rating is not recommended." }];
   const light = (danger, cls) => (danger >= 1 && danger <= 5 && cls >= 1 && cls <= 3 ? CHART[danger][cls - 1] : -1);
 
   // ---------- Avalanche Canada's forecast areas (data/avalanche.json) ----------

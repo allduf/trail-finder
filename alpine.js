@@ -64,7 +64,7 @@ body.sport-alt .leaflet-alpine-pane { display: none; }`;
       const at = icons && w.top && map.latLngToContainerPoint(w.top);
       if (at && view.contains(w.top) && !placed.some((q) => q.distanceTo(at) < ICON_GAP)) {
         placed.push(at);
-        layer.addLayer(L.marker(w.top, { pane: "alpine", title: `${name}: alpine, looks rideable (up to ${w.hi} m)`, keyboard: false,
+        layer.addLayer(L.marker(w.top, { pane: "alpine", title: `${name}: alpine, may be rideable (up to ${w.hi} m)`, keyboard: false,
           icon: L.divIcon({ className: "alpine-top", html: `<span>${peak(20)}</span>`, iconSize: [0, 0] }) }).on("click", open));
       }
     }
@@ -91,7 +91,7 @@ body.sport-alt .leaflet-alpine-pane { display: none; }`;
       for (const l of data.values()) for (const w of l) if (b.intersects(w.bounds || (w.bounds = L.latLngBounds(w.geom)))) out.push(w);
       return out;
     },
-    keyItem: (sw) => sw(`background: repeating-linear-gradient(90deg, ${COLOR} 0 7px, transparent 7px 10px, ${COLOR} 10px 12px, transparent 12px 15px)`, `${peak(14)} Alpine, looks rideable`),
+    keyItem: (sw) => sw(`background: repeating-linear-gradient(90deg, ${COLOR} 0 7px, transparent 7px 10px, ${COLOR} 10px 12px, transparent 12px 15px)`, `${peak(14)} Alpine, may be rideable`),
     icon: peak(16),
     tf(id) {
       for (const list of data.values()) {
