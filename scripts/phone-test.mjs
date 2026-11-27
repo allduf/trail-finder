@@ -39,8 +39,8 @@ const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").
 // The devices this run goes through: "phone" (iPhone size, touch) and "desk" (a computer: 1440 x 900, mouse).
 const DEVICES = [PHONE_PART && "phone", COMPUTER_PART && "desk"].filter(Boolean);
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer", site: "Website" };
-// Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
-const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
+// Code libraries (the 3D map's MapLibre) and the map pictures and heights: everything else outside is cut off.
+const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
 // alex's iPhone: 430 x 932 points (iPhone 15/16 Pro Max size).
 const PHONE = {
@@ -832,7 +832,27 @@ async function appBuild(kind, desk = false) {
     console.log(`✗ ${line}: ${label}: the page\n    ${note}`);
   } finally { await p.ctx.close().catch(() => {}); }
 }
+// Fonts come from the site itself (vendor/fonts), never from Google Fonts or another font host: opening a page must send
+// nothing to Google (security and privacy check 2026-11-27). Reads every page at the site's root and the CSS files
+// they load from vendor/fonts, and checks that each font file named there is in vendor/fonts.
+async function fontsCheck() {
+  const problems = [];
+  for (const f of (await readdir(root)).filter((n) => n.endsWith(".html"))) {
+    const html = await readFile(join(root, f), "utf8");
+    if (/fonts\.(googleapis|gstatic)\.com|use\.typekit|fonts\.bunny/i.test(html)) problems.push(`${f} loads fonts from another site`);
+    for (const m of html.matchAll(/href="(vendor\/fonts\/[\w.-]+\.css)"/g)) {
+      const css = await readFile(join(root, m[1]), "utf8").catch(() => null);
+      if (css == null) { problems.push(`${f}: ${m[1]} is missing`); continue; }
+      for (const u of css.matchAll(/url\(([^)]+)\)/g))
+        if (!(await readFile(join(root, "vendor/fonts", u[1])).catch(() => null))) problems.push(`${m[1]}: ${u[1]} is missing`);
+    }
+  }
+  results.push({ sport: "app", step: "Fonts come from the site", ok: !problems.length, note: problems.join(" · "), shot: "" });
+  console.log(`${problems.length ? "✗" : "✓"} App builds: fonts come from the site${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
+}
+
 async function appBuilds() {
+await fontsCheck().catch((e) => results.push({ sport: "app", step: "Fonts come from the site", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await usagePrivateCheck().catch((e) => results.push({ sport: "app", step: "Usage holds nothing personal", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));

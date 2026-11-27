@@ -85,6 +85,38 @@ for (const f of files) {
     }
   });
 }
+// Hidden trail names (CLAUDE.md "This repository is public"): alex's unofficial trails are listed by nh, a hash of the
+// lower-case name (ratings.js, scripts/build-mtb.mjs), never by name. Fails when any text file in git holds a name that
+// hashes to one of them: a quoted string, or a run of 1 to 6 words. The log names only the file, line and hash, never
+// the name. A line that must stay (a hash test) can be marked hidden-name-ok.
+const fnv = (h, s) => { for (let i = 0; i < s.length; i++) { const c = s.codePointAt(i); if (c > 0xffff) i++; h = Math.imul(h ^ c, 0x01000193) >>> 0; } return h; };
+const nameHash = (s) => fnv(0x811c9dc5, s).toString(36);   // ratings.js nameHash
+const HIDDEN = new Set(["ratings.js", "scripts/build-mtb.mjs"].flatMap((f) => (existsSync(new URL(f, root)) ? [...readFileSync(new URL(f, root), "utf8").matchAll(/\bnh:\s*"([0-9a-z]+)"/g)].map((m) => m[1]) : [])));
+const HIDDEN_N = new Set([...HIDDEN].map((h) => parseInt(h, 36)));
+const TEXT_FILE = /\.(js|mjs|cjs|json|geojson|html|css|md|txt|yml|yaml|sql|swift|java|kt|xml|plist|py|sh|webmanifest|csv|gpx)$|^_headers$|^CLAUDE\.md$/;
+let hidden = 0;
+if (HIDDEN.size) for (const f of tracked.filter((f) => f && TEXT_FILE.test(f) && !f.startsWith("vendor/") && existsSync(new URL(f, root)))) {
+  readFileSync(new URL(f, root), "utf8").split("\n").forEach((raw, i) => {
+    if (raw.length > 200000 || /hidden-name-ok/.test(raw)) return;
+    const low = raw.toLowerCase(), found = new Set();
+    for (const m of low.matchAll(/["'`]([^"'`\n]{2,60})["'`]/g)) { const h = nameHash(m[1].trim()); if (HIDDEN.has(h)) found.add(h); }
+    // FNV-1a goes letter by letter, so each run of words carries on from the hash of the run before it.
+    const w = low.match(/[\p{L}\p{N}'’.&-]+/gu) || [], bare = w.map((x) => x.replace(/[.'’&-]+$/, ""));
+    for (let a = 0; a < w.length; a++) {
+      let h = 0x811c9dc5;
+      for (let k = 0; k < 6 && a + k < w.length; k++) {
+        if (k) h = fnv(h, " ");
+        const end = fnv(h, bare[a + k]);
+        if (HIDDEN_N.has(end)) found.add(end.toString(36));
+        h = bare[a + k] === w[a + k] ? end : fnv(h, w[a + k]);
+        if (h !== end && HIDDEN_N.has(h)) found.add(h.toString(36));
+      }
+    }
+    for (const h of found) { console.log(`${f}:${i + 1}: holds the name of a hidden trail (nh "${h}") in plain text: take it out, or use its nh`); hidden++; }
+  });
+}
+if (hidden) { console.log(`\n${hidden} line(s) name a hidden trail in plain text. This repository is public (CLAUDE.md).`); process.exit(1); }
+
 if (bad) {
   console.log(`\n${bad} line(s) word things in a way that could promise safety or conditions, or show an emoji. Fix them (see the top of scripts/wording-check.mjs).`);
   process.exit(1);

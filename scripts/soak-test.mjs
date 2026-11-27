@@ -42,7 +42,7 @@ const PLACES = [
   ["Revelstoke", -118.16, 50.96], ["Rossland", -117.82, 49.10], ["Kicking Horse", -117.06, 51.295],
 ];
 // Code libraries, fonts, map pictures and heights only: everything else outside is cut off (as in phone-test.mjs).
-const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
+const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com",
   "allduf.github.io", "s3.amazonaws.com", "trailfinderapp.ca"]);
 const PHONE = {

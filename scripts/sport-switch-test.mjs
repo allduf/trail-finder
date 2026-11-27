@@ -23,7 +23,7 @@ const OUT = process.env.OUT || "switch-test-shots";
 const MODES = (process.env.MODES || "2d,3d,styles,ios,android").split(",").map((s) => s.trim()).filter(Boolean);
 const SPORTS = ["mtb", "ski", "hunt", "fish", "moto", "hike"];
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
-const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
+const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);
 const PHONE = {
   viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, hasTouch: true, ...(BROWSER === "chromium" ? { isMobile: true } : {}),

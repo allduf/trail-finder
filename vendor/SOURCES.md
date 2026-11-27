@@ -22,8 +22,26 @@ Each file is copied byte for byte from the official npm release named here (chec
 | geotiff-2.1.3/compression/basedecoder.js | geotiff@2.1.3 (MIT) | dist-module/compression/basedecoder.js | `8d1f95fb468a03b73c304cb277cf11207e78b5a426b9cda4c8a7de930ea376f1` |
 | geotiff-2.1.3/predictor.js | geotiff@2.1.3 (MIT) | dist-module/predictor.js | `e65343613131379847315aa377692b8a1906595029a2d502bb4de4b00d67ae02` |
 | acorn-8.19.0.mjs | acorn@8.19.0 (MIT) | dist/acorn.mjs | `76254fc76529713b4dfd2532972d17a991ffd9aafeebb1f977445b5506b9fb0b` |
+| fonts/archivo-latin-ext-wdth-normal.woff2 | @fontsource-variable/archivo@5.3.0 (OFL-1.1) | files/archivo-latin-ext-wdth-normal.woff2 | `5717f37059660ca5c899bad6c48ee22c3ac55cb3c484055241689d0f905a1a86` |
+| fonts/archivo-latin-wdth-normal.woff2 | @fontsource-variable/archivo@5.3.0 (OFL-1.1) | files/archivo-latin-wdth-normal.woff2 | `e3a28eade21a900c7155a247757f4b2834c07bb7ef07ad7efa55cebaac1e8f5e` |
+| fonts/barlow-condensed-latin-600-normal.woff2 | @fontsource/barlow-condensed@5.3.0 (OFL-1.1) | files/barlow-condensed-latin-600-normal.woff2 | `215a93c696f442034a46fbb382958f753fda60e30490683aeea6b235fcbb2b66` |
+| fonts/barlow-condensed-latin-700-normal.woff2 | @fontsource/barlow-condensed@5.3.0 (OFL-1.1) | files/barlow-condensed-latin-700-normal.woff2 | `3787a5a419171630e6890cfa47c4da067474d005cd0ff8dc11ec090fdc3ee2b8` |
+| fonts/barlow-condensed-latin-ext-600-normal.woff2 | @fontsource/barlow-condensed@5.3.0 (OFL-1.1) | files/barlow-condensed-latin-ext-600-normal.woff2 | `aef7edf54f79a5329fbca9c065b56dcec3852c680d58cf89a9ef2db6940ca4b3` |
+| fonts/barlow-condensed-latin-ext-700-normal.woff2 | @fontsource/barlow-condensed@5.3.0 (OFL-1.1) | files/barlow-condensed-latin-ext-700-normal.woff2 | `9d351bd9222bfab90f943850f8039aa73cdb40e0a6cfe4127308a48bef59d5f5` |
+| fonts/barlow-latin-400-normal.woff2 | @fontsource/barlow@5.3.0 (OFL-1.1) | files/barlow-latin-400-normal.woff2 | `b0a8ad37ac45f5fb22ced461576db72e44e295107aad7a9c8a7a4bad728fd03b` |
+| fonts/barlow-latin-500-normal.woff2 | @fontsource/barlow@5.3.0 (OFL-1.1) | files/barlow-latin-500-normal.woff2 | `cd759df8ef9efc98fee14307b4eb5ba27f08b1f8f2f3ad2872432e25c89907a8` |
+| fonts/barlow-latin-600-normal.woff2 | @fontsource/barlow@5.3.0 (OFL-1.1) | files/barlow-latin-600-normal.woff2 | `4b52ddd4836b592df0e4832b8286956883cdc651b015126bdd18f184b7f90cc3` |
+| fonts/barlow-latin-ext-400-normal.woff2 | @fontsource/barlow@5.3.0 (OFL-1.1) | files/barlow-latin-ext-400-normal.woff2 | `122b24bc2a90b0abe189f5229768bf2e9ba641324fe2459b48850079625934f1` |
+| fonts/barlow-latin-ext-500-normal.woff2 | @fontsource/barlow@5.3.0 (OFL-1.1) | files/barlow-latin-ext-500-normal.woff2 | `3facdf66b60778c7e64693013be7799e6686b2488dad65525b4036e211ab03e0` |
+| fonts/barlow-latin-ext-600-normal.woff2 | @fontsource/barlow@5.3.0 (OFL-1.1) | files/barlow-latin-ext-600-normal.woff2 | `b7f099c421968b583734bc631e6706bff8fc23908112a219f5f0e37f59b03b32` |
+| fonts/inter-latin-ext-wght-normal.woff2 | @fontsource-variable/inter@5.3.0 (OFL-1.1) | files/inter-latin-ext-wght-normal.woff2 | `34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956` |
+| fonts/inter-latin-wght-normal.woff2 | @fontsource-variable/inter@5.3.0 (OFL-1.1) | files/inter-latin-wght-normal.woff2 | `3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62` |
+| fonts/jetbrains-mono-latin-400-normal.woff2 | @fontsource/jetbrains-mono@5.3.0 (OFL-1.1) | files/jetbrains-mono-latin-400-normal.woff2 | `14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb` |
+| fonts/jetbrains-mono-latin-ext-400-normal.woff2 | @fontsource/jetbrains-mono@5.3.0 (OFL-1.1) | files/jetbrains-mono-latin-ext-400-normal.woff2 | `505dfba8ecbe77e82765f36d317ed7ef4ac42719dc5f4ae68d1c483fd22d0d14` |
 
 geotiff 2.1.3's JPEG reader (the three module files above, same folders as in the package so their imports work) moved here from cdn.jsdelivr.net on 2026-11-21 (security check; the CDN copies had the same sha256).
+
+The fonts (fonts/, from the Fontsource packages above, checked 2026-11-27 against the npm registry's checksum) moved here from Google Fonts on 2026-11-27 (security and privacy check), so opening the app sends nothing to Google. fonts/app-fonts-5.3.0.css (index.html) and fonts/ride-fonts-5.3.0.css (ride.html) are ours: the packages' own @font-face lines, Latin and Latin Extended only, with the family names and the weight and width ranges the pages used from Google. Each font's licence is next to it (fonts/LICENSE-*.txt).
 
 Still loaded from cdn.jsdelivr.net at a fixed version: tesseract.js 5.1.1 (Photo find text reading: its worker, the 3-4 MB reading engine and the English data), too large to copy here for now. Photo find is open only to alex and friends (PF_PUBLIC).
 
