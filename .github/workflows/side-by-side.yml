@@ -20,12 +20,34 @@ on:
 permissions:
   contents: read
 
+env:
+  # Gradle tries a failed download again 6 times, waiting 2 s then longer each time (default 3 tries from 0.1 s), so a
+  # short Maven Central limit (429) or server error passes instead of failing the build.
+  GRADLE_RETRY: -Dorg.gradle.internal.repository.max.retries=6 -Dorg.gradle.internal.repository.initial.backoff=2000
+
 concurrency:
   group: side-by-side-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  slot:
+    # At most 2 heavy test runs at once (scripts/ci/heavy-slot.sh, alex 2026-11-27): the jobs below wait here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ci
+      - name: Wait for a free heavy test slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/heavy-slot.sh
+
   iphone:
+    needs: slot
     runs-on: macos-15
     timeout-minutes: 150
     strategy:
@@ -97,6 +119,7 @@ jobs:
   # One Android simulator per sport and language: the emulator is about 3 times slower than the iPhone simulator, and all
   # six sports in one job went past 150 minutes. The MTB job also does the first open, sign-in and offline steps.
   android:
+    needs: slot
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
@@ -144,7 +167,7 @@ jobs:
             c.server.url = "http://localhost:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("localhost");
             fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
           npx cap sync android
-          cd android && ./gradlew assembleDebug --no-daemon -q
+          cd android && ./gradlew assembleDebug --no-daemon -q $GRADLE_RETRY
       - name: Turn on the simulator's speed-up (KVM)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

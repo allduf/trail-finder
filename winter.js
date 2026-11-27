@@ -166,6 +166,15 @@ window.tfDragSort = (root, o) => {
   // darker shade, running bottom-left to top-right as on the map.
   const STRIPES = (r, w = 3) => `repeating-linear-gradient(135deg,${DARK[r]} 0 ${w}px,${DANGER[r].color} ${w}px ${w * 2.25}px)`;
   const BANDS = [["alp", "Alpine"], ["tln", "Treeline"], ["btl", "Below treeline"]];
+  // A band with no danger level, in Avalanche Canada's own word for it (Banff 2026-11-27: alpine Moderate, treeline
+  // Early season, below treeline No rating). Each day keeps the word's kind, d.no = { tln: "early" } (acForecast(),
+  // scripts/build-winter.mjs); none kept is "No rating". Never shown as a level, never coloured on the map. The words
+  // are in ski-terrain.js, shared with the alerts (notify.js, scripts/push-loam.mjs).
+  const noWord = (d, b) => (T.noWord ? T.noWord(d, b) : "No rating");
+  const noWords = (d, bs) => { const w = [...new Set(bs.map((b) => noWord(d, b)))]; return w.length === 1 ? w[0] : "No rating"; };   // one word for several bands, if they share it
+  const bandLabel = (d, b) => { const r = (d && d[b]) || 0; return r ? DANGER[r].label : noWord(d, b); };   // "2 Moderate", or the word for none
+  const bandName = (b) => (BANDS.find((x) => x[0] === b) || ["", ""])[1].toLowerCase();
+  const inBand = (b) => (b === "btl" ? "below treeline" : `in the ${bandName(b)}`);   // after a rating: "Moderate in the alpine", "Low below treeline"
   // The bands where today's problems, together, name all 8 directions: every shaded slope there is striped (alex
   // 2026-11-26 asked why everything was striped: one Storm slab on all aspects, alpine and treeline).
   const allWays = (f) => BANDS.filter(([b]) => new Set((f.problems || []).filter((p) => (p.elevations || []).includes(b)).flatMap((p) => p.aspects || [])).size >= 8).map(([, n]) => n);
@@ -1456,11 +1465,14 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const d = dayIdx == null ? dayOf(f) : f.days[Math.min(dayIdx, f.days.length - 1)];
     return d ? { ...T.dangerIn(d, a.bands, lo, hi), area: a, d } : null;
   }
+  // The Avaluator light for a route's danger (dangerAt) and terrain class, or -1: none without a rating in every band
+  // the route goes through (a band with "Early season" or "No rating" leaves its danger unknown there).
+  const lightOf = (dg, c) => (dg && dg.r && !(dg.gaps && dg.gaps.length) ? T.light(dg.r, c) : -1);
   function riskOf(g) {
     const t = groupTerrain(g);
     if (!t) return null;
     const dg = t.top ? dangerAt(t.top[0], t.top[1], t.lo, t.hi) : null;
-    return { ...t, dg, l: dg && dg.r ? T.light(dg.r, t.c) : -1 };
+    return { ...t, dg, l: lightOf(dg, t.c) };
   }
   const lightPill = (l) => { const x = T.LIGHTS[l]; return `<span class="sk-light" style="--c:${x.color}"><i aria-hidden="true"></i>${x.label}</span>`; };
   const classPill = (c, title) => { const x = T.CLASSES[c]; return `<span class="sk-ates" style="--c:${x.color}" title="${esc(title || "Avalanche terrain, estimated")}">${x.label}</span>`; };
@@ -1760,6 +1772,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     info.pts.forEach((p, i) => { if (i) out[bandOf(p.e, b)] += (p.d - info.pts[i - 1].d) / 1000; });
     return out;
   };
+  // The bands a route goes through, as its rating and light read them (ski-terrain.js dangerIn: touching one counts),
+  // so the table and the problems agree with them. An older cached ski-terrain.js: 50 m or more in the band.
+  const bandsOnRoute = (info, b, km) => { const on = T.dangerIn(null, b, info.min, info.max).on; return on || BANDS.map(([k]) => k).filter((k) => km[k] >= 0.05); };
   // Height profile: distance across, height up; steep ground (30° and more) in orange, treeline and alpine heights dashed.
   function profileSvg(info, bands) {
     const W = 320, H = 130, L0 = 38, R0 = 6, T0 = 8, B0 = 18, pts = info.pts;
@@ -1855,17 +1870,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!f || (!d && !isEarly(f))) html += `<p>No avalanche forecast here right now. ${site.season} ${link}</p>`;
     else {
       const expired = fcExpired(f);
-      const on = info ? bandKm(info, area.bands) : null;
-      // Today in words, later days as the number only, so three days fit across a phone.
-      const chip = (r, short) => `<span class="av-chip" title="${DANGER[r].label}" style="background:${DANGER[r].color};color:${r >= 4 ? "#fff" : "#1a1a1a"}">${short ? r || "–" : DANGER[r].label}</span>`;
+      const on = info ? bandKm(info, area.bands) : null, crossed = on ? bandsOnRoute(info, area.bands, on) : null;
+      // Today in words, later days as the number only, so three days fit across a phone. A band with no level: Avalanche
+      // Canada's word for it (Early season, No rating...), "–" on later days.
+      const chip = (x, b, short) => { const r = x[b] || 0, w = esc(bandLabel(x, b)); return `<span class="av-chip" title="${w}" style="background:${DANGER[r].color};color:${r >= 4 ? "#fff" : "#1a1a1a"}">${short ? r || "–" : w}</span>`; };
       if (expired) html += expiredWarn(f, site);
       if (rated) {
         html += `<table class="sk-avt"><tr><th></th>${f.days.map((x) => `<th>${esc((x.label || x.date || "").slice(0, 3))}</th>`).join("")}</tr>
-          ${BANDS.map(([b, n]) => `<tr class="${on && on[b] < 0.05 ? "off" : ""}"><th>${n}${on ? `<span class="sk-note">${on[b] >= 0.05 ? `${on[b].toFixed(1)} km of the route` : "not on the route"}</span>` : ""}</th>${f.days.map((x, j) => `<td>${chip(x[b], j > 0)}</td>`).join("")}</tr>`).join("")}</table>`;
-      } else html += `<p>No danger ratings yet${f.highlights ? ":" : "."}</p>`;
+          ${BANDS.map(([b, n]) => `<tr class="${crossed && !crossed.includes(b) ? "off" : ""}"><th>${n}${on ? `<span class="sk-note">${on[b] >= 0.05 ? `${on[b].toFixed(1)} km of the route` : crossed.includes(b) ? "under 0.1 km of the route" : "not on the route"}</span>` : ""}</th>${f.days.map((x, j) => `<td>${chip(x, b, j > 0)}</td>`).join("")}</tr>`).join("")}</table>`;
+      } else html += `<p>${esc(unratedLine(f))}</p>`;
       if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
       // Each problem, and whether it's where this route goes.
-      const bandsOn = on ? BANDS.filter(([b]) => on[b] >= 0.05).map(([b]) => b) : null;
+      const bandsOn = crossed;
       html += (f.problems || []).map((p) => {
         const bHit = bandsOn ? p.elevations.filter((b) => bandsOn.includes(b)) : p.elevations;
         const aHit = info && info.faces.length ? p.aspects.filter((a) => info.faces.includes(a)) : [];
@@ -2483,20 +2499,25 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const dg = fIdx >= 0 ? dangerAt(info.top.lat, info.top.lon, info.min, info.max, fIdx) : null;
     if (!avy && !example && !avyErr) avTile = tile("skAvy", CGREY, "Avalanche", "Loading…", []);
     else if (!dg || !dg.r) {
-      const none = !dgList.length ? "No forecast here today" : fcExpired(fc) ? "Forecast expired" : condDay === 0 && fIdx < 0 && D.date < (dgList[0].date || "") ? "No forecast here today" : fIdx < 0 ? "Not forecast yet" : "No rating yet";
+      // No band on the route rated that day: Avalanche Canada's word for it (Early season, No rating...).
+      const none = !dgList.length ? "No forecast here today" : fcExpired(fc) ? "Forecast expired" : condDay === 0 && fIdx < 0 && D.date < (dgList[0].date || "") ? "No forecast here today" : fIdx < 0 ? "Not forecast yet"
+        : dg && dg.gaps && dg.gaps.length ? noWords(dg.d, dg.gaps) : "No rating";
       const site = avySite(info.top.lat, info.top.lon);
       avTile = tile("skAvy", CGREY, "Avalanche", none, [{ m: !dgList.length ? site.season : `Check ${site.host} before you go.` }]);
     } else {
       const g = selGroup || [cond.r], pre = cond.r.src === "plan" || cond.r.src === "trip" ? null : groupTerrain(g);
       const official = g.find((x) => x.ates && x.ates.cls >= 1 && x.ates.cls <= 3)?.ates;
       const cls = official ? official.cls : Math.max(T.terrainClass(info).c, pre ? pre.c : 0);
-      const L1 = T.LIGHTS[T.light(dg.r, cls)];
-      const on = bandKm(info, dg.area.bands), bandsOn = BANDS.filter(([k]) => on[k] >= 0.05).map(([k]) => k);
+      const li = lightOf(dg, cls), L1 = li >= 0 ? T.LIGHTS[li] : null;
+      const bandsOn = bandsOnRoute(info, dg.area.bands, bandKm(info, dg.area.bands));
       const probs = (dg.area.forecast.problems || []).filter((p) => p.elevations.some((e) => bandsOn.includes(e))).map((p) => p.type);
-      const bandName = (BANDS.find((x) => x[0] === dg.band) || ["", ""])[1].toLowerCase();
+      const gaps = dg.gaps || [];
+      // A band on the route without a rating (Early season, No rating): named with Avalanche Canada's word, and no
+      // trip planner light, which needs the danger all the way.
       avTile = tile("skAvy", DANGER[dg.r].color, "Avalanche", esc(DANGER[dg.r].label.replace(/^\d /, "")) + (example ? " (example)" : ""), [
-        `in the ${bandName} on this route`,
-        `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span> · ${esc(T.CLASSES[cls].label)} terrain`,
+        `${inBand(dg.band)} on this route`,
+        ...gaps.map((b) => `<span>${esc(BANDS.find((x) => x[0] === b)[1])}</span>: <span>${esc(noWord(dg.d, b))}</span>`),
+        L1 ? `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span> · ${esc(T.CLASSES[cls].label)} terrain` : `<span>${esc(T.CLASSES[cls].label)} terrain</span> · <span>no trip planner light</span>`,
         probs.length ? `⚠ ${esc([...new Set(probs)].slice(0, 3).join(", "))}` : { m: "Avalanche Canada lists no problems for its bands" },
       ]);
     }
@@ -2867,17 +2888,29 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const lo = info ? info.min : pre.lo, hi = info ? info.max : pre.hi, top = info ? info.top : { lat: pre.top[0], lon: pre.top[1] };
     const area = avy || example ? areaAt(top.lat, top.lon) : null, f = area && area.forecast;
     const expired = f && !example && f.validUntil && new Date(f.validUntil) < new Date();
-    const days = f && !expired && f.days ? f.days.map((d, j) => ({ d, j, ...dangerAt(top.lat, top.lon, lo, hi, j) })).filter((x) => x.r) : [];
-    const bandName = (b) => (BANDS.find((x) => x[0] === b) || ["", ""])[1].toLowerCase();
+    // A light only for a day with a rating in every band the route goes through (gaps: "Early season", "No rating").
+    const all = f && !expired && f.days ? f.days.map((d, j) => ({ d, j, ...dangerAt(top.lat, top.lon, lo, hi, j) })) : [];
+    const days = all.filter((x) => lightOf(x, cls.c) >= 0);
     const dayName = (d) => (d.date && d.date === localDay() ? "Today" : d.label || d.date);
     // The day shown on the map first (by its date), else this bulletin's first rated day, named.
     const isNow = (x) => (dayDate && x.d.date ? x.d.date === dayDate : x.j === Math.min(day, f.days.length - 1));
+    // The day shown, when a band the route goes through has no rating then (or the first such day, with no light on
+    // any day): said with the forecast's own words ("treeline: Early season"), never as a light.
+    const gapDay = all.find((x) => isNow(x) && x.gaps && x.gaps.length) || (!days.length ? all.find((x) => x.gaps && x.gaps.length) : null);
+    // The other days with a light, one line each.
+    const dayList = (xs) => (xs.length ? `<ul class="sk-checkdays">${xs.map((x) => `<li>${esc(dayName(x.d, x.j))}: ${lightPill(T.light(x.r, cls.c))} <span class="sk-note">${esc(DANGER[x.r].label.replace(/^\d /, ""))}, ${bandName(x.band)}</span></li>`).join("")}</ul>` : "");
     let head;
-    if (days.length) {
+    if (gapDay) {
+      // The rated part's rating as given, then the bands with none in Avalanche Canada's words.
+      const gw = gapDay.gaps.map((b) => `${bandName(b)}: ${noWord(gapDay.d, b)}`).join(", ");
+      const rated = gapDay.r ? `${DANGER[gapDay.r].label.replace(/^\d /, "")} ${inBand(gapDay.band)}, no danger rating on part of this route` : "no danger rating on this route";
+      head = `<div class="sk-check" style="--c:${cls.color}"><b>${cls.label} terrain</b><span>${esc(dayName(gapDay.d))}: ${esc(rated)} (${esc(gw)}), so no trip planner light. Check ${siteLink(avySite(top.lat, top.lon))} before you go.</span></div>
+        ${dayList(days)}`;
+    } else if (days.length) {
       const now = days.find(isNow) || days[0], l = T.light(now.r, cls.c), L0 = T.LIGHTS[l];
-      head = `<div class="sk-check" style="--c:${L0.color}"><b>${L0.label}</b><span>${esc(dayName(now.d, now.j))}: ${esc(DANGER[now.r].label.replace(/^\d /, ""))} in the ${bandName(now.band)} × ${cls.label} terrain</span></div>
+      head = `<div class="sk-check" style="--c:${L0.color}"><b>${L0.label}</b><span>${esc(dayName(now.d, now.j))}: ${esc(DANGER[now.r].label.replace(/^\d /, ""))} ${inBand(now.band)} × ${cls.label} terrain</span></div>
         <p class="sk-note">${esc(L0.what)}</p>
-        ${days.length > 1 ? `<ul class="sk-checkdays">${days.filter((x) => x !== now).map((x) => `<li>${esc(dayName(x.d, x.j))}: ${lightPill(T.light(x.r, cls.c))} <span class="sk-note">${esc(DANGER[x.r].label.replace(/^\d /, ""))}, ${bandName(x.band)}</span></li>`).join("")}</ul>` : ""}`;
+        ${dayList(days.filter((x) => x !== now))}`;
     } else {
       head = `<div class="sk-check" style="--c:${cls.color}"><b>${cls.label} terrain</b><span>No danger rating ${f && !expired ? "yet" : "here today"}, so no trip planner light. Check ${siteLink(avySite(top.lat, top.lon))} before you go.</span></div>`;
     }
@@ -2897,10 +2930,11 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       store.set("skiWatch", list.slice(0, 40));
       showCheck();
     });
-    // The card at the top: today's light (or the terrain class) as its coloured word, and Watch.
+    // The card at the top: the light of the day shown (or the terrain class) as its coloured word, and Watch. Only that
+    // day's: the tag names no day.
     const tg = $("skRcTag");
     if (tg) {
-      const L1 = days.length ? T.LIGHTS[T.light((days.find(isNow) || days[0]).r, cls.c)] : null;
+      const now = days.find(isNow), L1 = now ? T.LIGHTS[T.light(now.r, cls.c)] : null;
       tg.innerHTML = [L1 ? `<span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : "", classPill(cls.c, official ? "Official ATES rating" : ""),
         esc(kindLabel(r, TYPES[r.type] || TYPES.other)), diffPill(r.diff)].filter(Boolean).join(" · ");
     }
@@ -3085,7 +3119,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         : `<b>${plan.wait ? esc(plan.wait) : info ? `${(info.total / 1000).toFixed(1)} km · ↑ ${fmtM(info.up)} · steepest ${Math.round(info.maxSlope)}°` : "Working it out…"}</b><small>Tap to add a point · drag a point to move it</small>`;
       // Or typed in plain words (alex 2026-11-07: "When I click plan a route I want to be able to ask what I want to plan"):
       // Ask (ask.js) reads the plan of the day and makes the tour from it.
-      const askRow = !o && n === 0 && window.tfAsk ? `<form class="pb-ask" role="search"><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type your plan" placeholder="💬 Or type your plan: start at…, ski…, finish…"><button type="submit">Plan it</button></form>` : "";
+      const askRow = !o && n === 0 && window.tfAsk ? `<form class="pb-ask" role="search"><input type="search" enterkeyhint="go" autocomplete="off" aria-label="Type your plan" placeholder="Or type your plan: start at…, ski…, finish…"><button type="submit">Plan it</button></form>` : "";
       const was = planBar.querySelector(".pb-ask input"), wasQ = was ? was.value : "", wasF = was && document.activeElement === was;   // typing survives a redraw
       planBar.innerHTML = `<div class="pb-msg"><i class="pb-dot${o ? " line" : ""}${plan.wait && !o ? " busy" : ""}" aria-hidden="true"></i><span>${msg}</span></div>
         <div class="pb-btns">${o ? `<button type="button" data-p="line" class="go">＋ Add line</button><button type="button" data-p="point">Just a point</button><button type="button" data-p="nope" aria-label="Neither">✕</button>`
@@ -3423,12 +3457,17 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // no forecast area covers the spot, "noday" a forecast without the day shown on the map (another area's day
     // picked), "norating" a forecast with no danger rating today, "none" none published today.
     if (!d || !(d.alp || d.tln || d.btl)) {
-      const why = !avy && !example ? "net" : !a ? "off" : isEarly(f) ? "early" : live && !d ? "noday" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
+      // "early" only for the early season bulletin's own words, never for a bulletin that rates some bands (Kananaskis
+      // 2026-11-27: alpine Low, Early season lower down).
+      const rated = !!(f && (f.days || []).some((x) => x.alp || x.tln || x.btl));
+      const early = !rated && (d ? Object.values(d.no || {}).includes("early") || (!d.no && isEarly(f)) : isEarly(f));
+      const why = !avy && !example ? "net" : !a ? "off" : early ? "early" : live && !d ? "noday" : d ? "norating" : !example && !avy.liveAt && !/^jan-/.test(a.id || "") ? "net" : "none";
       const area = (f && f.title) || (a && a.name) || "";
       return { r: {}, mask: {}, bands, none: true, why, area: area.length <= 40 ? area : "", date: dayDate };
     }
     // date: the day it's for (a way found for another day than the one shown is found again, refreshAvy).
-    return { r: { alp: d.alp || 0, tln: d.tln || 0, btl: d.btl || 0 }, mask: { ...a.mask }, bands, title: f.title || a.name || "", day: d.label || d.date || "", date: d.date || dayDate, example: !!example,
+    // no: the bands with no level, by kind (Early season...), for the card's words.
+    return { r: { alp: d.alp || 0, tln: d.tln || 0, btl: d.btl || 0 }, no: d.no ? { ...d.no } : undefined, mask: { ...a.mask }, bands, title: f.title || a.name || "", day: d.label || d.date || "", date: d.date || dayDate, example: !!example,
       probs: (f.problems || []).map((p) => ({ type: p.type || "", aspects: p.aspects || [], elevations: p.elevations || [] })) };
   }
   // Why a way has no forecast in it (avyFor's why), in plain words.
@@ -3703,9 +3742,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (plan.wait) return `<div class="sk-safe"><div class="sk-safe-wait">${esc(plan.wait)}</div></div>`;
     if (plan.fail === "far") { const f = plan.failAt || {}; return `<div class="sk-safe"><p><b>${esc(ptName(f.leg - 1, plan.pts.length))} to ${esc(ptName(f.leg, plan.pts.length))} is ${f.km} km in a straight line:</b> too far for one ski tour (12 km at most between two points). Put your points closer, or tap points along the way you want to go.</p></div>`; }
     if (plan.fail === "high") {
-      const av = plan.failAv || {}, dg = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
+      const av = plan.failAv || {}, dg = (b) => `<span class="sk-dg"><i style="background:${DANGER[av.r[b] || 0].color}"></i>${esc(bandLabel({ ...av.r, no: av.no }, b))}</span>`;
       return `<div class="sk-safe"><div class="sk-warn sk-est"><b>No route drawn: avalanche danger is High or Extreme here today.</b> Avalanche Canada doesn't recommend backcountry travel in avalanche terrain at this danger, so the app doesn't draw a way. Your points stay on the map.
-          <span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${dg(v)}</span>`).join("")}</span></div></div>`;
+          <span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${BANDS.map(([b, n]) => `<span class="sk-est-b">${n} ${dg(b)}</span>`).join("")}</span></div></div>`;
     }
     if (plan.fail) return `<div class="sk-safe"><p>${esc({ water: "That point is out on open water: move it to the shore.", noway: "Couldn't find a way between these points (cliffs or open water in the way, or too far apart). Move a point or add one between.",
       noroad: "No paved road or parking within 9 km of this spot that the map knows of. Use ✎ Plan a tour and tap where you start.", net: "Couldn't get the terrain for this area. Check your connection and try again." }[plan.fail] || "")}</p></div>`;
@@ -3713,15 +3752,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (!sp) return plan.pts.length < 2 ? `<p class="sk-note">Tap where you start and where you want to go: the way between them keeps off steep slopes and today's avalanche problem aspects where it can.</p>`
       : `<div class="sk-row"><button type="button" class="btn" id="skSafeAgain">Find a less exposed way between my points</button></div>`;
     const st = sp.stats, av = sp.av || {}, tot = Math.max(1, st.total), C = SAFE_CLS, sl = sp.straight || { total: 0, steep: 0, under: 0 };
-    const chip = (v) => `<span class="sk-dg"><i style="background:${DANGER[v || 0].color}"></i>${esc(DANGER[v || 0].label)}</span>`;
+    const chip = (b) => `<span class="sk-dg"><i style="background:${DANGER[(av.r && av.r[b]) || 0].color}"></i>${esc(bandLabel({ ...av.r, no: av.no }, b))}</span>`;   // a band with no level: Avalanche Canada's word for it
     const K = { ok: "#ced4da", mid: "#868e96", steep: "#e03131" };   // card bar: greys + reds only
-    const LV = av.none ? ["#868e96", "Terrain only", "No avalanche forecast in it"] : { direct: ["#2f9e44", "Direct", "Low or Moderate danger" ], balanced: ["#f79218", "Balanced", "Considerable danger"], strict: ["#ef1c29", "Most careful", "High or Extreme danger"] }[sp.level || "balanced"];
+    // The forecast's worst rating sets how direct the way is. A band with no rating (Early season) can't be said to be
+    // Low or Moderate: "where rated".
+    const unrated = !av.none && BANDS.some(([b]) => !(av.r && av.r[b])) ? " where rated" : "";
+    const LV = av.none ? ["#868e96", "Terrain only", "No avalanche forecast in it"] : { direct: ["#2f9e44", "Direct", "Low or Moderate danger" + unrated], balanced: ["#f79218", "Balanced", "Considerable danger" + unrated], strict: ["#ef1c29", "Most careful", "High or Extreme danger" + unrated] }[sp.level || "balanced"];
     const lvTxt = av.none ? "The terrain map only, weighed the same at every height and on every aspect. The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes when there's a sensible way, and takes the shortest steep section when there isn't." : { direct: "The way up takes the least exposed line it finds. Skiing down, it takes slopes up to about 35° when that saves a long way round, while staying off the steepest ground where it can.",
       balanced: "The way up takes the least exposed line it finds. Skiing down, it goes round 30°+ slopes when there's a sensible way, and takes the shortest steep section when there isn't.",
       strict: "Keeps off 30°+ slopes where it can, however much longer that makes it." }[sp.level || "balanced"];
     const lvHtml = `<div class="sk-mode" style="--c:${LV[0]}"><div class="sk-mode-h"><b>${LV[1]} route</b><span>${LV[2]}</span></div><p>${lvTxt}</p></div>`;
     const fc = av.none ? `<p class="sk-lbl">Avalanche forecast</p><p class="sk-fc-r"><b>None in this way.</b> <span>${esc(noFcWhy(av, sp.line[0]))}</span></p>`
-      : `<p class="sk-lbl">Avalanche forecast${av.example ? " · Example" : ""}</p><div class="sk-fc-g"><div>Alpine${chip(av.r.alp)}</div><div>Treeline${chip(av.r.tln)}</div><div>Below treeline${chip(av.r.btl)}</div></div><p class="sk-fc-r">${esc(av.title)}${av.day ? ` · ${esc(av.day)}` : ""}</p>`;
+      : `<p class="sk-lbl">Avalanche forecast${av.example ? " · Example" : ""}</p><div class="sk-fc-g"><div>Alpine${chip("alp")}</div><div>Treeline${chip("tln")}</div><div>Below treeline${chip("btl")}</div></div><p class="sk-fc-r">${esc(av.title)}${av.day ? ` · ${esc(av.day)}` : ""}</p>`;
     const kinds = ["ok", "mid", "steep"].filter((k) => st[k] >= 5);
     const why = [];
     why.push(`<b>${pct(st.ok + st.mid, tot)}%</b> of the way is under 30°${st.ok / tot > 0.5 ? `, ${pct(st.ok, tot)}% under 25°` : ""}.`);
@@ -3749,7 +3791,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     if (av.none) why.push("Terrain only: no avalanche forecast, no avalanche problems and no weather are in it.");
     for (const x of sp.alts || []) why.push(`Leaves the usual skin track (${esc(x.name)}) before its crux: that track sidehills ${fmtM(x.theirs.steep)} on 30°+ slopes, about ${mins(x.theirs.expo)} exposed. This way: ${x.mine.steep >= 20 ? fmtM(x.mine.steep) : "none"}, about ${mins(x.mine.expo)}${x.mine.sec - x.theirs.sec >= 120 ? `, for about ${mins(x.mine.sec - x.theirs.sec)} more on the move` : ""}.`);
     if (!av.none && (av.probs || []).length) {
-      const parts = (av.probs || []).filter((p) => p.aspects.length && p.aspects.length < 8).map((p) => `${p.aspects.map((x) => x.toUpperCase()).join(" ")} in the ${p.elevations.map((b) => ({ alp: "alpine", tln: "treeline", btl: "below treeline" }[b] || b)).join(", ")} (${esc(p.type)})`);
+      const parts = (av.probs || []).filter((p) => p.aspects.length && p.aspects.length < 8).map((p) => `${p.aspects.map((x) => x.toUpperCase()).join(" ")} ${p.elevations.length === 1 ? inBand(p.elevations[0]) : `in the ${p.elevations.map(bandName).join(", ")}`} (${esc(p.type)})`);
       if (parts.length) why.push(`Keeps off today's problem aspects where it can: ${parts.join("; ")}.${st.hit >= 5 ? ` Still ${fmtM(st.hit)} on them.` : ""}`);
       if ((av.probs || []).some((p) => p.aspects.length >= 8)) why.push("One of today's problems is on every aspect, so slope angle matters most.");
     }
@@ -3766,7 +3808,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // The wording itself is unchanged (Safest way liability review 2026-11-06; no forecast, alex 2026-11-09).
     const fcNow = av.none && avyFor.has(sp.line[0][0], sp.line[0][1]);
     const topWarn = `<div class="sk-warn sk-est${av.none ? " sk-nofc" : ""}">${av.none ? `<b>No avalanche forecast included.</b> ` : ""}<b>A computer's estimate, not a safe route.</b> It can't see today's snowpack, cornices or wind loading. You decide whether and where to go.
-      ${av.none ? "" : `<span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${[["Alpine", av.r.alp], ["Treeline", av.r.tln], ["Below treeline", av.r.btl]].map(([n, v]) => `<span class="sk-est-b">${n} ${chip(v)}</span>`).join("")}</span>`}${fcNow ? ` <b>A forecast is in now: tap ↻ Find again below to use it.</b>` : ""}
+      ${av.none ? "" : `<span class="sk-est-dg"><span>Avalanche danger${av.example ? " (example)" : " today"}:</span>${BANDS.map(([b, n]) => `<span class="sk-est-b">${n} ${chip(b)}</span>`).join("")}</span>`}${fcNow ? ` <b>A forecast is in now: tap ↻ Find again below to use it.</b>` : ""}
       ${av.none ? `<details class="sk-est-why"><summary>Why no forecast</summary><p><span>${esc(noFcWhy(av, sp.line[0]))}</span> <span>This way is from the terrain map only. It doesn't know today's avalanche danger or avalanche problems. Check</span> ${siteLink(avySite(sp.line[0][0], sp.line[0][1]))}.</p></details>` : ""}</div>`;
     const noFc = "";
     return `<div class="sk-safe">
@@ -3948,31 +3990,35 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const d = dayOf(f), r = (d && d[band]) || 0, li = r ? T.light(r, cls.c) : -1;
     // A bulletin without the day shown on the map (it starts on another day): said, never another day's rating.
     if (!d) html += `<p>This bulletin has no rating for ${esc(weekday(dayDate))}.</p>`;
+    const when = d && d.date && d.date !== localDay() ? `on ${d.label || d.date}` : "today";   // the day shown may be tomorrow
+    // This band without a level that day: Avalanche Canada's word for it (Early season, No rating...).
+    const noneIn = (b) => `<span>No danger rating ${inBand(b)} ${esc(when)}</span> (<span>${esc(noWord(d, b))}</span>).`;
+    if (d && !r) html += `<p>${noneIn(band)}</p>`;
     if (r && g.slope >= 25) {
       // The map colour is the band's own rating from Avalanche Canada, never moved up or down by the app (alex
       // 2026-11-09: "no mistakes are allowed"); the stripes only say the slope faces a direction in today's problems.
       const mask = a ? a.mask[band] : 0, hit = mask & (1 << g.asp);
       html += `<p>On the map, this slope is <span class="av-chip" style="${chipStyle(r, hit)}">${esc(DANGER[r].label)}</span>, Avalanche Canada's ${bandN.toLowerCase()} rating: ${Math.round(g.slope)}° ${esc(ASPECT_NAME[g.asp])}-facing, ${hit ? "striped because it faces a direction in today's problems" : mask ? "not a direction in today's problems" : "no problems listed in this band"}.</p>`;
     }
-    // Band heights are an estimate: near an edge, the next band's rating may be the one that applies here.
-    const edge = r && (band === "btl" ? [["lo", "tln"]] : band === "alp" ? [["hi", "tln"]] : [["lo", "btl"], ["hi", "alp"]]).find(([k]) => Math.abs(g.e - bands[k]) < 150);
+    // Band heights are an estimate: near an edge, the next band's rating may be the one that applies here, or that band
+    // may have none (Early season) where this one has one.
+    const edge = d && (band === "btl" ? [["lo", "tln"]] : band === "alp" ? [["hi", "tln"]] : [["lo", "btl"], ["hi", "alp"]]).find(([k]) => Math.abs(g.e - bands[k]) < 150);
     if (edge) {
-      const nb = edge[1], nr = (d && d[nb]) || 0;
-      const when = d.date && d.date !== localDay() ? `on ${d.label || d.date}` : "today";   // the day shown may be tomorrow
-      if (nr && nr !== r) html += `<div class="sk-warn"><b>⚠ Near a band edge:</b> ${BANDS.find((x) => x[0] === band)[1].toLowerCase()} and ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} meet at about ${fmtM(bands[edge[0]])} here. That height is an estimate, so this spot may be in either band. The ${BANDS.find((x) => x[0] === nb)[1].toLowerCase()} rating ${esc(when)} is ${esc(DANGER[nr].label)}.</div>`;
+      const nb = edge[1], nr = d[nb] || 0;
+      if (nr !== r) html += `<div class="sk-warn"><b>⚠ Near a band edge:</b> ${bandName(band)} and ${bandName(nb)} meet at about ${fmtM(bands[edge[0]])} here. That height is an estimate, so this spot may be in either band. ${nr ? `The ${bandName(nb)} rating ${esc(when)} is ${esc(DANGER[nr].label)}.` : noneIn(nb)}</div>`;
     }
     if (li >= 0) {
       const L0 = T.LIGHTS[li];
-      html += `<div class="sk-check" style="--c:${L0.color}"><b>${L0.label}</b><span>${esc(d.label || d.date || "")}: ${esc(DANGER[r].label.replace(/^\d /, ""))} in the ${bandN.toLowerCase()} × ${cls.label} terrain (estimate)</span></div>`;
+      html += `<div class="sk-check" style="--c:${L0.color}"><b>${L0.label}</b><span>${esc(d.label || d.date || "")}: ${esc(DANGER[r].label.replace(/^\d /, ""))} ${inBand(band)} × ${cls.label} terrain (estimate)</span></div>`;
     }
     html += `<p class="sk-note"><span>${where}.</span> <span>Band heights are an estimate.</span></p>
-      <div class="sk-spotdays">${f.days.map((x) => { const v = x[band] || 0; return `<div><span>${esc((x.label || x.date || "").slice(0, 3))}</span><span class="av-chip" style="background:${DANGER[v].color};color:${v >= 4 ? "#fff" : "#1a1a1a"}">${esc(DANGER[v].label)}</span></div>`; }).join("")}</div>`;
+      <div class="sk-spotdays">${f.days.map((x) => { const v = x[band] || 0; return `<div><span>${esc((x.label || x.date || "").slice(0, 3))}</span><span class="av-chip" style="background:${DANGER[v].color};color:${v >= 4 ? "#fff" : "#1a1a1a"}">${esc(bandLabel(x, band))}</span></div>`; }).join("")}</div>`;
     const asp = ASPECTS[g.asp], probs = (f.problems || []).filter((p) => (p.elevations || []).includes(band));
     if (probs.length) html += probs.map((p) => {
       const on = g.slope >= 20 && (p.aspects || []).includes(asp);
-      return `<div class="av-prob${on ? "" : " off"}">${rose(p)}<div><b>${esc(p.type)}</b><p>${on ? `<b>On this slope:</b> ${esc(ASPECT_NAME[g.asp])}-facing in the ${bandN.toLowerCase()}` : g.slope < 20 ? "Gentle ground here, but on the slopes around it" : `On other aspects (${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))}), not this ${esc(ASPECT_NAME[g.asp])}-facing slope`}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p>${on ? probNotes(p) : ""}</div></div>`;
+      return `<div class="av-prob${on ? "" : " off"}">${rose(p)}<div><b>${esc(p.type)}</b><p>${on ? `<b>On this slope:</b> ${esc(ASPECT_NAME[g.asp])}-facing ${inBand(band)}` : g.slope < 20 ? "Gentle ground here, but on the slopes around it" : `On other aspects (${esc(p.aspects.map((s) => s.toUpperCase()).join(" "))}), not this ${esc(ASPECT_NAME[g.asp])}-facing slope`}</p><p>${p.likelihood ? "Likelihood: " + esc(likely(p.likelihood)) : ""}${p.size ? ` · size ${esc(p.size)}` : ""}</p>${on ? probNotes(p) : ""}</div></div>`;
     }).join("");
-    else if ((f.problems || []).length) html += `<p class="sk-note">None of today's avalanche problems are in the ${bandN.toLowerCase()}.</p>`;
+    else if ((f.problems || []).length) html += `<p class="sk-note">None of today's avalanche problems are ${inBand(band)}.</p>`;
     if (f.highlights) html += `<p><strong>${esc(f.highlights)}</strong></p>`;
     html += adviceHtml(f);
     return html + `${janNote(f)}<p><a href="${esc(f.url || site.url)}" target="_blank" rel="noopener">Full ${/^jan-/.test(f.id || "") ? "bulletin" : "forecast"} on ${site.host}</a></p>`;
@@ -4332,14 +4378,23 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     return iso;
   }
   const AC_LEVELS = { low: 1, moderate: 2, considerable: 3, high: 4, extreme: 5 };
+  // Avalanche Canada's words for a band with no level, as kinds (ski-terrain.js noWord): "norating" (and any word not
+  // known) is "No rating". Same as scripts/build-winter.mjs NO_KIND.
+  const AC_NO = { norating: "", earlyseason: "early", noforecast: "nofc", spring: "spring", offseason: "off" };
+  const acWord = (r) => acVal(r && typeof r === "object" && r.rating ? r.rating : r).toLowerCase().replace(/[^a-z]/g, "");
+  // A level only from a level's own number or word ("3", "3 - Considerable", "considerable"): whole words, so a word
+  // that only holds one ("below") is never read as a level, and a known no-level word is never a level.
   function acLevel(r) {
     if (r && typeof r === "object" && r.rating) r = r.rating;
+    if (typeof AC_NO[acWord(r)] === "string") return 0;
     const s = (acVal(r) + " " + (r && typeof r === "object" ? r.display || "" : "")).toLowerCase();
-    const n = s.match(/[1-5]/);
+    const n = s.match(/\b[1-5]\b/);
     if (n) return +n[0];
-    for (const [k, v] of Object.entries(AC_LEVELS)) if (s.includes(k)) return v;
+    for (const [k, v] of Object.entries(AC_LEVELS)) if (new RegExp(`\\b${k}\\b`).test(s)) return v;
     return 0;
   }
+  // A day's bands with no level, by kind: { no: { tln: "early", btl: "nofc" } }, or nothing ("No rating" needs none).
+  const acNo = (rt) => { const o = {}; for (const b of ["alp", "tln", "btl"]) { const k = AC_NO[acWord(rt[b])]; if (typeof k === "string" && k && !acLevel(rt[b])) o[b] = k; } return Object.keys(o).length ? { no: o } : {}; };
   // Below treeline first: "btl" also holds "tl", which used to read it as treeline, so below-treeline problems were dropped.
   const acBand = (s) => { s = acVal(s).toLowerCase(); return /btl|below/.test(s) ? "btl" : /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : ""; };
   const acAspect = (s) => { s = acVal(s).toLowerCase().replace(/[^a-z]/g, ""); const x = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(x) ? x : ""; };
@@ -4347,7 +4402,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const r = p.report || p;
     const days = (r.dangerRatings || []).map((d) => {
       const rt = d.ratings || d, label = acText(d.date?.display || d.date);
-      return { date: acDay(acVal(d.date).slice(0, 10) || acVal(d.date?.value).slice(0, 10), label), label, alp: acLevel(rt.alp), tln: acLevel(rt.tln), btl: acLevel(rt.btl) };
+      return { date: acDay(acVal(d.date).slice(0, 10) || acVal(d.date?.value).slice(0, 10), label), label, alp: acLevel(rt.alp), tln: acLevel(rt.tln), btl: acLevel(rt.btl), ...acNo(rt) };
     });
     const problems = (r.problems || []).map((pr) => {
       const d = pr.data || pr;
@@ -4401,7 +4456,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   // regrouped BC area keeps its whole title (13 areas, 2026-11-26). Same as shortTitle() there.
   const AC_PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
   const acAreaName = (v) => { const s = acText(v); return /^[0-9a-f]{24,}$/i.test(s) ? "" : s; };
-  const acEarly = (p) => { const r = p.report || p; return (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(acText(r.title)); };
+  // Avalanche Canada's early season bulletin: no level on any day, and its ratings or title say early season. A bulletin
+  // that rates some bands and says "Early season" for the others (Banff, Kananaskis 2026-11-27) isn't it.
+  const acEarly = (p) => { const r = p.report || p, ds = r.dangerRatings || [];
+    return !ds.some((d) => ["alp", "tln", "btl"].some((b) => acLevel((d.ratings || d)[b]))) && (ds.some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(acText(r.title))); };
   const acTitle = (p) => { const t = acText((p.report || p).title) || acAreaName(p.area?.name), o = acVal(p.owner?.value || p.owner);
     return !t || t.split("-").length <= 8 ? t : AC_PARKS[o] || (acEarly(p) && (o === "avalanche-canada" || !p.owner) ? "Avalanche Canada early season bulletin" : t); };
   const acName = (p) => acAreaName(p.area?.name) || acTitle(p);
@@ -4605,6 +4663,13 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   };
   // Avalanche Canada's early season bulletin (no danger ratings): readable on the cards even when its days are past.
   const isEarly = (f) => !!f && !!(f.early || /early.?season/i.test(f.title || ""));
+  // A bulletin with no level on any day, in words: early season, no forecast (Avalanche Québec out of season), or no
+  // rating given (Haines Pass 2026-11-27, which isn't the early season bulletin). A saved copy without the words: by
+  // its title.
+  const unratedLine = (f) => {
+    const kinds = new Set((f.allDays || f.days || []).flatMap((x) => Object.values(x.no || {})));
+    return kinds.has("early") || (!kinds.size && isEarly(f)) ? "No danger ratings yet: it's early season." : kinds.has("nofc") ? "No forecast for this area right now." : "This bulletin gives no danger ratings.";
+  };
   const hasForecasts = () => (avy?.areas || []).some((a) => a.forecast && (a.forecast.days?.length || isEarly(a.forecast)));
 
   // A made-up forecast to try the shading out of season, clearly marked as an example.
@@ -4681,8 +4746,8 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     // Outside every forecast area (Whitehorse: Avalanche Canada covers the White Pass only, fix list item 45,
     // 2026-11-02): the nearest forecast, how far, its rating today, and riders' reports near the spot.
     if (!area) {
-      // Its rating only when the day shown is today (the words say "today").
-      const nb = nearestArea(c.lat, c.lng), nd = nb && dayOf(nb.a.forecast), r = nd && nd.date === localDay() ? Math.max(nd.alp || 0, nd.tln || 0, nd.btl || 0) : 0;
+      // Its rating only when the day shown is today (the words say "today"), never from an expired bulletin.
+      const nb = nearestArea(c.lat, c.lng), nd = nb && !fcExpired(nb.a.forecast) && dayOf(nb.a.forecast), r = nd && nd.date === localDay() ? Math.max(nd.alp || 0, nd.tln || 0, nd.btl || 0) : 0;
       const reps = minData ? (minData.reports || []).filter((m) => map.distance([m.lat, m.lon], c) <= 40000) : [];
       const seen = reps.filter((m) => m.av && m.av.seen).length;
       const days = (minData && minData.days) || 14, nm = nb ? (nb.a.forecast.title || nb.a.name) : "";
@@ -4699,14 +4764,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const notes = Object.values(f.summaries || {}).filter(Boolean), rated = example || (f.days || []).some((x) => x.alp || x.tln || x.btl);
     // The row that opens the problems: a line icon (guarded: an old cached line-icons.js) and how many problems there are.
     const moreIcon = window.tfLineName ? window.tfLineName("warn", 18) : "", nProb = (f.problems || []).length;
-    const band = (b, n) => { const r = d[b] || 0, x = DANGER[r]; return `<div class="av-band" style="--c:${x.color};--t:${r >= 4 ? "#fff" : "#1a1a1a"}"><b>${esc(x.label.replace(/^\d /, ""))}</b><span>${n}</span></div>`; };
+    // A band with no level says Avalanche Canada's word for it (Early season, No rating...), in grey.
+    const band = (b, n) => { const r = d[b] || 0, x = DANGER[r]; return `<div class="av-band" style="--c:${x.color};--t:${r >= 4 ? "#fff" : "#1a1a1a"}"><b>${esc(bandLabel(d, b).replace(/^\d /, ""))}</b><span>${n}</span></div>`; };
     // The day is always named (one day too: the native 3D card shows it), pressed when it's the one shown.
     card.innerHTML = `${example ? `<div class="av-warn">EXAMPLE, not a real forecast.</div>` : ""}
       ${expired ? expiredWarn(f, site) : staleWarn(f, site)}
       ${top(esc(f.title || area.name))}
       ${rated ? `<div class="av-days" role="group" aria-label="Day">${f.days.map((x, i) => `<button type="button" data-d="${i}" aria-pressed="${x === d}">${esc(x.label || x.date)}</button>`).join("")}</div>
       ${d ? `<div class="av-bands">${BANDS.map(([b, n]) => band(b, n)).join("")}</div>` : `<p class="av-line">This bulletin has no rating for ${esc(weekday(dayDate))}.</p>`}`
-        : `<p class="av-line">No danger ratings yet: it's early season.</p>`}
+        : `<p class="av-line">${esc(unratedLine(f))}</p>`}
       <div id="avWx">${cardWeather(c, area.bands.hi)}</div>
       <details id="avMore"${avMore ? " open" : ""}><summary>${moreIcon}<span class="av-mt">${rated ? "Problems, notes and riders' reports" : "Read the bulletin"}</span>${nProb ? `<span class="av-mn">${nProb} problem${nProb === 1 ? "" : "s"}</span>` : ""}</summary>
         ${f.highlights ? `<p><strong>${esc(f.highlights)}</strong></p>` : ""}
@@ -5926,11 +5992,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       if (!avy || example) return { none: "load" };
       const a = areaAt(lat, lon), f = a && a.forecast;
       if (!a) return { none: "area" };
-      if (!f || !f.days || !f.days.length || f.early) return { none: f && f.early ? "early" : "forecast", area: a.name };
-      if (f.validUntil && new Date(f.validUntil) < new Date()) return { none: "old", area: a.name };
-      const d = f.days[0];
-      if (!d.date || d.date !== localDay()) return { none: "forecast", area: a.name };
-      const band = (b) => ({ r: d[b] || 0, label: DANGER[d[b] || 0].label, color: DANGER[d[b] || 0].color });
+      if (!f) return { none: "forecast", area: a.name };
+      if (fcExpired(f)) return { none: "old", area: a.name };
+      // Today's ratings as given, whenever one band has one: a bulletin can rate the alpine and say "Early season"
+      // lower down (Kananaskis, Banff and Glacier 2026-11-27, which read as having no rating at all).
+      const d = (f.days || []).find((x) => x.date && x.date === localDay());
+      if (!d || !BANDS.some(([b]) => d[b])) {
+        // "early" only for the early season bulletin (no level on any day), as avyFor().
+        const rated = (f.days || []).some((x) => x.alp || x.tln || x.btl);
+        const early = !rated && (d ? Object.values(d.no || {}).includes("early") || (!d.no && isEarly(f)) : !(f.days || []).length && isEarly(f));
+        return { none: early ? "early" : "forecast", area: a.name };
+      }
+      const band = (b) => ({ r: d[b] || 0, label: bandLabel(d, b), color: DANGER[d[b] || 0].color });
       return { area: f.title || a.name, owner: f.owner || "Avalanche Canada", url: f.url || "https://avalanche.ca/map", stale: !!avyStale(f),
         bands: BANDS.map(([b, name]) => ({ b, name, ...band(b) })) };
     },
@@ -6037,7 +6110,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     safeTo: (lat, lon) => { if (sport !== "ski") setSport("ski"); if (plan.on) setPlanning(false); safeTo(lat, lon); },
     // Ask (ask.js): the two ways to a place, drawn to pick from on the map.
     twoWays: (top, start, startName, name) => twoWays(top, start, startName, name),
-    KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS,
+    KIND, HUT_ABOUT, DANGER, BANDS, WICON, COMPASS, noWord, noWords,
   };
   window.tfSkiOffline = (box) => {
     const tx = (lon, z) => Math.floor(((lon + 180) / 360) * 2 ** z);

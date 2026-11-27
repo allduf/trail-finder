@@ -233,16 +233,27 @@
     return null;
   }
   // The highest danger rating of a forecast day in the bands a route from lo to hi m goes through, and that band.
+  // on: the bands it goes through (touching one counts: band heights are an estimate). gaps: those with no rating that
+  // day ("Early season", "No rating"). The Avaluator light needs the danger all the way, so a route with a gap has none
+  // (light() callers check gaps.length).
   function dangerIn(day, bands, lo, hi) {
     let r = 0, band = "";
-    if (!day) return { r, band };
+    const gaps = [], on = [];
     for (const b of BAND_IDS) {
       const [bl, bh] = b === "alp" ? [bands.hi, Infinity] : b === "tln" ? [bands.lo, bands.hi] : [-Infinity, bands.lo];
-      if (hi >= bl && lo < bh && (day[b] || 0) > r) { r = day[b]; band = b; }
+      if (!(hi >= bl && lo < bh)) continue;
+      on.push(b);
+      if (!day) continue;
+      if (!day[b]) gaps.push(b);
+      else if (day[b] > r) { r = day[b]; band = b; }
     }
-    return { r, band };
+    return { r, band, gaps, on };
   }
+  // Avalanche Canada's word for a band with no danger level that day: forecast days keep its kind in day.no
+  // ({ tln: "early" }, winter.js acForecast and scripts/build-winter.mjs), and any other is "No rating".
+  const NO_WORDS = { early: "Early season", nofc: "No forecast", spring: "Spring", off: "Off season" };
+  const noWord = (day, b) => { const w = day && day.no && NO_WORDS[day.no[b]]; return typeof w === "string" ? w : "No rating"; };
 
   root.tfTerrain = { dist, chain, sampleLine, heights, overhead, info, terrainClass, light, minSlope, CLASSES, LIGHTS, ASPECTS, SAMPLE_M, ABOVE_M, ABOVE_DEG, TRAP_M,
-    bandsFor, inRing, areaAt, dangerIn };
+    bandsFor, inRing, areaAt, dangerIn, noWord };
 })(typeof window !== "undefined" ? window : globalThis);

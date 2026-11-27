@@ -145,6 +145,9 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   #recMap { min-height: 30vh; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+/* Opened from another sport (Skiing's My tours, alex 2026-11-27 "follow the sport"): Strava, the bike-only archive
+   import and the ride-line sharing are MTB's. */
+body.sport-other .mtb-only, body.sport-other #stravaBox, body.sport-other #shareBox, body.sport-other #rShare { display: none !important; }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
@@ -155,6 +158,8 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script src="i18n.js?v=__V__"></script>
+<!-- The emoji at the start of a saved title as line drawings, like on the map (CLAUDE.md: no emoji in the interface). -->
+<script src="line-icons.js?v=__V__"></script>
 </head>
 <body>
 <header class="top">
@@ -217,10 +222,10 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   <section class="view" id="viewRides" hidden>
     <div class="folder"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M3 6.5a2 2 0 0 1 2-2h4.2l2 2.2H19a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><h2>My rides</h2></div>
     <p class="hint" id="totals"></p>
-    <div class="actions"><label class="btn" id="importBtn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Import rides (GPX, FIT, TCX)<input type="file" id="importFiles" multiple accept=".gpx,.fit,.tcx,.gz,.zip,application/gpx+xml,application/zip"></label><label class="btn" id="zipBtn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM10 3v2h2v2h-2v2h2v2h-2v3h2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Import whole Strava archive (.zip)<input type="file" id="zipFile" accept=".zip,application/zip"></label></div>
-    <label class="tick"><input type="checkbox" id="zipBikes" checked> <span>Bike rides only (skip runs, hikes, walks and ski days)</span></label>
-    <label class="tick" id="zipAcctRow" hidden><input type="checkbox" id="zipAcct"> <span>Also save archive rides to my account (otherwise they stay on this device only)</span></label>
-    <details class="howto"><summary>How to get your Strava archive</summary><ol>
+    <div class="actions"><label class="btn" id="importBtn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Import rides (GPX, FIT, TCX)<input type="file" id="importFiles" multiple accept=".gpx,.fit,.tcx,.gz,.zip,application/gpx+xml,application/zip"></label><label class="btn mtb-only" id="zipBtn"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM10 3v2h2v2h-2v2h2v2h-2v3h2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Import whole Strava archive (.zip)<input type="file" id="zipFile" accept=".zip,application/zip"></label></div>
+    <label class="tick mtb-only"><input type="checkbox" id="zipBikes" checked> <span>Bike rides only (skip runs, hikes, walks and ski days)</span></label>
+    <label class="tick mtb-only" id="zipAcctRow" hidden><input type="checkbox" id="zipAcct"> <span>Also save archive rides to my account (otherwise they stay on this device only)</span></label>
+    <details class="howto mtb-only"><summary>How to get your Strava archive</summary><ol>
       <li>On a computer or in your phone's browser, sign in at <a href="https://www.strava.com/account" target="_blank" rel="noopener">strava.com</a> (the Strava app can't do this step).</li>
       <li>Tap your photo at the top right, then <strong>Settings</strong>.</li>
       <li>Open <strong>My Account</strong> on the left.</li>
@@ -233,8 +238,8 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     <p class="hint" id="importMsg" role="status" hidden></p>
     <div class="archive" id="scanBox" hidden></div>
     <ol class="rides" id="rideList"></ol>
-    <p class="hint">Rides are saved on this device, and in your account when you're signed in. Use <strong>Download GPX</strong> on a ride to keep a copy or upload it to Strava or another app.</p>
-    <p class="hint">Without connecting Strava: open the activity, ⋯ menu, <strong>Export GPX</strong>, then <strong>Import rides</strong> here. For all of them at once, use <strong>Import whole Strava archive</strong> (see how to get it above). Garmin and Wahoo .fit files work too. Imported rides show on the main map with <strong>My rides</strong>, which marks the trails you've ridden.</p>
+    <p class="hint" id="savedHint">Rides are saved on this device, and in your account when you're signed in. Use <strong>Download GPX</strong> on a ride to keep a copy or upload it to Strava or another app.</p>
+    <p class="hint mtb-only">Without connecting Strava: open the activity, ⋯ menu, <strong>Export GPX</strong>, then <strong>Import rides</strong> here. For all of them at once, use <strong>Import whole Strava archive</strong> (see how to get it above). Garmin and Wahoo .fit files work too. Imported rides show on the main map with <strong>My rides</strong>, which marks the trails you've ridden.</p>
   </section>
 
   <!-- One saved ride -->
@@ -345,12 +350,47 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   // on the form (older hunts were saved as rides): a hunt shows in the map's My hunts, not as a ride.
   const NOUN = { ski: "ski tour", hunt: "hunt", fish: "fishing", moto: "moto ride", hike: "hike" };
   const ICON = { ski: "⛷ ", hunt: "🦌 ", fish: "🎣 ", moto: "🏍 ", hike: "🥾 " };
+  // The page follows the sport the app is in (alex 2026-11-27, "follow the sport"): from Skiing it is Record tour and
+  // My tours with only the ski tours; MTB keeps Record ride and My rides with the bike rides, Strava and sharing.
+  const SP = (() => { let v = null; try { v = localStorage.getItem("tf:sport"); v = v && v[0] === '"' ? JSON.parse(v) : v; } catch {} return v in NOUN ? v : "mtb"; })();
+  const PAGE = { mtb: ["ride", "rides"], ski: ["tour", "tours"], hunt: ["hunt", "hunts"], fish: ["fishing trip", "fishing trips"], moto: ["adventure ride", "adventure rides"], hike: ["hike", "hikes"] }[SP];
+  // A saved ride's sport: our own key, else a ski tour by the Skiing map's own rule (winter.js isSkiTour: the file's type
+  // or the name says ski, or it went above 1,300 m in winter), else MTB's My rides (every other imported kind, as before).
+  const SKI_SPORT = /ski|snow|board/i, SKI_NAME = /\b(ski\w*|skin\w*|splitboard\w*|snowshoe\w*|backcountry|pow(der)?)\b/i;
+  const kindOf = (r) => {
+    const t = String((r && r.sport) || "");
+    if (t in NOUN) return t;
+    if (SKI_SPORT.test(t) || SKI_NAME.test((r && r.title) || "")) return "ski";
+    const m = new Date(r.start).getMonth();
+    return (m >= 10 || m <= 4) && Array.isArray(r.points) && r.points.some((p) => p[2] != null && p[2] >= 1300) ? "ski" : "mtb";
+  };
+  const mineOnly = (rides) => rides.filter((r) => kindOf(r) === SP);
+  if (SP !== "mtb") {
+    document.body.classList.add("sport-other");
+    const one = PAGE[0], many = PAGE[1];
+    const setText = (el, t) => { const n = el && [...el.childNodes].find((c) => c.nodeType === 3 && c.data.trim()); if (n) n.data = t; };
+    $("h1Noun").textContent = one;
+    setText($("tabRecord"), `Record ${one}`);
+    setText($("tabRides"), `My ${many} `);
+    $("tabRides").closest("nav").setAttribute("aria-label", `${one[0].toUpperCase() + one.slice(1)} pages`);
+    setText($("viewRides").querySelector(".folder h2"), `My ${many}`);
+    setText($("importBtn"), `Import ${many} (GPX, FIT, TCX)`);
+    $("savedHint").innerHTML = `${many[0].toUpperCase() + many.slice(1)} are saved on this device, and in your account when you're signed in. Use <strong>Download GPX</strong> on one to keep a copy or open it in another app.`;
+    $("backToRides").textContent = `← My ${many}`;
+    $("deleteBtn").textContent = `Delete ${one}`;
+    $("gpsMsg").textContent = "Press Start when you're ready.";
+    $("importFiles").accept = ".gpx,.fit,.tcx,.gz,application/gpx+xml";   // a Strava archive (.zip) goes in from MTB's My rides
+    $("viewRecord").querySelector(".hint").textContent = `Keep this page open while you record. Your phone's screen stays on while recording if the browser allows it. If the page is closed, the ${one} so far is kept and you can carry on.`;
+    document.title = `My ${many} · Trail Finder`;
+  }
+  // Where a save goes, in the words of the app's own list for that sport.
+  const saveTo = (sport) => ({ ski: "Save to My tours", hunt: "Save to My hunts", fish: "Save to Fishing log", moto: "Save to My adventure rides", hike: "Save to My hikes" }[sport] || "Save to My rides");
   function sayWords(sport, ride) {
     const n = NOUN[sport] || "ride";
     $("saveHead").textContent = ride ? `Edit ${n}` : `Save your ${n}`;
     $("discardBtn").textContent = `Discard ${n}`;
     if (!ride) $("h1Noun").textContent = n === "fishing" ? "track" : n;   // the page's name follows the sport it was recorded in
-    if (!ride) $("saveLabel").textContent = sport === "hunt" ? "Save to My hunts" : sport === "hike" ? "Save to My hikes" : "Save to My rides";
+    if (!ride) $("saveLabel").textContent = saveTo(sport);
     $("fDesc").placeholder = sport === "hunt" ? "What did you see? Wind, sign, animals, who you hunted with…" : sport === "fish" ? "Where, what was biting, on what…" : sport === "moto" ? "Where you went, how the roads were, who you rode with…" : sport === "hike" ? "How was it? Trail conditions, snow, views, who you hiked with…" : "How was it? Trails ridden, conditions, who you rode with…";
   }
 
@@ -479,7 +519,7 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   }
   function beginRecording(existing) {
     if (!navigator.geolocation) { showGps("This browser can't share your location, so it can't record a ride.", true); return; }
-    rec = existing || { id: "current", start: Date.now(), points: [] };
+    rec = existing || { id: "current", start: Date.now(), points: [], ...(SP !== "mtb" ? { sport: SP } : {}) };
     $("resumeBox").hidden = true;
     recLine.setLatLngs(rec.points.map((p) => [p[0], p[1]]));
     if (rec.points.length) recMap.fitBounds(recLine.getBounds(), { padding: [20, 20], maxZoom: 16 });
@@ -616,14 +656,14 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
       await dbPut("rides", ride);
       uploadSoon(ride.id);
       if (window.tfShare) window.tfShare.kick();
-      if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride saved. Press Start for the next one."); window.tfHappy && window.tfHappy("ride saved"); }
+      if (!editing) { await dbDel("current", "current"); rec = null; recLine.setLatLngs([]); renderLive(); showGps(SP === "mtb" ? "Ride saved. Press Start for the next one." : `${PAGE[0][0].toUpperCase() + PAGE[0].slice(1)} saved. Press Start for the next one.`); window.tfHappy && window.tfHappy("ride saved"); }
       try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
       await countRides();
       if (!editing && ride.sport === "hunt") { location.href = "index.html#myhunts"; return; }   // straight to My hunts on the map
       if (location.hash === "#ride/" + ride.id) openRide(ride.id); else location.hash = "#ride/" + ride.id;
     } catch (e) {
       alert("Couldn't save the ride: " + (e && e.message ? e.message : e) + ". Your ride is still kept on this page.");
-    } finally { btn.disabled = false; $("saveLabel").textContent = editing ? "Save changes" : "Save to My rides"; }
+    } finally { btn.disabled = false; $("saveLabel").textContent = editing ? "Save changes" : saveTo($("fSport").value); }
   });
   $("resumeBtn").addEventListener("click", async () => {
     delete rec.end;
@@ -632,9 +672,9 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
   });
   $("cancelEdit").addEventListener("click", () => openRide(editing.id));
   $("discardBtn").addEventListener("click", async () => {
-    if (!confirm("Discard this ride? It won't be saved.")) return;
+    if (!confirm(`Discard this ${SP === "mtb" ? "ride" : PAGE[0]}? It won't be saved.`)) return;
     await dbDel("current", "current");
-    rec = null; recLine.setLatLngs([]); renderLive(); showGps("Ride discarded. Press Start when you're ready.");
+    rec = null; recLine.setLatLngs([]); renderLive(); showGps(SP === "mtb" ? "Ride discarded. Press Start when you're ready." : `${PAGE[0][0].toUpperCase() + PAGE[0].slice(1)} discarded. Press Start when you're ready.`);
     show("record");
   });
 
@@ -651,21 +691,23 @@ label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; 
     return `<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><path d="${d}"/></svg>`;
   }
   async function countRides() {
-    const n = (await dbAll("rides")).length;
+    const n = mineOnly(await dbAll("rides")).length;
     $("rideCount").textContent = n ? `(${n})` : "";
   }
   async function renderRides() {
     freeUrls();
-    const rides = (await dbAll("rides")).sort((a, b) => b.start - a.start);
+    const rides = mineOnly(await dbAll("rides")).sort((a, b) => b.start - a.start);
     const list = $("rideList");
     list.innerHTML = "";
     if (!rides.length) {
-      list.innerHTML = '<li class="empty">No rides yet. Go to <strong>Record ride</strong> and press Start, or import rides from Strava or your GPS.</li>';
+      list.innerHTML = SP === "mtb" ? '<li class="empty">No rides yet. Go to <strong>Record ride</strong> and press Start, or import rides from Strava or your GPS.</li>'
+        : `<li class="empty">No ${PAGE[1]} yet. Go to <strong>Record ${PAGE[0]}</strong> and press Start, or import ${PAGE[1]} from your GPS.</li>`;
       $("totals").textContent = "";
       return;
     }
     const tot = rides.reduce((a, r) => ({ d: a.d + r.stats.dist, c: a.c + (r.stats.climb || 0), t: a.t + r.stats.moving }), { d: 0, c: 0, t: 0 });
-    $("totals").textContent = `${rides.length} ride${rides.length > 1 ? "s" : ""} · ${km(tot.d)} km · ${Math.round(tot.c)} m climbed · ${hms(tot.t, false)} riding`;
+    $("totals").textContent = SP === "mtb" ? `${rides.length} ride${rides.length > 1 ? "s" : ""} · ${km(tot.d)} km · ${Math.round(tot.c)} m climbed · ${hms(tot.t, false)} riding`
+      : `${rides.length} ${rides.length > 1 ? PAGE[1] : PAGE[0]} · ${km(tot.d)} km · ${Math.round(tot.c)} m climbed · ${hms(tot.t, false)} moving`;
     // Rides that came from Strava (strava.js) sit together in a Strava folder at the top, opened or closed as last left.
     const fromStrava = rides.filter((r) => r.imported && r.imported.strava), here = rides.filter((r) => !(r.imported && r.imported.strava));
     let into = list;
@@ -790,6 +832,8 @@ ${pts}
       sport: String((extra && extra.type) || got.sport || "").slice(0, 40),
     };
     if (sid) { ride.imported.strava = /^\d+$/.test(sid) ? Number(sid) : sid; ride.imported.archive = true; }
+    // Imported while the page follows another sport (My tours): it's one of that sport's, the file's own type kept.
+    if (SP !== "mtb" && !sid) { if (ride.sport) ride.imported.type = ride.sport; ride.sport = SP; ride.title = name && !/^\d+$/.test(name) ? ride.title : defaultTitle(start, SP); }
     if (extra && extra.localOnly) ride.localOnly = true;     // kept off the account (Strava archive, unless asked)
     if (ride.stats.climb == null) { try { const ud = await mapClimb(pts); ride.stats.climb = ud.up; ride.stats.descent = ud.down; ride.stats.climbFrom = "map"; } catch {} }
     await dbPut("rides", ride);
@@ -800,7 +844,7 @@ ${pts}
   async function importFiles(files) {
     files = [...files];
     const zip = files.find((f) => /\.zip$/i.test(f.name) || f.type === "application/zip");
-    if (zip) { files = files.filter((f) => f !== zip); importArchive(zip); }
+    if (zip) { files = files.filter((f) => f !== zip); if (SP === "mtb") importArchive(zip); else { const m0 = $("importMsg"); m0.hidden = false; m0.classList.add("warn"); m0.textContent = "A Strava archive (.zip) goes in from MTB's My rides. Here, pick GPX, FIT or TCX files."; } }
     if (!files.length || !window.tfRideFiles) return;
     const btn = $("importBtn"), msg = $("importMsg");
     btn.classList.add("busy");
@@ -812,13 +856,12 @@ ${pts}
         const got = await tfRideFiles.read(file);
         const ride = await addImported(got, file.name, have, { lastModified: file.lastModified });
         if (ride) added.push(ride); else dupes.push(file.name);
-      } catch (e) { bad.push(`${file.name} (${e && e.message ? e.message : e})`); }
+      } catch (e) { bad.push(`${file.name} (${window.tfErrText ? window.tfErrText(e) : (e && e.message) || e})`); }
     }
     btn.classList.remove("busy");
-    const s = (k) => (k === 1 ? "" : "s");
     msg.textContent = [
-      added.length ? `Imported ${added.length} ride${s(added.length)}.` : "No new rides imported.",
-      dupes.length ? `${dupes.length} ${dupes.length === 1 ? "was" : "were"} already in My rides.` : "",
+      added.length ? `Imported ${added.length} ${added.length === 1 ? PAGE[0] : PAGE[1]}.` : `No new ${PAGE[1]} imported.`,
+      dupes.length ? `${dupes.length} ${dupes.length === 1 ? "was" : "were"} already in My ${PAGE[1]}.` : "",
       bad.length ? `Couldn't read ${bad.join(", ")}.` : "",
     ].filter(Boolean).join(" ");
     msg.classList.toggle("warn", !!bad.length);

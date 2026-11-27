@@ -491,14 +491,14 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     q("acctSetPass").disabled = true;
     const { error } = await api.client.auth.updateUser({ password: pw });
     q("acctSetPass").disabled = false;
-    if (error) { answer("acctSetPass", /same|different/i.test(error.message) ? "That's already your password. Pick a different one." : "Couldn't change the password: " + error.message, true); return; }
+    if (error) { answer("acctSetPass", /same|different/i.test(error.message) ? "That's already your password. Pick a different one." : "Couldn't change the password: " + (window.tfErrText ? window.tfErrText(error.message) : error.message) + ".", true); return; }
     q("acctNewPass").value = "";
     answer("acctSetPass", "Password changed. Next time, sign in with your email and this new password.");
   });
   q("acctSetName").addEventListener("click", async () => {
     const name = q("acctName").value.trim().slice(0, 40);
     const { data, error } = await api.client.auth.updateUser({ data: { name } });
-    if (error) { answer("acctSetName", "Couldn't save the name: " + error.message, true); return; }
+    if (error) { answer("acctSetName", "Couldn't save the name: " + (window.tfErrText ? window.tfErrText(error.message) : error.message) + ".", true); return; }
     if (data && data.user) api.user = data.user;
     paintButtons();
     try { if (name && !localStorage.getItem("tf:liveName")) localStorage.setItem("tf:liveName", JSON.stringify(name)); } catch {}
@@ -552,7 +552,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     const email = q("acctNewEmail").value.trim();
     if (!q("acctNewEmail").reportValidity() || !email || email === api.user.email) return;
     const { error } = await api.client.auth.updateUser({ email }, { emailRedirectTo: redirect() });
-    if (error) answer("acctSetEmail", "Couldn't change the email: " + error.message, true);
+    if (error) answer("acctSetEmail", "Couldn't change the email: " + (window.tfErrText ? window.tfErrText(error.message) : error.message) + ".", true);
     else answer("acctSetEmail", `Almost done: check ${email} (and your old address) and tap the confirm links. The change happens after that.`);
   });
   // Sign out sits right in the Your account box (alex 2026-11-03) and again under Settings.

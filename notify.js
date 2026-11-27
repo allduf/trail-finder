@@ -122,6 +122,8 @@ dialog.notify .nt-x { position: absolute; top: 8px; right: 8px; width: 40px; hei
 dialog.notify h2 { padding-right: 36px; }
 dialog.notify .nt-hunt { display: block; cursor: default; }
 dialog.notify .nt-other { margin: 4px 0 8px; }
+dialog.notify .nt-other summary::after { top: 7px; }
+dialog.notify .nt-none { margin: 0 0 6px; font-size: .9rem; color: var(--muted); }
 dialog.notify .nt-other summary { cursor: pointer; font-size: .86rem; font-weight: 700; color: var(--muted); padding: 6px 0; }
 dialog.notify .nt-hunt .nt-link { font: inherit; font-weight: 700; padding: 0; border: 0; background: none; color: var(--accent, #2f8f88); text-decoration: underline; cursor: pointer; }
 /* Save / Done stay in reach under the long region list */
@@ -312,6 +314,9 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   const TT = window.tfTerrain;
   const DANGER = ["No rating", "Low", "Moderate", "Considerable", "High", "Extreme"];
   const DANGER_C = ["#9aa3ad", "#52ba4a", "#fff300", "#f79218", "#ef1c29", "#1a1a1a"];
+  const BANDS = [["alp", "alpine"], ["tln", "treeline"], ["btl", "below treeline"]];
+  const bandN = (k) => (BANDS.find((b) => b[0] === k) || ["", ""])[1];
+  const inBand = (k) => (k === "btl" ? "below treeline" : `in the ${bandN(k)}`);   // after a rating: "Considerable in the alpine"
   const avyOn = () => store.get("avyAlert", false) === true;
   const skiWatch = () => store.get("skiWatch", []);
   let avyState = (() => { try { return JSON.parse(localStorage.getItem("tf:avyAlerts") || "{}") || {}; } catch { return {}; } })();
@@ -339,17 +344,25 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
         const key = "v:" + a.id;
         if (!best || best.r < 3) { if (avyState[key]) { avyState[key] = { lv: best ? best.r : 0, r: 1 }; seen.add(key); } continue; }
         mark(key, best.r);
-        now.push({ key, name: f.title || a.name, lv: best.r, color: DANGER_C[best.r], label: `${DANGER[best.r]} ${dayWord(best.x)}`, why: "In your regions", c: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] });
+        // The bands with that rating, named ("Alpine and treeline, in your regions"): Avalanche Canada rates each band
+        // on its own, and the others can be lower or have none.
+        const at = BANDS.filter(([k]) => best.x[k] === best.r).map(([, n]) => n), where = at.length === 3 ? "all bands" : at.join(" and ");
+        now.push({ key, name: f.title || a.name, lv: best.r, color: DANGER_C[best.r], label: `${DANGER[best.r]} ${dayWord(best.x)}`, why: where ? `${where[0].toUpperCase()}${where.slice(1)}, in your regions` : "In your regions", c: [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] });
       }
       for (const t of skiWatch()) {
         const a = t.c && TT.areaAt(d.areas, t.c[0], t.c[1]), f = a && a.forecast, key = "t:" + t.k;
         if (!live(f)) continue;
         let best = null;
+        // A band of the tour with no rating that day (Early season, No rating) can't lower its light, so the rated bands'
+        // light still rings (alex 2026-11-27). The tour's card shows no light then: the alert shows the rating instead,
+        // and names the band with none.
         for (const x of soon(f)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
         if (!best || best.l < 1) { if (avyState[key]) { avyState[key] = { lv: best ? best.l : 0, r: 1 }; seen.add(key); } continue; }
         mark(key, best.l);
-        const L = TT.LIGHTS[best.l];
-        now.push({ key, name: t.n, k: t.k, lv: best.l, color: L.color, label: `${L.label} ${dayWord(best.x)}`, why: `Tour you watch · ${DANGER[best.dg.r]} in the ${{ alp: "alpine", tln: "treeline", btl: "below treeline" }[best.dg.band]}`, c: t.c });
+        const L = TT.LIGHTS[best.l], dg = best.dg, gaps = dg.gaps || [];
+        const none = gaps.map((b) => `${bandN(b)}: ${TT.noWord ? TT.noWord(best.x, b) : "No rating"}`).join(", ").replace(/^./, (c) => c.toUpperCase());
+        now.push(gaps.length ? { key, name: t.n, k: t.k, lv: best.l, color: DANGER_C[dg.r], label: `${DANGER[dg.r]} ${inBand(dg.band)} ${dayWord(best.x)}`, why: `Tour you watch · ${none}`, c: t.c }
+          : { key, name: t.n, k: t.k, lv: best.l, color: L.color, label: `${L.label} ${dayWord(best.x)}`, why: `Tour you watch · ${DANGER[dg.r]} ${inBand(dg.band)}`, c: t.c });
       }
       Object.keys(avyState).forEach((k) => { if (!seen.has(k)) delete avyState[k]; });
       putAvy();
@@ -470,13 +483,22 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (first) { groups[0].on = true; const all = q("ntZones").querySelector('input[value="all"]'); if (all) all.checked = false; }
     q("ntZones").insertAdjacentHTML("afterbegin", groups.map((g, i) => `<label class="nt-ca"><input type="checkbox" value="ca:${i}"${g.on ? " checked" : ""}>${esc(g.label || g.n)}</label>`).join(""));
   }
+  // The sport the app is in now (the body's sport-* class, set by index.html).
+  function sportNow() {
+    const b = document.body.classList;
+    return b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : b.contains("sport-hike") ? "hike" : "mtb";
+  }
   function paintPick() {
     const p = prefs(), on = new Set(p ? p.zones : ["all"]);
     q("ntZones").innerHTML = [["all", "All regions"], ...ZONES.map((z) => [z.id, z.name])]
       .map(([id, name]) => `<label><input type="checkbox" value="${id}"${on.has(id) ? " checked" : ""}>${esc(name)}</label>`).join("");
     paintCa();
-    q("ntLoamArea").checked = loamOn();
-    q("ntNewOn").checked = newOn();
+    // Someone setting up alerts for the first time from another sport (Skiing's avalanche alerts) doesn't get MTB's prime
+    // loam and new trails by default: those boxes, folded under "Alerts for other sports", start unticked there.
+    const firstOther = !p && sportNow() !== "mtb" && store.get("loamArea", null) == null && store.get("notifyNew", null) == null
+      && !(window.tfToRideList ? window.tfToRideList().length : 0);   // loam alerts already at work on a To ride list stay as they are
+    q("ntLoamArea").checked = !firstOther && loamOn();
+    q("ntNewOn").checked = !firstOther && newOn();
     q("ntAvyOn").checked = avyOn();
     q("ntFishOn").checked = fishOn();
     q("ntFishWhere").textContent = fishOn() ? `(within ${FISH_KM} km of the spot you picked; saving again moves it to where the map is now)` : `(within ${FISH_KM} km of where the map is now)`;
@@ -534,6 +556,15 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     }));
   }
   function paintList() {
+    paintList0();
+    // Skiing and Fishing: their own alert off says so (the list would hold only the folded other sports), and the
+    // button reads "Change alerts" (the regions are MTB's words).
+    const sp = sportNow(), own = { ski: ["ntAvy", "Avalanche alerts are off."], fish: ["ntFish", "Fresh stocking alerts are off."] }[sp];
+    if (own) { listNone.textContent = q(own[0]).hidden ? own[1] : ""; listNone.hidden = !listNone.textContent; if (!listNone.isConnected) q("ntList").insertBefore(listNone, listOther); }
+    else if (sp === "mtb") listNone.remove();
+    if (sp !== "mtb") q("ntEdit").textContent = "Change alerts";
+  }
+  function paintList0() {
     paintFish();
     paintAvy();
     paintLoam();
@@ -577,7 +608,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     if (row.hidden) return;
     const said = !!askState().no;
     q("ntPushRowText").textContent = said
-      ? "These alerts show here when you open Trail Finder. Phone notifications are off: Change regions has the switch to turn them on."
+      ? (sportNow() === "mtb" ? "These alerts show here when you open Trail Finder. Phone notifications are off: Change regions has the switch to turn them on."
+        : "These alerts show here when you open Trail Finder. Phone notifications are off: Change alerts has the switch to turn them on.")
       : "These alerts show here when you open Trail Finder. Turn on phone notifications to also get them on this phone.";
     q("ntPushGo").hidden = said;
   }
@@ -597,12 +629,19 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const a = document.getElementById("hnAlarms");
     if (a) { a.open = true; (window.tfPanelScrollTo || ((el) => el.scrollIntoView()))(a, "center", true); }
   });
+  const noneRow = document.createElement("p");
+  noneRow.className = "nt-none";
+  const noneText = (sp) => `${sp === "moto" ? "Adventure moto" : "Hiking"} has no alerts of its own yet. You can turn on another sport's alerts below.`;
   function sortOpts() {
-    const b = document.body.classList, sp = b.contains("sport-ski") ? "ski" : b.contains("sport-hunt") ? "hunt" : b.contains("sport-fish") ? "fish" : b.contains("sport-moto") ? "moto" : b.contains("sport-hike") ? "hike" : "mtb";
+    const sp = sportNow();
     const MINE = { mtb: ["ntLoamArea", "ntNewOn"], ski: ["ntAvyOn"], hunt: [], fish: ["ntFishOn"], moto: [], hike: [] }[sp];
     const opts = ["ntLoamArea", "ntNewOn", "ntAvyOn", "ntFishOn"].map((id) => q(id).closest("label"));
     const pick = q("ntPick"), first = pick.querySelector(".nt-push");
     if (sp === "hunt") pick.insertBefore(huntRow, first); else huntRow.remove();
+    // A sport without alerts of its own (Adventure moto, Hiking) says so, so the card isn't a lone "Also send them to this
+    // phone" under a closed list.
+    if (!MINE.length && sp !== "hunt") { noneRow.textContent = noneText(sp); pick.insertBefore(noneRow, first); }
+    else noneRow.remove();
     opts.filter((l) => MINE.includes(l.querySelector("input").id)).forEach((l) => pick.insertBefore(l, sp === "hunt" ? huntRow : first));
     opts.filter((l) => !MINE.includes(l.querySelector("input").id)).forEach((l) => other.append(l));
     pick.insertBefore(other, first);
@@ -610,8 +649,23 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const zh = pick.querySelector(".nt-zhead"), zs = q("ntZones"), row = pick.querySelector(".nt-row");
     if (sp === "hunt" || sp === "fish" || sp === "moto" || sp === "hike") other.append(zh, zs); else { pick.insertBefore(zh, row); pick.insertBefore(zs, row); }
   }
+  // The list (after saving) follows the same rule: this sport's alerts, then the other sports' folded under them, so
+  // Skiing's bell doesn't open on MTB's prime loam (deep test 2026-11-27).
+  const listOther = document.createElement("details");
+  listOther.className = "nt-other";
+  listOther.innerHTML = "<summary>Alerts for other sports</summary>";
+  const listNone = document.createElement("p");
+  listNone.className = "nt-none";
+  function sortList() {
+    const sp = sportNow(), list = q("ntList"), row = list.querySelector(".nt-row");
+    const groups = { ski: ["ntAvy"], fish: ["ntFish"], mtb: ["ntLoam", "ntWhere", "ntItems"] };
+    (groups[sp] || []).forEach((id) => list.insertBefore(q(id), row));
+    Object.keys(groups).filter((k) => k !== sp).forEach((k) => groups[k].forEach((id) => listOther.append(q(id))));
+    if (!groups[sp]) { listNone.textContent = sp === "hunt" ? "Hunting's legal light alarms are on the Hunting panel, in Light and moon." : noneText(sp); listNone.hidden = false; list.insertBefore(listNone, row); } else listNone.remove();
+    list.insertBefore(listOther, row);
+  }
   function openBox() {
-    sortOpts();
+    sortOpts(); sortList();
     prefs() || (loamOn() && loamList.length) || (avyOn() && skiWatch().length) || fishOn() ? showList() : paintPick();
     if (!box.open) box.showModal();
     checkLoam(); checkAvy(); checkFish();
@@ -813,7 +867,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   const pushFail = (err) => (err.message === "blocked" ? "Notifications are blocked for Trail Finder. Allow them in your phone's settings, then try again."
     : err.message === "setup" ? "Phone notifications aren't set up on the site yet. Try again later."
     : err.message === "not allowed" ? "Tap Allow when your phone asks, to get notifications."
-    : `Couldn't turn on notifications (${err.message}). Try again in a moment.`);
+    : `Couldn't turn on notifications (${(window.tfErrText ? window.tfErrText(err) : err.message)}). Try again in a moment.`);
   q("ntPushOn").addEventListener("change", async (e) => {
     const on = e.target;
     on.disabled = true;
