@@ -1,3 +1,4 @@
-The 3D map couldn't draw on this phone, so the 2D map is shown. Tap 3D to try again. ||| La carte 3D n'a pas pu s'afficher sur ce téléphone, la carte 2D est donc affichée. Touchez 3D pour réessayer.
+The map couldn't draw on this phone, so the 2D map is shown. ||| La carte n'a pas pu s'afficher sur ce téléphone, la carte 2D est donc affichée.
+The map may not draw while Low Power Mode is on. Turn it off in Settings to see 3D. ||| La carte peut ne pas s'afficher quand le mode Économie d'énergie est activé. Désactivez-le dans Réglages pour voir la 3D.
+The map may not draw while Battery Saver is on. Turn it off in Settings to see 3D. ||| La carte peut ne pas s'afficher quand l'économiseur de batterie est activé. Désactivez-le dans Paramètres pour voir la 3D.
 The 3D map no longer stays black on a phone that can't draw it: the 2D map shows, with a note. ||| La carte 3D ne reste plus noire sur un téléphone qui ne peut pas l'afficher : la carte 2D s'affiche, avec une note.
-The 3D map can't draw while Low Power Mode is on, so the 2D map is shown. Turn it off in Settings, then tap 3D. ||| La carte 3D ne peut pas s'afficher quand le mode Économie d'énergie est activé, la carte 2D est donc affichée. Désactivez-le dans Réglages, puis touchez 3D.

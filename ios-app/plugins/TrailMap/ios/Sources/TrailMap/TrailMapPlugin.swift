@@ -126,10 +126,15 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: show)
             // Still not one frame drawn 8 s after opening (slow tiles still draw the background and what's in): the page
             // is told ("notDrawn") and goes back to its own flat map with a note, instead of buttons over a black screen.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak s] in
-                guard let s = s, !s.left, s.framesDrawn == 0 else { return }
-                s.onEvent?("notDrawn", ["lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled])
+            // Counted only while the app is on screen: in the background or under Control Center nothing draws.
+            func check(_ s: TrailMapScreen?) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak s] in
+                    guard let s = s, !s.left, s.framesDrawn == 0 else { return }
+                    if UIApplication.shared.applicationState != .active || s.view.window == nil { check(s); return }
+                    s.onEvent?("notDrawn", ["lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled])
+                }
             }
+            check(s)
         }
     }
 
