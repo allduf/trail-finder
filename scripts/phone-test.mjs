@@ -896,6 +896,54 @@ async function appBuild(kind, desk = false) {
     console.log(`✗ ${line}: ${label}: the page\n    ${note}`);
   } finally { await p.ctx.close().catch(() => {}); }
 }
+// ---------- A new device opens in the season's sport (alex 2026-11-27) ----------
+// Skiing from Nov 15 to Apr 30, MTB the rest of the year, only on a device that never used the app (the welcome shows):
+// Skiing on Winter and first in the welcome; a device that used the app keeps its last sport. (The other runs never
+// get the season default: phone()'s tf:todayAuto makes them a device that used the app before.)
+async function seasonCheck() {
+  const cases = [
+    ["New phone on Jan 15 opens Skiing on Winter", "2027-01-15", null, "ski"],
+    ["New phone on Nov 15 opens Skiing", "2026-11-15", null, "ski"],
+    ["New phone on Jul 1 opens MTB", "2026-07-01", null, "mtb"],
+    ["New phone on Apr 30 opens Skiing", "2027-04-30", null, "ski"],
+    ["New phone on May 1 opens MTB", "2027-05-01", null, "mtb"],
+    ["New phone on Nov 14 opens MTB", "2026-11-14", null, "mtb"],
+    ["Phone that used MTB stays in MTB on Jan 15", "2027-01-15", "mtb", "mtb"],
+  ];
+  for (const [name, day, before, want] of cases) {
+    const p = await phone(), { page } = p;
+    let note = "";
+    try {
+      await p.ctx.addInitScript(([d, b]) => {
+        window.tfSeasonDate = d;
+        if (!b && !localStorage.getItem("tf:welcomed")) localStorage.removeItem("tf:todayAuto");   // phone()'s own key would make it a used device
+        if (b && !localStorage.getItem("tf:welcomed")) { localStorage.setItem("tf:sport", JSON.stringify(b)); localStorage.setItem("tf:welcomed", "true"); }
+      }, [day, before]);
+      await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
+      if (await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).then(() => true, () => false) && !before) {
+        await page.waitForSelector("dialog.welc[open]", { timeout: 6000 });
+        const first = await page.evaluate(() => (document.querySelector("dialog.welc .welc-sports button") || {}).dataset?.sport);
+        if (first !== want) throw new Error(`the welcome lists "${first}" first, not "${want}"`);
+        await page.locator("dialog.welc [data-skip]").first().click({ timeout: 4000 });
+      }
+      await wait(1500);
+      const got = await page.evaluate(() => ({ sport: (document.getElementById("sport") || {}).value, body: document.body.classList.contains("sport-" + (document.getElementById("sport") || {}).value) }));
+      if (got.sport !== want || !got.body) throw new Error(`opened in "${got.sport}", not "${want}"`);
+      if (want === "ski") {
+        await page.waitForFunction(() => (document.getElementById("basemap") || {}).value === "winter", null, { timeout: 10_000 }).catch(() => {});
+        const b = await page.evaluate(() => (document.getElementById("basemap") || {}).value);
+        if (b !== "winter") throw new Error(`Skiing opened on "${b}", not Winter`);
+      }
+    } catch (e) { note = String(e.message || e).split("\n")[0].slice(0, 200); }
+    note = [note, ...p.errors].filter(Boolean).join(" · ");
+    const shot = `app-season-${day}-${want}.png`;
+    await page.screenshot({ path: join(OUT, shot) }).catch(() => {});
+    await p.ctx.close().catch(() => {});
+    results.push({ sport: "app", step: `Season: ${name}`, ok: !note, note, shot });
+    console.log(`${note ? "✗" : "✓"} App builds: Season: ${name}${note ? "\n    " + note : ""}`);
+  }
+}
 // Fonts come from the site itself (vendor/fonts-<version>), never from Google Fonts or another font host: opening a page
 // must send nothing to Google (security and privacy check 2026-11-27). Reads the pages, scripts and stylesheets at the
 // site's root for a font host, and each font stylesheet a page links from vendor/ for its font files.
@@ -916,6 +964,7 @@ async function fontsCheck() {
 }
 
 async function appBuilds() {
+await seasonCheck().catch((e) => results.push({ sport: "app", step: "Season sport", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fontsCheck().catch((e) => results.push({ sport: "app", step: "Fonts come from the site", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
