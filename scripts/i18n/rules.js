@@ -113,6 +113,10 @@
       return "Le plus enfumé " + tt(w) + " : " + tt(r) + ", " + n + " µg/m³." + (!tail ? "" : /^Very/.test(tail) ? " Très peu de fumée le reste du temps." : /^Smoke/.test(tail) ? " De la fumée tout le temps dans la prévision." : " Prochaine période avec très peu de fumée : " + tt(nx) + "."); }],
     [/^In season today: (.+)$/, function (m, l) { return "En saison aujourd'hui : " + tl(l); }],
     [/^(\d+) in season today$/, "$1 en saison aujourd'hui"],
+    // Riders' trip reports (build-winter.mjs): "1 avalanche size 1.5", "2 avalanches size 1-2, someone caught", "avalanche seen".
+    [/^(\d+) avalanches?(?: size ([\d.]+(?:-[\d.]+)?))?(, someone caught)?$/, function (m, n, z, c) { return n + " avalanche" + (n === "1" ? "" : "s") + (z ? " de taille " + z.replace(/\./g, ",") : "") + (c ? ", une personne prise" : ""); }],
+    [/^avalanche seen(, someone caught)?$/, function (m, c) { return "avalanche vue" + (c ? ", une personne prise" : ""); }],
+    [/^(\d+) reports? of avalanches$/, function (m, n) { return n + " rapport" + (n === "1" ? "" : "s") + " d'avalanches"; }],
     [/^No avalanches in these reports, (\d+) reports? in all\.$/, function (m, n) { return "Aucune avalanche dans ces rapports, " + n + " rapport" + (n === "1" ? "" : "s") + " en tout."; }],
     [/^(.+): the closest paved road or lot \(usually plowed\) for a less exposed way in\. Logging roads past it are usually not plowed, so they're part of the ski\.$/, function (m, p) { return tt(p) + " : la route asphaltée ou le stationnement le plus proche (habituellement déneigé) pour un chemin moins exposé. Les chemins forestiers au-delà ne sont habituellement pas déneigés : ils font partie de la sortie à ski."; }],
     // ask.js: a mountain or ridge with no tour mapped on it, planned from the closest road (2026-11-10)
