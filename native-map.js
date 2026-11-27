@@ -678,12 +678,15 @@
   // The phone's own map drew nothing 8 s after opening (builds from 2026-11-27: alex's iPhone showed the page's buttons
   // over a black screen in every sport): back to the page's own flat map, with a note, and it doesn't open again by
   // itself this visit (a tap on 3D tries again). Never the web 3D map.
-  TrailMap.addListener("notDrawn", () => {
+  // lowPower: the phone's Low Power Mode (Battery Saver) is on, the cause on alex's iPhone 2026-11-27.
+  TrailMap.addListener("notDrawn", (e) => {
     if (!open) return;
     flatFails = 2;
-    if (window.tfUse) window.tfUse("view", "Native map drew nothing", 0);
+    const low = !!(e && e.lowPower);
+    if (window.tfUse) window.tfUse("view", `Native map drew nothing${low ? " · Low Power Mode" : ""}`, 0);
     TrailMap.close().catch(() => {});
-    if (window.tfToast) { const m = "The 3D map couldn't draw on this phone, so the 2D map is shown. Tap 3D to try again."; window.tfToast(window.tfLang && window.tfLang.t ? window.tfLang.t(m) : m); }
+    const m = low ? "The 3D map can't draw while Low Power Mode is on, so the 2D map is shown. Turn it off in Settings, then tap 3D." : "The 3D map couldn't draw on this phone, so the 2D map is shown. Tap 3D to try again.";
+    if (window.tfToast) window.tfToast(window.tfLang && window.tfLang.t ? window.tfLang.t(m) : m);
   });
   TrailMap.addListener("card", (e) => { cardUp = !!(e && e.up); });   // Android's own card on the map (Back closes it first)
   ["tf:sport", "tf:basemap", "tf:admin", "tf:map3d"].forEach((n) => window.addEventListener(n, syncSoon));

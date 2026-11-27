@@ -123,7 +123,13 @@ public class TrailMapPlugin extends Plugin {
             s.postDelayed(show, 2500);
             // Still not one frame drawn 8 s after opening: the page goes back to its own flat map with a note ("notDrawn",
             // as the iPhone's), instead of its buttons over a black screen.
-            s.postDelayed(() -> { if (!s.isLeft() && s.framesDrawn == 0) s.send("notDrawn", new JSObject()); }, 8000);
+            s.postDelayed(() -> {
+                if (s.isLeft() || s.framesDrawn > 0) return;
+                android.os.PowerManager pm = (android.os.PowerManager) a.getSystemService(android.content.Context.POWER_SERVICE);
+                JSObject d = new JSObject();
+                d.put("lowPower", pm != null && pm.isPowerSaveMode());
+                s.send("notDrawn", d);
+            }, 8000);
         });
     }
 

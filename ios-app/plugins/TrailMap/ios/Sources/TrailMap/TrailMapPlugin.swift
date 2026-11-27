@@ -128,7 +128,7 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             // is told ("notDrawn") and goes back to its own flat map with a note, instead of buttons over a black screen.
             DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak s] in
                 guard let s = s, !s.left, s.framesDrawn == 0 else { return }
-                s.onEvent?("notDrawn", [:])
+                s.onEvent?("notDrawn", ["lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled])
             }
         }
     }
@@ -358,6 +358,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             map.isCenterClampedToGround = true
         }
         map.logoView.isHidden = true
+        // Low Power Mode: at most 30 frames a second, asked for plainly (2026-11-27: with it on, alex's iPhone drew no
+        // frame at all; the page's flat map comes back with a note when that still happens, "notDrawn" above).
+        lowPowerFrames()
+        NotificationCenter.default.addObserver(self, selector: #selector(powerChanged), name: .NSProcessInfoPowerStateDidChange, object: nil)
         map.setCenter(start, zoomLevel: startZoom, direction: startBearing, animated: false)
         map.showsUserLocation = true
         view.addSubview(map)
@@ -802,6 +806,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         stepping = false
         if t >= 1 { endTilt() }
     }
+    private func lowPowerFrames() {
+        map.preferredFramesPerSecond = ProcessInfo.processInfo.isLowPowerModeEnabled ? .lowPower : .default
+    }
+    @objc private func powerChanged() { DispatchQueue.main.async { [weak self] in if let s = self, s.isViewLoaded, !s.left { s.lowPowerFrames() } } }
     func mapViewDidFinishRenderingFrame(_ mapView: MLNMapView, fullyRendered: Bool) {
         framesDrawn += 1
     }
