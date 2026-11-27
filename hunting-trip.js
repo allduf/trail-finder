@@ -241,7 +241,7 @@
       const c = !has ? "var(--line)" : r.rain >= 5 || r.snow >= 2 || r.code >= 95 ? "#1c7ed6" : r.lo != null && r.lo <= -10 ? "#74c0fc" : COL;
       const wx = has ? `<span class="tp-wx"><big>${deg(r.hi)}</big><br>low ${deg(r.lo)}</span>` : `<span class="tp-wx sk-note">${v.end && date > v.end ? "Too far<br>ahead" : "–"}</span>`;
       const wind = has ? (r.wind < 5 ? "Wind light" : `Wind mostly from <b>${H.compass(r.dir)}</b> ${Math.round(r.wind)} km/h${r.gust >= 40 ? `, gusts ${Math.round(r.gust)}` : ""}: your scent drifts ${H.compass(r.dir + 180)}`) : "";
-      const bits = has ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain` : "Dry", wxWord(r.code)] : [];
+      const bits = has ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain` : "Little or no rain", wxWord(r.code)] : [];
       const light = l ? `Legal light ${l.a ? hm(l.a) : "–"} to ${l.b ? hm(l.b) : "–"} · moon ${esc(l.moon.name.toLowerCase())}, ${l.moon.pct}%` : "";
       return `<li style="--c:${c}"><b>${esc(dayWord(date))}${j === 0 ? " · first day" : j === t.nights ? " · last day" : ""}</b>${wx}<span>${wind || (has ? "" : "Weather: not in the forecast yet")}</span><small>${[...bits].filter(Boolean).map(esc).join(" · ")}${bits.length ? "<br>" : ""}<span class="ht-light">${light}</span></small></li>`;
     }).join("");

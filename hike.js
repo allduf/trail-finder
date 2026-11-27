@@ -162,7 +162,7 @@ body:not(.sport-hike) #hikePane, body:not(.sport-hike) .leaflet-hike-pane { disp
 #hikePane .hk-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
 #hikePane .hk-warn { border-left: 4px solid #e8590c; padding: 4px 0 4px 9px; font-size: .82rem; }
 #hikePane .hk-warn.bad { border-color: #c92a2a; }
-#hikePane .hk-warn.ok { border-color: #2f9e44; }
+#hikePane .hk-warn.ok { border-color: #8a929b; }
 #hikePane .hk-warn small { display: block; color: var(--muted); }
 #hikePane .hk-ph { margin: 8px 0 4px; }
 #hikePane .hk-ph-big { display: block; position: relative; width: 100%; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--chip, #eee); cursor: zoom-in; }
@@ -256,7 +256,7 @@ body:not(.sport-hike) .lm-hike, body:not(.sport-hike) .hk-mapkey, body.sport-hik
       <ul class="hk-list" id="hkList"></ul>
       <div class="hk-key">${GRADES.map((g) => `<span><span class="hk-dot" style="--c:${g.c}"></span>${esc(g.label)}</span>`).join("")}</div>
       <div class="hk-row"><button type="button" class="hk-pill" id="hkPassBtn">${svg(IC.pass, 16)}Parks and passes</button></div></div>
-    <details class="hk-safe"><summary>A guide, not a guarantee</summary>Trails, grades and heights come from OpenStreetMap and Open-Meteo and can be wrong or out of date. Snow amounts are a weather model's guess. Parks change their passes and closures often: check the park's own page, tell someone your plan, carry the ten essentials and bear spray, and turn back when it doesn't feel right.</details>`;
+    <details class="hk-safe"><summary>A guide, not a guarantee</summary>Trails, grades and heights come from OpenStreetMap and Open-Meteo and can be wrong or out of date. Snow amounts are a weather model's guess. Parks change their passes and closures often: check the park's own page, tell someone your plan, and carry the ten essentials and bear spray.</details>`;
   if (window.tfPlaceSearch) pane.querySelector(".hk-actions").after(window.tfPlaceSearch.box({ placeholder: "Go to a town, park or mountain", local: (q) => localHits(q),
     onPick: (p) => { if (p.hike && hikes.has(p.hike)) openHike(p.hike, true); else window.tfPlaceSearch.go(p); } }));
   const head = document.querySelector(".panel-head");
@@ -1210,7 +1210,7 @@ out center tags qt;`;
     else if (ht && top) {
       const cm = Math.round(top.snow * 100), cold = top.low != null && top.low <= 0;
       const cls = cm >= 10 || top.fall >= 5 ? "bad" : cm >= 1 || top.fall >= 1 || cold ? "" : "ok";
-      const say = cm >= 1 ? `About ${cm} cm of snow at the top (${fmtM(ht.hi)}) now` : top.fall >= 1 ? `${Math.round(top.fall)} cm of snow coming at the top in the next day` : `No snow at the top (${fmtM(ht.hi)})`;
+      const say = cm >= 1 ? `About ${cm} cm of snow at the top (${fmtM(ht.hi)}) now` : top.fall >= 1 ? `${Math.round(top.fall)} cm of snow coming at the top in the next day` : `Little or no snow at the top (${fmtM(ht.hi)})`;
       topHtml = `<div class="hk-warn ${cls}">${svg(IC.snow, 14)} <b>${esc(say)}</b><small>${top.low != null ? `Next 24 h up there: ${Math.round(top.low)} to ${Math.round(top.high)}°C${cold ? ", ice likely in the shade" : ""}` : ""}${top.sunset ? ` · sunset ${hm(top.sunset)}` : ""} · weather model, not a trail report</small></div>`;
     }
     let parkHtml = "";
@@ -1221,7 +1221,7 @@ out center tags qt;`;
     let warnHtml = "";
     if (i.warn === "loading") warnHtml = `<p class="hk-note">Checking closures and wildfires nearby…</p>`;
     else if (i.warn && i.warn.length) warnHtml = i.warn.map((w) => `<div class="hk-warn ${w.bad ? "bad" : ""}"><b>${esc(w.text)}</b><small>${[w.sub, w.src].filter(Boolean).map(esc).join(" · ")}${w.url ? ` · <a href="${esc(w.url)}" target="_blank" rel="noopener">More</a>` : ""}</small></div>`).join("");
-    else if (i.warn) warnHtml = `<p class="hk-note">No closures or wildfires reported near it. Parks post new ones often: check before you go.</p>`;
+    else if (i.warn) warnHtml = `<p class="hk-note">No closures or wildfires reported near it in the parks' and wildfire services' lists. They post new ones often: check before you go.</p>`;
     const start0 = ht && ht.start ? ht.start : ht && ht.loAt ? ht.loAt : h.ways[0].g[0];
     const st = startPlace(h, start0), start = st ? st.ll : start0;
     const along = alongHike(h);
@@ -1393,7 +1393,7 @@ out center tags qt;`;
     const day = (s, i) => (i === 0 ? "Today" : new Date(s + "T12:00:00").toLocaleDateString(undefined, { weekday: "short" }));
     el.innerHTML = `<header>${svg(IC.snow)}<h3>Snow line, next 3 days</h3>${closeX("hkSnow")}</header>
       <div class="hk-days">${wx.days.map((d, i) => `<div><b>${esc(day(d.d, i))}</b><span>${d.line == null ? "–" : d.line < 200 ? "Valley" : `${d.line.toLocaleString()} m`}</span><small>${Math.round(d.min)} to ${Math.round(d.max)}°C</small><small>${d.snow >= 0.5 ? `${Math.round(d.snow)} cm snow` : d.pop != null ? `rain ${d.pop}%` : ""}</small></div>`).join("")}</div>
-      <p class="hk-note">Around the middle of the map (the valley here is about ${fmtM(wx.elev || 0)}). Above the snow line, expect snow on the trail and bring microspikes. Snow already on the ground can stay well below it into early summer: tap a hike for the snow at its top. Weather: Open-Meteo.</p>${window.tfWx ? window.tfWx.noteHtml(wx, { cls: "hk-note" }) : ""}`;
+      <p class="hk-note">Around the middle of the map (the valley here is about ${fmtM(wx.elev || 0)}). The snow line is a model estimate: above it, snow on the trail is likely and microspikes may help. Snow already on the ground can stay well below it into early summer: tap a hike for the snow at its top. Weather: Open-Meteo.</p>${window.tfWx ? window.tfWx.noteHtml(wx, { cls: "hk-note" }) : ""}`;
   }
 
   // ---------- plan a hike ----------
@@ -1626,7 +1626,7 @@ out center tags qt;`;
       body += `<div class="hk-row"><span class="hk-fact">${fmtKm(r.km)}</span><span class="hk-fact">up ${fmtM(r.up)}</span><span class="hk-fact">down ${fmtM(r.down)}</span><span class="hk-fact">about ${fmtH(time)}</span></div>
         ${r.el.length > 3 ? profileSvg(r.el, r.km) : ""}
         ${r.hi > -Infinity ? `<p class="hk-note">Highest point ${fmtM(r.hi)}. Time: 4 km/h plus 1 h for every 500 m up; add breaks.</p>` : ""}
-        ${t === "loading" ? `<p class="hk-note">Checking the snow at the top…</p>` : t ? `<div class="hk-warn ${t.snow >= 0.1 ? "bad" : t.snow > 0 || t.fall >= 1 ? "" : "ok"}">${svg(IC.snow, 14)} <b>${t.snow >= 0.01 ? `About ${Math.round(t.snow * 100)} cm of snow at the top now` : t.fall >= 1 ? `${Math.round(t.fall)} cm of snow coming at the top` : "No snow at the top"}</b>${t.sunset ? `<small>Sunset ${hm(t.sunset)}</small>` : ""}</div>` : ""}
+        ${t === "loading" ? `<p class="hk-note">Checking the snow at the top…</p>` : t ? `<div class="hk-warn ${t.snow >= 0.1 ? "bad" : t.snow > 0 || t.fall >= 1 ? "" : "ok"}">${svg(IC.snow, 14)} <b>${t.snow >= 0.01 ? `About ${Math.round(t.snow * 100)} cm of snow at the top now` : t.fall >= 1 ? `${Math.round(t.fall)} cm of snow coming at the top` : "Little or no snow at the top"}</b><small>Weather model, not a trail report${t.sunset ? ` · sunset ${hm(t.sunset)}` : ""}</small></div>` : ""}
         <label class="hk-note" style="display:flex;gap:6px;align-items:center">Name <input id="hkPlanName" maxlength="60" value="${esc(plan.name)}" placeholder="My hike" style="flex:1;font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)"></label>`;
     }
     const btns = `<div class="hk-row">
@@ -1765,8 +1765,8 @@ out center tags qt;`;
     if (t.lo24 != null && t.lo24 <= 0 && t.rain2 != null && t.rain2 >= 1) return "Ice likely (wet, then freezing)";
     const idx = t.soil != null ? Math.round((t.soil - 0.08) / 0.34 * 100) : null;
     if ((idx != null && idx >= 60) || (t.rain2 != null && t.rain2 >= 15)) return "Mud likely";
-    if ((idx != null && idx >= 40) || (t.rain2 != null && t.rain2 >= 3)) return "Damp: prime tread likely";
-    if (idx != null || t.rain2 != null) return "Firm tread likely, little recent rain";
+    if ((idx != null && idx >= 40) || (t.rain2 != null && t.rain2 >= 3)) return "Damp ground likely";
+    if (idx != null || t.rain2 != null) return "Firm ground likely, little recent rain";
     return "";
   }
   const todayBits = (h, t) => {

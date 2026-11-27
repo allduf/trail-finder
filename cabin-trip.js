@@ -87,7 +87,7 @@
       bookTop(t) {
         const g = (t.hut && t.hut.tags) || {}, site = g["reservation:website"] || (/^(required|only|yes)$/.test(g.reservation || "") ? g.website : "");
         return { tag: /^(required|only)$/.test(g.reservation || "") ? "needs booking" : "",
-          html: `${g.reservation ? `<p class="sk-note">${g.reservation === "no" ? "This cabin isn't booked: first come, first served." : /^(required|only)$/.test(g.reservation) ? "This cabin must be booked ahead." : "This cabin can be booked."}${g.charge ? ` Fee: ${esc(g.charge)}.` : ""}</p>` : ""}
+          html: `${g.reservation ? `<p class="sk-note">${g.reservation === "no" ? "This cabin takes no bookings: first come, first served." : /^(required|only)$/.test(g.reservation) ? "This cabin must be booked ahead." : "This cabin can be booked."}${g.charge ? ` Fee: ${esc(g.charge)}.` : ""}</p>` : ""}
       ${site ? `<div class="tp-btns"><a href="${esc(site)}" target="_blank" rel="noopener">🔗 Book on their site</a></div>` : ""}` };
       },
       bookSite: (t) => { const g = (t.hut && t.hut.tags) || {}; return g["reservation:website"] || g.website || ""; },
@@ -174,7 +174,7 @@
       const line = [];
       for (const r of d.runs) for (const p of r.pts) { const q = [+p[0].toFixed(5), +p[1].toFixed(5)], l = line[line.length - 1]; if (!l || l[0] !== q[0] || l[1] !== q[1]) line.push(q); }
       const from = known ? `Park at ${t.hut.tags["winter:parking:name"] || "the winter parking"}` : out.park ? (out.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(out.parkName) ? "" : "the parking for "}${out.parkName}` : `Park at the parking lot${out.roadName ? ` by ${out.roadName}` : ""}`)
-        : `Park beside ${out.roadName || "the plowed road"}`;
+        : `Park beside ${out.roadName || "the paved road"}`;
       await setWay(t, line, { src: "auto", v: WAY_V, from, known: !!known, unplowed: Math.round(out.unplowed || 0), winter: wayNames.filter((n) => d.runs.reduce((m, r) => m + (r.name === n ? r.m : 0), 0) >= 200), offM: Math.round(d.offM), names: [...new Set(d.runs.filter((r) => r.name && r.m >= 300).map((r) => r.name))].slice(0, 4) });
     } catch (e) {
       if (wayRun.n !== my) return;
@@ -233,26 +233,33 @@
       const row = { date, tag: j === 0 ? "in" : last ? "out" : "" };
       if (i >= 0) Object.assign(row, { code: dd.weather_code[i], hi: dd.temperature_2m_max[i], lo: dd.temperature_2m_min[i], snow: dd.snowfall_sum[i] || 0,
         rain: Math.max(0, (dd.precipitation_sum[i] || 0) - (dd.snowfall_sum[i] || 0) / 0.7), wind: dd.wind_speed_10m_max[i], gust: dd.wind_gusts_10m_max[i], dir: dd.wind_direction_10m_dominant[i] });
-      const dg = S.dangerOn(t.hut.lat, t.hut.lon, lo, hi, date);
-      if (dg && dg.r) { row.r = dg.r; row.band = dg.band; if (cls) row.l = T.light(dg.r, cls); }
-      else row.avNone = dg ? dg.none || "no rating" : "no forecast here today";
+      const dg = S.dangerOn(t.hut.lat, t.hut.lon, lo, hi, date), gaps = (dg && dg.gaps) || [];
+      // A band on the way with no rating that day (Early season, No rating): named with Avalanche Canada's word for it,
+      // [band, word], and no Avaluator light (it needs the danger all the way).
+      if (dg && dg.r) { row.r = dg.r; row.band = dg.band; if (gaps.length) row.gaps = gaps.map((b) => [b, S.noWord ? S.noWord(dg.d, b) : "No rating"]); else if (cls) row.l = T.light(dg.r, cls); }
+      else row.avNone = dg ? dg.none || (gaps.length && S.noWords ? S.noWords(dg.d, gaps).toLowerCase() : "no rating") : "no forecast here today";
       return row;
     });
     // The 3 days before you go in: snow and the strongest wind (what loads the slopes you'll cross).
     const bi = [-3, -2, -1].map((k) => dd.time.indexOf(addDays(t.date, k))).filter((i) => i >= 0);
     const before = bi.length ? { snow: bi.reduce((s, i) => s + (dd.snowfall_sum[i] || 0), 0), wind: Math.max(...bi.map((i) => dd.wind_speed_10m_max[i] || 0)), n: bi.length } : null;
     const end = dd.time.at(-1);
-    return { snap: { at: Date.now(), rows, before, end, ele: Math.round(ele || w.elevation || 0), example: S.example() } };
+    // Which weather models gave these values and the trip days they disagree on (wxcheck.js), kept with the trip so
+    // the note under the days still names them offline (no "today", so a saved copy names weekdays, never "Today").
+    const c = w.check, dates = new Set(rows.map((r) => r.date));
+    const check = c ? { ...c, today: "", splits: (c.splits || []).filter((x) => dates.has(x.date)) } : null;
+    return { snap: { at: Date.now(), rows, before, end, ele: Math.round(ele || w.elevation || 0), example: S.example(), check } };
   }
   function daysHtml(t, v) {
     const today = localDate(new Date());
     const rows = v.rows.map((r) => {
       const DG = r.r ? S.DANGER[r.r] : null, L1 = r.l != null ? T.LIGHTS[r.l] : null;
-      const band = r.band ? (S.BANDS.find((b) => b[0] === r.band) || ["", ""])[1].toLowerCase() : "";
-      const av = DG ? `<span><b style="color:${DG.color === "#fff300" ? "#b08800" : DG.color}">⚠ ${esc(DG.label.replace(/^\d /, ""))}</b> ${band ? `in the ${band}` : ""}${L1 ? ` · <span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : ""}</span>`
+      const bandN = (k) => (S.BANDS.find((b) => b[0] === k) || ["", ""])[1], band = r.band === "btl" ? "below treeline" : r.band ? `in the ${bandN(r.band).toLowerCase()}` : "";
+      const gap = (r.gaps || []).filter(Array.isArray).map(([k, w]) => ` · <span>${esc(bandN(k))}</span>: <span>${esc(w)}</span>`).join("");
+      const av = DG ? `<span><b style="color:${DG.color === "#fff300" ? "#b08800" : DG.color}">⚠ ${esc(DG.label.replace(/^\d /, ""))}</b> <span>${band}</span>${gap}${L1 ? ` · <span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : ""}</span>`
         : `<span class="sk-note">Avalanche: ${r.date < today ? "past" : r.avNone === "not forecast yet" ? "not forecast yet (about 3 days ahead)" : esc(r.avNone)}</span>`;
       const wx = r.code != null ? `<span class="tp-wx"><big>${S.WICON[r.code] || ""} ${deg(r.hi)}</big><br>low ${deg(r.lo)}</span>` : `<span class="tp-wx sk-note">${r.date > v.end ? "Too far<br>ahead" : "–"}</span>`;
-      const bits = r.code != null ? [r.snow >= 0.5 ? `❄ ${Math.round(r.snow)} cm` : r.rain >= 1 ? `🌧 ${Math.round(r.rain)} mm rain` : "Dry",
+      const bits = r.code != null ? [r.snow >= 0.5 ? `❄ ${Math.round(r.snow)} cm` : r.rain >= 1 ? `🌧 ${Math.round(r.rain)} mm rain` : "Little or no rain or snow",
         `💨 ${Math.round(r.wind || 0)} km/h ${S.COMPASS[Math.round((r.dir || 0) / 45) % 8]}${r.gust >= 50 ? `, gusts ${Math.round(r.gust)}` : ""}`] : [];
       return `<li style="--c:${DG ? DG.color : "var(--line)"}"><b>${esc(dayWord(r.date))}${r.tag ? ` · ${r.tag === "in" ? "ski in" : "ski out"}` : ""}</b>${wx}${av}${bits.length ? `<small>${bits.join(" · ")}</small>` : ""}</li>`;
     }).join("");
@@ -260,7 +267,7 @@
     const far = v.rows.some((r) => r.code == null && r.date > v.end);
     return `${b ? `<p class="sk-note">Before you go in (${b.n} days): ${b.snow >= 0.5 ? `<b>${Math.round(b.snow)} cm of new snow</b>` : "no new snow"}, wind up to ${Math.round(b.wind)} km/h.</p>` : ""}
       <ul class="tp-days">${rows}</ul>
-      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather at the cabin (${fmtM(v.ele)}), Open-Meteo${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>`;
+      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather forecast at the cabin (${fmtM(v.ele)})${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}${v.check && window.tfWx && window.tfWx.noteHtml ? "" : " (Open-Meteo, an estimate)"}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? `, with the Avaluator light for its terrain${v.rows.some((r) => r.gaps) ? " on days every band on the way is rated" : ""}` : ""}. Check avalanche.ca the morning you go.</p>${v.check && window.tfWx && window.tfWx.noteHtml ? window.tfWx.noteHtml({ check: v.check }, { cls: "sk-note" }) : ""}`;
   }
 
   // ---------- day tours from the cabin ----------
@@ -472,7 +479,7 @@
       <div class="tp-stats"><span>${fmtM(w.park)} at the car → ${fmtM(w.hut)} at the cabin</span><span>steepest ${w.steep}°</span></div>
       <p><span class="sk-ates" style="--c:${C.color}">${C.label}</span> <span class="sk-note">avalanche terrain, estimated: ${esc(whyShown(w.why))}</span></p>
       ${w.offM >= 50 ? `<p class="sk-note">${fmtM(w.offM)} of it isn't on a mapped trail or road: it follows the terrain.</p>` : ""}
-      ${w.unplowed >= 200 ? `<p class="sk-note"><b>${(w.unplowed / 1000).toFixed(1)} km of it is on gravel or logging roads</b>: not plowed in winter, so you ski it (counted in the km, climb and time).</p>` : ""}
+      ${w.unplowed >= 200 ? `<p class="sk-note"><b>${(w.unplowed / 1000).toFixed(1)} km of it is on gravel or logging roads</b>: usually not plowed in winter, so you likely ski it (counted in the km, climb and time).</p>` : ""}
       ${w.winter && w.winter.length ? `<p class="sk-note">✓ Starts at the winter parking and follows the mapped winter route (${esc(w.winter.join(", "))}).</p>`
         : w.known ? `<p class="sk-note">✓ Starts at the winter parking from the winter access below.</p>` : ""}
       ${winterHtml(t)}

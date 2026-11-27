@@ -215,11 +215,14 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
   const warnHtml = (rs) => `<div class="sc-warn" role="note"><b>⚠ Outside the ski area: no ski patrol, no avalanche control</b>Past the gate it's the backcountry. Everyone needs an avalanche transceiver, a probe and a shovel, and the training to use them. Read today's avalanche forecast first.<br><b style="display:inline;font-size:inherit">${esc(rs.emergency || "Emergency: 911.")}</b></div>`;
   const clsPill = (c) => `<span class="sc-cls" style="--c:${CLS[c].color}">${CLS[c].label}</span>`;
   // Today's danger at the top of the line with its terrain class: the Avaluator light (green / yellow / red), when the
-  // avalanche forecast has been loaded (winter.js); otherwise only the link to the forecast.
+  // avalanche forecast has been loaded (winter.js); otherwise only the link to the forecast. No light when a band the
+  // line goes through has no rating today (Early season, No rating): its danger there isn't given.
   function lightHtml(l) {
     const T = window.tfTerrain, top = l.ski[0], c = l.calc || {};
     const dg = window.tfSki && window.tfSki.dangerAt ? window.tfSki.dangerAt(top[0], top[1], c.bottom || 0, c.top || 9999) : null;
-    if (!T || !dg || !dg.r) return `<p><a href="${forecastUrl(top)}" target="_blank" rel="noopener">Today's avalanche forecast here ↗</a></p>`;
+    const link = `<a href="${forecastUrl(top)}" target="_blank" rel="noopener">Today's avalanche forecast here ↗</a>`;
+    if (T && dg && dg.gaps && dg.gaps.length) return `<p><span>${dg.r ? "No danger rating today for part of this line, so no trip planner light." : "No danger rating today for this line, so no trip planner light."}</span> ${link}</p>`;
+    if (!T || !dg || !dg.r) return `<p>${link}</p>`;
     const k = T.light(dg.r, l.cls), x = T.LIGHTS[k];
     const word = ["", "1 Low", "2 Moderate", "3 Considerable", "4 High", "5 Extreme"][dg.r] || "";
     return `<div class="sc-light" style="--c:${x.color}"><i aria-hidden="true"></i><div><b>${esc(x.label)}</b> today: danger ${esc(word)} on ${CLS[l.cls].label.toLowerCase()} terrain. ${esc(x.what)}<br><a href="${forecastUrl(top)}" target="_blank" rel="noopener">The full forecast ↗</a></div></div>`;
@@ -263,7 +266,7 @@ dialog.sc-dlg .sc-list button small { display: block; color: var(--muted); font-
       <h3>Before you go</h3>
       <ul>${(rs.rules || []).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
       ${(l.src || []).length ? `<h3>Sources</h3><ul>${l.src.map((s) => `<li>${linkHtml(s)}</li>`).join("")}</ul>` : ""}
-      <p class="sc-small">${l.approx ? "The line is drawn from the terrain model, not a GPS track: pick your own way. " : ""}Steepness and aspect come from terrain tiles about 30 m apart, so short steeper rolls and cliffs don't show. This map doesn't replace avalanche training, the day's forecast or a guide.</p>`;
+      <p class="sc-small">${l.approx ? "The line is drawn from the terrain model, not a GPS track: the way on the ground can differ. " : ""}Steepness and aspect come from terrain tiles about 30 m apart, so short steeper rolls and cliffs don't show. This map doesn't replace avalanche training, the day's forecast or a guide.</p>`;
     dlg.querySelector(".sc-x").onclick = () => dlg.close();
     dlg.querySelector('[data-act="show"]').onclick = () => { keep = true; dlg.close(); sel = l; map.fitBounds(L.latLngBounds([...l.up, ...l.ski, ...l.out]), { padding: [40, 40], maxZoom: 15 }); draw(); };
     dlg.querySelector('[data-act="list"]').onclick = () => openList(rs);

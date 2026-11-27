@@ -511,14 +511,14 @@
   // paved road (winter: logging roads aren't plowed, they're skied), within 2, 5 or 9 km.
   async function fromRoad(spot, av, onStep) {
     const { S, FR } = await finder();
-    onStep && onStep("Looking for a less exposed way in from a plowed road…");
+    onStep && onStep("Looking for a less exposed way in from a paved road…");
     const lines = await linesNear(S, spot, 9);
     const out = await FR._build(spot, { lines, radii: [2000, 5000, 9000], winter: true, cost: costFn(FR), prep: (g) => prep(g, av) },
       (s) => onStep && onStep(s === "terrain" ? "Getting the terrain…" : "Finding a less exposed way…"));
     if (out.fail) return { fail: out.fail === "water" ? "water" : "noroad" };
     const cells = out.res.cells, start = FR._grid.cellLL(out.g, cells[0]);
     const park = out.park ? (out.parkName ? `Park at ${/parking|trailhead|lot\b|stationnement/i.test(out.parkName) ? "" : "the parking for "}${out.parkName}` : `Park at the parking lot${out.roadName ? ` by ${out.roadName}` : ""}`)
-      : `Park beside ${out.roadName || "the plowed road"}`;
+      : `Park beside ${out.roadName || "the paved road"}`;
     return total([{ ...pieces(FR, out.g, cells, av), straight: straight(FR, out.g, start, spot) }], av, { from: "road", start, park });
   }
 

@@ -172,8 +172,8 @@
   //  - Simple: none of that.
   const CLASSES = [null,
     { key: "simple", label: "Simple", color: "#2f9e44", what: "Mostly gentle ground or open slopes, with little avalanche terrain." },
-    { key: "challenging", label: "Challenging", color: "#1971c2", what: "Some avalanche paths or steep slopes to cross or pass under: choose the way carefully." },
-    { key: "complex", label: "Complex", color: "#1a1a1a", what: "Long stretches on or under steep slopes, with few ways to avoid them." }];
+    { key: "challenging", label: "Challenging", color: "#1971c2", what: "Some avalanche paths or steep slopes along the way." },
+    { key: "complex", label: "Complex", color: "#1a1a1a", what: "Long stretches on or near steep slopes, with few ways around them." }];
   function terrainClass(i) {
     if (!i) return null;
     const above = i.above || 0, traps = i.traps || 0, why = [];
@@ -192,9 +192,9 @@
   // Avaluator trip planner chart: rows = danger rating 1 Low to 5 Extreme, columns = Simple, Challenging, Complex.
   const CHART = [null, [0, 0, 1], [0, 0, 1], [0, 1, 2], [1, 2, 2], [2, 2, 2]];
   const LIGHTS = [
-    { key: "go", label: "Normal caution", color: "#2f9e44", what: "Fewer accidents happen in this mix of danger and terrain. It doesn't mean the slope is safe: use your training and watch the conditions." },
-    { key: "care", label: "Extra caution", color: "#f2b705", what: "Most accidents happen here. Go only with avalanche skills and be ready to turn back." },
-    { key: "no", label: "Not recommended", color: "#e03131", what: "On Avalanche Canada's Avaluator chart, this terrain at this danger rating is not recommended. Pick simpler terrain or another day." }];
+    { key: "go", label: "Normal caution", color: "#2f9e44", what: "On Avalanche Canada's Avaluator chart, fewer accidents happen in this mix of danger and terrain. It doesn't mean the slope is safe." },
+    { key: "care", label: "Extra caution", color: "#f2b705", what: "On Avalanche Canada's Avaluator chart, most accidents happen in this mix of danger and terrain, and it calls for avalanche training." },
+    { key: "no", label: "Not recommended", color: "#e03131", what: "On Avalanche Canada's Avaluator chart, this terrain at this danger rating is not recommended." }];
   const light = (danger, cls) => (danger >= 1 && danger <= 5 && cls >= 1 && cls <= 3 ? CHART[danger][cls - 1] : -1);
 
   // ---------- Avalanche Canada's forecast areas (data/avalanche.json) ----------
@@ -233,16 +233,27 @@
     return null;
   }
   // The highest danger rating of a forecast day in the bands a route from lo to hi m goes through, and that band.
+  // on: the bands it goes through (touching one counts: band heights are an estimate). gaps: those with no rating that
+  // day ("Early season", "No rating"). The Avaluator light needs the danger all the way, so a route with a gap has none
+  // (light() callers check gaps.length).
   function dangerIn(day, bands, lo, hi) {
     let r = 0, band = "";
-    if (!day) return { r, band };
+    const gaps = [], on = [];
     for (const b of BAND_IDS) {
       const [bl, bh] = b === "alp" ? [bands.hi, Infinity] : b === "tln" ? [bands.lo, bands.hi] : [-Infinity, bands.lo];
-      if (hi >= bl && lo < bh && (day[b] || 0) > r) { r = day[b]; band = b; }
+      if (!(hi >= bl && lo < bh)) continue;
+      on.push(b);
+      if (!day) continue;
+      if (!day[b]) gaps.push(b);
+      else if (day[b] > r) { r = day[b]; band = b; }
     }
-    return { r, band };
+    return { r, band, gaps, on };
   }
+  // Avalanche Canada's word for a band with no danger level that day: forecast days keep its kind in day.no
+  // ({ tln: "early" }, winter.js acForecast and scripts/build-winter.mjs), and any other is "No rating".
+  const NO_WORDS = { early: "Early season", nofc: "No forecast", spring: "Spring", off: "Off season" };
+  const noWord = (day, b) => { const w = day && day.no && NO_WORDS[day.no[b]]; return typeof w === "string" ? w : "No rating"; };
 
   root.tfTerrain = { dist, chain, sampleLine, heights, overhead, info, terrainClass, light, minSlope, CLASSES, LIGHTS, ASPECTS, SAMPLE_M, ABOVE_M, ABOVE_DEG, TRAP_M,
-    bandsFor, inRing, areaAt, dangerIn };
+    bandsFor, inRing, areaAt, dangerIn, noWord };
 })(typeof window !== "undefined" ? window : globalThis);

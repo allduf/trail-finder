@@ -144,7 +144,7 @@
             ${seen.length ? `<span class="hh-seen" data-pin-line>${kindsLine(seen, kinds)}</span>` : `<span class="hh-seen none">Nothing saved on the way</span>`}
             ${condLine(c && { ...c, moon: moonName(h.start) })}</span></button></li>`;
         }).join("")}</ul>`;
-    }).join("") + `<p class="sp-meta">Tap a hunt to see your walk on the map. Photos, notes and GPX are in <a href="ride.html#rides">all your tracks</a>.</p>`;
+    }).join("") + `<p class="sp-meta">Weather at each start: Open-Meteo, a weather model's estimate. Tap a hunt to see your walk on the map. Photos, notes and GPX are in <a href="ride.html#rides">all your tracks</a>.</p>`;
   }
 
   function bars(title, rows) {

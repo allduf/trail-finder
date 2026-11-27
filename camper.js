@@ -19,7 +19,7 @@
   // Kinds (build-japan.mjs campKind): colour, name, from which zoom, and what it means for a van.
   const KIND = {
     m: { c: "#2f9e44", n: "Michi-no-eki (roadside station)", z: 8, what: "Free parking and 24 h toilets. They're rest stops: a rest or one night's sleep in the van is what most van travellers do, but camping isn't allowed (no chairs, tables, cooking or idling outside), and some stations forbid overnight stays or have a paid RV park." },
-    sa: { c: "#1971c2", n: "Expressway service or parking area", z: 9, what: "Only reachable from the expressway. Toilets 24 h; service areas also have food and often gas. Fine for a rest stop in the van." },
+    sa: { c: "#1971c2", n: "Expressway service or parking area", z: 9, what: "Only reachable from the expressway. Toilets 24 h; service areas also have food and often gas. Commonly used for a rest stop in the van." },
     rv: { c: "#e8590c", n: "RV park", z: 8, what: "A paid overnight spot made for campervans (RVパーク), often with power and toilets. Usually booked ahead." },
     cs: { c: "#a9743b", n: "Campsite", z: 10, what: "Many campsites close for the winter: check before you go." },
     o: { c: "#c2255c", n: "Onsen or public bath", z: 10, what: "A hot spring or bath house: the van life shower. Usually ¥500 to ¥1,500; some don't allow tattoos." },

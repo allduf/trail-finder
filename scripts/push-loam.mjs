@@ -21,8 +21,7 @@
 // Apple's push service (APNs) with the APNS_KEY_ID / APNS_KEY_P8 / APPLE_TEAM_ID secrets, the same messages.
 import webpush from "web-push";
 import { readFileSync } from "node:fs";
-import { connect } from "node:http2";
-import { createPrivateKey, sign } from "node:crypto";
+import { apnsKey, apnsSend, fcmKey, fcmSend, pushClose } from "./push-send.mjs";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://fohdmserpbkurcvcrbbb.supabase.co";
 const KEY = process.env.SUPABASE_SECRET_KEY;
@@ -57,77 +56,6 @@ if (!keys) {
   console.log("Made the site's push keys.");
 }
 webpush.setVapidDetails(SITE, keys.public_key, keys.private_key);
-
-// ---------- Apple's push service, for phones in the iPhone app ----------
-const APP_ID = "com.allduf.trailfinder";
-const apnsKey = (() => {
-  const id = (process.env.APNS_KEY_ID || "").trim(), team = (process.env.APPLE_TEAM_ID || "").trim(), p8 = process.env.APNS_KEY_P8 || "";
-  if (!id || !team || !p8) return null;
-  // Rebuilt from just the key text, so a paste with lost line breaks or extra spaces still works (as ios-app.yml).
-  const b = p8.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, "").replace(/\s+/g, "");
-  try { return { id, team, key: createPrivateKey(`-----BEGIN PRIVATE KEY-----\n${b.match(/.{1,64}/g).join("\n")}\n-----END PRIVATE KEY-----\n`) }; }
-  catch (e) { console.log(`APNS_KEY_P8 isn't a valid key (${e.message}): app phones are skipped.`); return null; }
-})();
-let apnsJwt = "", apnsAt = 0, apnsConn = null;
-function apnsAuth() {
-  if (Date.now() - apnsAt > 40 * 60e3) {   // Apple wants a fresh token at most every hour
-    const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
-    const unsigned = `${b64({ alg: "ES256", kid: apnsKey.id })}.${b64({ iss: apnsKey.team, iat: Math.floor(Date.now() / 1000) })}`;
-    apnsJwt = `${unsigned}.${sign("sha256", Buffer.from(unsigned), { key: apnsKey.key, dsaEncoding: "ieee-p1363" }).toString("base64url")}`;
-    apnsAt = Date.now();
-  }
-  return apnsJwt;
-}
-// Resolves { status, reason }: 200 sent; 410 (or 400 BadDeviceToken) means the app was removed or notifications turned off.
-function apnsSend(token, msg) {
-  if (!apnsConn || apnsConn.closed || apnsConn.destroyed) { apnsConn = connect("https://api.push.apple.com"); apnsConn.on("error", () => {}); }
-  return new Promise((ok, no) => {
-    const req = apnsConn.request({
-      ":method": "POST", ":path": `/3/device/${token}`, authorization: `bearer ${apnsAuth()}`,
-      "apns-topic": APP_ID, "apns-push-type": "alert", "apns-priority": "5", "apns-collapse-id": msg.tag,
-      "apns-expiration": String(Math.floor(Date.now() / 1000) + 6 * 3600), "content-type": "application/json",
-    });
-    let status = 0, body = "";
-    req.on("response", (h) => { status = h[":status"]; });
-    req.on("data", (d) => { body += d; });
-    req.on("end", () => { let reason = ""; try { reason = JSON.parse(body).reason || ""; } catch {} ok({ status, reason }); });
-    req.on("error", no);
-    req.setTimeout(20000, () => { req.close(); no(new Error("APNs timeout")); });
-    req.end(JSON.stringify({ aps: { alert: { title: msg.title, body: msg.body }, sound: "default", "thread-id": msg.tag }, url: msg.url }));
-  });
-}
-
-// ---------- Firebase Cloud Messaging, for phones in the Android app ----------
-// FCM_SERVICE_ACCOUNT = the Firebase project's service account key (JSON). A short-lived Google token is made from it.
-const fcmKey = (() => {
-  const raw = process.env.FCM_SERVICE_ACCOUNT || "";
-  if (!raw.trim()) return null;
-  try { const j = JSON.parse(raw); return { project: j.project_id, email: j.client_email, key: createPrivateKey(j.private_key) }; }
-  catch (e) { console.log(`FCM_SERVICE_ACCOUNT isn't a valid key file (${e.message}): Android app phones are skipped.`); return null; }
-})();
-let fcmToken = "", fcmAt = 0, fcmDown = "";
-async function fcmAuth() {
-  if (fcmDown) throw new Error(fcmDown);   // one failed sign-in per run, not one per message
-  if (Date.now() - fcmAt < 40 * 60e3) return fcmToken;
-  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url"), now = Math.floor(Date.now() / 1000);
-  const unsigned = `${b64({ alg: "RS256", typ: "JWT" })}.${b64({ iss: fcmKey.email, scope: "https://www.googleapis.com/auth/firebase.messaging", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 })}`;
-  const jwt = `${unsigned}.${sign("sha256", Buffer.from(unsigned), fcmKey.key).toString("base64url")}`;
-  const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }) });
-  if (!r.ok) { fcmDown = `Google sign-in for Firebase failed (HTTP ${r.status}): check FCM_SERVICE_ACCOUNT`; console.log(fcmDown); throw new Error(fcmDown); }
-  fcmToken = (await r.json()).access_token; fcmAt = Date.now();
-  return fcmToken;
-}
-// Resolves { status, reason }: 200 sent; UNREGISTERED means the app was removed or notifications turned off.
-async function fcmSend(token, msg) {
-  const r = await fetch(`https://fcm.googleapis.com/v1/projects/${fcmKey.project}/messages:send`, {
-    method: "POST", headers: { authorization: `Bearer ${await fcmAuth()}`, "content-type": "application/json" },
-    body: JSON.stringify({ message: { token, notification: { title: msg.title, body: msg.body }, data: { url: msg.url },
-      android: { collapse_key: msg.tag, ttl: "21600s", priority: "normal", notification: { tag: msg.tag } } } }) });
-  let reason = "";
-  if (!r.ok) { try { const e = (await r.json()).error || {}; reason = ((e.details || []).find((d) => d.errorCode) || {}).errorCode || e.status || e.message || ""; } catch {} }
-  return { status: r.status, reason };
-}
 
 const subs = await db("push_subs?select=id,sub,watch,sent,updated_at");
 console.log(`${subs.length} phone(s) signed up.`);
@@ -275,6 +203,8 @@ const kmApart = (a, b) => Math.hypot((a[1] - b[1]) * 111.32 * Math.cos(a[0] * Ma
 const avyData = readJson("data/avalanche.json");
 const DANGER = ["No rating", "Low", "Moderate", "Considerable", "High", "Extreme"];
 const BAND = { alp: "alpine", tln: "treeline", btl: "below treeline" };
+// After a rating, as the bell says it (notify.js): "Considerable in the alpine", "in the alpine and treeline", "below treeline".
+const inBands = (ks) => (ks.length === 3 ? "in all bands" : ks.length === 1 && ks[0] === "btl" ? "below treeline" : `in the ${ks.map((k) => BAND[k]).join(" and ")}`);
 const avyToday = new Date().toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
 const avyLive = (f) => f && f.days && !(f.validUntil && new Date(f.validUntil) < new Date());
 const avySoon = (f) => f.days.filter((x) => x.date >= avyToday).slice(0, 2);
@@ -375,17 +305,26 @@ for (const s of subs) {
       if (!best || best.r < 3 || !zb.some((z) => z[0] <= b[2] && z[2] >= b[0] && z[1] <= b[3] && z[3] >= b[1])) continue;
       const key = "v:" + a.id;
       now[key] = best.r;
-      if (best.r > (was[key] || 0)) { const nm = a.forecast.title || a.name; names.push(nm); lines.push(`${nm}: ${DANGER[best.r]} ${avyDay(best.x)}`); keys.push(key); }
+      // The bands with that rating, named, as the bell does (notify.js): each band is rated on its own.
+      const at = Object.keys(BAND).filter((k) => best.x[k] === best.r), where = at.length ? ` ${inBands(at)}` : "";
+      if (best.r > (was[key] || 0)) { const nm = a.forecast.title || a.name; names.push(nm); lines.push(`${nm}: ${DANGER[best.r]}${where} ${avyDay(best.x)}`); keys.push(key); }
     }
     for (const t of (w.tours || []).filter((t) => t && t.k && Array.isArray(t.c))) {
       const a = TT.areaAt(avyAreas.map((x) => x.a), t.c[0], t.c[1]);
       if (!a) continue;
       let best = null;
+      // A band of the tour with no rating that day (Early season, No rating) can't lower its light: the rated bands'
+      // light still rings, shown as their rating with the band that has none named, as the bell (notify.js).
       for (const x of avySoon(a.forecast)) { const dg = TT.dangerIn(x, TT.bandsFor(a.name), t.lo, t.hi), l = TT.light(dg.r, t.cls); if (l >= 0 && (!best || l > best.l)) best = { l, x, dg }; }
       if (!best || best.l < 1) continue;
-      const key = "t:" + t.k;
+      const key = "t:" + t.k, dg = best.dg, gaps = dg.gaps || [];
       now[key] = best.l;
-      if (best.l > (was[key] || 0)) { names.unshift(t.n); lines.unshift(`${t.n}: ${TT.LIGHTS[best.l].label} ${avyDay(best.x)} (${DANGER[best.dg.r]} in the ${BAND[best.dg.band]})`); keys.push(key); }
+      if (best.l > (was[key] || 0)) {
+        names.unshift(t.n);
+        lines.unshift(gaps.length ? `${t.n}: ${DANGER[dg.r]} ${inBands([dg.band])} ${avyDay(best.x)} (${gaps.map((b) => `${BAND[b]}: ${TT.noWord(best.x, b)}`).join(", ")})`
+          : `${t.n}: ${TT.LIGHTS[best.l].label} ${avyDay(best.x)} (${DANGER[dg.r]} ${inBands([dg.band])})`);
+        keys.push(key);
+      }
     }
     if (lines.length) msgs.unshift({ title: `⚠ Avalanche danger up: ${list(names, 2)}`, body: lines.slice(0, 5).join("\n") + (lines.length > 5 ? `\nand ${lines.length - 5} more` : "") + "\nRead the full forecast before you go.", keys });
   } else if (w.avy) Object.keys(was).forEach((k) => { if (/^[vt]:/.test(k)) now[k] = was[k]; });   // no forecasts read: leave them as they were
@@ -439,4 +378,4 @@ for (const s of subs) {
   if (JSON.stringify(now) !== JSON.stringify(was)) await db(`push_subs?id=eq.${s.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ sent: now }) });
 }
 console.log(`Sent ${sent} notification(s); removed ${gone} expired phone(s).`);
-if (apnsConn) apnsConn.close();
+pushClose();

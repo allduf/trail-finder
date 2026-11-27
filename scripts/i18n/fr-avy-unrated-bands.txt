@@ -1,0 +1,42 @@
+Avalanche: a band Avalanche Canada doesn't rate now shows its own word (Early season, No rating, No forecast), the Today card shows the ratings of bulletins that rate only some bands, and a tour through an unrated band shows no trip planner light, while its alerts show the rated bands' danger. ||| Avalanche : un étage qu'Avalanche Canada ne cote pas affiche maintenant son propre mot (Début de saison, Sans cote, Aucune prévision), la carte Aujourd'hui affiche les cotes des bulletins qui ne cotent que certains étages, et une sortie qui traverse un étage sans cote n'a pas de feu du planificateur, tandis que ses alertes montrent le danger des étages cotés.
+Early season ||| Début de saison
+No forecast ||| Aucune prévision
+Spring ||| Printemps
+Off season ||| Hors saison
+This bulletin gives no danger ratings. ||| Ce bulletin ne donne aucune cote de danger.
+This bulletin gives no danger ratings ||| Ce bulletin ne donne aucune cote de danger
+No forecast for this area right now. ||| Aucune prévision pour cette zone en ce moment.
+No forecast for this area right now ||| Aucune prévision pour cette zone en ce moment
+no trip planner light ||| aucun feu du planificateur
+Simple terrain ||| Terrain simple
+Challenging terrain ||| Terrain exigeant
+Complex terrain ||| Terrain complexe
+No danger rating in the alpine today ||| Aucune cote de danger en alpin aujourd'hui
+No danger rating in the treeline today ||| Aucune cote de danger à la limite des arbres aujourd'hui
+No danger rating below treeline today ||| Aucune cote de danger sous la limite des arbres aujourd'hui
+No danger rating today for part of this line, so no trip planner light. ||| Aucune cote de danger aujourd'hui pour une partie de cette ligne, donc aucun feu du planificateur.
+No danger rating today for this line, so no trip planner light. ||| Aucune cote de danger aujourd'hui pour cette ligne, donc aucun feu du planificateur.
+in the alpine on this route ||| en alpin sur ce trajet
+in the treeline on this route ||| à la limite des arbres sur ce trajet
+below treeline on this route ||| sous la limite des arbres sur ce trajet
+in the alpine ||| en alpin
+in the treeline ||| à la limite des arbres
+below treeline ||| sous la limite des arbres
+None of today's avalanche problems are in the alpine. ||| Aucun des problèmes d'avalanche du jour n'est en alpin.
+None of today's avalanche problems are in the treeline. ||| Aucun des problèmes d'avalanche du jour n'est à la limite des arbres.
+None of today's avalanche problems are below treeline. ||| Aucun des problèmes d'avalanche du jour n'est sous la limite des arbres.
+before you go. ||| avant de partir.
+Tour you watch ||| Sortie que vous suivez
+In your regions ||| Dans vos régions
+under 0.1 km of the route ||| moins de 0,1 km du trajet
+Low or Moderate danger ||| Danger Faible ou Modéré
+Considerable danger ||| Danger Marqué
+High or Extreme danger ||| Danger Fort ou Extrême
+Low or Moderate danger where rated ||| Danger Faible ou Modéré là où il est coté
+Considerable danger where rated ||| Danger Marqué là où il est coté
+High or Extreme danger where rated ||| Danger Fort ou Extrême là où il est coté
+early season ||| début de saison
+no forecast ||| aucune prévision
+off season ||| hors saison
+spring ||| printemps
+no rating ||| sans cote

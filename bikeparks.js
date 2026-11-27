@@ -82,7 +82,7 @@ body.sport-alt #parkBtn, body.sport-alt .leaflet-bikeParks-pane, body.sport-alt 
     if (t.lit === "yes") tags.push(`<span class="tag">Lit at night</span>`);
     const facts = [
       x.known && `Lift-served, says ${x.known}`,
-      x.lifts && x.lifts.length && `Lifts open to bikes: ${x.lifts.join(", ")}`,
+      x.lifts && x.lifts.length && `Lifts mapped for bikes: ${x.lifts.join(", ")}`,
       x.pay && `${x.pay} pay-to-ride trail${x.pay === 1 ? "" : "s"} mapped`,
       x.mtb && !x.pay && `${x.mtb} MTB trail${x.mtb === 1 ? "" : "s"} mapped on the hill`,
       x.trails && x.trails.length && `Trails: ${x.trails.join(", ")}`,

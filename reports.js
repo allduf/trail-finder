@@ -67,7 +67,7 @@
     // Hide this rider (moderation.js): their reports drop out here; a line says how many and brings them back.
     const mod = window.tfMod, kept = !error && mod ? mod.filter(data) : { rows: data || [], n: 0 };
     if (!error) data = kept.rows;
-    const list = error ? `<p class="muted">Couldn't load reports (${esc(error.message)}).</p>`
+    const list = error ? `<p class="muted">Couldn't load reports right now. Try again in a moment.</p>`
       : !data.length ? `<p class="muted">No reports in the last ${LIST_DAYS} days. Rode it lately? Tell other riders how it was.</p>`
       : `<ul class="rep-list">${data.map((r) => { const k = kind(r.condition); return `<li><span class="rep-ico" aria-hidden="true">${k.icon}</span><div><strong>${esc(k.label)}</strong> <span class="muted">${esc(when(r.created_at))}${r.user_id === me ? " · you" : ""}</span>${r.note ? `<div>${esc(r.note)}</div>` : ""}${mod ? mod.buttons("report", r.id, r.user_id) : ""}</div>${r.user_id === me ? `<button type="button" class="linkish rep-del" data-id="${r.id}">Delete</button>` : ""}</li>`; }).join("")}</ul>`;
     const form = me ? formHtml(t, type)
@@ -105,7 +105,7 @@
       const r = await post(row);
       if (r === "queued") { msg.textContent = "No signal: saved on this phone, it posts when you're back online."; note.value = ""; box.querySelectorAll(".rep-pick button").forEach((x) => { x.disabled = false; }); return; }
       if (r) {
-        msg.textContent = b.dataset.c === "closed" && /check constraint|violates/i.test(r) ? "Closed reports aren't switched on yet (supabase/trail-reports-closed.sql needs running once)." : "Couldn't post: " + r;
+        msg.textContent = b.dataset.c === "closed" && /check constraint|violates/i.test(r) ? "Closed reports can't be posted yet. Pick another one, or add a note." : "Couldn't post the report. Try again in a moment.";
         box.querySelectorAll(".rep-pick button").forEach((x) => { x.disabled = false; });
         return;
       }

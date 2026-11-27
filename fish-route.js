@@ -695,7 +695,7 @@
     render(box);
   }
   function failed(box, why, from, you, spotLL, name) {
-    const msg = { water: "This spot is far out on the water: no shore within 2 km. Use a boat launch nearby.",
+    const msg = { water: "This spot is far out on the water: no shore within 2 km. Boat launches nearby are on the map.",
       noroad: "No road within 4 km of this spot that the map knows of. Try from your location, or pick a spot closer to a road or trail.",
       noway: "Couldn't find a way on foot from you to this spot (water or cliffs in the way, or it's too far). Try from the road.",
       net: "Couldn't get the map data for this area. Check your connection and try again." }[why];
@@ -733,7 +733,7 @@
       <div class="fr-bar" aria-hidden="true"><i style="width:${(onM / d.total) * 100}%;background:${ACC}"></i><i style="width:${(d.offM / d.total) * 100}%;background:${OFF}"></i></div>
       <div class="fr-legend"><span>${fmtM(onM)} on trails and roads</span>${d.offM >= 10 ? `<span class="off">${fmtM(d.offM)} off trail${offWhat.length ? ` (${esc(offWhat.join(", "))})` : ""}</span>` : ""}</div>
       ${fromHtml(c.from, c.you)}
-      <p class="fr-warn">${c.from === "road" ? `<b>${startTxt}.</b>` : ""}${c.from === "road" && c.far ? " You're more than 5 km away: drive there first." : ""}${d.creeks ? ` ${d.creeks === 1 ? "One creek" : `${d.creeks} creeks`} to cross.` : ""}${d.steep >= 25 ? ` Steepest bit off trail about ${d.steep}°.` : ""}</p>
+      <p class="fr-warn">${c.from === "road" ? `<b>${startTxt}.</b>` : ""}${c.from === "road" && c.far ? " You're more than 5 km away, so the walk starts from the road." : ""}${d.creeks ? ` ${d.creeks === 1 ? "One creek" : `${d.creeks} creeks`} to cross.` : ""}${d.steep >= 25 ? ` Steepest bit off trail about ${d.steep}°.` : ""}</p>
       <ol class="fr-steps">${steps(c)}</ol>
       <div class="fr-btns"><button type="button" class="fr-go" data-fr="go">▶ Go</button>${c.from === "road" ? `<a href="${drive}" target="_blank" rel="noopener">Drive there</a>` : ""}<button type="button" data-fr="x" aria-label="Clear the route">✕</button></div>
       ${d.offM >= 10 ? `<p class="fr-warn">Off-trail parts (dashed) follow the terrain and OpenStreetMap's ground cover: check for private land, cliffs and high water on the way.</p>` : ""}

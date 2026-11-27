@@ -715,7 +715,7 @@ async function compare(body: Compare, images: string[], key: string, t0: number,
     c: Array.isArray(t?.c) && typeof t.c[0] === "number" && typeof t.c[1] === "number" ? [t.c[0], t.c[1]] as [number, number] : null,
   })).filter((t) => t.name);
   if (!trails.length) return reply(400, { error: "no trails" });
-  // The AI sometimes copies the whole list line ("1. Pretty Slabs (Trail, Squamish)"): back to the list's name.
+  // The AI sometimes copies the whole list line ("1. Some Trail (Trail, Squamish)"): back to the list's name.
   const named = (x: string) => {
     const n = norm(x.replace(/^\s*\d+[.)]\s*/, "").replace(/\s*\(.*$/, ""));
     if (trails.some((t) => norm(t.name) === n)) return trails.find((t) => norm(t.name) === n)!.name;
