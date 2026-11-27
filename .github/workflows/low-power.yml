@@ -25,8 +25,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: low-power-${{ github.ref }}
-  cancel-in-progress: true
+  group: low-power-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  # A new push to a pull request replaces its run; every main push keeps its own (each can start an app build).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   WALK: lowpower
@@ -112,8 +113,8 @@ jobs:
         run: npm ci
       - name: Test build (opens this runner's site through adb reverse)
         working-directory: android-app
-        # As side-by-side.yml, without phone notifications (not part of this test). A debuggable build: its tfTestNoDraw
-        # switch exists only there.
+        # As side-by-side.yml, without phone notifications (not part of this test). A debuggable build: its tf_test_nodraw
+        # switch works only there.
         run: |
           npm uninstall --no-save @capacitor/push-notifications
           node -e '

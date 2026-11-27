@@ -452,12 +452,12 @@ final class TrailMapScreen extends FrameLayout {
     // Frames this map has drawn (as the iPhone's): none a while after opening, the page goes back to its own flat map.
     int framesDrawn = 0;
     // Stands in for a map that draws nothing (black over the map, no frame counted), as alex's iPhone did 2026-11-27 in
-    // Low Power Mode: the "Low power 3D" test (.github/workflows/low-power.yml) starts its test build with
-    // "--ez tfTestNoDraw true". Debuggable (test) builds only: never in the Google Play build.
+    // Low Power Mode: the "Low power 3D" test (.github/workflows/low-power.yml) turns it on from the computer with
+    // "adb shell settings put global tf_test_nodraw 1" (no app can write that setting). Debuggable (test) builds only.
     private boolean testNoDraw = false;
     static boolean testNoDraw(Activity a) {
         return (a.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
-            && a.getIntent() != null && a.getIntent().getBooleanExtra("tfTestNoDraw", false);
+            && "1".equals(android.provider.Settings.Global.getString(a.getContentResolver(), "tf_test_nodraw"));
     }
 
     // In 3D the trails go just under the place names, so names stay readable over them.

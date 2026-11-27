@@ -153,7 +153,7 @@ const phone = {
     if (web) { web.open(); return; }
     const t = phone.test;
     ios ? tryp(`${t.lowPower ? "SIMCTL_CHILD_TF_TEST_LOW_POWER=1 " : ""}${t.noDraw ? "SIMCTL_CHILD_TF_TEST_NO_DRAW=1 " : ""}xcrun simctl launch booted ${APP}`)
-      : tryp(`adb shell am start -W -n ${APP}/.MainActivity${t.noDraw ? " --ez tfTestNoDraw true" : ""}`);
+      : (tryp(`adb shell settings put global tf_test_nodraw ${t.noDraw ? 1 : 0}`), tryp(`adb shell am start -W -n ${APP}/.MainActivity`));
   },
   kill() { if (web) { if (web.page) web.page.close().catch(() => {}); return; } ios ? tryp(`xcrun simctl terminate booted ${APP}`) : tryp(`adb shell am force-stop ${APP}`); },
   // Android's own Back button (iPhones have none: the page's own close buttons are used there, as a person would).
@@ -472,5 +472,5 @@ const closeNative = () => jsq(`(() => { const C = window.Capacitor, T = C && (C.
 })().catch((e) => {
   console.log("✗ stopped: " + (e.stack || e));
   save({ stopped: String(e.message || e) });
-  process.exit(0);
+  process.exit(process.env.WALK === "lowpower" ? 1 : 0);   // the Low power 3D test never passes on a walk that didn't run
 });

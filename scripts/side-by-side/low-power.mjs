@@ -6,7 +6,7 @@
 // Android simulator, in every sport, twice:
 //   1. power saving on: native 3D opens and draws (not black), and the page doesn't fall back by itself;
 //   2. the map draws nothing (the test build's stand-in: black over the map, no frame counted): the screen is black at
-//      first, then within 15 s the page's own flat map is back (not black), with the note, never the web 3D map.
+//      first, then within 30 s the page's own flat map is back (not black), with the note, never the web 3D map.
 // Power saving: Android's real Battery Saver (adb). The iPhone simulator has no Low Power Mode: its app is started with
 // TF_TEST_LOW_POWER=1, which takes the app's own Low Power Mode path (30 frames a second, the note's wording), but iOS's
 // own slowdown of the phone in Low Power Mode is not there. Fails (exit 1) on any problem.
@@ -88,9 +88,10 @@ export async function lowPowerWalk(h) {
     tryp("adb shell settings put global low_power 1");
     tryp("adb shell cmd power set-mode 1");
     await sleep(2000);
-    const on = tryp("adb shell settings get global low_power").trim();
-    console.log(`Battery Saver: ${on === "1" ? "on" : `not on (${on || "no answer"})`}`);
-    if (on !== "1") results.push({ run: "setup", sport: "-", ok: false, problems: ["Battery Saver didn't turn on in the simulator"] });
+    // What the app reads (PowerManager.isPowerSaveMode), not only the setting.
+    const on = /mSettingBatterySaverEnabled=true|mLowPowerModeEnabled=true|mBatterySaverEnabled=true/i.test(tryp("adb shell dumpsys power"));
+    console.log(`Battery Saver: ${on ? "on" : "not on"}`);
+    if (!on) results.push({ run: "setup", sport: "-", ok: false, problems: ["Battery Saver didn't turn on in the simulator"] });
   }
 
   const runs = [
@@ -136,18 +137,23 @@ export async function lowPowerWalk(h) {
             if (!sa.native) problems.push("native 3D didn't open");
             if (!a.error && a.black) problems.push(`the map is black (middle brightness ${a.mean}, spread ${a.sd})`);
           }
-          // Until 15 s after the tap: the fallback comes 8 s after the native map opened.
-          while (Date.now() - t0 < 15000) await sleep(1000);
-          b = shot(`${run.id}-${sp}-2-after-15s`);
+          // The fallback comes 8 s after the native map opened, or later if the app wasn't in front then: up to 30 s after
+          // the tap, and at least 15 s (a map that draws must still be up then).
+          for (;;) {
+            await sleep(1000);
+            const t = Date.now() - t0;
+            if (t >= 30000 || (t >= 15000 && (!run.noDraw || !(await jsq(STATE, {})).native))) break;
+          }
+          b = shot(`${run.id}-${sp}-2-after`);
           const sb = await jsq(STATE, {});
           const crash = phone.crashed();
           if (crash) problems.push(crash);
           if (b.error) problems.push(`screenshot not read: ${b.error}`);
           if (sb.web3d) problems.push("the web 3D map opened");
-          if (!b.error && b.black) problems.push(`the screen is black 15 s after 3D (middle brightness ${b.mean}, spread ${b.sd})`);
+          if (!b.error && b.black) problems.push(`the screen is black after 3D (middle brightness ${b.mean}, spread ${b.sd})`);
           const notes = (sb.toasts || []).join(" | ");
           if (run.noDraw) {
-            if (sb.native) problems.push("the native map that draws nothing is still up 15 s later (no fallback to the flat map)");
+            if (sb.native) problems.push("the native map that draws nothing is still up 30 s later (no fallback to the flat map)");
             if (!NOTE.test(notes)) problems.push(`no note naming ${ios ? "Low Power Mode" : "Battery Saver"} (notes: ${notes || "none"})`);
           } else {
             if (!sb.native) problems.push(`native 3D closed by itself${notes ? ` (notes: ${notes})` : ""}`);
@@ -165,7 +171,7 @@ export async function lowPowerWalk(h) {
     results.push({ run: "walk", sport: "-", ok: false, problems: ["stopped: " + String(e.message || e).slice(0, 200)] });
   } finally {
     phone.test = {};
-    if (!ios) { tryp("adb shell settings put global low_power 0"); tryp("adb shell dumpsys battery reset"); }
+    if (!ios) { tryp("adb shell settings put global low_power 0"); tryp("adb shell settings put global tf_test_nodraw 0"); tryp("adb shell dumpsys battery reset"); }
   }
 
   const bad = results.filter((r) => !r.ok);
