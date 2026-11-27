@@ -233,9 +233,11 @@
       const row = { date, tag: j === 0 ? "in" : last ? "out" : "" };
       if (i >= 0) Object.assign(row, { code: dd.weather_code[i], hi: dd.temperature_2m_max[i], lo: dd.temperature_2m_min[i], snow: dd.snowfall_sum[i] || 0,
         rain: Math.max(0, (dd.precipitation_sum[i] || 0) - (dd.snowfall_sum[i] || 0) / 0.7), wind: dd.wind_speed_10m_max[i], gust: dd.wind_gusts_10m_max[i], dir: dd.wind_direction_10m_dominant[i] });
-      const dg = S.dangerOn(t.hut.lat, t.hut.lon, lo, hi, date);
-      if (dg && dg.r) { row.r = dg.r; row.band = dg.band; if (cls) row.l = T.light(dg.r, cls); }
-      else row.avNone = dg ? dg.none || "no rating" : "no forecast here today";
+      const dg = S.dangerOn(t.hut.lat, t.hut.lon, lo, hi, date), gaps = (dg && dg.gaps) || [];
+      // A band on the way with no rating that day (Early season, No rating): named with Avalanche Canada's word for it,
+      // [band, word], and no Avaluator light (it needs the danger all the way).
+      if (dg && dg.r) { row.r = dg.r; row.band = dg.band; if (gaps.length) row.gaps = gaps.map((b) => [b, S.noWord ? S.noWord(dg.d, b) : "No rating"]); else if (cls) row.l = T.light(dg.r, cls); }
+      else row.avNone = dg ? dg.none || (gaps.length && S.noWords ? S.noWords(dg.d, gaps).toLowerCase() : "no rating") : "no forecast here today";
       return row;
     });
     // The 3 days before you go in: snow and the strongest wind (what loads the slopes you'll cross).
@@ -252,8 +254,9 @@
     const today = localDate(new Date());
     const rows = v.rows.map((r) => {
       const DG = r.r ? S.DANGER[r.r] : null, L1 = r.l != null ? T.LIGHTS[r.l] : null;
-      const band = r.band ? (S.BANDS.find((b) => b[0] === r.band) || ["", ""])[1].toLowerCase() : "";
-      const av = DG ? `<span><b style="color:${DG.color === "#fff300" ? "#b08800" : DG.color}">⚠ ${esc(DG.label.replace(/^\d /, ""))}</b> ${band ? `in the ${band}` : ""}${L1 ? ` · <span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : ""}</span>`
+      const bandN = (k) => (S.BANDS.find((b) => b[0] === k) || ["", ""])[1], band = r.band === "btl" ? "below treeline" : r.band ? `in the ${bandN(r.band).toLowerCase()}` : "";
+      const gap = (r.gaps || []).filter(Array.isArray).map(([k, w]) => ` · <span>${esc(bandN(k))}</span>: <span>${esc(w)}</span>`).join("");
+      const av = DG ? `<span><b style="color:${DG.color === "#fff300" ? "#b08800" : DG.color}">⚠ ${esc(DG.label.replace(/^\d /, ""))}</b> <span>${band}</span>${gap}${L1 ? ` · <span class="sk-rc-word" style="--c:${L1.color}">● ${esc(L1.label)}</span>` : ""}</span>`
         : `<span class="sk-note">Avalanche: ${r.date < today ? "past" : r.avNone === "not forecast yet" ? "not forecast yet (about 3 days ahead)" : esc(r.avNone)}</span>`;
       const wx = r.code != null ? `<span class="tp-wx"><big>${S.WICON[r.code] || ""} ${deg(r.hi)}</big><br>low ${deg(r.lo)}</span>` : `<span class="tp-wx sk-note">${r.date > v.end ? "Too far<br>ahead" : "–"}</span>`;
       const bits = r.code != null ? [r.snow >= 0.5 ? `❄ ${Math.round(r.snow)} cm` : r.rain >= 1 ? `🌧 ${Math.round(r.rain)} mm rain` : "Little or no rain or snow",
@@ -264,7 +267,7 @@
     const far = v.rows.some((r) => r.code == null && r.date > v.end);
     return `${b ? `<p class="sk-note">Before you go in (${b.n} days): ${b.snow >= 0.5 ? `<b>${Math.round(b.snow)} cm of new snow</b>` : "no new snow"}, wind up to ${Math.round(b.wind)} km/h.</p>` : ""}
       <ul class="tp-days">${rows}</ul>
-      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather forecast at the cabin (${fmtM(v.ele)})${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}${v.check && window.tfWx && window.tfWx.noteHtml ? "" : " (Open-Meteo, an estimate)"}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>${v.check && window.tfWx && window.tfWx.noteHtml ? window.tfWx.noteHtml({ check: v.check }, { cls: "sk-note" }) : ""}`;
+      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather forecast at the cabin (${fmtM(v.ele)})${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}${v.check && window.tfWx && window.tfWx.noteHtml ? "" : " (Open-Meteo, an estimate)"}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? `, with the Avaluator light for its terrain${v.rows.some((r) => r.gaps) ? " on days every band on the way is rated" : ""}` : ""}. Check avalanche.ca the morning you go.</p>${v.check && window.tfWx && window.tfWx.noteHtml ? window.tfWx.noteHtml({ check: v.check }, { cls: "sk-note" }) : ""}`;
   }
 
   // ---------- day tours from the cabin ----------

@@ -848,16 +848,24 @@ const text = (v) => String(v == null ? "" : typeof v === "object" ? v.display ||
   .replace(/<(br|\/p|\/li)\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
   .replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 const val = (v) => (v == null ? "" : typeof v === "object" ? String(v.value ?? v.display ?? "") : String(v));
-// "considerable", "3", "3 - Considerable", {value: "considerable"}... -> 0 (no rating) to 5.
+// "considerable", "3", "3 - Considerable", {value: "considerable"}... -> 0 (no rating) to 5. Whole words only, so a word
+// that only holds one ("below") is never read as a level; a known no-level word ("earlyseason") is never a level.
 const LEVELS = { low: 1, moderate: 2, considerable: 3, high: 4, extreme: 5 };
+// Avalanche Canada's words for a band with no level, as the kinds the app shows in words (ski-terrain.js noWord: Early
+// season, No forecast...); "norating" and any word not known: "No rating". Same as winter.js AC_NO.
+const NO_KIND = { norating: "", earlyseason: "early", noforecast: "nofc", spring: "spring", offseason: "off" };
+const word = (r) => val(r && typeof r === "object" && r.rating ? r.rating : r).toLowerCase().replace(/[^a-z]/g, "");
 function level(r) {
   if (r && typeof r === "object" && r.rating) r = r.rating;
+  if (typeof NO_KIND[word(r)] === "string") return 0;
   const s = (val(r) + " " + (r && typeof r === "object" ? r.display || "" : "")).toLowerCase();
-  const n = s.match(/[1-5]/);
+  const n = s.match(/\b[1-5]\b/);
   if (n) return +n[0];
-  for (const [k, v] of Object.entries(LEVELS)) if (s.includes(k)) return v;
+  for (const [k, v] of Object.entries(LEVELS)) if (new RegExp(`\\b${k}\\b`).test(s)) return v;
   return 0;
 }
+// A day's bands with no level, by kind: { no: { tln: "early" } }, or nothing ("No rating" needs none).
+const noKinds = (rt) => { const o = {}; for (const b of ["alp", "tln", "btl"]) { const k = NO_KIND[word(rt[b])]; if (typeof k === "string" && k && !level(rt[b])) o[b] = k; } return Object.keys(o).length ? { no: o } : {}; };
 // Below treeline first: "btl" also holds "tl", which used to read it as treeline (below-treeline problems were dropped).
 const BAND = (s) => { s = val(s).toLowerCase(); return /btl|below/.test(s) ? "btl" : /alp/.test(s) ? "alp" : /tln|treeline|tl/.test(s) ? "tln" : ""; };
 const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
@@ -869,7 +877,10 @@ const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const s
 // other title stays whole, however many areas it lists: Avalanche Canada's regrouped BC areas can list 13 (2026-11-26),
 // and were read as the early season bulletin. Same as winter.js acName().
 const PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
-const isEarlyP = (p) => { const r = p?.report || p || {}; return (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(text(r.title)); };
+// The early season bulletin: no level on any day, and its ratings or title say early season (a bulletin that rates some
+// bands and says "Early season" for the others isn't it, Banff 2026-11-27). Same as winter.js acEarly().
+const isEarlyP = (p) => { const r = p?.report || p || {}, ds = r.dangerRatings || [];
+  return !ds.some((d) => ["alp", "tln", "btl"].some((b) => level((d.ratings || d)[b]))) && (ds.some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(text(r.title))); };
 const shortTitle = (t, p) => (t.split("-").length <= 8 ? t : PARKS[val(p?.owner?.value)]
   || (isEarlyP(p) && (val(p?.owner?.value) === "avalanche-canada" || !p?.owner) ? "Avalanche Canada early season bulletin" : t));
 // Each day's date: Avalanche Canada gives a time in UTC and the day's name. BC's and Parks Canada's bulletins are issued
@@ -887,7 +898,7 @@ function normalizeForecast(p) {
   const r = p.report || p;
   const days = (r.dangerRatings || []).map((d) => {
     const rt = d.ratings || d, label = text(d.date?.display || d.date);
-    return { date: dayDate(val(d.date).slice(0, 10) || val(d.date?.value).slice(0, 10), label), label, alp: level(rt.alp), tln: level(rt.tln), btl: level(rt.btl) };
+    return { date: dayDate(val(d.date).slice(0, 10) || val(d.date?.value).slice(0, 10), label), label, alp: level(rt.alp), tln: level(rt.tln), btl: level(rt.btl), ...noKinds(rt) };
   });
   const problems = (r.problems || []).map((pr) => {
     const d = pr.data || pr;
