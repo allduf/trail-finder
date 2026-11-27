@@ -156,6 +156,10 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   dropped connection, simulator that didn't start), and writes a grey "Auto re-run: <check>" line on the pull request. Its
   "Real failure: not re-run" means the failure is yours: the thread that owns the pull request fixes it, without waiting for alex.
   Never add a test failure or a wording or avalanche check to its hiccup list to get a pull request through.
+- Real failures are fixed by AI too (alex 2026-11-27 "yes", uses Claude usage): an hourly scheduled Claude task looks for pull
+  requests on `claude/` branches with a real failure over 60 min old that their thread hasn't fixed, fixes one per hour and
+  pushes an "Auto-fix: <check>: <cause>" commit (at most 2 per pull request). It never loosens a test, wording or avalanche
+  check, never merges, and never comments or emails. Label a pull request `no-auto-fix` to keep it out.
 - At most 2 heavy test runs at once (app builds and simulator tests): each heavy job `needs: slot`, a small job that runs
   `scripts/ci/heavy-slot.sh`. A new workflow with a simulator or an app build gets the same slot job, and its name goes in
   `HEAVY` there and in the `workflows:` list of `auto-retry.yml`.
