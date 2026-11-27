@@ -173,7 +173,12 @@
   const resend = (ms) => {
     if (!N.isOpen || !N.isOpen()) return;
     clearTimeout(later);
-    later = setTimeout(() => { const d = pins(); if (d === sentPins) return; nextPins = d; N.send("pins"); nextPins = null; }, ms);
+    later = setTimeout(() => {
+      if (!N.isOpen() || (N.draws && !N.draws("pins"))) return;   // nothing would be sent: not worked out either
+      const d = pins();
+      if (d === sentPins) return;
+      nextPins = d; N.send("pins"); nextPins = null;
+    }, ms);
   };
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Marker) resend(400); });
   map.on("moveend", () => resend(600));

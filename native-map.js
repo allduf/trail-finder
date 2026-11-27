@@ -52,15 +52,11 @@
   // Skiing 4 screen-size line canvases, after every move, none of it seen (page test, 2026-11-27). They rest as under the
   // web 3D map (map3d.js tfRestFlat; the map pictures keep loading, so the flat map is ready when the native map goes);
   // the trail lines, pins and taps this file sends don't use the canvases. shown: the native map has opened and covers
-  // it. Where native 3D opens over the page as its own screen (all but alex's "under"), the page shows at times
-  // (native-tools.js, tfNative.aside): the native screen steps aside for a sheet of the page's, or a tool's bars take
-  // some of the screen and the page shows there. The lines draw meanwhile. They also wake as this page asks the native
-  // map to close, right after asking (a full redraw can take a moment with many lines), to be drawn where the native
-  // map was by the time that's gone (at most 2 s: a close that doesn't come rests them again).
-  let shown = false, aside = false, closing = false, closingT = 0, asideT = 0;
-  const rest = () => { try { if (window.tfRestFlat) window.tfRestFlat(open && shown && !closing && (under || !aside)); } catch {} };
-  const wakeForClose = () => { closing = true; rest(); clearTimeout(closingT); closingT = setTimeout(() => { closing = false; rest(); }, 2000); };
-  const closeNative = () => { const p = TrailMap.close(); wakeForClose(); return p; };
+  // it; once it closes the lines are drawn once, where it was. Where native 3D opens over the page as its own screen (all
+  // but alex's "under"), the page shows at times (native-tools.js, tfNative.aside): the native screen steps aside for a
+  // sheet of the page's, or a tool's bars take some of the screen and the page shows there. The lines draw meanwhile.
+  let shown = false, aside = false, asideT = 0;
+  const rest = () => { try { if (window.tfRestFlat) window.tfRestFlat(open && shown && (under || !aside)); } catch {} };
   // ---------- native 3D features, one file each (ios-app/.../NativeLayers.swift) ----------
   // A feature's page side (its own native-xxx.js) registers what it sends: window.tfNative.addLayer(key, get), where
   // get() returns its data as text (or null for nothing); it's sent with the 3D screen's opening, and again with
@@ -135,9 +131,7 @@
       if (!open || !under) return false;
       if (canFlat() && !cardUp && !tipped) return false;
       if (canFlat() && !cardUp && oneMap()) { tip(false); return true; }
-      TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {});
-      if (!cardUp) wakeForClose();   // the native map closes (its own card, if one shows, closes first instead)
-      return true;
+      TrailMap.layer({ key: "under", data: JSON.stringify({ back: true }) }).catch(() => {}); return true;
     },
   };
   const detailFns = [];
@@ -271,10 +265,11 @@
   TrailMap.addListener("moved", (e) => { if (Date.now() - camAt > 2500) movedAt = Date.now(); if (!open) return; if (under) map.closePopup(); follow(e); later(moveWait); });
   TrailMap.addListener("closed", (e) => {
     open = false; clearTimeout(pending); moveWait = 500; sent = "";
-    leaveUnder();
-    follow(e);
-    if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
-    shown = false; closing = false; clearTimeout(closingT); rest();   // drawn again where the native map was
+    try {
+      leaveUnder();
+      follow(e);
+      if (map.setBearing) { map.setBearing(-(e.bearing || 0)); map.fire("rotateend"); }
+    } finally { shown = false; rest(); }   // drawn once, where the native map was (whatever a listener above did)
     if (e.details) openDetails(e);
   });
   // Under the page (below): Details on a native card opens here while the native map stays; a trail tapped there opens
@@ -397,6 +392,8 @@
     if (all.length > 800) return null;
     const W = innerWidth, H = innerHeight, on = (r) => [Math.max(0, r.left), Math.max(0, r.top), Math.min(W, r.right), Math.min(H, r.bottom)];
     const [l, t, rr, b] = on(box.getBoundingClientRect());
+    // Its words reaching past it (no element of their own to look at): not idle, where it doesn't clip them.
+    if (rr > l && b > t && ((cs.overflowX === "visible" && box.scrollWidth > box.clientWidth + 1) || (cs.overflowY === "visible" && box.scrollHeight > box.clientHeight + 1))) return null;
     for (const e of all) {
       const [x0, y0, x1, y1] = on(e.getBoundingClientRect());
       if (x1 > x0 && y1 > y0 && (x0 < l - 1 || y0 < t - 1 || x1 > rr + 1 || y1 > b + 1)) return null;
@@ -644,7 +641,7 @@
       if (canFlat() && !tipped) { tip(true); return; }
       // "2D map": on Winter it tips back down (the one map); on another style, back to the page's own flat map.
       if (!e.isTrusted) return;
-      if (canFlat() && oneMap()) tip(false); else closeNative().catch(() => {});
+      if (canFlat() && oneMap()) tip(false); else TrailMap.close().catch(() => {});
       return;
     }
     if (!e.isTrusted || open || !nativeOn() || map.getContainer().classList.contains("is3d") || !drawsAll() || webOnly()) return;
@@ -685,7 +682,7 @@
       if (tiles) tiles.removeEventListener("click", layersPick);
       layersPick = null;
       if (!open) return;
-      if (webOnly()) { toWeb = true; closeNative().catch(() => { toWeb = false; }); return; }
+      if (webOnly()) { toWeb = true; TrailMap.close().catch(() => { toWeb = false; }); return; }
       const base = (document.getElementById("basemap") || {}).value;
       if (under && canFlat() && !tipped && !oneMap()) return;   // the one map seen from above, off Winter: closes (below)
       if (base && (picked || base !== base0)) TrailMap.layer({ key: "base", data: base }).catch(() => {});
@@ -743,7 +740,7 @@
     syncT = 0;
     if (open) {
       // Seen from above on a style or sport without the one map now: the page's own flat map, as before.
-      if (under && canFlat() && !tipped && !oneMap()) closeNative().catch(() => {});
+      if (under && canFlat() && !tipped && !oneMap()) TrailMap.close().catch(() => {});
       return;
     }
     if (!oneMap() || document.hidden || mapEl.classList.contains("is3d") || (lmenu && !lmenu.hidden)) return;
@@ -767,7 +764,7 @@
     flatFails = 2;
     const low = !!(e && e.lowPower);
     if (isAdmin() && window.tfUse) window.tfUse("view", `Native map drew nothing${low ? " · power saving on" : ""}`, 0);
-    closeNative().catch(() => {});
+    TrailMap.close().catch(() => {});
     const m = !low ? "The map couldn't draw on this phone, so the 2D map is shown."
       : ios ? "The map may not draw while Low Power Mode is on. Turn it off in Settings to see 3D."
       : "The map may not draw while Battery Saver is on. Turn it off in Settings to see 3D.";
