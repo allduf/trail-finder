@@ -500,7 +500,8 @@
     // the tourism office's own pages
     { name: "Cardrona", c: [49.789, -123.102], r: 1500, d: "blue", src: "SORCA, about our trails (progressive blue, optional black jumps)", url: "https://www.sorca.ca/about-our-trails" },
     { name: "Miki's Extension", c: [49.787, -123.101], r: 1500, d: "blue", src: "SORCA, about our trails (progressive blue, optional black jumps)", url: "https://www.sorca.ca/about-our-trails" },
-    { name: "Father Side", c: [49.719, -123.119], r: 1000, d: "blue", src: "Tourism Squamish, Father Side trail page (Intermediate)", url: "https://www.exploresquamish.com/trails/fatherside/" },
+    // Squamish, Tourism Squamish trail pages, 2026-11-27: trails with only a slope estimate
+    { name: "Father Side", c: [49.72, -123.12], r: 1500, d: "blue", src: "Tourism Squamish, Father Side trail page (Intermediate)", url: "https://www.exploresquamish.com/trails/fatherside/" },
     // Kamloops: the City's open trail data (Type III More Difficult, IV Very Difficult, as on its park maps; general park
     // levels, the same ones the Kenna Cartwright entries above use). Only trails OpenStreetMap has no level for.
     { name: "Beetle Bend", c: [50.675, -120.409], r: 1500, d: "blue", src: "City of Kamloops open data, trails (park level Type III, More Difficult)", url: "https://maps.kamloops.ca/arcgis/rest/services/OpenData/OpenDataParks/MapServer/13" },
