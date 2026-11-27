@@ -6,13 +6,16 @@
 #   needs: GH_TOKEN (actions: read), GITHUB_REPOSITORY, GITHUB_RUN_ID
 set -uo pipefail
 MAX=${HEAVY_MAX:-2}
-HEAVY='["Android app","iPhone app","Low power 3D","Side by side","Slope card","Film test (iPhone simulator)"]'
+HEAVY='["Android app","iPhone app","Low power 3D","Side by side","Slope card"]'
 for i in $(seq 1 120); do
-  ahead=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=in_progress&per_page=100" --jq "
-    [.workflow_runs[] | select(.name as \$n | $HEAVY | index(\$n)) | {id, created_at}] | sort_by(.created_at, .id)
-    | (map(.id) | index($GITHUB_RUN_ID)) // 0" 2>/dev/null) || ahead=0
-  if [ "${ahead:-0}" -lt "$MAX" ]; then echo "Slot free ($ahead heavy runs ahead of this one): going."; exit 0; fi
-  [ "$i" = 1 ] && echo "$ahead heavy test runs started before this one are still going (at most $MAX at once): waiting."
+  if ahead=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=in_progress&per_page=100" --jq "
+      [.workflow_runs[] | select(.name as \$n | $HEAVY | index(\$n)) | {id, created_at}] | sort_by(.created_at, .id)
+      | (map(.id) | index($GITHUB_RUN_ID)) // 0"); then
+    if [ "$ahead" -lt "$MAX" ]; then echo "Slot free ($ahead heavy runs ahead of this one): going."; exit 0; fi
+    [ "$i" = 1 ] && echo "$ahead heavy test runs started before this one are still going (at most $MAX at once): waiting."
+  else
+    echo "::warning::Could not list the runs going on (try $i): trying again in 30 s."
+  fi
   sleep 30
 done
 echo "::warning::Waited 60 min for a heavy test slot: going anyway."

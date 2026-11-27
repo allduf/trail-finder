@@ -4,8 +4,9 @@
 export async function fetchRetry(url, opts) {
   for (let i = 0; ; i++) {
     try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(60000), ...opts });
+      const r = await fetch(url, opts);
       if (![502, 503, 504].includes(r.status) || i >= 2) return r;
+      await r.body?.cancel().catch(() => {});
     } catch (e) { if (i >= 2) throw e; }
     await new Promise((ok) => setTimeout(ok, i ? 3000 : 1000));
   }

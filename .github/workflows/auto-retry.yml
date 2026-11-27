@@ -3,17 +3,19 @@ name: Auto re-run
 # alex 2026-11-27: "make it fix itself automatically when a test failed". When one of the checks below fails, this
 # reads the failed steps' log (scripts/ci/auto-retry.mjs):
 #   - a server or runner hiccup (Maven Central 429, a map or package server 502/503/504, a dropped connection, the
-#     runner or a simulator that didn't start): the failed jobs run again after a pause, at most twice;
+#     runner or a simulator that didn't start): the failed jobs run again after a pause, once
+#     (trail-finder-merge-queue skill: infrastructure = re-run once; a second failure is the thread's to fix);
 #   - a test known to miss once on a cold simulator: run again once;
 #   - anything else is a real failure and is never re-run: the thread that owns the pull request fixes it.
 # The tests themselves are never loosened: a real app error, a wording or an avalanche check fails every try, and a
 # pull request merges only once its checks really pass. Each decision shows as a grey "Auto re-run: <check>" line in
 # the pull request's checks (neutral: it never blocks a merge and sends no email).
+# After a re-run, the same job watches it and decides again on its result.
 # Only runs from this repository's own branches. App release builds (TestFlight, Google Play) are never re-run.
 on:
   workflow_run:
     workflows: ["Phone test", "Android app", "iPhone app", "Low power 3D", "Opening speed", "Route check", "Side by side",
-      "Slope card", "Soak test", "Film test (iPhone simulator)", "Coverage check"]
+      "Slope card", "Soak test", "Coverage check"]
     types: [completed]
 
 permissions:
@@ -29,17 +31,13 @@ jobs:
   retry:
     if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Watches each re-run to its end (the longest check, Side by side, can take 2.5 hours).
+    timeout-minutes: 200
     steps:
       # This workflow always runs main's own copy of the script, never a pull request's.
       - uses: actions/checkout@v4
         with:
           sparse-checkout: scripts/ci
-      - name: Read the failed steps' log
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-        run: gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --log-failed > failed.log 2>&1 || true; wc -l failed.log
       - name: Re-run if it was a hiccup
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,5 +47,4 @@ jobs:
           WORKFLOW: ${{ github.event.workflow_run.name }}
           EVENT: ${{ github.event.workflow_run.event }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          LOG_FILE: failed.log
         run: node scripts/ci/auto-retry.mjs --run
