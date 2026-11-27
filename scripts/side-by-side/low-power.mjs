@@ -124,15 +124,23 @@ export async function lowPowerWalk(h) {
           await sleep(2500);
           if (await agree()) { await sleep(1500); const s = await jsq(STATE, {}); if (!s.native && !s.web3d) await tap("#btn3d"); }
           const t0 = Date.now();
-          await sleep(3500);
-          a = shot(`${run.id}-${sp}-1-open`);
-          const sa = await jsq(STATE, {});
+          // A few looks while the native map comes up (it shows once its first frame is ready, or after 2.5 s): the stand-in
+          // must black out the map at some point before the fallback, and a map that draws must not stay black.
+          let sa = {}, sawBlack = false, sawNative = false;
+          for (let i = 0; i < 4; i++) {
+            await sleep(i ? 1500 : 3500);
+            a = shot(`${run.id}-${sp}-1-open${i ? "-" + i : ""}`);
+            sa = await jsq(STATE, {});
+            if (sa.web3d) break;
+            if (sa.native) sawNative = true;
+            if (sa.native && !a.error && a.black) sawBlack = true;
+            if (run.noDraw ? sawBlack || (sawNative && !sa.native) : sa.native && !a.error && !a.black) break;
+          }
           if (a.error) problems.push(`screenshot not read: ${a.error}`);
           if (sa.web3d) problems.push("the web 3D map opened");
           if (run.noDraw) {
-            // The stand-in must black out the map, or this run shows nothing (the fallback may already be done on the one
-            // map opened with the sport: then the page's own map shows, which is fine).
-            if (sa.native && !a.error && !a.black) problems.push(`the test's stand-in didn't black out the map (middle brightness ${a.mean}, spread ${a.sd})`);
+            // (The fallback may already be done on the one map opened with the sport: then the page's own map shows, fine.)
+            if (sawNative && !sawBlack && !a.error) problems.push(`the test's stand-in didn't black out the map (middle brightness ${a.mean}, spread ${a.sd})`);
           } else {
             if (!sa.native) problems.push("native 3D didn't open");
             if (!a.error && a.black) problems.push(`the map is black (middle brightness ${a.mean}, spread ${a.sd})`);
