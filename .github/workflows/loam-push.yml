@@ -31,6 +31,10 @@ jobs:
           node-version: 20
       - name: Install the push library
         run: npm install --no-save --no-package-lock web-push@3.6.7
+      - name: Fresh avalanche forecasts (live from Avalanche Canada, current area outlines; a failure keeps the saved file)
+        env:
+          ONLY: avy
+        run: node scripts/build-winter.mjs || echo "::warning::Avalanche read failed; using the saved file"
       - name: Send loam alerts
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

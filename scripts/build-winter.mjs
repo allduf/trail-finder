@@ -864,11 +864,14 @@ const ASPECTS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
 const ASPECT = (s) => { s = val(s).toLowerCase().replace(/[^a-z]/g, ""); const short = { north: "n", northeast: "ne", east: "e", southeast: "se", south: "s", southwest: "sw", west: "w", northwest: "nw" }[s] || s; return ASPECTS.includes(short) ? short : ""; };
 
 // Out of season Avalanche Canada publishes one bulletin for the whole province, titled with every area's name.
-// A forecast that lists many areas in its title: Avalanche Canada's early season bulletin, or a Parks Canada park's
-// regions (Banff-East Side 93N-Field-Kootenay-...), which once all read "early season bulletin" (Banff in Skiing).
+// A forecast that lists many areas in its title: a Parks Canada park's regions (Banff-East Side 93N-Field-Kootenay-...)
+// read as the park's name, and Avalanche Canada's early season bulletin (its ratings say "earlyseason") as that. Any
+// other title stays whole, however many areas it lists: Avalanche Canada's regrouped BC areas can list 13 (2026-11-26),
+// and were read as the early season bulletin. Same as winter.js acName().
 const PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
+const isEarlyP = (p) => { const r = p?.report || p || {}; return (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(text(r.title)); };
 const shortTitle = (t, p) => (t.split("-").length <= 8 ? t : PARKS[val(p?.owner?.value)]
-  || (val(p?.owner?.value) === "avalanche-canada" || !p?.owner ? "Avalanche Canada early season bulletin (all of BC)" : `${text(p.owner.display) || "Avalanche"} forecast`));
+  || (isEarlyP(p) && (val(p?.owner?.value) === "avalanche-canada" || !p?.owner) ? "Avalanche Canada early season bulletin" : t));
 // Each day's date: Avalanche Canada gives a time in UTC and the day's name. BC's and Parks Canada's bulletins are issued
 // at 4 PM Pacific (00:00 UTC), so their UTC date is the next day ("2026-01-16T00:00:00Z", "Thursday" is Thursday
 // January 15): the date within a day of it that falls on the named day. Same as winter.js acDay().
@@ -903,7 +906,7 @@ function normalizeForecast(p) {
     advice: (r.terrainAndTravelAdvice || []).map(text).filter(Boolean).slice(0, 8),
     days, problems,
     // Avalanche Canada's early season bulletin: its ratings say "earlyseason" (no danger level), as winter.js acForecast().
-    early: (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(text(r.title)),
+    early: isEarlyP(p),
   };
 }
 // The API sometimes gives an area's id as its name.

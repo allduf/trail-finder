@@ -4361,9 +4361,9 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
       highlights: acText(r.highlights).slice(0, 1500), confidence: acText(r.confidence?.rating), summaries,
       advice: (r.terrainAndTravelAdvice || []).map(acText).filter(Boolean).slice(0, 8), days, problems, allDays: undefined, live: true,
       // Avalanche Canada's early season bulletin: its ratings say "earlyseason" (no danger level), so the card can say why.
-      early: (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(acText(r.title)) };
+      early: acEarly(p) };
   }
-  // Put Avalanche Canada's live bulletins into the areas (matched by area id; the title stays the saved one). A live
+  // Put Avalanche Canada's live bulletins into the areas (matched by area id; titled as the saved file does). A live
   // bulletin replaces the saved one unless the saved one was issued later. Areas with no live bulletin keep theirs.
   // Each bulletin keeps when it was last read live (liveAt: how old it is, for the "saved copy" warning). quiet (read
   // again while the map stays open): the map is only drawn again when a bulletin changed.
@@ -4396,12 +4396,15 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   }
   const acRings = (g) => (g?.type === "MultiPolygon" ? g.coordinates : g?.type === "Polygon" ? [g.coordinates] : [])
     .map((poly) => acSimplify((poly[0] || []).flatMap(([x, y]) => [Math.round(y * 1e5) / 1e5, Math.round(x * 1e5) / 1e5]))).filter((r) => r.length >= 8);
-  // Names as scripts/build-winter.mjs: the outline's name, the bulletin's area name (never an id), then its title, a
-  // title listing many areas shortened to the park's name or the early season bulletin (shortTitle()).
+  // Names as scripts/build-winter.mjs: the outline's name, the bulletin's area name (never an id), then its title. A
+  // title listing many areas is shortened only for a park (its name) or Avalanche Canada's early season bulletin; a
+  // regrouped BC area keeps its whole title (13 areas, 2026-11-26). Same as shortTitle() there.
   const AC_PARKS = { "parks-byk": "Banff, Yoho and Kootenay", "parks-jasper": "Jasper", "parks-glacier": "Glacier", "parks-waterton": "Waterton" };
   const acAreaName = (v) => { const s = acText(v); return /^[0-9a-f]{24,}$/i.test(s) ? "" : s; };
-  const acName = (p) => { const t = acText(p.report?.title), o = acVal(p.owner?.value || p.owner);
-    return acAreaName(p.area?.name) || (!t || t.split("-").length <= 8 ? t : AC_PARKS[o] || (o === "avalanche-canada" || !p.owner ? "Avalanche Canada early season bulletin (all of BC)" : `${acText(p.owner?.display) || "Avalanche"} forecast`)); };
+  const acEarly = (p) => { const r = p.report || p; return (r.dangerRatings || []).some((d) => /early\s*season/i.test(JSON.stringify(d.ratings || d))) || /early\s*season/i.test(acText(r.title)); };
+  const acTitle = (p) => { const t = acText(p.report?.title) || acAreaName(p.area?.name), o = acVal(p.owner?.value || p.owner);
+    return !t || t.split("-").length <= 8 ? t : AC_PARKS[o] || (acEarly(p) && (o === "avalanche-canada" || !p.owner) ? "Avalanche Canada early season bulletin" : t); };
+  const acName = (p) => acAreaName(p.area?.name) || acTitle(p);
   async function avyRegroup(list) {
     const known = new Set(avy.areas.map((a) => a.id)), missing = list.filter((p) => p.area?.id != null && !known.has(String(p.area.id)));
     if (!missing.length) return false;
@@ -4437,8 +4440,10 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
         if (!a || (a.forecast && a.forecast.liveAt === now)) continue;
         const f = acForecast(p, a.forecast);
         if (a.forecast && a.forecast.issued && f.issued && Date.parse(f.issued) < Date.parse(a.forecast.issued)) { a.forecast.liveAt = now; continue; }   // the saved one is newer: still current
-        if (a.forecast && a.forecast.title) f.title = a.forecast.title;
-        else f.title = acText(p.report?.title) || a.name;
+        // The bulletin's own title, read as the hourly file does: a saved title can be from another bulletin (an area
+        // that had the early season bulletin and now has its own forecast).
+        f.title = acTitle(p) || (a.forecast && a.forecast.title) || a.name;
+        a.name = acName(p) || a.name;   // the name sets the estimated band heights (bandsFor): from this bulletin too
         f.liveAt = now;
         a.forecast = f; n++;
       }
@@ -5903,6 +5908,18 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     },
     // The Today card (today.js): Avalanche Canada's ratings for today at a point, each band exactly as given, or
     // { none } with the reason. Never the simulated example, never an old bulletin, never a day other than today.
+    // notify.js (the bell's avalanche alerts): the forecast areas as this page has them, live bulletins and Avalanche
+    // Canada's current outlines included (a regroup shows at once, not after the saved file's next rebuild); read
+    // live again when over 10 minutes old. null with the example on (never alerts from it) or no forecast at all.
+    avyAreas: async () => {
+      if (example) return null;
+      if (!avy) { try { await loadAvy(); } catch {} }
+      else if (Date.now() - avyAt > 10 * 60000) {
+        if (!avyLoading && !avyBg) avyBg = avyLive(true).catch(() => {}).finally(() => { avyBg = null; });
+        await (avyLoading || avyBg);
+      }
+      return avy && !example ? avy.areas : null;
+    },
     avyToday: async (lat, lon) => {
       if (example) return { none: "example" };
       if (!avy) { try { await loadAvy(); } catch {} }

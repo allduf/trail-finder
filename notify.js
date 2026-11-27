@@ -307,8 +307,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   // tf:avyAlert on: the Avalanche Canada forecast areas over the picked regions, when their highest rating for today or
   // tomorrow goes up to Considerable or more, and the ski tours watched with 🔔 Watch this tour (tf:skiWatch, winter.js),
   // when their trip planner light (ski-terrain.js) goes to Extra caution or Not recommended. Each alerts once each
-  // time it goes up; again after it comes back down. From data/avalanche.json (every 2 hours); scripts/push-loam.mjs
-  // sends the same to phones. tf:avyAlerts = { key: { lv: level when last checked, r: read } }, device only.
+  // time it goes up; again after it comes back down. From the live forecast Skiing reads (winter.js tfSki.avyAreas), or
+  // data/avalanche.json; scripts/push-loam.mjs sends the same to phones (with a fresh read of the forecasts first). tf:avyAlerts = { key: { lv: level when last checked, r: read } }, device only.
   const TT = window.tfTerrain;
   const DANGER = ["No rating", "Low", "Moderate", "Considerable", "High", "Extreme"];
   const DANGER_C = ["#9aa3ad", "#52ba4a", "#fff300", "#f79218", "#ef1c29", "#1a1a1a"];
@@ -321,7 +321,9 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   async function checkAvy(force) {
     if (!avyOn() || !TT || (!force && Date.now() - avyAt < LOAM_FRESH_MS)) return;
     try {
-      const d = await fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null));
+      // The page's own copy when Skiing's script has it (live bulletins and current area outlines, winter.js), else the saved file.
+      const areas = window.tfSki && window.tfSki.avyAreas ? await window.tfSki.avyAreas().catch(() => null) : null;
+      const d = areas ? { areas } : await fetch("data/avalanche.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null));
       if (!d || !d.areas) throw null;
       const today = new Date().toLocaleDateString("en-CA"), now = [], seen = new Set();
       const live = (f) => f && f.days && !(f.validUntil && new Date(f.validUntil) < new Date());
