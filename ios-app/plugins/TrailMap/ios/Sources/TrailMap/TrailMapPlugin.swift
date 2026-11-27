@@ -124,6 +124,17 @@ public class TrailMapPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             s.onReady = show
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: show)
+            // Still not one frame drawn 8 s after opening (slow tiles still draw the background and what's in): the page
+            // is told ("notDrawn") and goes back to its own flat map with a note, instead of buttons over a black screen.
+            // Counted only while the app is on screen: in the background or under Control Center nothing draws.
+            func check(_ s: TrailMapScreen?) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak s] in
+                    guard let s = s, !s.left, s.framesDrawn == 0 else { return }
+                    if UIApplication.shared.applicationState != .active || s.view.window == nil { check(s); return }
+                    s.onEvent?("notDrawn", ["lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled])
+                }
+            }
+            check(s)
         }
     }
 
@@ -233,6 +244,9 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
     private var uiTop: CGFloat = 0, uiBottom: CGFloat = 0
     // The first frame of the same spot and style as the page's flat map is drawn (open() then shows this screen).
     var onReady: (() -> Void)?
+    // Frames this map has drawn. None a while after opening: MapLibre isn't drawing on this phone (2026-11-27: alex's
+    // iPhone showed a black map in every sport, buttons over nothing), and the page goes back to its own flat map.
+    private(set) var framesDrawn = 0
     private var waitWinter = false   // Skiing's Winter asked for but its lists still coming: not ready on Satellite
     // False from the moment a new map style is asked for until it has loaded. Meanwhile MapLibre swaps the old layers
     // out from under their objects, so a feature touching the style then can crash the app (alex's crash 2026-11-21:
@@ -349,6 +363,10 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
             map.isCenterClampedToGround = true
         }
         map.logoView.isHidden = true
+        // Low Power Mode: at most 30 frames a second, asked for plainly (2026-11-27: with it on, alex's iPhone drew no
+        // frame at all; the page's flat map comes back with a note when that still happens, "notDrawn" above).
+        lowPowerFrames()
+        NotificationCenter.default.addObserver(self, selector: #selector(powerChanged), name: .NSProcessInfoPowerStateDidChange, object: nil)
         map.setCenter(start, zoomLevel: startZoom, direction: startBearing, animated: false)
         map.showsUserLocation = true
         view.addSubview(map)
@@ -792,6 +810,13 @@ final class TrailMapScreen: UIViewController, MLNMapViewDelegate, UIGestureRecog
         map.setCenter(f.center, zoomLevel: f.zoom, direction: f.heading, animated: false)   // keeps the new tilt
         stepping = false
         if t >= 1 { endTilt() }
+    }
+    private func lowPowerFrames() {
+        map.preferredFramesPerSecond = ProcessInfo.processInfo.isLowPowerModeEnabled ? .lowPower : .default
+    }
+    @objc private func powerChanged() { DispatchQueue.main.async { [weak self] in if let s = self, s.isViewLoaded, !s.left { s.lowPowerFrames() } } }
+    func mapViewDidFinishRenderingFrame(_ mapView: MLNMapView, fullyRendered: Bool) {
+        framesDrawn += 1
     }
     func mapViewDidFinishRenderingMap(_ mapView: MLNMapView, fullyRendered: Bool) {
         guard fullyRendered, styleReady, !(waitWinter && base == "winter"), let ready = onReady else { return }

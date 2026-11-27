@@ -446,8 +446,13 @@
     // its first build (no iPhone to try it on before): everyone once alex has checked it on the phone.
     const und = threeD && isAdmin() && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
     tipped = !flat; flatOpening = flat;
+    const askedAt = Date.now();
+    // How the native map opened, in alex's own usage log only (isAdmin: the admin phone; 2026-11-27 a fully black native
+    // 3D map on that iPhone that no simulator shows): an answer before 2.5 s means it had drawn the spot.
+    const note = (r) => { if (isAdmin() && window.tfUse) window.tfUse("view", `Native map ${threeD ? "3D" : "2D"}${flat ? " from above" : ""} · ${base} · ${r && r.under ? "under the page" : r === false ? "not opened" : "over the page"} · ${navigator.onLine ? "online" : "offline"}`, Date.now() - askedAt); };
     return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...(und ? { under: und } : {}), ...(flat ? { flat: true } : {}), ...snap })
       .then((r) => {
+        note(r);
         flatOpening = false;
         if (und && open && r && r.under) {
           enterUnder();
@@ -460,7 +465,7 @@
         // twice the page's own flat map stays for this visit.
         if (flat && open) { flatFails++; TrailMap.close().catch(() => {}); return false; }
         return true;
-      }, () => { open = false; sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
+      }, () => { note(false); open = false; sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -670,6 +675,21 @@
     if (t !== tipped) { tipped = t; b3Label(); }
   });
   TrailMap.addListener("closed", () => { tipped = true; cardUp = false; syncSoon(); });
+  // The phone's own map drew nothing 8 s after opening (builds from 2026-11-27: alex's iPhone showed the page's buttons
+  // over a black screen in every sport): back to the page's own flat map, with a note, and it doesn't open again by
+  // itself this visit (a tap on 3D tries again). Never the web 3D map.
+  // lowPower: the phone's Low Power Mode (iPhone) or Battery Saver (Android) was on, the cause on alex's iPhone 2026-11-27.
+  TrailMap.addListener("notDrawn", (e) => {
+    if (!open) return;
+    flatFails = 2;
+    const low = !!(e && e.lowPower);
+    if (isAdmin() && window.tfUse) window.tfUse("view", `Native map drew nothing${low ? " · power saving on" : ""}`, 0);
+    TrailMap.close().catch(() => {});
+    const m = !low ? "The map couldn't draw on this phone, so the 2D map is shown."
+      : ios ? "The map may not draw while Low Power Mode is on. Turn it off in Settings to see 3D."
+      : "The map may not draw while Battery Saver is on. Turn it off in Settings to see 3D.";
+    if (window.tfToast) window.tfToast(window.tfLang && window.tfLang.t ? window.tfLang.t(m) : m);
+  });
   TrailMap.addListener("card", (e) => { cardUp = !!(e && e.up); });   // Android's own card on the map (Back closes it first)
   ["tf:sport", "tf:basemap", "tf:admin", "tf:map3d"].forEach((n) => window.addEventListener(n, syncSoon));
   // The sport itself (the page's body class), however it changed: leaving Skiing never leaves its Winter map behind
