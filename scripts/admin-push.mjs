@@ -29,7 +29,11 @@ export async function adminPush({ title, body, url = "https://trailfinderapp.ca/
         : { status: 0, reason: "a web browser, not the app" };
       if (x.status === 200) sent++;
       else { warn(`A phone wasn't reached (${[x.status, x.reason].filter(Boolean).join(" ")}).`); if (x.status === 429 || x.status >= 500) retry = true; }
-    } catch (e) { warn(`A phone wasn't reached (${e.message}).`); retry = true; }
+    } catch (e) {
+      warn(`A phone wasn't reached (${e.message}).`);
+      // A wrong or missing key won't fix itself: only a network problem is worth trying again.
+      if (!/sign-in for Firebase failed/i.test(e.message || "")) retry = true;
+    }
   }
   pushClose();
   console.log(`Sent to ${sent} of ${subs.length} phone(s).`);

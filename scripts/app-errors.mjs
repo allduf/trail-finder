@@ -4,7 +4,7 @@
 // Each error is counted once, with how many times it happened, on how many phones, in which sport, and what the
 // person tapped just before (that's usually what to try to make it happen again). An error not seen in the 14 days
 // before is marked 🆕 (no mention: alex 2026-11-27 wants no email; new ones reach alex's phone through app-alert.mjs); a day with only known errors still gets
-// its comment, without the mention. A day with no errors gets no comment.
+// its comment. A day with no errors gets no comment.
 //
 // Run: SUPABASE_SECRET_KEY=... node scripts/app-errors.mjs
 // Optional: HOURS (24), DRY=1 (summary only, no issue comment), GITHUB_TOKEN + GITHUB_REPOSITORY (the issue).

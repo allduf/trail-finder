@@ -25,3 +25,11 @@ begin
 end $$;
 revoke all on function public.tf_alert_phone_set(uuid) from public;
 grant execute on function public.tf_alert_phone_set(uuid) to authenticated;
+
+-- After sign-out the phone takes itself off the list (only that phone knows its random push id).
+create or replace function public.tf_alert_phone_drop(p_id uuid) returns void
+language sql security definer set search_path = public as $$
+  delete from tf_alert_phones where push_id = p_id
+$$;
+revoke all on function public.tf_alert_phone_drop(uuid) from public;
+grant execute on function public.tf_alert_phone_drop(uuid) to anon, authenticated;

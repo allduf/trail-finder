@@ -139,7 +139,7 @@ async function db(path, opts = {}) {
 if (md) {
   const what = [restarts.length && `${restarts.length} crash${restarts.length > 1 ? "es" : ""}`, newErrLines.length && `${newErrLines.length} new error${newErrLines.length > 1 ? "s" : ""}`].filter(Boolean).join(" and ");
   // The first line of each kind, short: the full list is on the usage page.
-  const first = [crashLines[0], newErrLines[0]].filter(Boolean).map((l) => l.replace(/^- [^:]+ UTC: /, "").replace(/`/g, "")).join("\n");
+  const first = [crashLines[0], newErrLines[0]].filter(Boolean).map((l) => l.replace(/^- .+? UTC: /, "").replace(/`/g, "")).join("\n");
   const r = await adminPush({ title: `Trail Finder: ${what}`, body: `${first}\nMore on the usage page, Problems tab.`, tag: `tf-alert-${top}`, url: "https://trailfinderapp.ca/usage.html" });
   // Nothing got through because of a passing problem (network, Apple or Google busy): keep the mark, so the next check
   // tries again (the 30-line cap keeps it short). A phone that can't get them at all doesn't hold the mark back.
