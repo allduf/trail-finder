@@ -74,15 +74,28 @@
   const QKEY = "tf:useQueue", MAX_QUEUE = 400;
   let queue = [];
   try { queue = JSON.parse(lsGet(QKEY) || "[]"); } catch {}
+  // Taps saved by an older copy of this script before it was sent (an Account tap kept the email): cleaned here too.
+  const oldTap = (w) => String(w).replace(/^\S*@\S*/, "Account");
   // A web viewer too old for the map (no Object.hasOwn: Chrome before 93, Safari before 15.4) gets index.html's update
   // note; MapLibre's errors there ("Script error." with no detail: 195 rows of 16-23 Nov 2026, all from
   // Google Play's review phones) and its restarts can't be fixed in the app, so they aren't sent. Visits still are.
+  // Nothing personal is ever sent, whatever the caller passes (alex 2026-11-27: the Account button's label was the
+  // signed-in person's email): an email, a phone number or a map point in any event becomes a plain word. The same
+  // rule runs on the server (supabase/usage-scrub.sql) for copies of this script still cached on phones. Error
+  // messages keep their numbers (times, sizes, versions), only emails go. Long text is cut first, so this stays quick.
+  const scrub = (t, all = true) => {
+    t = String(t).slice(0, 400).replace(/[\w.%+#-]+@[\w#-]+(?:\.[\w#-]+)+/g, "[email]");
+    return !all ? t : t.replace(/-?\d{1,3}\.\d{3,}\s*[,; ]\s*-?\d{1,3}\.\d{3,}/g, "[point]")
+      .replace(/-?\b\d{1,3}\.\d{4,}\b/g, "[point]")
+      .replace(/\+?\d(?:[\s().-]*\d){8,14}/g, "[phone]");
+  };
   const oldViewer = typeof Object.hasOwn !== "function";
+  queue = queue.map((e) => (e && e.w ? { ...e, w: scrub(e.k === "tap" ? oldTap(e.w) : e.w, e.k !== "error").slice(0, 120) } : e));
   const add = (k, w, ms) => {
     if (off) return;
     if (oldViewer && (k === "error" || k === "crash")) return;
     if (k === "crash") ms = PREV_VER; else if (k === "error") ms = VER;
-    queue.push({ s: session, t: new Date().toISOString(), p: page, k, w: w == null ? null : String(w).slice(0, 120), ms });
+    queue.push({ s: session, t: new Date().toISOString(), p: page, k, w: w == null ? null : scrub(w, k !== "error").slice(0, 120), ms });
     if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
     lsSet(QKEY, JSON.stringify(queue));
     seen();
@@ -148,17 +161,32 @@
   // Lists of trails, rides, saved places and search results are only counted as "list", never their names.
   const LISTS = "#list, #results, #trailHits, #wantList, #history, #keyList, [data-list], ul, ol, table";
   const DATA = ["sport", "hub", "tab", "layer", "mode", "act", "action", "view", "sheet"];
+  // Places whose buttons show what people typed or who they are (the Account button, whose tooltip is the email; a
+  // cabin or bike trip's names, costs, meals and notes; the friends list): only the place is sent, never the words.
+  const PRIVATE = ".acct-btn, #acctWho, #tpGroup, #tpIam, #tpCost, #tpMeals, #tpJour, #tpPack, #tpPlan, #tpCatch, #tpPhotos, #tpBook, #tpCabin, #tpBikes, #tpDays, #tpStops, #skTrip, #mtTrips, #mtTripCard, .frd-who, [data-private]";
+  // A button's own words, without the choices of a menu inside it (a "You are" label held every group member's name).
+  const ownText = (el) => {
+    let t = "";
+    for (const n of el.childNodes || []) {
+      if (n.nodeType === 3) t += n.nodeValue;
+      else if (n.nodeType === 1 && !/^(SELECT|OPTION|TEXTAREA|INPUT)$/.test(n.tagName)) t += ` ${ownText(n)} `;
+    }
+    return t;
+  };
   function tapName(el) {
+    if (el.classList && el.classList.contains("acct-btn")) { const h = el.closest("[id]"); return `Account${h ? ` (in #${h.id})` : ""}`; }
     if (el.id) return `#${el.id}`;
     for (const d of DATA) if (el.dataset && el.dataset[d] != null) return `${d}=${String(el.dataset[d]).slice(0, 40)}`;
     if (el.closest(LISTS)) {
       const box = el.closest(LISTS);
       return `list:${box.id ? "#" + box.id : box.tagName.toLowerCase()}`;
     }
-    const text = (el.getAttribute("aria-label") || el.title || el.innerText || el.textContent || "").replace(/\s+/g, " ").replace(/\d+/g, "#").trim();
-    if (!text) return null;
     const holder = el.closest("[id]");
-    return `${text.slice(0, 40)}${holder ? ` (in #${holder.id})` : ""}`;
+    const where = holder ? ` (in #${holder.id})` : "";
+    if (el.closest(PRIVATE)) return `item${where}`;
+    const text = scrub(el.getAttribute("aria-label") || el.title || (el.querySelector && el.querySelector("select, textarea, input") ? ownText(el) : el.innerText || el.textContent) || "").replace(/\s+/g, " ").replace(/\d+/g, "#").trim();
+    if (!text) return null;
+    return `${text.slice(0, 40)}${where}`;
   }
   document.addEventListener("click", (e) => {
     const el = e.target.closest && e.target.closest("button, a, [role=button], [role=tab], summary, input[type=checkbox], input[type=radio], label");

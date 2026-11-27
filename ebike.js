@@ -78,9 +78,9 @@
       return r("no", "No bikes", "Closed to bikes on the map, so to e-bikes too.");
     const tag = ["emtb", "bicycle:electric", "electric_bicycle", "ebike", "e_bike"].find((k) => tags[k]);
     if (tag && tags[tag] === "no") return r("no", "No e-bikes", `Mapped as closed to e-bikes (${tag}=no).`);
-    if (tag && OPEN.test(tags[tag])) return r("class1", "E-bikes OK", `Mapped as open to e-bikes (${tag}=${tags[tag]}). ${CLASS1}`);
+    if (tag && OPEN.test(tags[tag])) return r("class1", "E-bikes likely OK", `Mapped as open to e-bikes (${tag}=${tags[tag]}). ${CLASS1}`);
     const motor = ["motorcycle", "motor_vehicle", "atv", "ohv"].find((k) => OPEN.test(tags[k] || ""));
-    if (motor) return r("yes", "E-bikes OK (any)", `Open to motorbikes (${motor}=${tags[motor]}), so to every e-bike class.`);
+    if (motor) return r("yes", "E-bikes likely OK (any)", `Mapped as open to motorbikes (${motor}=${tags[motor]}), so likely to every e-bike class.`);
     if (inBox(lat, lon, WHISTLER)) {
       if (WH_ALPINE.test(name)) return r("no", "No e-bikes", "Whistler's alpine trails above the Flank Trail on Sproatt and Rainbow: no e-bikes (alpine terrain and grizzly bears).", "alpine");
       if (WH_EMERALD.test(name)) return r("no", "No e-bikes", "The Emerald Forest Conservation Area: no e-bikes, except on the access road between Lorimer and Alta Lake roads.", "rmow");
@@ -89,16 +89,16 @@
     const ap = opts.ap;
     if (ap && Array.isArray(ap.act)) {
       const src = { name: `Alberta Parks trail report, ${ap.area}`, url: ap.url };
-      if (ap.act.includes("ebike")) return r("class1", "Pedal-assist OK", `Alberta Parks lists e-bikes on this trail (${ap.area}): pedal-assist, no throttle, up to 500 W, assist stops at 32 km/h.`, src);
+      if (ap.act.includes("ebike")) return r("class1", "Pedal-assist likely OK", `Alberta Parks lists e-bikes on this trail (${ap.area}): pedal-assist, no throttle, up to 500 W, assist stops at 32 km/h.`, src);
       if (ap.act.includes("bike")) return r("no", "No e-bikes", `Alberta Parks allows bikes on this trail but not e-bikes (${ap.area}).`, src);
       return r("no", "No bikes", `Alberta Parks doesn't list this trail for bikes (${ap.area}).`, src);
     }
     const area = isNaN(lat) ? null : areaAt(lat, lon);
     if (area === "Banff National Park")
-      return BANFF_OK.test(name) ? r("class1", "Pedal-assist OK", `Banff National Park lists this trail for pedal-assist e-bikes (up to 500 W, assist stops at 32 km/h). Other e-bikes stay on paved roads.`, "banff")
+      return BANFF_OK.test(name) ? r("class1", "Pedal-assist likely OK", `Banff National Park lists this trail for pedal-assist e-bikes (up to 500 W, assist stops at 32 km/h). Other e-bikes stay on paved roads.`, "banff")
         : r("no", "No e-bikes", "Banff National Park: e-bikes only on the trails Parks Canada lists (Legacy Trail, Sundance, Tunnel Bench, Brewster Creek, Redearth, Great Divide and a few more), not this one.", "banff");
     if (area === "Mount Revelstoke National Park" || area === "Glacier National Park")
-      return REV_OK.test(name) ? r("class1", "Pedal-assist OK", `${area}: one of the few trails Parks Canada opens to bikes, pedal-assist e-bikes included. Check the park's yearly restriction.`, "revelstoke")
+      return REV_OK.test(name) ? r("class1", "Pedal-assist likely OK", `${area}: one of the few trails Parks Canada opens to bikes, pedal-assist e-bikes included. Check the park's yearly restriction.`, "revelstoke")
         : r("no", "No e-bikes", `${area}: bikes and e-bikes only on the few trails Parks Canada lists (Soren Sorensen loops, 23 Connector, Mount Revelstoke Trail, lower Beaver Valley).`, "revelstoke");
     if (area === "Yoho National Park") return r("no", "No e-bikes", "Yoho National Park: e-bikes only on paved roads and the few trail segments Parks Canada lists.", "yoho");
     if (area === "Kootenay National Park") return r("no", "No e-bikes", "Kootenay National Park: e-bikes only on paved roads and highways.", "kootenay");
@@ -107,11 +107,11 @@
     if (tags.bicycle === "customers" || tags["tf:lift"])
       return r("check", "Ask the bike park", "A bike park trail: each resort sets its own e-bike rules (and whether its lifts carry them).");
     if (prov === "bc")
-      return r("class1", "Class 1 OK", `BC: Class 1 e-bikes may ride where bikes may (BC Parks, Recreation Sites and Trails BC, towns like Whistler), unless a sign says no. ${CLASS1} Class 2 and 3 count as motor vehicles.`, opts.zone === "wh" ? ["bc", "rmow"] : "bc");
+      return r("class1", "Class 1 likely OK", `BC: Class 1 e-bikes may ride where bikes may (BC Parks, Recreation Sites and Trails BC, towns like Whistler), unless a sign says no. ${CLASS1} Class 2 and 3 count as motor vehicles.`, opts.zone === "wh" ? ["bc", "rmow"] : "bc");
     if (prov === "ab" && opts.zone === "yyc")
-      return r("check", "Check the park", "Calgary: pedal-assist e-bikes are allowed on city pathways; the bylaw doesn't say for natural trails in city parks. Fish Creek and other provincial parks follow Alberta Parks: pedal-assist OK on designated trails.", ["yyc", "ab"]);
+      return r("check", "Check the park", "Calgary: pedal-assist e-bikes are allowed on city pathways; the bylaw doesn't say for natural trails in city parks. Fish Creek and other provincial parks follow Alberta Parks: pedal-assist e-bikes may ride designated trails.", ["yyc", "ab"]);
     if (inBox(lat, lon, MSA))
-      return r("class1", "Pedal-assist OK", "Mont-Sainte-Anne (Sépaq): pedal-assist e-bikes may ride the trails; throttle e-bikes may not.", "msa");
+      return r("class1", "Pedal-assist likely OK", "Mont-Sainte-Anne (Sépaq): pedal-assist e-bikes may ride the trails; throttle e-bikes may not.", "msa");
     if (inBox(lat, lon, KEJI))
       return r("check", "Check the park", "Kejimkujik National Park: bikes and pedal-assist e-bikes are banned on a list of trails (and at Kejimkujik Seaside) since 2025; check the park's bulletin for this one.", "kej");
     if (inBox(lat, lon, TORONTO))
@@ -123,7 +123,7 @@
     if (prov && PROV[prov])
       return r("check", "Check local rules", `${PROV[prov]} has no province-wide e-bike rule for trails: the park, town or club that runs the trails sets its own. National parks set theirs park by park (bulletins on parks.canada.ca).`, "pc");
     if (prov === "ab")
-      return r("class1", "Pedal-assist OK", "Alberta Parks (Kananaskis, Bragg Creek, Canmore): pedal-assist e-bikes (no throttle, up to 500 W, assist stops at 32 km/h) may ride every designated trail where bikes are allowed.", "ab");
+      return r("class1", "Pedal-assist likely OK", "Alberta Parks (Kananaskis, Bragg Creek, Canmore): pedal-assist e-bikes (no throttle, up to 500 W, assist stops at 32 km/h) may ride every designated trail where bikes are allowed.", "ab");
     return r("check", "Check local rules", "No e-bike rule found for this area: check the land manager's signs.");
   }
   const ok = (rule) => !!rule && (rule.k === "yes" || rule.k === "class1");

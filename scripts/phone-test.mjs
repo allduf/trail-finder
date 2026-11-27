@@ -413,6 +413,61 @@ async function testPhonesCheck() {
   results.push({ sport: "app", step: "Test phones send no usage", ok: !problems.length, note: problems.join(" · "), shot: "" });
   console.log(`${problems.length ? "✗" : "✓"} App builds: test phones send no usage${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
 }
+// Usage never holds anything personal (2026-11-27: tapping the Account button stored the signed-in person's email,
+// its tooltip). usage.js runs with a stand-in page; taps on the Account button, a cabin trip's names, a menu of names
+// and a plain button, and an email, phone number and map point passed to tfUse, must reach the queue without them.
+async function usagePrivateCheck() {
+  const vm = await import("node:vm");
+  const src = await readFile(join(root, "usage.js"), "utf8");
+  const store = new Map(), clicks = [], noop = () => {};
+  const st = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+  // A tiny element: tag, attributes, text, children, parent (enough for closest, dataset, title and the text of a tap).
+  const el = (tag, { id = "", cls = "", title = "", aria = "", text = "", kids = [] } = {}) => {
+    const e = { tagName: tag.toUpperCase(), nodeType: 1, id, title, dataset: {}, parentElement: null,
+      classList: { contains: (c) => cls.split(" ").includes(c) },
+      getAttribute: (a) => (a === "aria-label" ? aria || null : null),
+      childNodes: [...(text ? [{ nodeType: 3, nodeValue: text }] : []), ...kids] };
+    kids.forEach((k) => { k.parentElement = e; });
+    const all = (x) => [x, ...x.childNodes.filter((n) => n.nodeType === 1).flatMap(all)];
+    e.innerText = e.textContent = all(e).map((x) => x.childNodes.filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join("")).join(" ");
+    e.querySelector = (q) => all(e).slice(1).find((x) => q.split(",").some((t) => x.tagName === t.trim().toUpperCase())) || null;
+    const match = (x, q) => q.split(",").map((t) => t.trim()).some((t) => (t.startsWith("#") ? x.id === t.slice(1)
+      : t.startsWith(".") ? x.classList.contains(t.slice(1)) : t === "[id]" ? !!x.id : /^\[id\^=(\w+)\]$/.test(t) ? x.id.startsWith(t.match(/=(\w+)/)[1])
+      : t.startsWith("[") ? false : x.tagName === t.toUpperCase()));
+    e.closest = (q) => { for (let x = e; x; x = x.parentElement) if (match(x, q)) return x; return null; };
+    return e;
+  };
+  const EMAIL = "someone.42@example.com";
+  const acctBtn = el("button", { cls: "linkish acct-btn", title: EMAIL, text: "Account", kids: [el("span", { text: "S" })] });
+  const nameBtn = el("button", { text: "Sam Person" });
+  const iam = el("label", { text: "You are", kids: [el("select", { aria: "Who you are in this group", kids: [el("option", { text: "Sam Person" })] })] });
+  const plain = el("button", { text: "Close" });
+  el("div", { id: "panel", kids: [acctBtn, plain] });
+  el("div", { id: "tpGroup", kids: [nameBtn] });
+  el("div", { id: "skPlan", kids: [iam] });
+  const w = { localStorage: st, sessionStorage: { getItem: () => null, setItem: noop, removeItem: noop },
+    navigator: { webdriver: false, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X)", onLine: false, maxTouchPoints: 5 },
+    location: { protocol: "https:", hostname: "trailfinderapp.ca", pathname: "/", href: "https://trailfinderapp.ca/", search: "" },
+    document: { currentScript: null, visibilityState: "visible", readyState: "loading", addEventListener: (t, f) => { if (t === "click") clicks.push(f); },
+      getElementById: () => null, querySelector: () => null, body: { classList: { contains: () => false } } },
+    addEventListener: noop, setInterval: noop, setTimeout: noop, clearTimeout: noop, screen: { width: 440, height: 956 },
+    crypto: { randomUUID: () => "00000000-0000-0000-0000-000000000000" }, performance: { now: () => 0, getEntriesByType: () => [] },
+    fetch: () => Promise.resolve({ ok: true }), tfAccount: { enabled: true, url: "https://x", key: "k" },
+    Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios", Plugins: {} } };
+  w.window = w;
+  vm.runInNewContext(src, w);
+  for (const b of [acctBtn, nameBtn, iam, plain]) clicks.forEach((f) => f({ target: { closest: (q) => b.closest(q) } }));
+  w.tfUse("pick", `Find: ${EMAIL}`);
+  w.tfUse("pick", "Find: call 604 555 1234");
+  w.tfUse("pick", "Find: 50.11634, -122.95392");
+  const q = JSON.parse(store.get("tf:useQueue") || "[]"), sent = q.map((e) => e.w || "").join(" | ");
+  const problems = [];
+  for (const [what, re] of [["an email", /@example|someone/], ["a person's name", /Sam|Person/], ["a phone number", /604|555|1234/], ["a map point", /50\.11|122\.95/]])
+    if (re.test(sent)) problems.push(`usage holds ${what}: ${sent.slice(0, 200)}`);
+  for (const want of ["Account (in #panel)", "Close (in #panel)", "item (in #tpGroup)"]) if (!q.some((e) => e.w === want)) problems.push(`tap "${want}" missing: ${sent.slice(0, 200)}`);
+  results.push({ sport: "app", step: "Usage holds nothing personal", ok: !problems.length, note: problems.join(" · "), shot: "" });
+  console.log(`${problems.length ? "✗" : "✓"} App builds: usage holds nothing personal${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
+}
 // In the page before its own scripts: Satellite picked before (in Skiing, the other sports and the Satellite button's
 // "back to"), Summer or Live for Skiing's 3D photos, and (platform) the app's stand-in.
 // window.__tm: what the page asked of TrailMap (opens), fail = open() refuses, fire(name, e) = an event from the app.
@@ -779,6 +834,7 @@ async function appBuild(kind, desk = false) {
 async function appBuilds() {
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
+await usagePrivateCheck().catch((e) => results.push({ sport: "app", step: "Usage holds nothing personal", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 for (const kind of ["ios", "iosu", "android", "web"]) await appBuild(kind);
 }
 

@@ -292,7 +292,7 @@ dialog.hc-dlg .hc-near button { font: inherit; font-size: .84rem; font-weight: 7
       <p>Crown land where the province allows a commercial ${a.kind === "cat" ? "cat" : "heli"}-skiing operation: about ${km2(a.km2)}. ${a.stage === "applied" ? "<b>Applied for, not granted yet.</b>" : "Granted."}</p>
       ${ops2.length ? `<h3>Operation</h3><div class="hc-near">${btns(ops2)}</div>` : near.length ? `<h3>Operations based next to it</h3><p class="hc-small">The public data doesn't name the operator; one of these is likely.</p><div class="hc-near">${btns(near)}</div>`
         : `<p class="hc-small">The public data doesn't name the operator, and no operation we know of is based next to it.</p>`}
-      <p class="hc-small">Skiing inside a tenure isn't closed to the public, but the operator's helicopters or cats may be working there. From DataBC Crown land tenures (file ${esc(a.file)}).</p>`;
+      <p class="hc-small">A tenure usually doesn't close the area to public skiing, but the operator's helicopters or cats may be working there. From DataBC Crown land tenures (file ${esc(a.file)}).</p>`;
     dlg.querySelector(".hc-x").onclick = () => dlg.close();
     dlg.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => open(byId.get(b.dataset.id))));
     if (!dlg.open) dlg.showModal();

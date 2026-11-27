@@ -1,0 +1,9 @@
+Hazards ||| Dangers
+zones and land ||| zones et terres
+Alpine trails ||| Sentiers alpins
+riding access ||| accès pour rouler
+Riding access ||| Accès pour rouler
+Low moisture ||| Peu humide
+Low moisture, dusty ||| Peu humide, poussiéreux
+gas, camping, riding access ||| essence, camping, accès pour rouler
+Map labels now say what they show: Latest photos in 3D, Hazards, Rules: zones and land, Alpine trails, Riding access, and Low moisture on the loam scale. ||| Les étiquettes de la carte disent maintenant ce qu'elles montrent : photos « Dernière » en 3D, Dangers, Règles : zones et terres, Sentiers alpins, Accès à la conduite, et Peu humide sur l'échelle du loam.

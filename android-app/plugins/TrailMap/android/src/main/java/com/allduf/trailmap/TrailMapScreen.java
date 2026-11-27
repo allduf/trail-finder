@@ -333,6 +333,7 @@ final class TrailMapScreen extends FrameLayout {
     private void ready(MapLibreMap m) {
         if (left) return;
         map = m;
+        mapView.addOnDidFinishRenderingFrameListener((fully, frameEncodingTime, frameRenderingTime) -> framesDrawn++);
         mapView.addOnDidFinishRenderingMapListener((fully) -> {
             Style st = map.getStyle();
             if (!fully || onReady == null || st == null || !st.isFullyLoaded()) return;
@@ -442,6 +443,8 @@ final class TrailMapScreen extends FrameLayout {
     }
     // The first frame of the same spot as the page's flat map, in the loaded style (open() then shows this screen).
     Runnable onReady;
+    // Frames this map has drawn (as the iPhone's): none a while after opening, the page goes back to its own flat map.
+    int framesDrawn = 0;
 
     // In 3D the trails go just under the place names, so names stay readable over them.
     private void put(Style style, Layer l) {
