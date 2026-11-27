@@ -97,9 +97,6 @@ async function phone(opts = PHONE) {
   });
   // Older builds opened the Today card by itself once a day: kept off here (today.js now never pops up).
   await ctx.addInitScript(() => { try { localStorage.setItem("tf:todayAuto", "false"); } catch {} });
-  // A new device opens in the season's sport (welcome.js): every run is pinned to a summer day, so each sport's steps
-  // start from MTB whatever today is. seasonCheck() tries the other days.
-  await ctx.addInitScript(() => { if (!window.tfSeasonDate) window.tfSeasonDate = "2026-07-01"; });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => { const m = String(e.message || e); if (!NETWORK.test(m)) errors.push(m.split("\n")[0].slice(0, 200) + where(e)); });
@@ -837,13 +834,16 @@ async function appBuild(kind, desk = false) {
 }
 // ---------- A new device opens in the season's sport (alex 2026-11-27) ----------
 // Skiing from Nov 15 to Apr 30, MTB the rest of the year, only on a device that never used the app (the welcome shows):
-// Skiing on Winter and first in the welcome; a device that used the app keeps its last sport.
+// Skiing on Winter and first in the welcome; a device that used the app keeps its last sport. (The other runs never
+// get the season default: phone()'s tf:todayAuto makes them a device that used the app before.)
 async function seasonCheck() {
   const cases = [
     ["New phone on Jan 15 opens Skiing on Winter", "2027-01-15", null, "ski"],
     ["New phone on Nov 15 opens Skiing", "2026-11-15", null, "ski"],
     ["New phone on Jul 1 opens MTB", "2026-07-01", null, "mtb"],
+    ["New phone on Apr 30 opens Skiing", "2027-04-30", null, "ski"],
     ["New phone on May 1 opens MTB", "2027-05-01", null, "mtb"],
+    ["New phone on Nov 14 opens MTB", "2026-11-14", null, "mtb"],
     ["Phone that used MTB stays in MTB on Jan 15", "2027-01-15", "mtb", "mtb"],
   ];
   for (const [name, day, before, want] of cases) {

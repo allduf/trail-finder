@@ -905,7 +905,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   };
   const askState = () => { try { return JSON.parse(lsGet(ASK_KEY) || "{}") || {}; } catch { return {}; } };
   const askPut = (st) => lsSet(ASK_KEY, JSON.stringify(st));
-  const nowSport = () => { const sel = document.getElementById("sport"); return (sel && sel.value) || store.get("sport", window.tfFirstSport || "mtb"); };
+  const nowSport = () => { const sel = document.getElementById("sport"); return (sel && sel.value) || store.get("sport", "mtb"); };
   const count = (k, f) => { try { return f(store.get(k, null)); } catch { return 0; } };
   const len = (v) => (Array.isArray(v) ? v.length : 0);
   const ASK_SAVES = {   // what counts as a save in each sport: a number that goes up
