@@ -151,6 +151,14 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - The "Fix PR conflicts" workflow (`.github/workflows/pr-fix.yml`) merges main into open pull requests, and moves
   older ones over to `__V__`, `changelog.d` and French files. Pull before pushing to a pull request branch.
 - If a phone check was cancelled after a merge update, run it again.
+- Failed checks fix themselves when the cause is a hiccup (alex 2026-11-27): "Auto re-run" (`.github/workflows/auto-retry.yml`,
+  `scripts/ci/auto-retry.mjs`) re-runs a failed check up to twice when its log shows a server or runner hiccup (429, 502/503/504,
+  dropped connection, simulator that didn't start), and writes a grey "Auto re-run: <check>" line on the pull request. Its
+  "Real failure: not re-run" means the failure is yours: the thread that owns the pull request fixes it, without waiting for alex.
+  Never add a test failure or a wording or avalanche check to its hiccup list to get a pull request through.
+- At most 2 heavy test runs at once (app builds and simulator tests): each heavy job `needs: slot`, a small job that runs
+  `scripts/ci/heavy-slot.sh`. A new workflow with a simulator or an app build gets the same slot job, and its name goes in
+  `HEAVY` there and in the `workflows:` list of `auto-retry.yml`.
 
 ## Where things are
 - Data files built by workflows live on the `site-data` branch, not main: see `README.md`.

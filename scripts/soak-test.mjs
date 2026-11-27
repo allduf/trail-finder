@@ -28,6 +28,7 @@ import { createServer } from "node:http";
 import { readFile, mkdir, appendFile, writeFile, readdir } from "node:fs/promises";
 import { join, extname, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchRetry } from "./ci/fetch-retry.mjs";
 
 const num = (k, d) => (process.env[k] ? Number(process.env[k]) : d);
 const MINUTES = num("MINUTES", 30), WARM = num("WARM", Math.min(5, MINUTES / 4)), MAX_MB = num("MAX_MB", 3000), HEAP_MB = num("HEAP_MB", 512);
@@ -64,7 +65,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }).end(body);
   } catch {
     try {
-      const r = await fetch(/^trail-finder-winter2?\//.test(path) ? "https://allduf.github.io/" + path : LIVE + path);
+      const r = await fetchRetry(/^trail-finder-winter2?\//.test(path) ? "https://allduf.github.io/" + path : LIVE + path);
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   }
