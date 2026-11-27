@@ -2466,7 +2466,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     const fz = hmax(w.hourly.freezing_level_height, hrsTop);
     const snowDay = dd.snowfall_sum[D.i] || 0, rainBot = b ? b.daily.precipitation_sum[D.i] - (b.daily.snowfall_sum[D.i] || 0) / 0.7 : 0;
     const wet = (dd.precipitation_sum[D.i] || 0) - snowDay / 0.7;   // Open-Meteo counts 0.7 cm of snow for each mm of water; the rest fell as rain
-    const precip = snowDay >= 0.5 ? `❄ ${Math.round(snowDay)} cm of snow up high` : wet >= 1 ? `🌧 ${Math.round(wet)} mm of rain at the top` : rainBot >= 1 ? `🌧 ${Math.round(rainBot)} mm of rain low down` : "No rain or snow";
+    const precip = snowDay >= 0.5 ? `❄ ${Math.round(snowDay)} cm of snow up high` : wet >= 1 ? `🌧 ${Math.round(wet)} mm of rain at the top` : rainBot >= 1 ? `🌧 ${Math.round(rainBot)} mm of rain low down` : "Little or no rain or snow";
     const windWord = wind >= 50 || gust >= 80 ? "Very windy" : wind >= 30 || gust >= 55 ? "Windy" : wind >= 15 ? "Breezy" : "Light wind";
     const wCol = wind >= 50 || gust >= 80 ? CHIGH : wind >= 30 || gust >= 55 || wet >= 2 ? CMID : CINFO;
     const wxTile = tile("skWx", wCol, "Weather", `${WICON[dd.weather_code[D.i]] || ""} ${deg(tTop)} / ${deg(tBot)}`, [

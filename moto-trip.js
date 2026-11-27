@@ -46,6 +46,7 @@
 #motoPane .tp-warn { border-left: 4px solid #e8590c; padding: 4px 0 4px 9px; font-size: .82rem; }
 #motoPane .tp-warn.bad { border-color: #c92a2a; }
 #motoPane .tp-warn.ok { border-color: #2f9e44; }
+#motoPane .tp-warn.info { border-color: #8a929b; }
 #motoPane .tp-warn small { display: block; color: var(--muted); }
 #motoPane .tp-rider { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 #motoPane .tp-rider b { font-size: .88rem; }
@@ -267,7 +268,7 @@
       if (!fp) return `<h5>Day ${i + 1}: ${esc(x.name)}</h5><p class="sk-note">Couldn't check this route.</p>`;
       const rows = gas.map((r) => {
         const u = usableKm(r.b), bad = fp.gaps.filter((g) => g.km > u);
-        if (!bad.length) return `<div class="tp-warn ok"><b>${esc(r.n)}</b> (${esc(r.b.n)}, about ${u} km with 20% left): gas mapped at least every ${fmtKm(fp.longest)}.</div>`;
+        if (!bad.length) return `<div class="tp-warn info"><b>${esc(r.n)}</b> (${esc(r.b.n)}, about ${u} km with 20% left): gas mapped at least every ${fmtKm(fp.longest)}.</div>`;
         over++;
         return bad.map((g) => { const L = Math.ceil(((g.km - u) * (r.b.l100 || H.TYPES[r.b.type].l100)) / 100 + 0.01); return `<div class="tp-warn bad"><b>${esc(r.n)}: ${fmtKm(g.km)} with no gas mapped</b><small>From ${esc(g.from.name)} to ${esc(g.to.name)}, more than ${esc(r.b.n)}'s ${u} km with 20% left. About ${L} L more would cover it (estimate).</small></div>`; }).join("");
       }).join("");

@@ -868,7 +868,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       ${st ? `<ol class="ask-plan"><li><b>Start</b> at ${esc(st.name)} <small>${esc(st.what)}</small> <small>${fmtKm(far)} from the top in a straight line</small></li>
         <li><b>Finish</b> <span>at the top of ${esc(at.name)}</span>${ht ? ` <small>${ht}</small>` : ""}</li></ol>` : ""}
       ${two ? `<button type="button" class="ask-act" data-two>🗺 Show both ways on the map</button>
-        <p class="ask-note">Two less exposed ways are worked out: from the closest road, ${esc(st.name)}, and from the plowed road or parking lot within 9 km that gives the least exposed way in. Both are drawn on the map: tap the one you want.</p>`
+        <p class="ask-note">Two less exposed ways are worked out: from the closest road, ${esc(st.name)}, and from the paved road or parking lot within 9 km that gives the least exposed way in. Both are drawn on the map: tap the one you want.</p>`
         : one ? `<button type="button" class="ask-act" data-from-road>🛡 Find the least exposed way in</button>` : ""}
       ${two || one ? `<p class="ask-note">The ways weigh today's avalanche danger, slope angle and which way slopes face. Your tour is kept in Saved. No route is avalanche-safe: check the forecast and decide in the field.</p>`
         : `<p class="ask-note ask-warn">No drivable road is mapped within 15 km of ${esc(at.name)}. The map is there now: tap it where you start, then ✎ Edit my tour adds the rest.</p>`}

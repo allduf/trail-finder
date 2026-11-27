@@ -783,7 +783,8 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
       if (e.message === "Stopped") showState("bad", "Not saved yet: stopped", `Tap Try again to pick up where it left off, or Delete ${name} below.`, null, retry);
       else if (failed.length) showState("bad", `⚠ Not saved yet: ${files(failed.length)} missing`, `Missing: ${whatsMissing(failed)}. The rest is saved. It tries again by itself when you have signal.`, null, retry);
       else {
-        showState("bad", "⚠ Not saved", `${sources ? "The save stopped" : "Couldn't reach the map"}. Try again with signal.`, null, retry);
+        const full = e && (e.name === "QuotaExceededError" || /quota|storage|space/i.test(e.message || ""));
+        showState("bad", "⚠ Not saved", full ? "The phone's storage is full. Free some space or pick a smaller area, then try again." : `${sources ? "The save stopped" : "Couldn't reach the map"}. Try again with signal.`, null, retry);
         // A new area that failed outright (storage full, say) leaves no half entry to be retried on its own.
         if (isNew && id) { save(load().filter((x) => x.id !== id)); id = undefined; }
       }

@@ -45,7 +45,7 @@
       try { const j = await error.context.json(); msg = j.error || ""; gone = j.connected === false; } catch { /* not JSON */ }
       if (gone) keep(null);
       const st = error.context && error.context.status;
-      throw new Error(msg || (st === 404 ? "the Strava link isn't set up yet" : st ? "no answer" : error.message || "no answer"));
+      throw new Error(msg || (st === 404 ? "the Strava link isn't set up yet" : st ? "the server couldn't do that right now, try again in a moment" : "no signal or the server is busy"));
     }
     return data;
   }

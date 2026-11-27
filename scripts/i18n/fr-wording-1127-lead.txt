@@ -1,2 +1,30 @@
 Hunting often allowed in season (ZEC: register) ||| Chasse souvent permise en saison (ZEC : inscription)
 Clearer wording in every sport: forecasts, loam, snow, road status, land and hunting or fishing rules now say where they come from and when they are estimates. ||| Formulation plus claire dans tous les sports : les prévisions, le loam, la neige, l'état des routes, les terres et les règles de chasse ou de pêche disent maintenant d'où ils viennent et quand ce sont des estimations.
+Hunting seasons and rules ||| Saisons et règles de chasse
+Public land on the province's map: hunting, fishing, hiking and camping are often allowed, but parks, leases, closures and signs can change that. Check the current rules. ||| Terre publique sur la carte de la province : la chasse, la pêche, la randonnée et le camping y sont souvent permis, mais les parcs, les baux, les fermetures et les panneaux peuvent changer cela. Vérifiez les règles en vigueur.
+Crown pasture or hay land rented to a farmer or rancher: hunting on foot is often allowed, but contact the leaseholder first and leave gates as you find them. ||| Pâturage ou terre à foin de la Couronne louée à un agriculteur ou à un éleveur : la chasse à pied est souvent permise, mais contactez d'abord le locataire et laissez les barrières comme vous les trouvez.
+This spot is far out on the water: no shore within 2 km. Boat launches nearby are on the map. ||| Cet endroit est loin sur l'eau : aucune rive à moins de 2 km. Les rampes de mise à l'eau proches sont sur la carte.
+None listed ||| Aucune indiquée
+Close to the usual flow for this time of year. ||| Proche du débit habituel pour cette période de l'année.
+Likely too high and dirty to fish well: try a lake, or come back when it drops. ||| Probablement trop haute et trouble pour bien pêcher : essayez un lac, ou revenez quand elle baisse.
+Yukon's summary lists no special rules for this water: General Waters, open all year ||| Le résumé du Yukon n'indique aucune règle particulière pour ce plan d'eau : eaux générales, ouvertes toute l'année
+Dropping: it may clear and fish better soon. ||| En baisse : l'eau pourrait s'éclaircir et mieux donner bientôt.
+Trails, grades and heights come from OpenStreetMap and Open-Meteo and can be wrong or out of date. Snow amounts are a weather model's guess. Parks change their passes and closures often: check the park's own page, tell someone your plan, and carry the ten essentials and bear spray. ||| Les sentiers, cotes et altitudes viennent d'OpenStreetMap et d'Open-Meteo et peuvent être faux ou périmés. Les quantités de neige sont une estimation d'un modèle météo. Les parcs changent souvent leurs laissez-passer et fermetures : consultez la page du parc, informez quelqu'un de votre plan, et apportez les dix essentiels et du chasse-ours.
+Hunting is generally allowed in most of Ontario's conservation reserves, in season, with the usual licences: check the Ontario summary. ||| La chasse est généralement permise dans la plupart des réserves de conservation de l'Ontario, en saison, avec les permis habituels : consultez le résumé de l'Ontario.
+Crown land on ParcelMap BC: hunting is often allowed in season, but parks, leases and closures have their own rules. Check the regulations. ||| Terre de la Couronne sur ParcelMap BC : la chasse y est souvent permise en saison, mais les parcs, les baux et les fermetures ont leurs propres règles. Vérifiez la réglementation.
+The server couldn't do that right now. Try again in a moment. ||| Le serveur n'a pas pu le faire pour l'instant. Réessayez dans un moment.
+The phone's storage is full. Free some space or pick a smaller area, then try again. ||| Le stockage du téléphone est plein. Libérez de l'espace ou choisissez une zone plus petite, puis réessayez.
+Couldn't load the radar, try again soon. ||| Impossible de charger le radar, réessayez bientôt.
+Sharing trails isn't available right now. ||| Le partage de sentiers n'est pas disponible pour l'instant.
+Couldn't load the Rogers Pass details. Check your connection and try again. ||| Impossible de charger les détails du col Rogers. Vérifiez votre connexion et réessayez.
+Couldn't save the point. Try again. ||| Impossible d'enregistrer le point. Réessayez.
+Couldn't save the check. Try again. ||| Impossible d'enregistrer la vérification. Réessayez.
+Couldn't delete the point. Try again. ||| Impossible de supprimer le point. Réessayez.
+Couldn't share this spot. Try again. ||| Impossible de partager cet endroit. Réessayez.
+The line is drawn from the terrain model, not a GPS track: the way on the ground can differ. ||| La ligne est tracée à partir du modèle de terrain, pas d'une trace GPS : le chemin sur le terrain peut différer.
+Health Canada's advice: ease off if you feel it in your chest or throat. ||| Conseil de Santé Canada : ralentissez si vous le sentez dans la poitrine ou la gorge.
+Health Canada's advice: consider cutting back on hard outdoor activity if you have symptoms. ||| Conseil de Santé Canada : envisagez de réduire les activités intenses à l'extérieur si vous avez des symptômes.
+Health Canada's advice: cut back on or put off hard outdoor activity. ||| Conseil de Santé Canada : réduisez ou reportez les activités intenses à l'extérieur.
+The Japan Avalanche Network posts bulletins for Hakuba, Myoko, Kagura-Tanigawa-Hotaka, Tateyama and Central and SW Hokkaido, from about December to April. Elsewhere in Japan there's none. ||| Le Japan Avalanche Network publie des bulletins pour Hakuba, Myoko, Kagura-Tanigawa-Hotaka, Tateyama et le centre et le sud-ouest d'Hokkaido, d'environ décembre à avril. Ailleurs au Japon, il n'y en a pas.
+Likely over a cloud sea ||| Probablement au-dessus d'une mer de nuages
+Likely clear at the top ||| Probablement dégagé au sommet

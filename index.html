@@ -6837,8 +6837,8 @@ out body;`;
   const GOV_ROADS = { yt: "Yukon forest resource roads", on: "Ontario MNRF roads", qc: "Québec AQréseau+ roads", ns: "Nova Scotia topographic roads" };
   function ftenRoadStatus(r) {
     if (r.k && ROAD_STATUS[r.k]) return [r.k, r.w || ""];
-    if (r.s === "RETIRED") return ["heavy", `tenure retired${r.d ? " " + r.d : ""}: no longer maintained, often deactivated`];
-    if (r.s === "ACTIVE") return ["good", "active tenure: the road has a holder, so it is likely maintained"];
+    if (r.s === "RETIRED") return ["heavy", `tenure retired${r.d ? " " + r.d : ""}: likely no longer maintained, often deactivated`];
+    if (r.s === "ACTIVE") return ["good", "listed as active (held under a permit, so likely maintained; its condition isn't recorded)"];
     return ["unknown", `tenure status ${r.s || "unknown"}`];
   }
   // Drawn in this order, so where the two sources overlap the worst condition shows on top.

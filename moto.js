@@ -1088,7 +1088,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const bits = [...d.why, d.slope ? `steepest about ${Math.round(d.slope)}%` : "", t.ford === "yes" ? "a ford (water crossing)" : "", t.seasonal === "yes" || t.seasonal ? "seasonal road" : "",
         /^(no|private)$/.test(t.motorcycle || t.motor_vehicle || t.access || "") ? `<b style="color:#e03131">closed to motorcycles (${esc(t.motorcycle || t.motor_vehicle || t.access)})</b>` : ""].filter(Boolean);
       box.innerHTML = `${bits.length ? esc("From OpenStreetMap: ").replace(/$/, "") + bits.map((x) => (x.startsWith("<b") ? x : esc(x))).join(", ") + "." : "OpenStreetMap has no surface details for it."}${d.way ? ` <a href="https://www.openstreetmap.org/way/${d.way}" target="_blank" rel="noopener">See it on OpenStreetMap</a>` : ""}`;
-      if (d.ften) box.insertAdjacentHTML("afterend", `<p class="mt-note"><b>BC ${esc(d.ften.FILE_TYPE_DESCRIPTION || "road")}</b> ${esc(d.ften.MAP_LABEL || "")}${d.ften.ROAD_SECTION_NAME ? ` (${esc(titleCase(d.ften.ROAD_SECTION_NAME))})` : ""}: ${d.ften.LIFE_CYCLE_STATUS_CODE === "RETIRED" ? "listed as <b>retired</b>, likely no longer maintained, often deactivated" : d.ften.LIFE_CYCLE_STATUS_CODE === "ACTIVE" ? "listed as active (held under a permit; its condition isn't recorded)" : d.ften.LIFE_CYCLE_STATUS_CODE ? `listed as ${esc(d.ften.LIFE_CYCLE_STATUS_CODE.toLowerCase())}` : "no status listed"}${d.ften.CLIENT_NAME ? `, ${esc(titleCase(d.ften.CLIENT_NAME))}` : ""}. From BC's forest tenure road data (DataBC), which may be out of date.</p>`);
+      if (d.ften) box.insertAdjacentHTML("afterend", `<p class="mt-note"><b>BC ${esc(d.ften.FILE_TYPE_DESCRIPTION || "road")}</b> ${esc(d.ften.MAP_LABEL || "")}${d.ften.ROAD_SECTION_NAME ? ` (${esc(titleCase(d.ften.ROAD_SECTION_NAME))})` : ""}: ${d.ften.LIFE_CYCLE_STATUS_CODE === "RETIRED" ? "listed as <b>retired</b>, likely no longer maintained, often deactivated" : d.ften.LIFE_CYCLE_STATUS_CODE === "ACTIVE" ? "listed as active (held under a permit, so likely maintained; its condition isn't recorded)" : d.ften.LIFE_CYCLE_STATUS_CODE ? `listed as ${esc(d.ften.LIFE_CYCLE_STATUS_CODE.toLowerCase())}` : "no status listed"}${d.ften.CLIENT_NAME ? `, ${esc(titleCase(d.ften.CLIENT_NAME))}` : ""}. From BC's forest tenure road data (DataBC), which may be out of date.</p>`);
     });
     // Can I ride here: the land at the spot and the province's rules.
     const pv = provOf(s.lat, s.lon);
@@ -1939,13 +1939,13 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
       const bar = r.edges ? `<div class="mt-bar" aria-label="Surfaces along the route">${[1, 2, 3, 4, 5].map((g) => st.byG[g] > 0 ? `<i style="width:${(100 * st.byG[g]) / r.km}%;background:${g === 1 ? "#495057" : FIT[fitOf(g, cap)][1]}" title="Grade ${g}: ${fmtKm(st.byG[g])}"></i>` : "").join("")}</div>
         <p class="mt-note">${[1, 2, 3, 4, 5].filter((g) => st.byG[g] >= 0.1).map((g) => `${esc(GRADES[g][0])} ${fmtKm(st.byG[g])}`).join(" · ")}</p>` : `<p class="mt-note">Reading the surfaces…</p>`;
       const hard = st.hard.length ? st.hard.slice(0, 4).map((h) => `<div class="mt-warn ${h.f === "no" ? "" : "hard"}"><b>${esc(FIT[h.f][0])}:</b> ${fmtKm(h.km)} of ${esc(GRADES[h.g][0].toLowerCase())}${h.name ? ` on ${esc(h.name)}` : ""}. <button type="button" data-show="${h.a},${h.b}">Show</button></div>`).join("")
-        : r.edges ? `<div class="mt-warn ok">Every road on it is within your ${esc(b.name || TYPES[b.type].label)}'s grade, from the map's surface data.</div>` : "";
+        : r.edges ? `<div class="mt-warn info">Every road on it is within your ${esc(b.name || TYPES[b.type].label)}'s grade, from the map's surface data.</div>` : "";
       let fuel = "";
       if (!fp) fuel = `<p class="mt-note">Gas stations are still loading.</p>`;
       else {
         const over = fp.gaps.filter((g) => g.km > usable(b));
         fuel = over.length ? over.map((g) => `<div class="mt-warn"><b>${svg(IC.fuel, 14)} ${fmtKm(g.km)} with no mapped gas</b> from ${esc(g.from.name)} to ${esc(g.to.name)}: more than your estimated ${usable(b)} km. Carry fuel or add a stop.</div>`).join("")
-          : `<div class="mt-warn ok">${svg(IC.fuel, 14)} Mapped gas stations are at most ${fmtKm(fp.longest)} apart (your estimated range: ${usable(b)} km with 20% left). ${fp.stops.length} station${fp.stops.length === 1 ? "" : "s"} on the way.</div>`;
+          : `<div class="mt-warn info">${svg(IC.fuel, 14)} Mapped gas stations are at most ${fmtKm(fp.longest)} apart (your estimated range: ${usable(b)} km with 20% left). ${fp.stops.length} station${fp.stops.length === 1 ? "" : "s"} on the way.</div>`;
       }
       const end = r.line[r.line.length - 1], camps = nearest(campsAll(), end[0], end[1], 3, 25);
       body = `<p><b>${esc(r.name || "Your route")}</b></p>
