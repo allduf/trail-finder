@@ -2542,55 +2542,73 @@
     try { new PerformanceObserver((l) => { for (const e of l.getEntries()) c.js += e.duration; }).observe({ type: "longtask" }); } catch {}
     // Which script the page work was (Chrome's long animation frames: the file and function that ran longest), so a
     // recording names it (alex 2026-11-27: 0.2 s of page work in many turning frames, with nothing else to say what).
-    c.slow = null;
+    // Chrome reports a long frame after it is drawn, so they are kept a few seconds and matched to the worst frame by time.
+    const loaf = [];
     try {
       new PerformanceObserver((l) => {
         for (const e of l.getEntries()) for (const x of e.scripts || []) {
-          if (c.slow && c.slow.ms >= x.duration) continue;
           const file = String(x.sourceURL || "").split("/").pop().split("?")[0];
-          c.slow = { ms: Math.round(x.duration), what: (file ? file + (x.sourceCharPosition >= 0 ? ":" + x.sourceCharPosition : "") + " " : "") + (x.sourceFunctionName || x.invoker || x.invokerType || "") };
+          loaf.push({ t0: x.startTime, t1: x.startTime + x.duration, ms: Math.round(x.duration),
+            what: (file ? file + (x.sourceCharPosition >= 0 ? ":" + x.sourceCharPosition : "") + " " : "") + (x.sourceFunctionName || x.invoker || x.invokerType || "") });
         }
+        const old = performance.now() - 6000;
+        while (loaf.length && loaf[0].t1 < old) loaf.shift();
       }).observe({ type: "long-animation-frame" });
     } catch {}
+    const slowest = (f) => { let b = null; for (const x of loaf) if (x.t1 > f.at - f.gap && x.t0 < f.at && (!b || x.ms > b.ms)) b = x; return b; };
     // How long the graphics card took for each frame (WebGL timer queries, where the browser offers them), split into the
-    // terrain's depth pass (drawn again every moving frame, for names hidden behind ridges) and the rest of the frame.
-    // Shown only in this readout; with no timer queries the line says so.
-    const gpu = { ok: false, frame: 0, depth: 0, worst: 0, worstDepth: 0, name: "" };
+    // terrain's depth and position passes (drawn again every moving frame: names hidden behind ridges, the ground under
+    // the mouse) and the rest of the frame. Shown only in this readout; with no timer queries the line says so.
+    const gpu = { ok: false, frame: 0, depth: 0, worst: 0, worstDepth: 0, name: "", got: 0 };
     try {
-      const g2 = gl.painter.context.gl, ext = g2.getExtension("EXT_disjoint_timer_query_webgl2");
+      const g2 = gl.painter.context.gl;
+      let ext = g2.getExtension("EXT_disjoint_timer_query_webgl2");
       const dbg = g2.getExtension("WEBGL_debug_renderer_info");
       gpu.name = dbg ? String(g2.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "").replace(/^ANGLE \(|\)$/g, "").slice(0, 60) : "";
       if (ext && typeof g2.beginQuery === "function") {
         gpu.ok = true;
-        const open = [], done = [];
-        let cur = null, parts = null;
-        const begin = (kind) => { const q = g2.createQuery(); g2.beginQuery(ext.TIME_ELAPSED_EXT, q); cur = { q, kind }; parts.push(cur); };
+        let open = [], cur = null, parts = null, n = 0;
+        // A lost and restored drawing context (a phone's memory saver, a graphics card reset): the extension is asked
+        // for again and old queries are dropped; while it's lost, no timing.
+        gl.getCanvas().addEventListener("webglcontextrestored", () => { ext = g2.getExtension("EXT_disjoint_timer_query_webgl2"); open = []; cur = null; gpu.frame = gpu.depth = gpu.worst = gpu.worstDepth = 0; gpu.got = 0; });
+        const begin = (kind) => {
+          if (!ext || g2.isContextLost()) return;
+          const q = g2.createQuery();
+          if (!q) return;
+          g2.beginQuery(ext.TIME_ELAPSED_EXT, q); cur = { q, kind }; parts.push(cur);
+        };
         const end = () => { if (cur) { g2.endQuery(ext.TIME_ELAPSED_EXT); cur = null; } };
-        const render = gl._render;
+        const fns = gl.painter.drawFunctions;
+        if (fns && !fns.tfTimed) {
+          fns.tfTimed = true;
+          for (const k of ["terrainDepth", "terrainCoords"]) {
+            const f = fns[k];
+            if (typeof f === "function") fns[k] = function () { if (!parts) return f.apply(this, arguments); end(); begin("depth"); try { return f.apply(this, arguments); } finally { end(); begin("rest"); } };
+          }
+        }
+        const poll = () => {
+          if (!ext || g2.isContextLost()) { open = []; return; }
+          // Results come a frame or two later; read every few frames, and drop a "disjoint" frame (the card's clock reset).
+          while (open.length && open[0].every((p) => g2.getQueryParameter(p.q, g2.QUERY_RESULT_AVAILABLE))) {
+            const f = open.shift(), bad = g2.getParameter(ext.GPU_DISJOINT_EXT);
+            let rest = 0, depth = 0;
+            for (const p of f) { const ns = g2.getQueryParameter(p.q, g2.QUERY_RESULT); g2.deleteQuery(p.q); if (p.kind === "depth") depth += ns; else rest += ns; }
+            if (bad) continue;
+            const t = (rest + depth) / 1e6, now = performance.now();
+            gpu.frame = t; gpu.depth = depth / 1e6;
+            if (t >= gpu.worst || now - gpu.got > 4000) { gpu.worst = t; gpu.worstDepth = depth / 1e6; gpu.got = now; }
+            gpu.last = now;
+          }
+          while (open.length > 12) for (const p of open.shift()) g2.deleteQuery(p.q);
+        };
+        const render = gl._render;   // wrapped last: anything above failing leaves MapLibre's own
         gl._render = function () {
           parts = []; begin("rest");
-          try { return render.apply(this, arguments); } finally { end(); if (parts.length) open.push(parts); parts = null;
-            // Results come a frame or two later; a "disjoint" frame (the card's clock was reset) is dropped.
-            while (open.length && open[0].every((p) => g2.getQueryParameter(p.q, g2.QUERY_RESULT_AVAILABLE))) {
-              const f = open.shift(), bad = g2.getParameter(ext.GPU_DISJOINT_EXT);
-              let rest = 0, depth = 0;
-              for (const p of f) { const ns = g2.getQueryParameter(p.q, g2.QUERY_RESULT); g2.deleteQuery(p.q); if (p.kind === "depth") depth += ns; else rest += ns; }
-              if (!bad) done.push([(rest + depth) / 1e6, depth / 1e6]);
-            }
-            while (open.length > 8) for (const p of open.shift()) g2.deleteQuery(p.q);
-            if (done.length > 30) done.splice(0, done.length - 30);
-            if (done.length) {
-              const [t, d] = done[done.length - 1];
-              gpu.frame = t; gpu.depth = d;
-              if (t >= gpu.worst || performance.now() - (gpu.at || 0) > 4000) { gpu.worst = t; gpu.worstDepth = d; gpu.at = performance.now(); }
-            }
+          try { return render.apply(this, arguments); } finally {
+            end(); if (parts.length) open.push(parts); parts = null;
+            if (++n % 4 === 0) try { poll(); } catch {}
           }
         };
-        const fns = gl.painter.drawFunctions;
-        for (const k of ["terrainDepth", "terrainCoords"]) {
-          const f = fns && fns[k];
-          if (typeof f === "function") fns[k] = function () { if (!parts) return f.apply(this, arguments); end(); begin("depth"); try { return f.apply(this, arguments); } finally { end(); begin("rest"); } };
-        }
       }
     } catch { gpu.ok = false; }
     gl.on("data", (e) => { if (e && e.dataType === "source" && e.tile) { c.tiles++; tilesBy[e.sourceId] = (tilesBy[e.sourceId] || 0) + 1; } });
@@ -2614,8 +2632,8 @@
       const nb = (crispLayer.took || []).length;   // (at most 20 kept: counts new ones)
       if (nb !== builds) { c.crisp++; builds = nb; }
       const top = Object.entries(tilesBy).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => k + " " + n).join(", ");
-      const f = { gap: Math.round(gap), js: Math.round(c.js), slow: c.slow, paints: c.paints, made: c.made, tiles: c.tiles, top, reads: c.reads, crisp: c.crisp, at: now };
-      c.paints = c.made = c.tiles = c.reads = c.js = c.crisp = 0; c.slow = null; tilesBy = {};
+      const f = { gap: Math.round(gap), js: Math.round(c.js), paints: c.paints, made: c.made, tiles: c.tiles, top, reads: c.reads, crisp: c.crisp, at: now };
+      c.paints = c.made = c.tiles = c.reads = c.js = c.crisp = 0; tilesBy = {};
       if (gap > 2000) return;   // the tab was hidden or the map was still
       if (!worst || f.gap >= worst.gap || now - worst.at > 4000) worst = f;
       if (now - shown < 250) return;
@@ -2626,11 +2644,12 @@
       el.textContent = `lag check  ${fps} fps  moving: ${gl.isMoving() ? "yes" : "no"}\n` +
         `worst frame (last 4 s): ${worst.gap} ms\n` +
         `  page work ${worst.js} ms · ground repaints ${worst.paints} · new buffers ${worst.made}\n` +
-        (worst.slow ? `  longest script ${worst.slow.ms} ms: ${worst.slow.what}\n` : "") +
+        ((sl) => sl ? `  longest script ${sl.ms} ms: ${sl.what}\n` : "")(slowest(worst)) +
         `  tiles in ${worst.tiles}${worst.top ? " (" + worst.top + ")" : ""}\n` +
         `  ground lookups ${worst.reads} · line rebuilds ${worst.crisp}\n` +
         `paint buffers ${pool ? pool._objects.length + " (painting at " + pool._tileSize + " px) ≈ " + mb + " MB" : "-"} · pitch ${Math.round(gl.getPitch())}° · zoom ${gl.getZoom().toFixed(1)}\n` +
-        (gpu.ok ? `graphics card: last frame ${gpu.frame.toFixed(1)} ms (depth pass ${gpu.depth.toFixed(1)}) · worst ${gpu.worst.toFixed(1)} ms (depth pass ${gpu.worstDepth.toFixed(1)})\n` : "graphics card time: not offered by this browser\n") +
+        (!gpu.ok ? "graphics card time: not offered by this browser\n" : !gpu.last || now - gpu.last > 3000 ? "graphics card time: waiting\n"
+          : `graphics card: last frame ${gpu.frame.toFixed(1)} ms (depth + position passes ${gpu.depth.toFixed(1)}) · worst ${gpu.worst.toFixed(1)} ms (${gpu.worstDepth.toFixed(1)})\n`) +
         `screen ${gl.painter.width}×${gl.painter.height} px (×${(devicePixelRatio || 1).toFixed(2)}) · smoothing ${(gl.painter.context.gl.getContextAttributes() || {}).antialias ? "on" : "off"}${gpu.name ? " · " + gpu.name : ""}`;
     });
   }
