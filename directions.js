@@ -94,6 +94,14 @@
     { name: "NIMBY", c: [50.341, -122.782], r: 3000, dir: "climb", who: "Singletracks and Tourism Pemberton", where: "singletracks.com", note: "the first leg of the Mackenzie climb (Pemberton)" },
     { name: "Middle Earth", c: [50.355, -122.792], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "the last leg of the Mackenzie climb (Pemberton)" },
     { name: "Ket-R-Done", c: [50.729, -120.161], r: 3000, dir: "climb", who: "Tourism Kamloops", where: "tourismkamloops.com", note: "Harper Mountain's dedicated uphill route (Kamloops)" },
+    // Harper Mountain descents (Tourism Kamloops 2021 and 2024; KMBTA says several Harper trails are downhill only), checked 2026-11-27.
+    ...[["Easy Rider", [50.722, -120.156], "Harper Mountain's classic fast and flowy descent"], ["Pimperknot", [50.721, -120.151], "a Harper Mountain descent with big jumps"],
+      ["Tempus Fugit", [50.729, -120.165], "the long top-to-bottom descent after T.E.A. Time"]]
+      .map(([name, c, note]) => ({ name, c, r: 2500, dir: "down", who: "Tourism Kamloops", where: "tourismkamloops.com", note: `${note} (Kamloops)` })),
+    // Sun Peaks' Mt. Morrisey pedal-access trails (Sun Peaks Resort, checked 2026-11-27): one climb, three descents.
+    { name: "Cedar Twist", c: [50.881, -119.872], r: 3000, dir: "climb", who: "Sun Peaks Resort", where: "sunpeaksresort.com", note: "the 6 km singletrack climb to the top of Mt. Morrisey (Sun Peaks)" },
+    ...["Calypso Groove", "El Diablo", "Stumpwheed"].map((name) => ({ name, c: [50.867, -119.885], r: 3000, dir: "down", who: "Sun Peaks Resort",
+      where: "sunpeaksresort.com", note: "a descent from the top of Mt. Morrisey (Sun Peaks)" })),
     { name: "Holy Pail Up", c: [49.863, -119.657], r: 3000, dir: "climb", who: "Visit Westside's riders' guide", where: "visitwestside.com", note: "the cross-country climb at Smith Creek (West Kelowna)" },
     { name: "Stone Free", c: [50.19, -119.245], r: 3000, dir: "climb", who: "Tourism Vernon", where: "tourismvernon.com", note: "the climb before the Flovid flow trail (Vernon)" },
     { name: "Yellow Brick Road", c: [49.572, -119.559], r: 3000, dir: "climb", who: "Visit Penticton", where: "visitpenticton.com", note: "the main climb at Three Blind Mice (Penticton)" },
