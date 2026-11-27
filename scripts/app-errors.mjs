@@ -10,6 +10,7 @@
 // Optional: HOURS (24), DRY=1 (summary only, no issue comment), GITHUB_TOKEN + GITHUB_REPOSITORY (the issue), OWNER (allduf).
 
 import { appendFile } from "node:fs/promises";
+import { isTestDevice } from "./test-devices.mjs";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://fohdmserpbkurcvcrbbb.supabase.co";
 const KEY = process.env.SUPABASE_SECRET_KEY;
@@ -44,16 +45,11 @@ const real = (e) => !/aborted|AbortError/i.test(e.what || "");
 // The same error after a change moves its line number and script version (?v=): compare without them.
 const key = (w) => String(w || "error").replace(/\?v=\d+/g, "").replace(/:\d+(:\d+)?\b/g, "").replace(/\s+/g, " ").trim();
 
-// Test and review devices, left out as usage.html leaves them out (its reviewDevices): the phone check's Android emulator,
-// Google Play's review phones (screen 435x725, an old web viewer: 195 "Script error." rows of 16-23 Nov 2026), the
-// side-by-side check's iPhone simulator (iOS 18.5 · iPhone17,2 at 440x956, 22-25 Nov 2026) and the "console check".
-// Before this, the daily issue and the weekly report counted them as testers' errors and crashes (alex 2026-11-23).
+// Test and review devices are left out as usage.html leaves them out (scripts/test-devices.mjs).
 const testDev = new Map();
 async function isTest(ev) {
   if (!testDev.has(ev.device)) testDev.set(ev.device, (await rows(`tf_use_devices?select=os,screen&device=eq.${encodeURIComponent(ev.device)}`))[0] || {});
-  const d = testDev.get(ev.device), os = d.os || "", at = String(ev.at);
-  return /sdk_gphone|emulator/i.test(os) || d.screen === "435x725" || /^Web · console check/.test(os)
-    || (os === "iOS 18.5 · iPhone17,2" && d.screen === "440x956" && at >= "2026-11-22" && at < "2026-11-26");
+  return isTestDevice(testDev.get(ev.device), ev.at);
 }
 async function people(list) { const out = []; for (const e of list) if (!(await isTest(e))) out.push(e); return out; }
 

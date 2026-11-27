@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: "17 15 * * *"   # 15:17 UTC, 8:17 am in BC (summer time)
   pull_request:
-    paths: ["scripts/app-errors.mjs", "scripts/usage-cleanup.mjs", ".github/workflows/app-errors.yml"]
+    paths: ["scripts/app-errors.mjs", "scripts/test-devices.mjs", "scripts/usage-cleanup.mjs", ".github/workflows/app-errors.yml"]
   workflow_dispatch:
 
 permissions:
