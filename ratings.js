@@ -418,16 +418,14 @@
     { ids: [550683465], c: [51.278, -117.044], r: 1000, named: "Swamp Donkey", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [1562597865], c: [51.28, -117.078], r: 1000, named: "Dragon Chaser", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     // Nelson Cycling Club trail progression lists (2026 riding zones page) and the Golden Cycling Club Mount 7 trail inventory
-    // (Mount 7 Trail Plan, 2023): levels OpenStreetMap lacks or gives differently.
+    // (Mount 7 Trail Plan, 2023, its own list of sanctioned trails): levels OpenStreetMap lacks or gives differently.
     { name: "Lefty", c: [49.4846, -117.3617], r: 1500, d: "black", src: "Nelson Cycling Club, Morning Mountain trail progression list", url: "https://www.nelsoncyclingclub.org/s/MMprog.gif" },
     { name: "Expresso", c: [49.4985, -117.259], r: 1500, d: "blue", src: "Nelson Cycling Club, Mountain Station trail progression list", url: "https://www.nelsoncyclingclub.org/s/STprog.gif" },
     { name: "Slingshot", c: [49.4924, -117.2666], r: 1500, d: "black", src: "Nelson Cycling Club, Mountain Station trail progression list", url: "https://www.nelsoncyclingclub.org/s/STprog.gif" },
     { name: "Boneyard Trail", c: [49.4995, -117.2665], r: 1500, d: "black", src: "Nelson Cycling Club, Mountain Station trail progression list", url: "https://www.nelsoncyclingclub.org/s/STprog.gif" },
     { name: "Schacher", c: [51.2745, -116.8949], r: 3000, d: "blue", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
-    { name: "Dead Dog", c: [51.2748, -116.8851], r: 1500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "B12", c: [51.294, -116.9258], r: 2500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "Bris", c: [51.2784, -116.9022], r: 1500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
-    { name: "Moonshine", c: [51.2721, -116.8973], r: 1500, d: "black", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { nh: "12f5pps", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
