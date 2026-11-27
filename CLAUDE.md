@@ -16,7 +16,7 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - Never write the name of an unofficial (informal, unsanctioned) trail in plain text anywhere in the repo,
   including the changelog, French lines, commit messages and pull request text. Hand entries for those use
   hashed names (`nh`), and need no changelog line. `scripts/wording-check.mjs` fails when a file in git names one of them.
-- Fonts come from the site itself (`vendor/fonts`), never Google Fonts, so opening a page sends nothing to Google.
+- Fonts come from the site itself (`vendor/fonts-5.3.0`), never Google Fonts, so opening a page sends nothing to Google.
 
 ## Do not go public
 - Prepare for launch, but never do anything that makes the app officially public: no App Store or Google Play

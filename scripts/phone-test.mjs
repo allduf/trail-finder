@@ -58,7 +58,7 @@ const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|
 
 // ---------- the site, on localhost ----------
 const root = fileURLToPath(new URL("../", import.meta.url));
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
+const TYPES = { ".woff2": "font/woff2", ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".pbf": "application/x-protobuf" };
 const server = createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
@@ -832,19 +832,19 @@ async function appBuild(kind, desk = false) {
     console.log(`✗ ${line}: ${label}: the page\n    ${note}`);
   } finally { await p.ctx.close().catch(() => {}); }
 }
-// Fonts come from the site itself (vendor/fonts), never from Google Fonts or another font host: opening a page must send
-// nothing to Google (security and privacy check 2026-11-27). Reads every page at the site's root and the CSS files
-// they load from vendor/fonts, and checks that each font file named there is in vendor/fonts.
+// Fonts come from the site itself (vendor/fonts-<version>), never from Google Fonts or another font host: opening a page
+// must send nothing to Google (security and privacy check 2026-11-27). Reads the pages, scripts and stylesheets at the
+// site's root for a font host, and each font stylesheet a page links from vendor/ for its font files.
 async function fontsCheck() {
-  const problems = [];
-  for (const f of (await readdir(root)).filter((n) => n.endsWith(".html"))) {
-    const html = await readFile(join(root, f), "utf8");
-    if (/fonts\.(googleapis|gstatic)\.com|use\.typekit|fonts\.bunny/i.test(html)) problems.push(`${f} loads fonts from another site`);
-    for (const m of html.matchAll(/href="(vendor\/fonts\/[\w.-]+\.css)"/g)) {
+  const problems = [], HOSTS = /fonts\.(googleapis|gstatic)\.com|use\.typekit\.net|fonts\.bunny\.net/i;
+  for (const f of (await readdir(root)).filter((n) => /\.(html|js|css)$/.test(n) && n !== "i18n-fr.js")) {
+    const text = await readFile(join(root, f), "utf8");
+    if (HOSTS.test(text)) problems.push(`${f} loads fonts from another site`);
+    for (const m of text.matchAll(/href="\/?(vendor\/fonts[\w.-]*\/[\w.-]+\.css)"/g)) {
       const css = await readFile(join(root, m[1]), "utf8").catch(() => null);
       if (css == null) { problems.push(`${f}: ${m[1]} is missing`); continue; }
-      for (const u of css.matchAll(/url\(([^)]+)\)/g))
-        if (!(await readFile(join(root, "vendor/fonts", u[1])).catch(() => null))) problems.push(`${m[1]}: ${u[1]} is missing`);
+      for (const u of css.matchAll(/url\(\s*["']?([^"')]+?)["']?\s*\)/g))
+        if (!(await readFile(join(root, m[1], "..", u[1])).catch(() => null))) problems.push(`${m[1]}: ${u[1]} is missing`);
     }
   }
   results.push({ sport: "app", step: "Fonts come from the site", ok: !problems.length, note: problems.join(" · "), shot: "" });

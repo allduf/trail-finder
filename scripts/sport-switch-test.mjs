@@ -35,7 +35,7 @@ const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|
 
 // ---------- the site, on localhost (as the phone test) ----------
 const root = fileURLToPath(new URL("../", import.meta.url));
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
+const TYPES = { ".woff2": "font/woff2", ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".pbf": "application/x-protobuf" };
 const server = createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
