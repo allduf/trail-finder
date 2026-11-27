@@ -107,6 +107,14 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   style picked in Skiing lasts until another sport is picked or the app is closed (in 3D, Satellite and Sat + names
   show Winter, as Skiing's 3D always has; Satellite tapped in Layers while native 3D is open shows Satellite there).
 - The phone test's "App builds" checks (`scripts/phone-test.mjs`) fail if either rule above breaks. Keep them passing.
+- Native 3D must work with Low Power Mode (iPhone) and Battery Saver (Android) on (alex 2026-11-27, after alex's iPhone
+  showed a black 3D map in every sport). A native map that draws nothing goes back to the page's own flat map with a
+  note, never a black screen and never the web 3D map. Two guards: the phone test's "App builds" checks it in every
+  sport, and the "Low power 3D" workflow (`.github/workflows/low-power.yml`, `scripts/side-by-side/low-power.mjs`) opens
+  native 3D in every sport on an iPhone simulator and an Android simulator with power saving on, and fails on a black
+  map or a missing fallback. It runs on pull requests touching the apps or `native-map.js`, on main, and weekly: wait
+  for it to pass before merging those (it is not a required check: turn on auto-merge for them only once it is green).
+  Its test switches (`TF_TEST_LOW_POWER`, `TF_TEST_NO_DRAW`, `tf_test_nodraw`) stay in simulator and debug builds only.
 - Native 3D must never be slower than the build before (`/check-lag`), draws nothing while switched off, and shows
   avalanche only exactly as Avalanche Canada gives it.
 - Never leave a feature on one device only without telling alex and writing down the plan to bring it to the others.

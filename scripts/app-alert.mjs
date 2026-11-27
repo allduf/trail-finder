@@ -1,4 +1,4 @@
-// Quick crash and error alert (see .github/workflows/app-alert.yml): every 15 minutes, reads the crashes and errors the
+// Quick crash and error alert (see .github/workflows/app-alert.yml): every 5 minutes, reads the crashes and errors the
 // app sent since the last check (usage.js → supabase/usage.sql, the same data as usage.html's Problems tab) and, when
 // there is a crash restart or a kind of error not seen in the 14 days before, sends a notification to alex's own phone
 // (alex 2026-11-27: crashes were only found by looking at the usage page; no email, so not through GitHub).

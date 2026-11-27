@@ -177,6 +177,12 @@ final class TrailMapScreen extends FrameLayout {
             return false;   // the map still gets every touch
         });
         addView(mapView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        testNoDraw = testNoDraw(activity);
+        if (testNoDraw) {   // the "Low power 3D" test only (see testNoDraw): black over the map, as alex's iPhone showed
+            View black = new View(activity);
+            black.setBackgroundColor(Color.BLACK);
+            addView(black, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        }
 
         // Where the map's own buttons go: the screen inside the phone's bars (insets below).
         area = new FrameLayout(activity);
@@ -333,7 +339,7 @@ final class TrailMapScreen extends FrameLayout {
     private void ready(MapLibreMap m) {
         if (left) return;
         map = m;
-        mapView.addOnDidFinishRenderingFrameListener((fully, frameEncodingTime, frameRenderingTime) -> framesDrawn++);
+        mapView.addOnDidFinishRenderingFrameListener((fully, frameEncodingTime, frameRenderingTime) -> { if (!testNoDraw) framesDrawn++; });
         mapView.addOnDidFinishRenderingMapListener((fully) -> {
             Style st = map.getStyle();
             if (!fully || onReady == null || st == null || !st.isFullyLoaded()) return;
@@ -445,6 +451,14 @@ final class TrailMapScreen extends FrameLayout {
     Runnable onReady;
     // Frames this map has drawn (as the iPhone's): none a while after opening, the page goes back to its own flat map.
     int framesDrawn = 0;
+    // Stands in for a map that draws nothing (black over the map, no frame counted), as alex's iPhone did 2026-11-27 in
+    // Low Power Mode: the "Low power 3D" test (.github/workflows/low-power.yml) turns it on from the computer with
+    // "adb shell settings put global tf_test_nodraw 1" (no app can write that setting). Debuggable (test) builds only.
+    private boolean testNoDraw = false;
+    static boolean testNoDraw(Activity a) {
+        return (a.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            && "1".equals(android.provider.Settings.Global.getString(a.getContentResolver(), "tf_test_nodraw"));
+    }
 
     // In 3D the trails go just under the place names, so names stay readable over them.
     private void put(Style style, Layer l) {
