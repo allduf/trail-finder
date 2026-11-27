@@ -7,10 +7,32 @@
   body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f2efe7; color: #12291d;
     font: 17px/1.4 -apple-system, system-ui, sans-serif; text-align: center; padding: 24px; box-sizing: border-box; }
   button { margin-top: 16px; font: inherit; padding: 12px 24px; border: 0; border-radius: 10px; background: #12291d; color: #fff; }
+  @media (prefers-color-scheme: dark) { body { background: #10170f; color: #e8efe6; } button { background: #e8efe6; color: #10170f; } }
 </style>
 <div>
-  <h1 style="font-size:22px">No connection</h1>
-  <p>Trail Finder needs the internet the first time it opens. After that, saved offline areas work without it.</p>
-  <button onclick="location.replace('https://trailfinderapp.ca/')">Try again</button>
+  <h1 style="font-size:22px" id="t">No connection</h1>
+  <p id="p">Trail Finder needs the internet the first time it opens. After that, saved offline areas work without it. The app opens by itself when the connection is back.</p>
+  <button id="b" type="button">Try again</button>
 </div>
+<script>
+  // The app's own page when the website can't be reached. It opens the app by itself once the connection is back
+  // (tough conditions test, 2026-11-27): checked when the phone says it's online, and every 10 s.
+  var HOME = "https://trailfinderapp.ca/";
+  if (/^fr/i.test(navigator.language || "")) {
+    document.documentElement.lang = "fr";
+    document.getElementById("t").textContent = "Pas de connexion";
+    document.getElementById("p").textContent = "Trail Finder a besoin d'Internet la première fois qu'il s'ouvre. Ensuite, les zones enregistrées hors ligne fonctionnent sans connexion. L'app s'ouvre d'elle-même quand la connexion revient.";
+    document.getElementById("b").textContent = "Réessayer";
+  }
+  function go() { location.replace(HOME); }
+  var busy = false;
+  function check() {
+    if (busy) return;
+    busy = true;
+    fetch(HOME, { mode: "no-cors", cache: "no-store" }).then(go, function () { busy = false; });
+  }
+  document.getElementById("b").addEventListener("click", go);
+  addEventListener("online", check);
+  setInterval(check, 10000);
+</script>
 </html>

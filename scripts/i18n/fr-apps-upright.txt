@@ -1,0 +1,1 @@
+iPhone and Android apps: the app stays upright when the phone is turned sideways, and the No connection page opens the app by itself when the connection is back. ||| Apps iPhone et Android : l'app reste à la verticale quand le téléphone est tourné à l'horizontale, et la page Pas de connexion ouvre l'app d'elle-même quand la connexion revient.
