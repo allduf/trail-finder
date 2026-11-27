@@ -4,7 +4,7 @@ name: Film test (iPhone simulator)
 # resolution without a screen recorder? scripts/film/film.mjs; results in the "film" artifact.
 on:
   push:
-    branches: [claude/project-thread-igql62]
+    branches: [claude/project-thread-3prm1l]
     paths: ["scripts/film/**", ".github/workflows/film.yml"]
   workflow_dispatch:
 
@@ -18,6 +18,8 @@ jobs:
       matrix:
         include:
           - { part: ui, env: "PART=ui" }
+          - { part: fly1, env: "PART=fly FROM=0 TO=180" }
+          - { part: fly2, env: "PART=fly FROM=180 TO=360" }
     runs-on: macos-15
     timeout-minutes: 120
     steps:
@@ -61,7 +63,7 @@ jobs:
           xcrun simctl status_bar booted override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           system_profiler SPDisplaysDataType | head -20 || true
       - name: Film
-        run: ${{ matrix.env }} PLATFORM=ios node scripts/film/avy.mjs
+        run: ${{ matrix.env }} PLATFORM=ios node scripts/film/terrain.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
