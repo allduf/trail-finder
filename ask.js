@@ -481,7 +481,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
 
   // ---------- the answers ----------
   const lvGlyph = (k) => (LV[k] ? `<span class="ask-lv" style="color:${LV[k][1]}" title="${LV[k][2]}">${LV[k][0]}</span>` : "");
-  const LOAM = [[20, "Dry", "#d9a35a"], [40, "Tacky", "#5aa86a"], [60, "Prime", "#3f8f8c"], [80, "Wet", "#3b6fb0"], [101, "Saturated", "#33468f"]];
+  const LOAM = [[20, "Low moisture", "#d9a35a"], [40, "Tacky", "#5aa86a"], [60, "Prime", "#3f8f8c"], [80, "Wet", "#3b6fb0"], [101, "Saturated", "#33468f"]];
   const loamLv = (v) => LOAM.find((l) => v < l[0]);
   const loamDot = (v) => `<i class="ask-dot" style="background:${v == null ? "#8a8f98" : loamLv(v)[2]}"></i>`;
   const isPrime = (v) => v != null && v >= 40 && v < 60;
@@ -1084,7 +1084,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       const spot = () => { close(); map.setView(at.c, Math.max(map.getZoom(), 11)); map.fire("click", { latlng: L.latLng(at.c[0], at.c[1]) }); };
       if (p.what === "spot" && motoNights(p.q)) p.what = "routes";   // "3-day camping trip": a trip, not this spot's campsites
       if (p.what === "spot") {
-        out.innerHTML = `<button type="button" class="ask-act" data-go>🏍 Open ${at.you ? "this spot" : esc(at.name)}: gas, camping, can I ride here</button>`;
+        out.innerHTML = `<button type="button" class="ask-act" data-go>🏍 Open ${at.you ? "this spot" : esc(at.name)}: gas, camping, riding access</button>`;
         out.querySelector("[data-go]").addEventListener("click", spot);
         return;
       }

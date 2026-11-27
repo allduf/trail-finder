@@ -259,7 +259,7 @@
   const GROUPS = ["Boundaries", "Land", "Habitat", "Terrain", "Tools"];
   // Map views (alex: "make it more simple"): one tap sets the layers for a job; All layers still has every switch.
   const VIEWS = {
-    rules: { label: "Rules", sub: "where to hunt", layers: ["zones", "rules", "land", "lots"] },
+    rules: { label: "Rules", sub: "zones and land", layers: ["zones", "rules", "land", "lots"] },
     scout: { label: "Scouting", sub: "feed, far from roads", layers: ["zones", "burns", "cut", "reach"] },
     hunt: { label: "On the hunt", sub: "wind and range", layers: ["zones", "wind", "rings"] },
   };
