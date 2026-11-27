@@ -6146,25 +6146,28 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     moto: ["crownland", "hunting", "trip-core", "moto", "moto-trip", "moto-day"],   // Moto's "Can I ride here" reads Hunting's parks and closures (window.tfHunt)
     mtb: ["trip-core", "bike-trip"],   // MTB's own scripts are in index.html; its Bike trips (bike-trip.js) come with it
   };
-  const jsLoads = {}, preloads = {};
+  const jsLoads = {}, preloads = {}, jsFails = {};
+  // A script's address; after a failed download, a new one each try: Safari keeps the failure of an address and gives
+  // it again at once, even with the signal back (2026-11-27 tough conditions test, the iPhone's engine).
+  const jsSrc = (n) => `${n}.js${jsVer}${jsFails[n] ? `${jsVer ? "&" : "?"}r=${jsFails[n]}` : ""}`;
   const pageReady = new Promise((ok) => (document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", ok, { once: true }) : ok()));
   function loadJs(n) {
     if (jsLoads[n]) return jsLoads[n];
-    const src = `${n}.js${jsVer}`;
     preload(n);
+    const src = jsSrc(n);
     return (jsLoads[n] = pageReady.then(() => new Promise((ok, no) => {
       // Each script on its own (not the browser's one ordered line): a download that never answers on a weak signal
       // held up every sport picked after it until the app was opened again (2026-11-27 tough conditions test).
       // loadSport keeps each sport's order.
       const el = document.createElement("script"); el.src = src; el.async = true;
-      el.onload = ok; el.onerror = () => { delete jsLoads[n]; preloads[n] && preloads[n].remove(); delete preloads[n]; no(new Error(src)); };
+      el.onload = ok; el.onerror = () => { delete jsLoads[n]; preloads[n] && preloads[n].remove(); delete preloads[n]; jsFails[n] = (jsFails[n] || 0) + 1; no(new Error(src)); };
       document.body.append(el);
     })));
   }
   // Starts a script's download now (it runs when loadJs adds it); a failed one is started afresh on the next try.
   function preload(n) {
     if (jsLoads[n] || preloads[n]) return;
-    const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "script"; pre.href = `${n}.js${jsVer}`;
+    const pre = document.createElement("link"); pre.rel = "preload"; pre.as = "script"; pre.href = jsSrc(n);
     document.head.append(pre);
     preloads[n] = pre;
   }
