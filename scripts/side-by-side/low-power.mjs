@@ -56,8 +56,8 @@ export function middle(file) {
     }
   }
   const mean = s / n, sd = Math.sqrt(Math.max(0, s2 / n - mean * mean));
-  // Black: most of the middle is near black (a few of the page's or the map's own buttons may sit over it).
-  return { mean: Math.round(mean), sd: Math.round(sd), dark: Math.round((dark / n) * 100), black: dark / n >= 0.8 };
+  // Black: most of the middle is near black (the page's or the native screen's own buttons, up to ~22% on Android, may sit over it).
+  return { mean: Math.round(mean), sd: Math.round(sd), dark: Math.round((dark / n) * 100), black: dark / n >= 0.6 };
 }
 
 // ---------- the walk ----------
