@@ -1488,7 +1488,7 @@ body.sport-hunt .leaflet-container .leaflet-control-attribution:not(.open) { max
     }
     spotOpen = known ? [...open] : null;
     const name = z.map((u) => `${esc(zoneName(u, true))}${u.p !== "qc" && zoneSub(u) ? ` · ${esc(zoneSub(u))}` : ""}${u.cwd ? " · CWD surveillance zone" : ""}`).join(" / ");
-    el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "hunt" }) : ""}<button type="button" class="hn-x" aria-label="Close">${svg(IC.x, 14)}</button></header>
+    el.innerHTML = `<header>${svg(IC.pin)}<h3>This spot</h3>${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "hunt" }) : ""}<button type="button" class="hn-x" data-back-close aria-label="Close">${svg(IC.x, 14)}</button></header>
       <p class="hn-zone">${name || (pvHere.length ? `${esc(PV[pvHere[0]].name)}: no hunting zone here on the map` : "Outside the hunting zones on the map")}</p>
       <div class="hn-chips">${known ? `<span class="hn-chip" style="--c:${open.size ? "#2f9e44" : "var(--line)"}">${open.size ? `In season today: ${esc([...open].slice(0, 3).join(", "))}${open.size > 3 ? ` +${open.size - 3} more` : ""}` : "No general season today"}</span>` : ""}<span id="hnLand"></span>${warn.join("")}</div>
       <p class="hn-lot" id="hnLot" hidden></p>

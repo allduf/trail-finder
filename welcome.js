@@ -22,6 +22,14 @@
   // the trip opens straight away, without the welcome on top (picking another sport there closed the trip).
   const pending = !has(KEY) && !usedBefore && !/[?&]nowelcome\b/.test(location.search) && !/^#trip=/.test(location.hash);
   const set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  // The sport a brand-new device opens in follows the season (alex 2026-11-27): Skiing from Nov 15 to Apr 30, MTB the
+  // rest of the year, on the phone's own calendar. Only when the welcome shows (a device that never used the app):
+  // anyone who used it before keeps their last sport (tf:sport). It's the default only; nothing is saved here, so
+  // What's new and the other "used before" checks still see a new device. Readers use window.tfFirstSport || "mtb"
+  // (winter.js, index.html, map3d.js). A shared link (#route=, #trail=, #pin=, #live=) opens its own sport instead, so
+  // it gets no season default. window.tfSeasonDate (a date string) pins the day for the phone test.
+  const seasonSport = (d) => { const md = (d.getMonth() + 1) * 100 + d.getDate(); return md >= 1115 || md <= 430 ? "ski" : "mtb"; };
+  if (pending && !/^#\w+=/.test(location.hash)) { const d = window.tfSeasonDate ? new Date(window.tfSeasonDate + "T12:00") : new Date(); window.tfFirstSport = isNaN(d) ? "mtb" : seasonSport(d); }
 
   const SPORTS = [
     ["mtb", "🚵", "Mountain biking", "Trails new to you, and where the dirt is likely best today"],
@@ -128,7 +136,8 @@ dialog.welc .welc-go { display: block; width: 100%; margin-top: 16px; font: inhe
 dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: inherit; padding: 10px; background: none; border: 0; color: var(--muted); cursor: pointer; }`;
   document.head.append(css);
 
-  let dlg = null, sport = "mtb", step = 0;
+  let dlg = null, sport = window.tfFirstSport || "mtb", step = 0;
+  const lead = window.tfFirstSport;   // the season's sport is listed first on a new device; reopened, the usual order
   const canLocate = () => !!navigator.geolocation && !!document.getElementById("locate");
   // Last step, only for a sport with phone notifications on a device that can get them (notify.js, guarded: a stale
   // cached notify.js just skips it). alex 2026-11-21: "Offer it in the first welcome".
@@ -155,7 +164,7 @@ dialog.welc .welc-later { display: block; width: 100%; margin-top: 6px; font: in
     const w = WORDS[sport];
     if (step === 0) {
       dlg.innerHTML = `${top}<h2>Welcome to Trail Finder</h2><p class="welc-lead">What are you out for? You can switch any time with the sport button on the map.</p>
-        <div class="welc-sports" role="list">${SPORTS.map(([id, icon, name, sub]) => `<button type="button" role="listitem" data-sport="${id}"><span class="i" aria-hidden="true">${icon}</span><b>${name}</b><small>${sub}</small></button>`).join("")}</div>`;
+        <div class="welc-sports" role="list">${[...SPORTS].sort((a, b) => (b[0] === lead) - (a[0] === lead)).map(([id, icon, name, sub]) => `<button type="button" role="listitem" data-sport="${id}"><span class="i" aria-hidden="true">${icon}</span><b>${name}</b><small>${sub}</small></button>`).join("")}</div>`;
     } else if (step === 1) {
       dlg.innerHTML = `${top}<div class="welc-pin" aria-hidden="true"><svg viewBox="0 0 24 24" width="52" height="52"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7z" fill="#e03131"/><circle cx="12" cy="9" r="2.6" fill="#fff"/></svg></div><h2>See what's around you</h2><p class="welc-lead">${w.here}</p>
         <button type="button" class="welc-go" data-loc>Allow location</button><button type="button" class="welc-later" data-next>Not now</button>
