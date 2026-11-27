@@ -137,6 +137,7 @@ const log = (s) => { console.log(s); notes.push(s); };
 const state = async (tag) => log(`${tag}: ${JSON.stringify(await jsq(`(() => ({ open: !!(window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen()), under: document.documentElement.classList.contains("tf-under"), b3: (document.getElementById("btn3d") || {}).textContent, base: (document.getElementById("basemap") || {}).value, sport: document.body.className }))()`, "no page"))}`);
 const killWeb = () => log("kill WebContent: " + tryp(`pgrep -fl WebContent; pkill -9 -f com.apple.WebKit.WebContent; echo done`));
 (async () => {
+  log('appearance: ' + tryp('xcrun simctl ui booted appearance dark; xcrun simctl ui booted appearance'));
   launch();
   for (let i = 0; i < 4 && !(await pageUp()); i++) { kill(); await sleep(2000); launch(); }
   await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:skiGuest", "true"); localStorage.setItem("tf:lang", "en"); location.reload(); })()`);
