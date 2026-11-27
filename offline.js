@@ -343,7 +343,9 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   // The OpenFreeMap addresses the saved areas use, for sw.js with no signal (ofmElsewhere there): each week's map has its
   // own address, and the 3D map asks for another copy than the style's. tj: the TileJSON addresses saved.
   const OFM_SAVED = "https://tiles.openfreemap.org/tf-saved";
-  async function ofmSaved(tjNow) {
+  let ofmChain = Promise.resolve();   // one at a time: two at once could each write over the other's addresses
+  const ofmSaved = (tjNow) => (ofmChain = ofmChain.then(() => ofmSave(tjNow)));
+  async function ofmSave(tjNow) {
     try {
       const cache = await store();
       const old = (await cache.match(OFM_SAVED).then((r) => (r ? r.json() : null)).catch(() => null)) || {};
@@ -911,11 +913,13 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   // can be saved (OpenTopoMap's own pictures can't be bulk-downloaded).
   const contourForce = (on) => { if (window.tfContourForce) window.tfContourForce("offline-flat", on); };
   let wasBase = null, wasSport = null;   // the style on before the saved map took over, in that sport (back with the signal)
-  function goOffline() {
+  // atStart: opened with no signal, when the sport's style may still be loading (the select can show an earlier one):
+  // the sport's own style comes back then, not what the select said.
+  function goOffline(atStart) {
     if (!load().length || !window.tfSetBasemap) return;
     const sel = document.getElementById("basemap");
     if (sel && sel.value === "topo") contourForce(true);
-    if (sel && sel.value !== "vector") { wasBase = sel.value; wasSport = sportNow(); window.tfSetBasemap("vector", false); }
+    if (sel && sel.value !== "vector") { wasBase = sel.value; wasSport = atStart ? null : sportNow(); window.tfSetBasemap("vector", false); }
   }
   // Signal back (test 2026-11-27): the style that was on again, or after a change of sport that sport's own (Winter in
   // Skiing), not the saved map until the app is opened again. A style picked meanwhile stays.
@@ -925,7 +929,7 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
     if (wasBase && sel && sel.value === "vector" && window.tfSetBasemap) window.tfSetBasemap(wasSport !== sportNow() && window.tfSavedBase ? window.tfSavedBase() : wasBase, false);
     wasBase = null;
   }
-  if (!navigator.onLine) goOffline();
+  if (!navigator.onLine) goOffline(true);
   window.addEventListener("offline", () => { goOffline(); estimate(); noteHere(); });
   window.addEventListener("online", () => { goOnline(); estimate(); noteHere(); });
 
@@ -939,13 +943,14 @@ ${a.missing && !(busy && a.name === savingName) ? `<button type="button" data-fi
   const css2 = document.createElement("style");
   css2.textContent = `.off-here-note { position: absolute; z-index: 1000; left: 50%; top: 66px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
   padding: 5px 10px; border-radius: 8px; background: rgba(20,30,25,.85); color: #fff; font: 600 12px/1.3 var(--font-body, system-ui); text-align: center; pointer-events: none; }
-body.box-on .off-here-note { display: none; }`;
+body.box-on .off-here-note, .mapwrap:has(.sun-bar:not([hidden])) .off-here-note { display: none; }`;
   document.head.append(css2);
   function noteHere() {
     if (navigator.onLine) { note.hidden = true; return; }
     const gl = gl3d(), c = gl ? gl.getCenter() : map.getCenter(), lat = c.lat, lon = c.lng;
-    const inside = load().some((a) => lat >= a.box[0] && lat <= a.box[2] && lon >= a.box[1] && lon <= a.box[3]);
-    note.textContent = load().length ? "No signal: this spot isn't in your saved offline maps." : "No signal: no offline maps saved on this device yet.";
+    const has = (b) => lat >= b[0] && lat <= b[2] && lon >= b[1] && lon <= b[3];
+    const inside = load().some((a) => (a.boxes ? a.boxes.some(has) : has(a.box)));   // a route's corridor: its strips, not its whole rectangle
+    note.textContent = load().length ? "No signal: this spot isn't in your saved offline maps." : "No signal: no areas saved in Offline maps yet.";
     note.hidden = inside;
   }
   map.on("moveend", noteHere);

@@ -2,4 +2,4 @@ Offline maps: with no signal, the 3D map shows the saved map's lakes, roads and 
 No signal: the loam estimate needs a connection. ||| Pas de réseau : l'estimation du loam a besoin d'une connexion.
 No signal: rider reports need a connection. ||| Pas de réseau : les rapports des cyclistes ont besoin d'une connexion.
 No signal: this spot isn't in your saved offline maps. ||| Pas de réseau : cet endroit n'est pas dans vos cartes hors ligne enregistrées.
-No signal: no offline maps saved on this device yet. ||| Pas de réseau : aucune carte hors ligne enregistrée sur cet appareil pour l'instant.
+No signal: no areas saved in Offline maps yet. ||| Pas de réseau : aucune zone enregistrée dans Cartes hors ligne pour l'instant.
