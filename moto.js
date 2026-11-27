@@ -171,9 +171,9 @@
     hot: { g: "Stops", label: "Hot springs", sub: "", on: true, minZoom: 7, icon: ["#e64980", "dot"] },
     shop: { g: "Stops", label: "Moto shops", sub: "Dealers and repair", minZoom: 8, icon: ["#5f3dc4", "dot"] },
     ferry: { g: "Stops", label: "Ferries", sub: "Landings, inland ferries too", on: true, minZoom: 7, icon: ["#0b7285", "dot"] },
-    cell: { g: "Safety", label: "Cell signal on roads", sub: "Likely LTE or 5G from any carrier (ISED data). No shading: likely no signal", minZoom: 8, icon: ["#4c6ef5", "box"] },
+    cell: { g: "Signal", label: "Cell signal on roads", sub: "Likely LTE or 5G from any carrier (ISED data). No shading: likely no signal", minZoom: 8, icon: ["#4c6ef5", "box"] },
   };
-  const GROUPS = ["Roads", "Stops", "Safety"];
+  const GROUPS = ["Roads", "Stops", "Signal"];
   const VIEWS = {
     roads: { label: "Roads", sub: "for my bike", layers: ["roads", "rules", "fuel", "ferry"] },
     stops: { label: "Fuel & camp", sub: "range, sleep", layers: ["roads", "fuel", "range", "camp", "hot", "ferry", "crown"] },
