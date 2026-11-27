@@ -209,7 +209,7 @@ html body #fishPane .fs-actions.trips { grid-template-columns: repeat(5, 1fr); }
     const rows = v.rows.map((r) => {
       const c = r.s == null ? "var(--line)" : ["#e5484d", "#f07b3f", "#f2b33d", "#a3c94f", "#22b07d"][r.s - 1];
       const wx = r.code != null ? `<span class="tp-wx"><big>${deg(r.hi)}</big><br><span>low ${deg(r.lo)}</span></span>` : `<span class="tp-wx sk-note">${v.end && r.date > v.end ? "Too far<br>ahead" : "–"}</span>`;
-      const bits = r.code != null ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain${r.pop != null ? ` (${r.pop}% chance)` : ""}` : "Dry",
+      const bits = r.code != null ? [r.snow >= 0.5 ? `${Math.round(r.snow)} cm of snow` : r.rain >= 1 ? `${Math.round(r.rain)} mm of rain${r.pop != null ? ` (${r.pop}% chance)` : ""}` : "Little or no rain",
         `wind ${Math.round(r.wind || 0)} km/h${r.dir ? ` ${r.dir}` : ""}${r.gust >= 40 ? `, gusts ${Math.round(r.gust)}` : ""}`, ...(r.why || []).filter((x) => !/^(windy|light chop|calm)/.test(x)), r.moon && !(r.why || []).some((x) => /moon/.test(x)) ? r.moon : "",
         r.rise ? `sun ${hmIso(r.rise)} to ${hmIso(r.set)}` : ""].filter(Boolean) : [r.moon || ""].filter(Boolean);
       const tide = (r.tides || []).length ? `<small>${r.tides.map((x) => `<span>${x[2] === "High" ? "high tide" : "low tide"} ${esc(hmMs(x[0]))}, ${x[1]} m</span>`).join(" · ")}</small>` : "";

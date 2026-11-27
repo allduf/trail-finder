@@ -1189,7 +1189,7 @@
     const gate = legs.map((l) => l.gate).find(Boolean), wanted = mode === "tap" || picks.some((p) => !p.pedal);
     const gates = car ? driven().flatMap(runGates).filter((g, i, a) => a.findIndex((h) => h.id === g.id) === i) : [];
     const drive = car ? ` · Drive ${fmtM(car)}${gates.length ? ` · <span class="gap-note">🚧 ${gates.length} gate${gates.length > 1 ? "s" : ""} to check</span>` : ""}` : how === "shuttle" && wanted && legs.length && !busy && !joining
-      ? ` · <span class="gap-note">No shuttle from your start${gate ? `: locked gate ${gate === "the road" ? "near it" : "on " + esc(gate)}` : ": no road a truck can take goes up"}, so you ride it all</span>` : "";
+      ? ` · <span class="gap-note">No shuttle from your start${gate ? `: a locked gate or road block is mapped ${gate === "the road" ? "near it" : "on " + esc(gate)}` : ": no mapped road a truck can take goes up"}, so you ride it all</span>` : "";
     document.querySelectorAll(".plan-how button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.how === how)));
     document.querySelectorAll(".plan-modes button[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
     bar.classList.toggle("pick", mode === "pick");
@@ -1448,7 +1448,7 @@ body.sport-alt #planBtn, body.sport-alt #planMapBtn, .app.riding #planMapBtn, .a
       <button type="button" data-mode="tap" title="Tap points on the map; the route follows the trails between them">Tapping points</button></div></div>
       <div class="plan-opt"><span>Climbs</span><div class="plan-modes plan-how" role="group" aria-label="Pedal or shuttle">
       <button type="button" data-how="pedal" title="Ride all of it, climbs included">🚲 Pedal</button>
-      <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the open forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
+      <button type="button" data-how="shuttle" title="A 4x4 pickup drives you up the mapped forest roads; you ride from where it stops">🛻 Shuttle</button></div></div>
       <div class="plan-btns"><button type="button" id="planStart" hidden>📍 Set start</button><button type="button" id="planLoop" title="End the ride back at the start">↺ Back to start</button>
       <button type="button" id="planShare" title="Send this ride to a friend: the link opens it in their app">↗ Share</button><button type="button" id="planGpx">⤓ GPX</button>
       <button type="button" id="planSavedBtn" aria-pressed="false" title="Your saved routes">📂 Saved</button><button type="button" id="planClear">🗑 Clear</button></div></div>

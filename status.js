@@ -54,7 +54,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
   const dlg = document.createElement("dialog");
   dlg.className = "today";
   dlg.innerHTML = `<h2>Where to ride today <button type="button" data-x aria-label="Close">✕</button></h2><p class="td-from" id="tdFrom"></p>
-    <h3>Go ride: new to you, in good dirt</h3><ol class="td-go" id="tdGo"><li class="td-wait">Checking the loam…</li></ol>
+    <h3>Go ride: new to you, likely in prime loam</h3><ol class="td-go" id="tdGo"><li class="td-wait">Checking the loam…</li></ol>
     <h3>Riding areas near you</h3><ul id="tdAreas"><li class="td-wait">Loading…</li></ul>`;
   document.body.append(dlg);
   const $ = (id) => document.getElementById(id);
@@ -65,7 +65,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = "btn today-btn"; btn.id = "todayBtn";
   btn.textContent = "☀ Where to ride today";
-  btn.title = "Trails near you in prime loam that you haven't ridden, and each riding area's loam, reports and fires";
+  btn.title = "Trails near you likely in prime loam that you haven't ridden, and each riding area's loam, reports and fires";
   const anchor = $("wantList");
   if (anchor) anchor.before(btn);
   btn.addEventListener("click", () => open());
@@ -106,7 +106,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     // Home zones, and anywhere else in Canada the map chunks around you (Bromont, Mont-Sainte-Anne...).
     const zs = T.zonesNear ? await T.zonesNear(from.c, km) : T.zones.filter((z) => zoneKm(z, from.c) <= km);
     if (my !== token) return;
-    $("tdFrom").textContent = `${from.you ? "From where you are" : "From the middle of the map (location not shared)"}, within ${km} km.`;
+    $("tdFrom").textContent = `${from.you ? "From where you are" : "From the middle of the map (location not shared)"}, within ${km} km. Loam is an estimate from Open-Meteo soil moisture, not a trail report.`;
     if (!zs.length) {
       $("tdGo").innerHTML = `<li class="td-wait">No trails within ${km} km. Move the map to a riding town and try again.</li>`;
       $("tdAreas").innerHTML = "";
@@ -154,11 +154,11 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const el = $("tdGo");
     if (!pick.length) {
       const read = trails.some((t) => t.v != null);
-      el.innerHTML = `<li class="td-wait">${read ? `No trail you haven't ridden within ${lastKm} km is in prime loam now or in the next 3 days.` : "Couldn't read the loam right now. Try again in a few minutes."}</li>`;
+      el.innerHTML = `<li class="td-wait">${read ? `No trail you haven't ridden within ${lastKm} km is likely in prime loam now or in the next 3 days.` : "Couldn't read the loam right now. Try again in a few minutes."}</li>`;
       return;
     }
     el.innerHTML = pick.map((t, i) => `<li><button type="button" data-i="${i}"><b>${esc(t.name)}${t.isNew ? `<span class="td-new">New</span>` : ""}</b>
-      <small>${dot(t.prime ? t.v : t.soon.v)}${t.prime ? `Prime now · Loam ${t.v}` : `Prime ${esc(t.soon.day)} · Loam ${t.soon.v}`}${t.area ? ` · ${esc(t.area.name)}` : ""} · ${t.km < 1 ? "under 1" : Math.round(t.km)} km away${t.isNew ? ` · added ${ago(t.born)}` : ""}</small></button></li>`).join("");
+      <small>${dot(t.prime ? t.v : t.soon.v)}${t.prime ? `Likely prime now · Loam ${t.v}` : `Likely prime ${esc(t.soon.day)} · Loam ${t.soon.v}`}${t.area ? ` · ${esc(t.area.name)}` : ""} · ${t.km < 1 ? "under 1" : Math.round(t.km)} km away${t.isNew ? ` · added ${ago(t.born)}` : ""}</small></button></li>`).join("");
     el.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => {
       const t = pick[+b.dataset.i];
       dlg.close();
@@ -198,8 +198,8 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const read = a.trails.filter((t) => t.v != null), prime = read.filter((t) => t.prime), snowed = a.trails.filter((t) => t.snow), frozen = a.trails.filter((t) => t.frozen);
     const vs = read.map((t) => t.v).sort((x, y) => x - y), mid = vs.length ? vs[Math.floor(vs.length / 2)] : null;
     const soonDay = !prime.length && a.trails.map((t) => t.soon).filter(Boolean).sort((x, y) => x.d.localeCompare(y.d))[0];
-    const loam = mid == null ? "Loam not available" : prime.length ? `<b>${prime.length} of ${read.length} trails in prime loam</b> · middle ${mid}`
-      : `${level(mid)[1]} · Loam ${mid}${soonDay ? ` · <b>prime ${esc(soonDay.day)}</b>` : ""}`;
+    const loam = mid == null ? "Loam not available" : prime.length ? `<b>${prime.length} of ${read.length} trails likely in prime loam</b> · middle ${mid}`
+      : `${level(mid)[1]} · Loam ${mid}${soonDay ? ` · <b>likely prime ${esc(soonDay.day)}</b>` : ""}`;
     const n = a.trails.length, s = n > 1 ? "s" : "";
     a.el.querySelector(".td-loam").innerHTML = `${dot(prime.length ? prime[0].v : mid)}${loam}`;
     const sn = a.el.querySelector(".td-snow"), fr = a.el.querySelector(".td-frozen"), icy = a.el.querySelector(".td-icy"), icyN = a.trails.filter((t) => t.icy).length;

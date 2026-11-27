@@ -94,7 +94,7 @@
     const j = await get(`${layerUrl}/query?geometry=${lon},${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=${fields}&returnGeometry=false&resultRecordCount=1&f=json`);
     return j ? j.features?.[0]?.attributes || null : undefined;
   };
-  const OPEN = "Public land: usually open to hunting, fishing, hiking and camping, unless a park, lease, closure or sign says otherwise.";
+  const OPEN = "Public land on the province's map: hunting, fishing, hiking and camping are often allowed, but parks, leases, closures and signs can change that. Check the current rules.";
   const ASK = "Ask the owner before you hunt, camp or ride off the road here.";
   const crown = (t, d = OPEN) => ({ k: "crown", t, d });
   const priv = (t, d = ASK) => ({ k: "private", t, d });
@@ -144,8 +144,8 @@
     },
     async sk(lat, lon) {
       const [pf, fw, ag] = await Promise.all([q(`${SK}/Forestry/MapServer/0`, lat, lon, "*"), q(`${SK}/Planning/MapServer/7`, lat, lon, "*"), q(`${SK}/Agriculture/CrownLand_AG/MapServer/2`, lat, lon, "LLD")]);
-      if (fw) return crown("Fish and Wildlife Development Fund land", "Public land bought for wildlife: usually open to hunting and walking in season, no vehicles off the trails.");
-      if (ag) return { k: "lease", t: "Agricultural Crown land (leased)", d: "Crown pasture or hay land rented to a farmer or rancher: on foot it's usually open to hunting, but contact the leaseholder first and leave gates as you find them." };
+      if (fw) return crown("Fish and Wildlife Development Fund land", "Public land bought for wildlife: hunting and walking are often allowed in season, and vehicles may be limited to trails. Check the current rules.");
+      if (ag) return { k: "lease", t: "Agricultural Crown land (leased)", d: "Crown pasture or hay land rented to a farmer or rancher: hunting on foot is often allowed, but contact the leaseholder first and leave gates as you find them." };
       if (pf) return crown("Crown land (Saskatchewan provincial forest)");
       if (pf === undefined && ag === undefined) return null;
       return unknown("Land owner not mapped here", lat > 55 ? "Northern Saskatchewan is mostly Crown land, but leases, reserves and camps aren't all on this map." : "In farm country most land is private: ask the owner first.");

@@ -209,13 +209,13 @@
 
   // ---------- smoke at the map centre ----------
   // AQHI+ (Health Canada): one point for each 10 µg/m³ of PM2.5 over an hour; 1-3 low risk, 4-6 moderate, 7-10 high,
-  // over 10 very high. The advice is Health Canada's for the general public, said for a ride.
+  // over 10 very high. The advice is Health Canada's for the general public, said for any sport.
   const RISK = [
     [10, "very little smoke", ""],
     [30, "a little smoke (low risk)", ""],
-    [60, "smoky (moderate risk)", " Fine for most riders; ease off a hard ride if you feel it in your chest or throat."],
-    [100, "very smoky (high risk)", " Better to ride easy and short, or another day."],
-    [Infinity, "thick smoke (very high risk)", " Best to skip a hard ride today."],
+    [60, "smoky (moderate risk)", " Health Canada's advice: ease off if you feel it in your chest or throat."],
+    [100, "very smoky (high risk)", " Health Canada's advice: consider cutting back on hard outdoor activity if you have symptoms."],
+    [Infinity, "thick smoke (very high risk)", " Health Canada's advice: cut back on or put off hard outdoor activity."],
   ];
   const riskOf = (ug) => RISK.find(([max]) => ug < max);
   const aqhi = (ug) => Math.max(1, Math.ceil(ug / 10));
@@ -284,7 +284,7 @@
       });
       chartCursor();
     } catch (e) {
-      if (chartKey === key) el.innerHTML = `<p class="sm-note">Couldn't load the smoke forecast here (${String(e.message).replace(/[<>&]/g, "")}).</p>`;
+      if (chartKey === key) el.innerHTML = `<p class="sm-note">Couldn't load the smoke forecast here, try again soon.</p>`;
     }
   }
   const CW = 340, CL = 30, CH = 90, CT = 6;
@@ -347,7 +347,7 @@
       place();
       note = "";
       here();
-      getRun().then(() => { note = ""; draw(); }, (e) => { note = `Couldn't load the smoke forecast (${e.message}).`; here(); });
+      getRun().then(() => { note = ""; draw(); }, () => { note = "Couldn't load the smoke forecast, try again soon."; here(); });
     } else {
       stop();
       place();

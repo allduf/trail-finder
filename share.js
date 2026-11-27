@@ -36,7 +36,7 @@
     if (!r.ok) {
       let msg = "";
       try { msg = (await r.json()).message || ""; } catch {}
-      throw new Error(r.status === 404 ? "sharing isn't set up yet" : msg || "error " + r.status);
+      throw new Error(r.status === 404 ? "sharing isn't set up yet" : msg || "no answer from the server");
     }
     return r.json();
   }

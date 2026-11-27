@@ -769,7 +769,7 @@ ${P} .tp-photoadd { display: flex; justify-content: center; margin-top: 6px; pad
     await A.load();
     if (!A.client) throw new Error("couldn't reach the app's database");
     const { data, error } = await A.client.rpc(fn, args);
-    if (error) throw new Error(/function .* does not exist|Could not find the function/i.test(error.message) ? "shared trips aren't switched on yet" : error.message);
+    if (error) { console.warn("trip " + fn, error.message); throw new Error(/function .* does not exist|Could not find the function/i.test(error.message) ? "trip sharing isn't available right now" : "the server didn't answer, try again soon"); }
     return data;
   }
   const appBase = () => (location.protocol === "https:" ? location.origin + location.pathname : "https://trailfinderapp.ca/");

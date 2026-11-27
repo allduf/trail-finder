@@ -404,7 +404,7 @@ ${edit ? "" : `<label class="rt-ok"><input type="checkbox" id="rtOk"><span>I've 
       if (!edit && !$("rtOk").checked) { err("Tick the box to say you've ridden it and bikes are allowed."); return; }
       const row = { name: name.slice(0, 80), level: level || "unknown", direction: dir || "unknown", notes: $("rtNotes").value.trim().slice(0, 600) || null };
       const a = acct();
-      if (!a || !a.enabled) { err("Sharing trails isn't set up yet."); return; }
+      if (!a || !a.enabled) { err("Sharing trails isn't available right now."); return; }
       if (!navigator.onLine) { err("No signal: try again when you're back online. It stays here until you close this box."); return; }
       if (!a.user) {   // keep it, sign in, and come back to this box (see tf:account below)
         lsSet(DRAFT, { ...t, ...row, ok: true });

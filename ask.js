@@ -377,7 +377,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     return out;
   }
   function summaryOf(p, sp) {
-    const what = { loop: "Loops", trails: "Trails", areas: "Where to ride", tours: "Tours", huts: "Huts", avalanche: "The avalanche forecast", spot: sp === "hunt" ? "What you can hunt" : sp === "fish" ? "Fishing rules and conditions" : "What's there", waters: "Waters to fish", routes: "ADV routes" }[p.what] || "What there is";
+    const what = { loop: "Loops", trails: "Trails", areas: "Where to ride", tours: "Tours", huts: "Huts", avalanche: "The avalanche forecast", spot: sp === "hunt" ? "Hunting seasons and rules" : sp === "fish" ? "Fishing rules and conditions" : "What's there", waters: "Waters to fish", routes: "ADV routes" }[p.what] || "What there is";
     return `${what} ${p.near_me || !p.place ? "near you" : "near " + p.place}`;
   }
 
@@ -683,7 +683,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
     // A government road code ("R08938 251") isn't a name people know: a named road near it, else "the forest road".
     const named = (r) => r && r.name && !/^[A-Z]{0,2}\d[\w-]*(?:\s+(?:\d+|[A-Z0-9][A-Z0-9-]*))?$/.test(r.name.trim()) ? r.name : "";
     const nm = named(pick.r) || named((pts.find((x) => named(x.r) && !x.r.pub === !pick.r.pub && kmTo(x.p, pick.p) < 0.3) || {}).r) || (pick.r.pub ? "the paved road" : "the forest road");
-    const at = line == null ? "" : ok === near[0] ? ` (under the snow line, about ${line.toLocaleString("en-CA")} m)` : ` at the snow line, about ${line.toLocaleString("en-CA")} m`;
+    const at = line == null ? "" : ok === near[0] ? ` (under the forecast snow line, about ${line.toLocaleString("en-CA")} m)` : ` at the forecast snow line, about ${line.toLocaleString("en-CA")} m`;
     return { p: [+pick.p[0].toFixed(6), +pick.p[1].toFixed(6)], name: nm, what: line === undefined ? "where the road comes closest (the snow line couldn't be read: drag it to where the car stops)" : line == null ? "where the road comes closest (no snow on the roads in the forecast)" : `where you leave the car${at}: drag it if the road is open higher` };
   }
   async function planPts(pieces, date) {
@@ -811,9 +811,9 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       <p class="ask-said">The less exposed way finds the way between the pieces (the climb too). It weighs:</p>
       <ul class="ask-why">
         <li><b>${later ? esc(dayName(later)).replace(/^./, (c) => c.toUpperCase()) + "'s" : "Today's"} avalanche danger</b> where you are${later ? " (when the forecast covers that day)" : ""}: alpine, treeline or below treeline (Avalanche Canada)</li>
-        <li><b>Slope angle</b>: it keeps off 30° to 45°, where most slab avalanches start</li>
+        <li><b>Slope angle</b>: it avoids 30° to 45° where it can, the angles where most slab avalanches start</li>
         <li><b>Which way slopes face</b>: more care on the aspects of today's avalanche problems</li>
-        <li><b>Time</b>: about 430 m an hour up, slower in forest; open water and cliffs can't be crossed</li>
+        <li><b>Time</b>: an estimate of about 430 m an hour up, slower in forest; it doesn't cross mapped open water or cliffs</li>
       </ul>
       <p class="ask-note">Your tour is kept in Saved. Its card shows each stretch and why it goes there. Drag, add or take away points with ✎ Edit my tour. No route is avalanche-safe: check the forecast and decide in the field.</p>`
       : `<p class="ask-note">That's only one point: say where you start and where you finish, or a line to ski.</p>`}`;
@@ -904,6 +904,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       trails.forEach((t) => { const ts = born ? t.ids.map((id) => born.get(id)).filter(Boolean) : []; t.isNew = ts.length === t.ids.length && ts.length > 0 && Math.min(...ts) >= newSince; });
       const ridden = T.ridden();
       const dn = dayName(day), loamWord = (t) => (t.snow ? "Snow likely (estimate)" : t.frozen ? "Ground likely frozen" : t.v == null ? "Loam not known" : `${loamLv(t.v)[1]} · Loam ${t.v}`);
+      const LOAM_SRC = `<p class="ask-note">Loam is an estimate from Open-Meteo soil moisture: the ground can differ.</p>`;
       const farNote = far && p.loam ? `<p class="ask-note ask-warn">The loam forecast only goes ${fdays} day${fdays === 1 ? "" : "s"} ahead: ${esc(dn)} isn't known yet.</p>` : "";
       const lvOk = (t) => !p.levels.length || p.levels.includes(t.lvl) || (p.levels.includes("dbl") && t.lvl === "pro");
 
@@ -920,7 +921,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
         if (p.what === "areas") {
           const rows = scored.slice(0, 8).map((s) => ({ title: esc(s.a.name), sub: `${loamDot(s.pr ? 50 : null)}${areaLine(s)} · ${fmtKm(s.a.km)} away · ${s.a.trails.length} trails`,
             go: () => { map.flyTo(s.a.c, 13); if (window.tfSnapTo) window.tfSnapTo("peek"); } }));
-          out.innerHTML = `${farNote}<h3>Riding areas ${at.you ? "near you" : "near " + esc(at.name || "the map")}</h3>${listHtml(rows)}<p class="ask-note">Tap one to go there. Where to ride today has each area's rider reports, closures and fires.</p>`;
+          out.innerHTML = `${farNote}<h3>Riding areas ${at.you ? "near you" : "near " + esc(at.name || "the map")}</h3>${listHtml(rows)}<p class="ask-note">Tap one to go there. Where to ride today has each area's rider reports, closures and fires.</p>${LOAM_SRC}`;
           wire(out, rows);
           return;
         }
@@ -932,7 +933,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
         const lvlNote = p.levels.length ? `<p class="ask-note">Each area has an easy, a classic, a technical and a big loop: ${p.levels.includes("green") ? "the Easy loop is green and blue trails." : p.levels.includes("black") || p.levels.includes("dbl") ? "the Technical loop is black and double black trails." : "the Classic loop is blue and black trails."}</p>` : "";
         out.innerHTML = `${farNote}<h3>Loops ${p.loam ? `where the loam is best ${esc(dn)}` : "near " + esc(at.you ? "you" : at.name || "the map")}</h3>
           <div class="ask-areas">${top.map((s, i) => `<button type="button" data-a="${i}" aria-pressed="${i === 0}">${esc(s.a.name)}</button>`).join("")}</div>
-          <p class="ask-note ask-aline"></p>${lvlNote}<div class="ask-loops"></div>`;
+          <p class="ask-note ask-aline"></p>${lvlNote}${LOAM_SRC}<div class="ask-loops"></div>`;
         const box = out.querySelector(".ask-loops"), line = out.querySelector(".ask-aline");
         const pick = (i) => {
           const s = top[i];
@@ -958,7 +959,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       }));
       const primeN = pool.filter((t) => t.prime).length;
       out.innerHTML = farNote + (rows.length ? `<h3>${pool.length} trail${pool.length === 1 ? "" : "s"}${want ? `, ${primeN} in prime loam ${esc(dn)}` : ""}</h3>${listHtml(rows)}
-        ${want && !primeN ? `<p class="ask-note">None of them is in prime loam ${esc(dn)}: the nearest are first.</p>` : ""}${pool.length > rows.length ? `<p class="ask-note">The best ${rows.length} of ${pool.length}. Ask for a level, new trails or an area to narrow it down.</p>` : ""}`
+        ${want && !primeN ? `<p class="ask-note">None of them is in prime loam ${esc(dn)}: the nearest are first.</p>` : ""}${pool.length > rows.length ? `<p class="ask-note">The best ${rows.length} of ${pool.length}. Ask for a level, new trails or an area to narrow it down.</p>` : ""}${LOAM_SRC}`
         : `<p class="ask-note">No trail like that within ${R} km of ${esc(nearName(at))}.${p.new_only ? " Nothing new was mapped there in the last 6 months." : ""}</p>`);
       wire(out, rows);
     },
@@ -1018,7 +1019,7 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       const rows = routes.map((r) => ({ title: (r.classic ? "★ " : "") + esc(r.name), sub: (r.classic ? "Classic · " : "") + `${r.pill ? r.pill + " · " : ""}${r.km >= 0.05 ? fmtKm(r.km) + " long · " : ""}${fmtKm(r.d / 1000)} away`,
         go: go(() => S.show(r.id, r.c)) }));
       const avy = p.what === "avalanche" ? `<button type="button" class="ask-act" data-avy>⚠ Open the avalanche forecast ${at.you ? "here" : "for " + esc(at.name)}</button>
-        <p class="ask-note">${p.date !== localDay() ? `The forecast has the next days too: look for ${esc(dayName(p.date))}. ` : ""}The light on each tour is today's danger in its terrain.</p>` : "";
+        <p class="ask-note">${p.date !== localDay() ? `The forecast has the next days too: look for ${esc(dayName(p.date))}. ` : ""}The light on each tour follows the Avaluator chart: today's Avalanche Canada rating with the tour's estimated terrain class.</p>` : "";
       const word = { tour: "ski tours", nordic: "Nordic trails", snowshoe: "snowshoe routes", snowmobile: "snowmobile trails" }[types[0]];
       // Few left after "simple" or "easy" (the Duffey is nearly all Challenging and Complex terrain): say so, and offer them all.
       const allN = near.routes.length, fewNote = max && rows.length < 3 && allN > rows.length
@@ -1048,8 +1049,8 @@ ol.ask-plan small { color: var(--muted); font-size: .78rem; flex-basis: 100%; }`
       if (stale()) return;
       out.innerHTML = `<h3>${esc(at.you ? "Where you are" : at.name || "This spot")}</h3>
         <p>${zone ? `In <b>${esc(zone)}</b>.` : "No hunting zone found here."}</p>
-        <button type="button" class="ask-act" data-go>🦌 See what's open here${p.species ? ` for ${esc(p.species)}` : ""}</button>
-        <p class="ask-note">The spot card lists what's open today, the land (parks, no-shooting areas), the season dates and the rules for the zone${p.date !== localDay() ? `: check the dates for ${esc(dayName(p.date))}` : ""}.</p>`;
+        <button type="button" class="ask-act" data-go>🦌 See the seasons here${p.species ? ` for ${esc(p.species)}` : ""}</button>
+        <p class="ask-note">The spot card lists the seasons open today, the land (parks, no-shooting areas), the season dates and the rules for the zone, from the province's regulations${p.date !== localDay() ? `: check the dates for ${esc(dayName(p.date))}` : ""}. Rules change: check the current regulations before you hunt.</p>`;
       out.querySelector("[data-go]").addEventListener("click", () => { close(); H.openAt(at.c[0], at.c[1]); if (window.tfSnapTo) window.tfSnapTo("half"); });
     },
 
