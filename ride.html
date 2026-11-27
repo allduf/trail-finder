@@ -354,11 +354,15 @@ body.sport-other .mtb-only, body.sport-other #stravaBox, body.sport-other #share
   // My tours with only the ski tours; MTB keeps Record ride and My rides with the bike rides, Strava and sharing.
   const SP = (() => { let v = null; try { v = localStorage.getItem("tf:sport"); v = v && v[0] === '"' ? JSON.parse(v) : v; } catch {} return v in NOUN ? v : "mtb"; })();
   const PAGE = { mtb: ["ride", "rides"], ski: ["tour", "tours"], hunt: ["hunt", "hunts"], fish: ["fishing trip", "fishing trips"], moto: ["adventure ride", "adventure rides"], hike: ["hike", "hikes"] }[SP];
-  // A saved ride's sport: our own key, or an imported file's activity type read the same way (a GPX "backcountry_skiing").
+  // A saved ride's sport: our own key, else a ski tour by the Skiing map's own rule (winter.js isSkiTour: the file's type
+  // or the name says ski, or it went above 1,300 m in winter), else MTB's My rides (every other imported kind, as before).
+  const SKI_SPORT = /ski|snow|board/i, SKI_NAME = /\b(ski\w*|skin\w*|splitboard\w*|snowshoe\w*|backcountry|pow(der)?)\b/i;
   const kindOf = (r) => {
     const t = String((r && r.sport) || "");
     if (t in NOUN) return t;
-    return /ski|snowboard|snowshoe/i.test(t) ? "ski" : /hik|walk|trek/i.test(t) ? "hike" : /motorcycl/i.test(t) ? "moto" : "mtb";
+    if (SKI_SPORT.test(t) || SKI_NAME.test((r && r.title) || "")) return "ski";
+    const m = new Date(r.start).getMonth();
+    return (m >= 10 || m <= 4) && Array.isArray(r.points) && r.points.some((p) => p[2] != null && p[2] >= 1300) ? "ski" : "mtb";
   };
   const mineOnly = (rides) => rides.filter((r) => kindOf(r) === SP);
   if (SP !== "mtb") {
@@ -375,6 +379,7 @@ body.sport-other .mtb-only, body.sport-other #stravaBox, body.sport-other #share
     $("backToRides").textContent = `← My ${many}`;
     $("deleteBtn").textContent = `Delete ${one}`;
     $("gpsMsg").textContent = "Press Start when you're ready.";
+    $("importFiles").accept = ".gpx,.fit,.tcx,.gz,application/gpx+xml";   // a Strava archive (.zip) goes in from MTB's My rides
     $("viewRecord").querySelector(".hint").textContent = `Keep this page open while you record. Your phone's screen stays on while recording if the browser allows it. If the page is closed, the ${one} so far is kept and you can carry on.`;
     document.title = `My ${many} · Trail Finder`;
   }
@@ -667,7 +672,7 @@ body.sport-other .mtb-only, body.sport-other #stravaBox, body.sport-other #share
   });
   $("cancelEdit").addEventListener("click", () => openRide(editing.id));
   $("discardBtn").addEventListener("click", async () => {
-    if (!confirm("Discard this ride? It won't be saved.")) return;
+    if (!confirm(`Discard this ${SP === "mtb" ? "ride" : PAGE[0]}? It won't be saved.`)) return;
     await dbDel("current", "current");
     rec = null; recLine.setLatLngs([]); renderLive(); showGps(SP === "mtb" ? "Ride discarded. Press Start when you're ready." : `${PAGE[0][0].toUpperCase() + PAGE[0].slice(1)} discarded. Press Start when you're ready.`);
     show("record");
@@ -839,7 +844,7 @@ ${pts}
   async function importFiles(files) {
     files = [...files];
     const zip = files.find((f) => /\.zip$/i.test(f.name) || f.type === "application/zip");
-    if (zip) { files = files.filter((f) => f !== zip); importArchive(zip); }
+    if (zip) { files = files.filter((f) => f !== zip); if (SP === "mtb") importArchive(zip); else { const m0 = $("importMsg"); m0.hidden = false; m0.classList.add("warn"); m0.textContent = "A Strava archive (.zip) goes in from MTB's My rides. Here, pick GPX, FIT or TCX files."; } }
     if (!files.length || !window.tfRideFiles) return;
     const btn = $("importBtn"), msg = $("importMsg");
     btn.classList.add("busy");
@@ -851,13 +856,12 @@ ${pts}
         const got = await tfRideFiles.read(file);
         const ride = await addImported(got, file.name, have, { lastModified: file.lastModified });
         if (ride) added.push(ride); else dupes.push(file.name);
-      } catch (e) { bad.push(`${file.name} (${e && e.message ? e.message : e})`); }
+      } catch (e) { bad.push(`${file.name} (${window.tfErrText ? window.tfErrText(e) : (e && e.message) || e})`); }
     }
     btn.classList.remove("busy");
-    const s = (k) => (k === 1 ? "" : "s");
     msg.textContent = [
-      added.length ? `Imported ${added.length} ride${s(added.length)}.` : "No new rides imported.",
-      dupes.length ? `${dupes.length} ${dupes.length === 1 ? "was" : "were"} already in My rides.` : "",
+      added.length ? `Imported ${added.length} ${added.length === 1 ? PAGE[0] : PAGE[1]}.` : `No new ${PAGE[1]} imported.`,
+      dupes.length ? `${dupes.length} ${dupes.length === 1 ? "was" : "were"} already in My ${PAGE[1]}.` : "",
       bad.length ? `Couldn't read ${bad.join(", ")}.` : "",
     ].filter(Boolean).join(" ");
     msg.classList.toggle("warn", !!bad.length);

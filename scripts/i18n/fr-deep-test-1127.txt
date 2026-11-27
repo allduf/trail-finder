@@ -34,3 +34,19 @@ Delete fishing trip ||| Supprimer la sortie de pêche
 Save to Fishing log ||| Enregistrer dans le journal de pêche
 Press Start when you're ready. ||| Appuyez sur Démarrer quand vous êtes prêt.
 Skiing's My tours now has its own page (Record tour, My tours, only your ski tours), each sport's own alerts come first in Notifications, and a failed download now says why in plain words. ||| Mes sorties de ski a maintenant sa propre page (Enregistrer une sortie de ski, Mes sorties de ski, seulement vos sorties de ski), les alertes de chaque sport passent en premier dans Notifications, et un téléchargement qui échoue dit maintenant pourquoi en mots simples.
+no answer from the server ||| pas de réponse du serveur
+no signal ||| pas de signal
+something went wrong ||| un problème est survenu
+too many requests just now ||| trop de demandes pour l'instant
+not found ||| introuvable
+the server turned the request down ||| le serveur a refusé la demande
+Hunting's legal light alarms are on the Hunting panel, in Light and moon. ||| Les alarmes de lumière légale de la chasse sont dans le panneau Chasse, sous Lumière et lune.
+No new tours imported. ||| Aucune nouvelle sortie de ski importée.
+Discard this tour? It won't be saved. ||| Supprimer cette sortie de ski? Elle ne sera pas enregistrée.
+A Strava archive (.zip) goes in from MTB's My rides. Here, pick GPX, FIT or TCX files. ||| Une archive Strava (.zip) s'importe depuis Mes sorties du vélo de montagne. Ici, choisissez des fichiers GPX, FIT ou TCX.
+Tours are saved on this device, and in your account when you're signed in. Use ||| Les sorties de ski sont enregistrées sur cet appareil, et dans votre compte quand vous êtes connecté. Utilisez
+on one to keep a copy or open it in another app. ||| sur l'une d'elles pour en garder une copie ou l'ouvrir dans une autre app.
+Keep this page open while you record. Your phone's screen stays on while recording if the browser allows it. If the page is closed, the tour so far is kept and you can carry on. ||| Gardez cette page ouverte pendant l'enregistrement. L'écran reste allumé pendant l'enregistrement si le navigateur le permet. Si la page est fermée, la sortie de ski jusqu'ici est gardée et vous pouvez continuer.
+My tours · Trail Finder ||| Mes sorties de ski · Trail Finder
+No tours yet. Go to ||| Aucune sortie de ski pour l'instant. Allez dans
+and press Start, or import tours from your GPS. ||| et appuyez sur Démarrer, ou importez des sorties de ski de votre GPS.

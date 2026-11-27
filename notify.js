@@ -484,7 +484,8 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     paintCa();
     // Someone setting up alerts for the first time from another sport (Skiing's avalanche alerts) doesn't get MTB's prime
     // loam and new trails by default: those boxes, folded under "Alerts for other sports", start unticked there.
-    const firstOther = !p && sportNow() !== "mtb" && store.get("loamArea", null) == null && store.get("notifyNew", null) == null;
+    const firstOther = !p && sportNow() !== "mtb" && store.get("loamArea", null) == null && store.get("notifyNew", null) == null
+      && !(window.tfToRideList ? window.tfToRideList().length : 0);   // loam alerts already at work on a To ride list stay as they are
     q("ntLoamArea").checked = !firstOther && loamOn();
     q("ntNewOn").checked = !firstOther && newOn();
     q("ntAvyOn").checked = avyOn();
@@ -649,7 +650,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     const groups = { ski: ["ntAvy"], fish: ["ntFish"], mtb: ["ntLoam", "ntWhere", "ntItems"] };
     (groups[sp] || []).forEach((id) => list.insertBefore(q(id), row));
     Object.keys(groups).filter((k) => k !== sp).forEach((k) => groups[k].forEach((id) => listOther.append(q(id))));
-    if (!groups[sp] && sp !== "hunt") { listNone.textContent = noneText(sp); listNone.hidden = false; list.insertBefore(listNone, row); } else listNone.remove();
+    if (!groups[sp]) { listNone.textContent = sp === "hunt" ? "Hunting's legal light alarms are on the Hunting panel, in Light and moon." : noneText(sp); listNone.hidden = false; list.insertBefore(listNone, row); } else listNone.remove();
     list.insertBefore(listOther, row);
   }
   function openBox() {
