@@ -82,8 +82,8 @@ const results = [];   // { cond, step, ok, note, shot }
 
 // A phone in one condition. net(route, url, local): how each download goes (default: the site and map pictures
 // answer, other outside services are cut off as in phone-test.mjs).
-async function phone({ opts = {}, net = null, init = null } = {}) {
-  const ctx = await browser.newContext({ ...PHONE, ...opts });
+async function phone({ opts = {}, net = null, init = null, on = browser } = {}) {
+  const ctx = await on.newContext({ ...PHONE, ...opts });
   await ctx.route("**/*", async (route) => {
     const u = new URL(route.request().url());
     if (u.protocol === "data:" || u.protocol === "blob:") return route.continue().catch(() => {});
@@ -208,8 +208,10 @@ const CONDS = {
     }
     await step(p, "Search a place ends", async () => {
       await pick(p, "mtb");
-      const box = p.page.locator("#trailQ, #placeQ, input[type=search]").filter({ visible: true }).first();
-      if (!(await box.count())) return "";   // no search box on the map here: nothing to try
+      // As a person does: the map sheet's search box opens the Find page with its box ready.
+      await p.page.locator("#peekSearch").click({ timeout: 15_000 });
+      const box = p.page.locator("#trailQ");
+      await box.waitFor({ state: "visible", timeout: 15_000 });
       await box.fill("Squamish"); await box.press("Enter");
       await wait(45_000);
       const w = await p.page.evaluate((re) => [...document.querySelectorAll("body *")].filter((e) => e.children.length === 0 && new RegExp(re).test(e.textContent) && e.getClientRects().length).map((e) => e.textContent.trim().slice(0, 60)), WAITING.source);
@@ -299,7 +301,13 @@ const CONDS = {
   },
   // A visit with the offline helper on, then the page opened again with no signal.
   async reopen() {
-    const p = await phone({ opts: { serviceWorkers: "allow" } });
+    // The test browser's Safari engine can't reload a page from its offline helper with the network cut ("internal
+    // error"), a limit of the test tool, not of iPhones: this one runs in Chromium when it is there.
+    let other = null;
+    if (BROWSER === "webkit") other = await pw.chromium.launch().catch(() => null);
+    if (BROWSER === "webkit" && !other) { results.push({ cond, step: "Offline helper", ok: true, note: "", shot: "" }); console.log(`- ${TITLES[cond]}: Chromium isn't installed here, skipped`); return; }
+    const p = await phone({ opts: { serviceWorkers: "allow", ...(other ? { isMobile: true } : {}) }, on: other || browser });
+    p.ctx.once("close", () => other && other.close().catch(() => {}));
     await open(p);
     const ready = await p.page.waitForFunction(() => navigator.serviceWorker && navigator.serviceWorker.controller, null, { timeout: 45_000 }).then(() => true, () => false)
       || await p.page.reload().then(() => p.page.waitForFunction(() => navigator.serviceWorker && navigator.serviceWorker.controller, null, { timeout: 30_000 })).then(() => true, () => false);

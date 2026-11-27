@@ -246,7 +246,13 @@ window.tfDragSort = (root, o) => {
   body.sport-hunt .map-tools #compassBtn svg { width: 20px; height: 20px; }
   body.sport-hunt .map-tools #spAdd { width: 44px; min-width: 44px; padding: 0; justify-content: center; }
   body.sport-hunt .map-tools #spAdd::before { content: "📍"; font-size: 1.15rem; }
-  .sport-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 12px; right: auto; width: min(260px, calc(100vw - 24px)); }
+  .sport-menu { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); left: 12px; right: auto; width: min(260px, calc(100vw - 24px));
+    /* Small phones (iPhone SE, zoomed display): the list scrolls above the bottom sheet instead of going under it. */
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - 72px - var(--sheet-vis, 0px)); overflow-y: auto; overscroll-behavior: contain; }
+}
+@media (max-width: 760px) and (max-height: 700px) {
+  .sport-menu { gap: 4px; padding: 6px; }
+  .map-tools .sport-menu button { min-height: 40px; padding: 6px 12px; }
 }
 body.sport-alt .panel .modes, body.sport-alt .panel .pane, body.sport-alt #boxBtn, body.sport-alt .box-row-btns, body.sport-alt .tap-hint, body.sport-alt #boxRes,
 body.sport-alt #status, body.sport-alt #debug, body.sport-alt #list, body.sport-alt #detail, body.sport-alt #allBtn,
@@ -6098,9 +6104,19 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
     } catch (_) {}
   }, 6000);
   window.tfLoadMoto = () => loadSport("moto");
+  // A sport's scripts that didn't come (the signal dropped just as the sport was picked, 2026-11-27 tough conditions
+  // test: the sport's panel stayed without its Today card and tools) are asked for again while that sport is still on:
+  // as soon as the signal is back, else after 5, 10, 20... s (at most 6 times). Each script draws itself when it arrives.
+  function loadSportAgain(s, n = 0) {
+    if (n >= 6 || sport !== s) return;
+    let done = false;
+    const go = () => { if (done) return; done = true; window.removeEventListener("online", go); if (sport === s) loadSport(s).catch(() => loadSportAgain(s, n + 1)); };
+    window.addEventListener("online", go);
+    setTimeout(go, 5000 * 2 ** n);
+  }
   function setSport(s) {
     sport = SPORTS.includes(s) ? s : "mtb";
-    loadSport(sport).catch(() => {});
+    loadSport(sport).catch(() => loadSportAgain(sport));
     store.set("sport", sport);
     sel.value = sport;
     for (const s of SPORTS) document.body.classList.toggle(`sport-${s}`, sport === s);

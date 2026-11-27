@@ -188,7 +188,8 @@ jobs:
           printf 'Acquire::http::Timeout "15";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99tf-timeout >/dev/null
           printf 'Acquire::Languages "none";\nAcquire::IndexTargets::deb::CNF::DefaultEnabled "false";\n' | sudo tee /etc/apt/apt.conf.d/99tf-lean >/dev/null
           npm install --no-save --no-package-lock playwright@1.48.2
-          npx playwright install --with-deps webkit
+          # Chromium too: the "Opened again with no signal" check needs it (see scripts/conditions-test.mjs).
+          npx playwright install --with-deps webkit chromium
       - name: Tough conditions at iPhone size
         run: node scripts/conditions-test.mjs
         env:

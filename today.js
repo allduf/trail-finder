@@ -37,10 +37,20 @@
   const hm = (d) => (d ? new Date(d).toLocaleTimeString(window.tfLang && window.tfLang.lang === "fr" ? "fr-CA" : "en-CA", { hour: "numeric", minute: "2-digit" }) : "–");
   const localDay = () => new Date().toLocaleDateString("en-CA");
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  // Asks again every half second until it answers (a sport's data loads after its file), up to ms.
+  // fn's answer, asked again every half second until it gives one (a sport's data loads after its file), up to ms. A
+  // call that hangs (a download that never answers on a weak signal: Hiking's nearby hikes read heights and weather)
+  // is given up then too, so the card never waits longer than ms here (2026-11-27 tough conditions test: over a
+  // minute before).
   async function until(fn, ms = 8000) {
-    for (let t = 0; t <= ms; t += 500) { const v = await Promise.resolve().then(fn).catch(() => null); if (v) return v; await wait(500); }
-    return null;
+    const end = Date.now() + ms;
+    let pending = null;   // a call still out is waited for, never asked again on top of it
+    for (;;) {
+      if (!pending) pending = Promise.resolve().then(fn).catch(() => null).then((v) => { pending = null; return v || null; });
+      const v = await Promise.race([pending, wait(Math.max(0, end - Date.now())).then(() => undefined)]);
+      if (v) return v;
+      if (Date.now() >= end) return null;
+      if (v === null) await wait(Math.min(500, Math.max(0, end - Date.now())));
+    }
   }
 
   const WORDS = {
