@@ -242,7 +242,11 @@
     const bi = [-3, -2, -1].map((k) => dd.time.indexOf(addDays(t.date, k))).filter((i) => i >= 0);
     const before = bi.length ? { snow: bi.reduce((s, i) => s + (dd.snowfall_sum[i] || 0), 0), wind: Math.max(...bi.map((i) => dd.wind_speed_10m_max[i] || 0)), n: bi.length } : null;
     const end = dd.time.at(-1);
-    return { snap: { at: Date.now(), rows, before, end, ele: Math.round(ele || w.elevation || 0), example: S.example() } };
+    // Which weather models gave these values and the trip days they disagree on (wxcheck.js), kept with the trip so
+    // the note under the days still names them offline (no "today", so a saved copy names weekdays, never "Today").
+    const c = w.check, dates = new Set(rows.map((r) => r.date));
+    const check = c ? { ...c, today: "", splits: (c.splits || []).filter((x) => dates.has(x.date)) } : null;
+    return { snap: { at: Date.now(), rows, before, end, ele: Math.round(ele || w.elevation || 0), example: S.example(), check } };
   }
   function daysHtml(t, v) {
     const today = localDate(new Date());
@@ -260,7 +264,7 @@
     const far = v.rows.some((r) => r.code == null && r.date > v.end);
     return `${b ? `<p class="sk-note">Before you go in (${b.n} days): ${b.snow >= 0.5 ? `<b>${Math.round(b.snow)} cm of new snow</b>` : "no new snow"}, wind up to ${Math.round(b.wind)} km/h.</p>` : ""}
       <ul class="tp-days">${rows}</ul>
-      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather forecast at the cabin (${fmtM(v.ele)}), Open-Meteo${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>`;
+      <p class="sk-note">${v.old ? `<b>Saved forecast from ${esc(when(v.at))}</b> (no signal now). ` : v.at ? `Checked ${esc(when(v.at))}${t.autoAt && Math.abs(t.autoAt - v.at) < 60000 ? " (updated by itself)" : ""}`.replace(/\.$/, "") + ". " : ""}Weather forecast at the cabin (${fmtM(v.ele)})${far ? `, about a week ahead: come back from ${esc(dayWord(addDays(t.date, -7)))} for the first day` : ""}${v.check && window.tfWx && window.tfWx.noteHtml ? "" : " (Open-Meteo, an estimate)"}. Avalanche danger on the way in, from Avalanche Canada${v.example ? " (example forecast)" : ""}${t.way ? ", with the Avaluator light for its terrain" : ""}. Check avalanche.ca the morning you go.</p>${v.check && window.tfWx && window.tfWx.noteHtml ? window.tfWx.noteHtml({ check: v.check }, { cls: "sk-note" }) : ""}`;
   }
 
   // ---------- day tours from the cabin ----------
