@@ -364,7 +364,7 @@ async function bounds() { return jsq(`(() => { const m = window.tfLeaflet, c = m
   phone.launch();
   for (let i = 0; i < 4 && !(await pageUp(i ? 60000 : 120000)); i++) { phone.kill(); await sleep(2000); phone.launch(); }
   await sleep(3000);
-  await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:lang", "en");
+  await jsq(`(() => { localStorage.setItem("tf-admin", "1"); localStorage.setItem("tf:welcomed", "true"); localStorage.setItem("tf:tipSeen", "true"); localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tf:lang", "en");
     localStorage.setItem("tf:sport", "mtb"); localStorage.removeItem("tf:loopWant"); localStorage.removeItem("tf:loopSkip"); localStorage.removeItem("tf:planPicks"); localStorage.setItem("tf:planMode", "pick"); location.reload(); })()`);
   await sleep(4000); await pageUp();
   await jsq(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); })()`);
