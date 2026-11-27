@@ -446,8 +446,13 @@
     // its first build (no iPhone to try it on before): everyone once alex has checked it on the phone.
     const und = threeD && isAdmin() && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
     tipped = !flat; flatOpening = flat;
+    const askedAt = Date.now();
+    // How the native map opened, in alex's own usage log only (isAdmin: the admin phone; 2026-11-27 a fully black native
+    // 3D map on that iPhone that no simulator shows): an answer before 2.5 s means it had drawn the spot.
+    const note = (r) => { if (isAdmin() && window.tfUse) window.tfUse("view", `Native map ${threeD ? "3D" : "2D"}${flat ? " from above" : ""} · ${base} · ${r && r.under ? "under the page" : r === false ? "not opened" : "over the page"} · ${navigator.onLine ? "online" : "offline"}`, Date.now() - askedAt); };
     return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...(und ? { under: und } : {}), ...(flat ? { flat: true } : {}), ...snap })
       .then((r) => {
+        note(r);
         flatOpening = false;
         if (und && open && r && r.under) {
           enterUnder();
@@ -460,7 +465,7 @@
         // twice the page's own flat map stays for this visit.
         if (flat && open) { flatFails++; TrailMap.close().catch(() => {}); return false; }
         return true;
-      }, () => { open = false; sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
+      }, () => { note(false); open = false; sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
