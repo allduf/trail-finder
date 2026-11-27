@@ -256,7 +256,9 @@ const CONDS = {
     const flip = setInterval(() => { off = !off; p.ctx.setOffline(off).catch(() => {}); }, 3000);
     for (const sp of SPORTS) {
       await step(p, `${NAMES[sp]}: sport, Today, Layers, 3D`, async () => {
-        await pick(p, sp); await today(p, sp); await wait(4000); await closeToday(p);
+        // While the signal flickers a sport may not have come yet (its scripts try again by themselves): that is
+        // checked once the signal holds, below. Here: nothing breaks, no error.
+        await pick(p, sp); await today(p, sp).catch(() => {}); await wait(4000); await closeToday(p);
         await p.page.locator("#layersBtn").click({ timeout: 10_000 }); await wait(1500);
         await p.page.keyboard.press("Escape"); await p.page.evaluate(() => { const c = document.getElementById("lmClose"); if (c && c.offsetParent) c.click(); });
         await p.page.locator("#btn3d").click({ timeout: 10_000 }); await wait(5000);
@@ -265,11 +267,16 @@ const CONDS = {
     }
     clearInterval(flip);
     await p.ctx.setOffline(false);
-    await step(p, "Signal back: Today card finishes", async () => {
-      await pick(p, "hike"); await p.page.evaluate(() => window.tfTodaySport && window.tfTodaySport.fill("hike")); await today(p, "hike");
-      const left = await stillWaiting(p, "hike", 60_000);
-      return left.length ? `still waiting after 60 s: ${left.join(", ")}` : "";
-    });
+    // Phones say when the signal is back; the test browser's switch doesn't always.
+    await p.page.evaluate(() => window.dispatchEvent(new Event("online")));
+    for (const sp of SPORTS) {
+      await step(p, `Signal back: ${NAMES[sp]} comes, Today card finishes`, async () => {
+        await pick(p, sp); if (sp !== "mtb") await p.page.evaluate((s) => window.tfTodaySport && window.tfTodaySport.fill(s), sp); await today(p, sp);
+        const left = await stillWaiting(p, sp, 60_000);
+        return left.length ? `still waiting after 60 s: ${left.join(", ")}` : "";
+      });
+      await closeToday(p);
+    }
     await p.ctx.close();
   },
   // Using the app, then airplane mode, then the signal back.
