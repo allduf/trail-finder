@@ -43,10 +43,6 @@ jobs:
           path: .avy-watch
           key: avy-watch-${{ github.run_id }}
           restore-keys: avy-watch-
-      - name: Install the push sender
-        if: github.event_name != 'pull_request'
-        continue-on-error: true
-        run: npm install --no-save --no-package-lock web-push@3.6.7
       - name: The app against Avalanche Canada
         env:
           LOCAL: ${{ github.event_name == 'pull_request' && '1' || '' }}

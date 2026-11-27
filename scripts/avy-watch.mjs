@@ -36,7 +36,6 @@ const TZ = "America/Vancouver";   // the test phone's time zone (the app's "toda
 const DRY = !!process.env.DRY, LOCAL = !!process.env.LOCAL;
 const DATA = process.env.DATA ? fileURLToPath(new URL(process.env.DATA.replace(/\/?$/, "/"), "file://" + process.cwd() + "/")) : null;   // a folder holding data/ files to use instead of the live site's (tests)
 const STATE = process.env.STATE || ".avy-watch/state.json";
-const RUN_URL = process.env.GITHUB_RUN_ID ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : "";
 const OUT = join(process.cwd(), "out", "avy-watch");
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
 await mkdir(OUT, { recursive: true });
@@ -287,7 +286,7 @@ if (!run) {
   const fails = (was.fails || 0) + 1, line = `The avalanche watch couldn't run: ${String(e.message || e).split("\n")[0].slice(0, 200)}`;
   console.log(`::warning::${line} (${fails} run(s) in a row)`);
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Avalanche watch\n\n${line} (${fails} run(s) in a row)\n`);
-  if (fails >= 3 && !was.failTold && await sendAlex({ title: "Avalanche watch couldn't run", body: `3 hours in a row: ${short(line.replace(/^The avalanche watch couldn't run: /, ""))}`, url: RUN_URL, tag: "tf-avy-watch" })) was.failTold = 1;
+  if (fails >= 3 && !was.failTold && await sendAlex({ title: "Avalanche watch couldn't run", body: `3 hours in a row: ${short(line.replace(/^The avalanche watch couldn't run: /, ""))}`, tag: "tf-avy-watch" })) was.failTold = 1;
   await saveState({ ...was, fails });
   local?.close();
   done(true);
@@ -331,8 +330,8 @@ if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SU
 const now = Date.now(), state = { shapes, wrongSince: wrong.length ? was.wrongSince || now : 0, toldAt: wrong.length ? was.toldAt || 0 : 0 };
 let msg = null;
 if (wrong.length && now - (was.toldAt || 0) > 6 * 3600e3)
-  msg = { title: "Avalanche watch: app differs", body: `${wrong.length} difference${wrong.length > 1 ? "s" : ""} from Avalanche Canada: ${short(wrong[0])}${wrong.length > 1 ? " ..." : ""}`, url: RUN_URL, tag: "tf-avy-watch" };
-else if (!wrong.length && (was.toldAt || was.failTold)) msg = { title: "Avalanche watch: back in step", body: "The app shows exactly Avalanche Canada's bulletins again.", url: RUN_URL, tag: "tf-avy-watch" };
+  msg = { title: "Avalanche watch: app differs", body: `${wrong.length} difference${wrong.length > 1 ? "s" : ""} from Avalanche Canada: ${short(wrong[0])}${wrong.length > 1 ? " ..." : ""}`, tag: "tf-avy-watch" };
+else if (!wrong.length && (was.toldAt || was.failTold)) msg = { title: "Avalanche watch: back in step", body: "The app shows exactly Avalanche Canada's bulletins again.", tag: "tf-avy-watch" };
 const sent = msg ? await sendAlex(msg) : false;
 if (wrong.length && sent) state.toldAt = now;
 if (!wrong.length && msg && !sent) { state.toldAt = was.toldAt; state.failTold = was.failTold; }   // "back in step" tried again next run
