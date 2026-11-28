@@ -987,9 +987,35 @@ async function fontsCheck() {
   console.log(`${problems.length ? "✗" : "✓"} App builds: fonts come from the site${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
 }
 
+// Trail and place names show without emoji or grade marks (alex 2026-11-25, no emoji in the app): clean-names.js cleans
+// every text the app reads from its data files and from OpenStreetMap ("Pettifogger 🟢" shows as "Pettifogger"), in the
+// browser engine the iPhone app uses. A data file is answered here with names as some mappers write them;
+// a file without map names (What's new) stays as it is.
+async function namesCheck() {
+  const p = await phone(), { page } = p;
+  let note = "";
+  try {
+    await page.route("**/data/names-tfcheck.json", (r) => r.fulfill({ contentType: "application/json",
+      body: JSON.stringify({ items: [["Octane \u25C6", 42.7, -80.3, "M"], ["Howie Down \u25C6\u25C6", 42.7, -80.3, "M"]], tags: { name: "Pettifogger \u{1F7E2}", ref: "13\u{1F7E2}" }, other: "Johnny \u2764\uFE0F Harlow", note: "More \u2192 Settings" }) }));
+    await page.goto(SITE + "ride.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    // What's new keeps its line-drawing marks: only files with map names are cleaned.
+    await page.route("**/data/changelog-tfcheck.json", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ text: "Hold \u2630 and drag" }) }));
+    const kept = await page.evaluate(() => fetch("data/changelog-tfcheck.json").then((r) => r.json()));
+    if (kept.text !== "Hold \u2630 and drag") throw new Error(`a file without map names was changed: ${kept.text}`);
+    const got = await page.evaluate(() => fetch("data/names-tfcheck.json").then((r) => r.json()));
+    const want = { items: [["Octane", 42.7, -80.3, "M"], ["Howie Down", 42.7, -80.3, "M"]], tags: { name: "Pettifogger", ref: "13" }, other: "Johnny Harlow", note: "More \u2192 Settings" };
+    if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`read as ${JSON.stringify(got).slice(0, 160)}`);
+  } catch (e) { note = String(e.message || e).split("\n")[0].slice(0, 200); }
+  note = [note, ...p.errors].filter(Boolean).join(" · ");
+  await p.ctx.close().catch(() => {});
+  results.push({ sport: "app", step: "Names show without emoji", ok: !note, note, shot: "" });
+  console.log(`${note ? "✗" : "✓"} App builds: names show without emoji${note ? "\n    " + note : ""}`);
+}
+
 async function appBuilds() {
 await seasonCheck().catch((e) => results.push({ sport: "app", step: "Season sport", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fontsCheck().catch((e) => results.push({ sport: "app", step: "Fonts come from the site", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
+await namesCheck().catch((e) => results.push({ sport: "app", step: "Names show without emoji", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await usagePrivateCheck().catch((e) => results.push({ sport: "app", step: "Usage holds nothing personal", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
@@ -1102,6 +1128,33 @@ async function deskTurn() {
     await wait(800);
     const clicks = await page.evaluate(() => window.tfReads.click);
     if (clicks) throw new Error("dragging the map with the mouse counted as a click");
+  }, 0);
+  // Choosing the map pieces in view (alex's ?lagcheck recording 2026-11-27: 90-250 ms of MapLibre's own frame step on
+  // the processor while turning, the graphics card done in 2-17 ms). MapLibre looked up each candidate piece's ground
+  // height once per map source while picking them, ~3,000 lookups a frame in this turn; now once per piece (map3d.js
+  // quickPieces). Fails above DESK_HEIGHT_LOOKUPS a frame.
+  await step(p, "desk", "Turning the 3D map looks up each piece's height once a frame", async () => {
+    const DESK_HEIGHT_LOOKUPS = 1800;
+    await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
+    await page.evaluate(() => {
+      // Counted only while MapLibre picks the pieces of each source (style._updateSources).
+      const g = window.tf3dGl(), T = g.terrain, st = g.style, s = window.tfLook = { n: 0, frames: 0 }, get = T.getTerrainData, upd = st._updateSources;
+      let picking = false;
+      T.getTerrainData = function () { if (picking && g.isMoving()) s.n++; return get.apply(this, arguments); };
+      st._updateSources = function () { picking = true; try { return upd.apply(this, arguments); } finally { picking = false; } };
+      g.on("render", () => { if (g.isMoving()) s.frames++; });
+    });
+    const r = await page.evaluate(() => { const b = window.tf3dGl().getCanvas().getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
+    await page.mouse.move(r[0], r[1]);
+    await page.mouse.down({ button: "right" });
+    for (let i = 1; i <= 30; i++) { await page.mouse.move(r[0] - i * 12, r[1] + Math.sin(i / 5) * 15); await wait(40); }
+    await page.mouse.up({ button: "right" });
+    await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
+    const t = await page.evaluate(() => window.tfLook);
+    const per = t.frames ? Math.round(t.n / t.frames) : 0;
+    console.log(`    (ground height lookups while picking pieces: ${per} a frame over ${t.frames} frames)`);
+    if (!t.frames) throw new Error("the mouse didn't turn the map");
+    if (per > DESK_HEIGHT_LOOKUPS) throw new Error(`turning looked up ground heights ${per} times a frame (at most ${DESK_HEIGHT_LOOKUPS}: once per map piece)`);
   }, 0);
   await p.ctx.close();
 }
