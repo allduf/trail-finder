@@ -424,7 +424,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
     q("ntFish").hidden = !fishOn();
     if (!fishOn()) return;
     const fresh = new Set(fishUnread().map((t) => t.key));
-    q("ntFishText").textContent = `Lakes and rivers within ${FISH_KM} km of the spot you picked, stocked in the last 3 weeks (the provinces' stocking reports).`;
+    q("ntFishText").textContent = `Lakes and rivers within ${FISH_KM} km of the spot you picked, stocked in the last 3 weeks (the BC, Alberta, Ontario, Manitoba and Nova Scotia stocking reports, which give dates).`;
     q("ntFishItems").innerHTML = fishList.length ? fishList.map((t, i) => `<li class="${fresh.has(t.key) ? "unread" : ""}"><button type="button" data-f="${i}"><strong>${esc(t.name)}</strong>
       <small>${esc(t.label)} · ${Math.round(t.km)} km away</small></button></li>`).join("")
       : `<li><p>${fishAt ? "Nothing stocked near you in the last 3 weeks. You'll see it here the morning after the report comes out." : "Checking the stocking reports…"}</p></li>`;
@@ -901,7 +901,7 @@ dialog.notify .nt-row { position: sticky; bottom: -18px; z-index: 1; margin: 10p
   const ASK_KEY = "tf:pushAsk", ASK_WHY = {
     mtb: "Trail Finder can send a notification when a trail on your To ride list is likely in prime loam (an estimate from Open-Meteo soil moisture), and when new trails are mapped in regions you pick.",
     ski: "Trail Finder can send a notification when Avalanche Canada's danger rating goes up to Considerable or more in regions you pick, or on a tour you watch. Always read the full forecast before you go.",
-    fish: "Trail Finder can send a notification when a lake or river within 50 km of where the map is now shows up in a province's stocking reports.",
+    fish: "Trail Finder can send a notification when a lake or river within 50 km of where the map is now shows up in the BC, Alberta, Ontario, Manitoba or Nova Scotia stocking reports.",
   };
   const askState = () => { try { return JSON.parse(lsGet(ASK_KEY) || "{}") || {}; } catch { return {}; } };
   const askPut = (st) => lsSet(ASK_KEY, JSON.stringify(st));

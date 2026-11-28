@@ -19,5 +19,7 @@ Catchable ||| Taille capturable
 Fry ||| Fretin
 Adult ||| Adulte
 Adult (>30 cm) ||| Adulte (>30 cm)
-Lakes and rivers within 50 km of the spot you picked, stocked in the last 3 weeks (the provinces' stocking reports). ||| Lacs et rivières à moins de 50 km de l'endroit choisi, ensemencés dans les 3 dernières semaines (rapports d'ensemencement des provinces).
-Trail Finder can send a notification when a lake or river within 50 km of where the map is now shows up in a province's stocking reports. ||| Trail Finder peut envoyer une notification quand un lac ou une rivière à moins de 50 km de l'endroit où est la carte apparaît dans les rapports d'ensemencement d'une province.
+Lakes and rivers within 50 km of the spot you picked, stocked in the last 3 weeks (the BC, Alberta, Ontario, Manitoba and Nova Scotia stocking reports, which give dates). ||| Lacs et rivières à moins de 50 km de l'endroit choisi, ensemencés dans les 3 dernières semaines (rapports d'ensemencement de la C.-B., de l'Alberta, de l'Ontario, du Manitoba et de la Nouvelle-Écosse, qui donnent les dates).
+Trail Finder can send a notification when a lake or river within 50 km of where the map is now shows up in the BC, Alberta, Ontario, Manitoba or Nova Scotia stocking reports. ||| Trail Finder peut envoyer une notification quand un lac ou une rivière à moins de 50 km de l'endroit où est la carte apparaît dans les rapports d'ensemencement de la C.-B., de l'Alberta, de l'Ontario, du Manitoba ou de la Nouvelle-Écosse.
+Yearling ||| D'un an
+Eggs ||| Œufs

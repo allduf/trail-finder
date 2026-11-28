@@ -542,6 +542,7 @@ async function agolAll(layer, where, fields, geom = false) {
     const j = await get(`${layer}/query?${p}`);
     rows.push(...(j.features || []).map((f) => (geom ? { ...f.attributes, geometry: f.geometry } : f.attributes)));
     if (!j.features || !j.features.length || (!j.exceededTransferLimit && j.features.length < 1000)) break;
+    start += j.features.length - 1000;   // a server that pages smaller than 1000: go on from what came back
   }
   return rows;
 }
@@ -551,7 +552,8 @@ async function stockMB() {
   log(`  Manitoba releases: ${rows.length}`);
   const by = new Map();
   for (const a of rows) {
-    const lat = a.LAT_DD || a.WATERBODY_LAT, lon = a.LONG_DD || a.WATERBODY_LONG;
+    const inMB = (la, lo) => la > 48.9 && la < 60.1 && lo > -102.1 && lo < -88.9;   // a mistyped point can be far outside Manitoba
+    const [lat, lon] = inMB(a.LAT_DD, a.LONG_DD) ? [a.LAT_DD, a.LONG_DD] : inMB(a.WATERBODY_LAT, a.WATERBODY_LONG) ? [a.WATERBODY_LAT, a.WATERBODY_LONG] : [0, 0];
     if (!lat || !lon || !a.WATERBODY_NAME) continue;
     const day = a.DATE ? iso(new Date(a.DATE)) : "";
     if (day ? day < iso(since) : a.YEAR < since.getFullYear()) continue;
@@ -582,7 +584,7 @@ async function stockMB() {
 const NB_STOCK = "https://gis-erd-der.gnb.ca/gisserver/rest/services/Fish_Stocking/Stocking_Lakes/MapServer";
 async function stockNB() {
   const lakes = await arcgis(`${NB_STOCK}/3`, ["WATERID", "NAME1", "SHAPE.AREA", "MAXIMUMWATERDEPTH"], "1=1", 0.0005);
-  const ev = (await get(`${NB_STOCK}/13/query?${new URLSearchParams({ where: `YEAR>=${since.getFullYear()}`, outFields: "WATERID,BROOK_TROUT_NUM,LL_SALMON_NUM,YEAR", f: "json", resultRecordCount: "5000" })}`)).features || [];
+  const ev = (await agolAll(`${NB_STOCK}/13`, `YEAR>=${since.getFullYear()}`, "OBJECTID,WATERID,BROOK_TROUT_NUM,LL_SALMON_NUM,YEAR")).map((a) => ({ attributes: a }));
   log(`  New Brunswick: ${lakes.length} lakes, ${ev.length} yearly totals`);
   const byId = new Map();
   for (const f of lakes) {
@@ -738,11 +740,13 @@ async function stockSK() {
     } catch (e) { log(`  Saskatchewan ${g.y} guide: ${e.message}`); }
   }
   if (!rows.length) throw new Error("no Stocked Waters Guide could be read");
-  const old = new Map(((readOld("stocked.json") || {}).waters || []).filter((w) => w.p === "sk").map((w) => [`${w.n}|${w.t}`, w.c]));
+  // A water is its name and the guide's location, spelled loosely ("12km NE of Leoville" = "12 km NE of Leoville").
+  const skKey = (n, loc) => `${cgPlain(n)}|${cgPlain(loc).replace(/ /g, "")}`;
+  const old = new Map(((readOld("stocked.json") || {}).waters || []).filter((w) => w.p === "sk").map((w) => [skKey(w.n, w.t), w.c]));
   const anchors = new Map(), by = new Map();
   let placed = 0, missed = 0;
   for (const r of rows) {
-    const n = SK_NAME[r.name] || r.name, key = `${n}|${r.loc}`;
+    const n = SK_NAME[r.name] || r.name, key = skKey(n, r.loc);
     if (!by.has(key)) {
       let c = old.get(key) || null;
       if (!c) {
@@ -765,7 +769,13 @@ async function stockSK() {
     if (w) w.r.push([String(r.y), spCode(r.sp), r.n, r.size]);
   }
   log(`  Saskatchewan: ${placed} waters placed, ${missed} left out (no official place of that name near the guide's location)`);
-  return [...by.values()].filter(Boolean);
+  // The same water worded two ways in two guides lands on the same place: one water with both years.
+  const out = [];
+  for (const w of [...by.values()].filter(Boolean)) {
+    const same = out.find((x) => x.n === w.n && kmBetween(x.c, w.c) < 3);
+    if (same) same.r.push(...w.r); else out.push(w);
+  }
+  return out;
 }
 
 async function buildStocked() {
