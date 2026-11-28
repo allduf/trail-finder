@@ -1105,14 +1105,17 @@ async function deskTurn() {
   }, 0);
   // Choosing the map pieces in view (alex's ?lagcheck recording 2026-11-27: 90-250 ms of MapLibre's own frame step on
   // the processor while turning, the graphics card done in 2-17 ms). MapLibre looked up each candidate piece's ground
-  // height once per map source, ~3,300 lookups a frame in this turn; now once per piece a frame (map3d.js quickPieces),
-  // under ~900. Fails above DESK_HEIGHT_LOOKUPS a frame.
+  // height once per map source while picking them, ~3,000 lookups a frame in this turn; now once per piece (map3d.js
+  // quickPieces). Fails above DESK_HEIGHT_LOOKUPS a frame.
   await step(p, "desk", "Turning the 3D map looks up each piece's height once a frame", async () => {
     const DESK_HEIGHT_LOOKUPS = 1800;
     await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
     await page.evaluate(() => {
-      const g = window.tf3dGl(), T = g.terrain, s = window.tfLook = { n: 0, frames: 0 }, get = T.getTerrainData;
-      T.getTerrainData = function () { if (g.isMoving()) s.n++; return get.apply(this, arguments); };
+      // Counted only while MapLibre picks the pieces of each source (style._updateSources).
+      const g = window.tf3dGl(), T = g.terrain, st = g.style, s = window.tfLook = { n: 0, frames: 0 }, get = T.getTerrainData, upd = st._updateSources;
+      let picking = false;
+      T.getTerrainData = function () { if (picking && g.isMoving()) s.n++; return get.apply(this, arguments); };
+      st._updateSources = function () { picking = true; try { return upd.apply(this, arguments); } finally { picking = false; } };
       g.on("render", () => { if (g.isMoving()) s.frames++; });
     });
     const r = await page.evaluate(() => { const b = window.tf3dGl().getCanvas().getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
@@ -1123,7 +1126,7 @@ async function deskTurn() {
     await page.waitForFunction(() => !window.tf3dGl().isMoving(), null, { timeout: 20_000 }).catch(() => {});
     const t = await page.evaluate(() => window.tfLook);
     const per = t.frames ? Math.round(t.n / t.frames) : 0;
-    console.log(`    (ground height lookups while turning: ${per} a frame over ${t.frames} frames)`);
+    console.log(`    (ground height lookups while picking pieces: ${per} a frame over ${t.frames} frames)`);
     if (!t.frames) throw new Error("the mouse didn't turn the map");
     if (per > DESK_HEIGHT_LOOKUPS) throw new Error(`turning looked up ground heights ${per} times a frame (at most ${DESK_HEIGHT_LOOKUPS}: once per map piece)`);
   }, 0);

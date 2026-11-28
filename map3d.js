@@ -2475,31 +2475,33 @@
   // frames a second while turning, the graphics card done in 2 to 17 ms a frame, and 90 to 250 ms in MapLibre's own frame
   // step on the processor). Half of that step went to MapLibre working out, for each of its ~15 map sources, which
   // pieces are in view: (1) it looked up the ground height of each candidate piece once per source, ~3,000 lookups a
-  // frame for ~250 different pieces; now each piece's height is looked up once a frame and reused (the heights only change
-  // between frames, when a height tile arrives). (2) Each piece starting or stopping loading told the map whether its
-  // whole source was loaded, which checks all that source's pieces, dozens of times a frame while turning; nothing
-  // in the app listens for those two events, so the check is made only when something does.
+  // frame for ~250 different pieces; now each piece's height is looked up once while the pieces are picked, and reused.
+  // (2) Each piece starting to load told the map whether its whole source was loaded, which checks all that source's
+  // pieces, dozens of times a frame while turning; a piece just starting to load means "not loaded", so that check is
+  // skipped unless something listens for "sourcedataloading" (nothing in the app does).
   // MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
-  let frameNo = 0, heightsQuick = false;
+  // Computers only (alex 2026-11-25: computer recordings get computer fixes; phones draw 3D natively).
   function quickPieces() {
-    const T = gl && gl.terrain;
-    if (T && T.tfQuick !== T.getMinMaxElevation && typeof T.getMinMaxElevation === "function") {
-      const mm = T.getMinMaxElevation;
-      let memo = new Map(), at = -1;
-      T.getMinMaxElevation = function (id) {
-        const k = id && id.key;
-        if (k === undefined) return mm.apply(this, arguments);
-        if (at !== frameNo) { memo = new Map(); at = frameNo; }
-        let r = memo.get(k);
-        if (!r) { r = mm.apply(this, arguments); memo.set(k, r); }
-        return { minElevation: r.minElevation, maxElevation: r.maxElevation };
-      };
-      T.tfQuick = T.getMinMaxElevation;
-    }
-    if (!heightsQuick && gl && typeof gl._render === "function") {
-      heightsQuick = true;
-      const render = gl._render;
-      gl._render = function () { frameNo++; return render.apply(this, arguments); };
+    if (PHONE || !gl) return;
+    const T = gl.terrain, st = gl.style;
+    // The memo lives only while MapLibre picks each source's pieces (style._updateSources), a fresh one each time: the
+    // camera's own height reads after it, and lookups between frames (a tap's search), read the heights as they are.
+    if (T && st && typeof st._updateSources === "function" && st.tfQuick !== T) {
+      const prev = st.tfQuickWrap ? st.tfQuickOrig : st._updateSources, upd = prev, mm = Object.getPrototypeOf(T).getMinMaxElevation;
+      if (typeof mm === "function") {
+        st.tfQuick = T; st.tfQuickOrig = prev; st.tfQuickWrap = true;
+        st._updateSources = function () {
+          const memo = new Map(), own = Object.prototype.hasOwnProperty.call(T, "getMinMaxElevation"), was = T.getMinMaxElevation;
+          T.getMinMaxElevation = function (id) {
+            const k = id && id.key;
+            if (k === undefined) return was.apply(this, arguments);
+            let r = memo.get(k);
+            if (!r) { r = was.apply(this, arguments); memo.set(k, r); }
+            return { minElevation: r.minElevation, maxElevation: r.maxElevation };
+          };
+          try { return upd.apply(this, arguments); } finally { if (own) T.getMinMaxElevation = was; else delete T.getMinMaxElevation; }
+        };
+      }
     }
     const tms = gl && gl.style && gl.style.tileManagers;
     if (!tms) return;
@@ -2510,7 +2512,8 @@
       const fire = tm.fire;
       tm.fire = function (ev) {
         const ty = ev && ev.type, d = this._eventedParentData;
-        if ((ty === "dataloading" || ty === "dataabort") && typeof d === "function" && !gl.listens("source" + ty)) {
+        // A piece starting to load: its source isn't loaded, so "false" is the right answer without checking every piece.
+        if (ty === "dataloading" && typeof d === "function" && !gl.listens("sourcedataloading")) {
           const self = this;
           this._eventedParentData = () => ({ isSourceLoaded: false, source: self.serialize(), sourceId: self.id });
           try { return fire.apply(this, arguments); } finally { this._eventedParentData = d; }
