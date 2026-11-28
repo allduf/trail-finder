@@ -42,6 +42,10 @@
     [/^[Uu]p to (\d+) m( · depth map \(PDF\)| · depth map)?$/, function (m, d, x) { return (m[0] === "U" ? "J" : "j") + "usqu'à " + d + " m" + (x ? (/PDF/.test(x) ? " · carte bathymétrique (PDF)" : " · carte bathymétrique") : ""); }],
     [/^depth map \(PDF\)$/, "carte bathymétrique (PDF)"],
     [/^(\d+)\.(\d) ha$/, "$1,$2 ha"],
+    // Alberta and Ontario lake facts and Alberta release sizes (fishing.js)
+    [/^Deepest ([\d.]+) m$/, function (m, d) { return "Profondeur max. " + d.replace(".", ",") + " m"; }],
+    [/^Average depth ([\d.]+) m$/, function (m, d) { return "Profondeur moyenne " + d.replace(".", ",") + " m"; }],
+    [/^([\d.]+) cm, (All Female )?(Diploid|Triploid)$/, function (m, l, af, g) { return l.replace(".", ",") + " cm, " + (af ? "tout-femelle " : "") + (g === "Diploid" ? "diploïde" : "triploïde"); }],
     [/^(?:, average (\d+) m)?(?: \(BC lake survey, (\d{4})\))?\.$/, function (m, a, y) { return (a ? ", moyenne " + a + " m" : "") + (y ? " (relevé de lac de la C.-B., " + y + ")" : "") + "."; }],
     // Fishing trips (fishing-trip.js)
     [/^wind (\d+) km\/h (N|NE|E|SE|S|SW|W|NW)(?:, gusts (\d+))?$/, function (m, w, d, g) { return "vent " + w + " km/h " + d.replace(/W/g, "O") + (g ? ", rafales " + g : ""); }],

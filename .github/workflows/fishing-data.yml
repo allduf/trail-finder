@@ -44,6 +44,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install pdftotext (Alberta's stocking reports are PDFs)
+        # without it Alberta keeps its last good stocking data, so a hiccup here doesn't stop the run
+        run: (sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils) || echo "pdftotext not installed"
       - name: Collect fishing data
         run: |
           # a nightly run outside the 3rd only updates the stocking and the BC tidal areas (ONLY=stocked does both)
