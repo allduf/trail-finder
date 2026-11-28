@@ -5,3 +5,5 @@ i18n-fr.js
 android-app/android/app/google-services.json
 # Leftover output of a one-off local lag script (committed by accident once), never part of the site
 /result.json
+# Screenshots from scripts/offline-test.mjs
+offline-shots/
