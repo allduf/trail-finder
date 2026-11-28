@@ -4082,7 +4082,7 @@ out body;`;
       paintFacts(t);
       if (t.wx && state.selected === t.id && $("wx")) renderWeather($("wx"), t.wx.json, cellOf(t), t);   // the freeze line against the trail's heights
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
       if (dirOpen === t && $("fDown")) { $("fDown").textContent = "–"; $("fUp").textContent = "–"; }
     }
     if (box()) { setGoLink(t); renderAccess(t); }
@@ -4589,7 +4589,7 @@ out body;`;
       const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t), t);
       paintFacts(t);
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the weather (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
     }
   }
   function renderWeather(el, w, key, t) {
@@ -5628,7 +5628,7 @@ out body;`;
       el.classList.remove("muted");
       el.innerHTML = `<ol class="history">${t.history.slice().reverse().map((h) => `<li><strong>v${h.v}</strong> · ${fmtDate(h.ts)} · ${userLink(h.user)} ${csLink(h.cs)}${h.comment ? `<div class="muted">“${esc(h.comment)}”</div>` : ""}</li>`).join("")}</ol>`;
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the history (${e.message}). Use the “Full history” link instead.`;
+      const el = box(); if (el) el.textContent = `Couldn't load the history (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Use the “Full history” link instead.`;
     }
   }
 
@@ -8531,7 +8531,7 @@ out tags center qt;`;
       const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e])), w = els.find((e) => e.type === "way");
       if (!w || token !== foundToken) return;
       await presentTrail({ main: w, segs: [wayLine(w, nodes)], segIds: [w.id], type: "way", kind: kindOf(w.tags || {}), token, view: ll });
-    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   };
   window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
 
@@ -8626,7 +8626,7 @@ out tags center qt;`;
       if (!segs.length) throw new Error("the trail's shape didn't load");
       await presentTrail({ main, segs, segIds, pieceTags, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit", loamAt: g.center });   // same Loam reading as its list row
     } catch (e) {
-      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
+      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Try again in a moment.`, true);
     }
   }
 
@@ -8796,7 +8796,7 @@ out tags center qt;`;
     const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
       .map((r) => ({ id: r.id, name: r.tags.name || r.tags.ref || "unnamed" }));
     try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, routeTypes, token, view: ll }); }
-    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   }
 
   // ---- draw a square: list every MTB trail inside it, old or new (from the daily all-trails lists) ----

@@ -820,7 +820,7 @@ body:not(.sport-moto) .mt-flybar { display: none !important; }
   // Open-Meteo (free, no key), several squares per call: rain of the last 3 days and the next day, the top soil's
   // moisture, snow on the ground and the temperature.
   const MUD = {
-    good: ["Dry", "#2f9e44", "Dry and firm in the weather model"], dust: ["Dusty", "#d4a017", "Dry and dusty in the weather model"], slick: ["Slick", "#f08c00", "Damp in the weather model: may be slick on clay and rock"],
+    good: ["No mud signal", "#868e96", "Little rain in the last 24 h and no wet soil in the weather model"], dust: ["Dusty", "#d4a017", "Little rain and very low soil moisture in the weather model: may be dusty"], slick: ["Slick", "#f08c00", "Damp in the weather model: may be slick on clay and rock"],
     mud: ["Muddy", "#8b5a2b", "Wet in the weather model: may be muddy and rutted, can ride a grade harder"], snow: ["Snow", "#4dabf7", "Snow on the ground in the weather model"],
   };
   const mudCache = new Map();   // "lat,lon" (cell centre) -> { at, w }
