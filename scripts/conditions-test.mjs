@@ -187,6 +187,69 @@ const TITLES = {
   reopen: "Opened again with no signal", overnight: "Overnight, no signal", location: "Location off", background: "Background and back",
   memory: "3D map memory dropped", dark: "Dark mode", small: "Small screens", sideways: "Phone sideways (website)",
 };
+// One overnight run (CONDS.overnight), its phone's clock at that hour of the day, Pacific.
+async function nightAt(hour, when) {
+  let avy = null;
+  try { avy = JSON.parse(await readFile(join(root, "data/avalanche.json"), "utf8")); } catch {}
+  const p = await phone({ net: async (route, u, local, map) => {
+    if (local && /\/data\/avalanche\.json$/.test(u.pathname) && avy) return route.fulfill({ contentType: "application/json", body: JSON.stringify(avy) });
+    return local || map ? route.continue().catch(() => {}) : route.abort().catch(() => {});
+  } });
+  if (!avy) { await step(p, `${when}: Avalanche test file`, () => "data/avalanche.json missing (bash scripts/site-data.sh get)"); await p.ctx.close(); return; }
+  // Today's bulletin where you are (Whistler): the saved copy, as Avalanche Canada would give it today, valid 3 h more.
+  // The day is made from the test's own clock only, its date and its name: winter.js acDay() moves a date to its named
+  // day, so a name kept from the saved copy (tomorrow's, once the 4 PM Pacific bulletin is out) moved it off today and
+  // the check failed every evening (2026-11-27).
+  const tz = { timeZone: "America/Vancouver" }, real = Date.now();
+  const now = real + (hour - Number(new Date(real).toLocaleString("en-US", { ...tz, hour: "numeric", hourCycle: "h23" }))) * 3600e3;
+  const day = new Date(now).toLocaleDateString("en-CA", tz), dayName = new Date(now).toLocaleDateString("en-US", { ...tz, weekday: "long" });
+  let found = 0;
+  // An area's outline: rings of lat, lon, lat, lon... (winter.js prepAreas).
+  const inside = (r, lat, lon) => { let o = false; for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { const [ay, ax, by, bx] = [r[i], r[i + 1], r[j], r[j + 1]]; if ((ay > lat) !== (by > lat) && lon < ((bx - ax) * (lat - ay)) / (by - ay) + ax) o = !o; } return o; };
+  for (const a of avy.areas || []) {
+    if (!a.forecast || !(a.rings || []).some((r) => inside(r, 50.1163, -122.9574))) continue;
+    const d0 = { date: day, label: dayName, alp: 3, tln: 3, btl: 2 };
+    Object.assign(a.forecast, { issued: new Date(now - 3600e3).toISOString(), validUntil: new Date(now + 3 * 3600e3).toISOString(), days: [d0], early: false });
+    found++;
+  }
+  avy.builtAt = new Date(now).toISOString();
+  await p.page.clock.install({ time: now });
+  await open(p);
+  await step(p, `${when}: Skiing: today's ratings show`, async () => {
+    await pick(p, "ski"); await wait(6000); await today(p, "ski"); await stillWaiting(p, "ski", 30_000);
+    const t = await text(p, `${todaySel("ski")} .tdy-avy`);
+    return found && /Considerable/.test(t) ? "" : `the test's bulletin didn't show (${found} area(s) set): "${t.slice(0, 100)}"`;
+  });
+  await closeToday(p);
+  await away(p);
+  await p.ctx.setOffline(true);
+  await p.page.clock.setSystemTime(now + 40 * 3600e3);
+  await wait(500);
+  await back(p);
+  await step(p, `${when}: 40 h later, no signal: no old rating as today's`, async () => {
+    await wait(8000);
+    // The ratings may only show under the panel's "expired" warning; the Today card shows none.
+    const card = await text(p, ".tdy[data-sp=ski] .tdy-avy");
+    const panel = await text(p, "#avCard");
+    const bad = [];
+    if (/Considerable|Moderate|Low|High|Extreme/.test(card)) bad.push(`the Today card still shows yesterday's ratings: "${card.slice(0, 100)}"`);
+    if (/Considerable|Moderate|\bLow\b|\bHigh\b|Extreme/.test(panel) && !/expired/i.test(panel)) bad.push(`the avalanche panel shows ratings without saying they expired: "${panel.slice(0, 100)}"`);
+    return bad.join(" · ");
+  }, 500);
+  await step(p, `${when}: 40 h later, no signal: Today card`, async () => {
+    await today(p, "ski");
+    const left = await stillWaiting(p, "ski", 30_000);
+    if (left.length) return `still waiting: ${left.join(", ")}`;
+    const t = await text(p, todaySel("ski"));
+    const bad = [];
+    if (/\b[1-5] (Low|Moderate|Considerable|High|Extreme)\b/.test(t)) bad.push("an avalanche rating from the old bulletin shows");
+    if (!/run out|expired|no rating/i.test(t)) bad.push("no word on why no rating shows");
+    if (!/No signal/i.test(t)) bad.push("no word of the missing signal");
+    return bad.join(" · ");
+  });
+  await closeToday(p);
+  await p.ctx.close();
+}
 const CONDS = {
   // Every download late, outside services cut (as in phone-test.mjs), a brand-new phone.
   async weak() {
@@ -349,63 +412,11 @@ const CONDS = {
     }
     await p.ctx.close();
   },
-  // Skiing open with a bulletin valid for 3 more hours, then 40 h away with no signal.
+  // Skiing open with a bulletin valid for 3 more hours, then 40 h away with no signal. Run on the phone's clock at 9 AM
+  // and at 8 PM Pacific, whenever the test runs: in the evening the UTC date is already tomorrow and Avalanche Canada's
+  // 4 PM bulletin is out, so a mix-up of days fails on every run, not only on an evening one (2026-11-27).
   async overnight() {
-    let avy = null;
-    try { avy = JSON.parse(await readFile(join(root, "data/avalanche.json"), "utf8")); } catch {}
-    const p = await phone({ net: async (route, u, local, map) => {
-      if (local && /\/data\/avalanche\.json$/.test(u.pathname) && avy) return route.fulfill({ contentType: "application/json", body: JSON.stringify(avy) });
-      return local || map ? route.continue().catch(() => {}) : route.abort().catch(() => {});
-    } });
-    if (!avy) { await step(p, "Avalanche test file", () => "data/avalanche.json missing (bash scripts/site-data.sh get)"); await p.ctx.close(); return; }
-    // Today's bulletin where you are (Whistler): the saved copy, as Avalanche Canada would give it today, valid 3 h more.
-    const now = Date.now(), day = new Date(now).toLocaleDateString("en-CA", { timeZone: "America/Vancouver" });
-    let found = 0;
-    // An area's outline: rings of lat, lon, lat, lon... (winter.js prepAreas).
-    const inside = (r, lat, lon) => { let o = false; for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { const [ay, ax, by, bx] = [r[i], r[i + 1], r[j], r[j + 1]]; if ((ay > lat) !== (by > lat) && lon < ((bx - ax) * (lat - ay)) / (by - ay) + ax) o = !o; } return o; };
-    for (const a of avy.areas || []) {
-      if (!a.forecast || !(a.rings || []).some((r) => inside(r, 50.1163, -122.9574))) continue;
-      const d0 = { ...((a.forecast.days || [])[0] || {}), date: day, alp: 3, tln: 3, btl: 2 };
-      Object.assign(a.forecast, { issued: new Date(now - 3600e3).toISOString(), validUntil: new Date(now + 3 * 3600e3).toISOString(), days: [d0], early: false });
-      found++;
-    }
-    avy.builtAt = new Date(now).toISOString();
-    await p.page.clock.install();
-    await open(p);
-    await step(p, "Skiing: today's ratings show", async () => {
-      await pick(p, "ski"); await wait(6000); await today(p, "ski"); await stillWaiting(p, "ski", 30_000);
-      const t = await text(p, `${todaySel("ski")} .tdy-avy`);
-      return found && /Considerable/.test(t) ? "" : `the test's bulletin didn't show (${found} area(s) set): "${t.slice(0, 100)}"`;
-    });
-    await closeToday(p);
-    await away(p);
-    await p.ctx.setOffline(true);
-    await p.page.clock.setSystemTime(now + 40 * 3600e3);
-    await wait(500);
-    await back(p);
-    await step(p, "40 h later, no signal: no old rating as today's", async () => {
-      await wait(8000);
-      // The ratings may only show under the panel's "expired" warning; the Today card shows none.
-      const card = await text(p, ".tdy[data-sp=ski] .tdy-avy");
-      const panel = await text(p, "#avCard");
-      const bad = [];
-      if (/Considerable|Moderate|Low|High|Extreme/.test(card)) bad.push(`the Today card still shows yesterday's ratings: "${card.slice(0, 100)}"`);
-      if (/Considerable|Moderate|\bLow\b|\bHigh\b|Extreme/.test(panel) && !/expired/i.test(panel)) bad.push(`the avalanche panel shows ratings without saying they expired: "${panel.slice(0, 100)}"`);
-      return bad.join(" · ");
-    }, 500);
-    await step(p, "40 h later, no signal: Today card", async () => {
-      await today(p, "ski");
-      const left = await stillWaiting(p, "ski", 30_000);
-      if (left.length) return `still waiting: ${left.join(", ")}`;
-      const t = await text(p, todaySel("ski"));
-      const bad = [];
-      if (/\b[1-5] (Low|Moderate|Considerable|High|Extreme)\b/.test(t)) bad.push("an avalanche rating from the old bulletin shows");
-      if (!/run out|expired|no rating/i.test(t)) bad.push("no word on why no rating shows");
-      if (!/No signal/i.test(t)) bad.push("no word of the missing signal");
-      return bad.join(" · ");
-    });
-    await closeToday(p);
-    await p.ctx.close();
+    for (const [hour, when] of [[9, "9 AM"], [20, "8 PM"]]) await nightAt(hour, when);
   },
   // Location not shared (the phone's setting off, or "Don't allow").
   async location() {
