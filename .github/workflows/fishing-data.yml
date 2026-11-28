@@ -1,7 +1,7 @@
 name: Fishing data
 
 # Collect the data files for Fishing (scripts/build-fishing.mjs) into data/fishing/*.json: stocked lakes and rivers
-# (BC, Alberta, Ontario), the areas fishing rules are written for, river gauges with their usual flow for each month,
+# (BC, Alberta, Ontario, Saskatchewan, Manitoba, New Brunswick, Nova Scotia), the areas fishing rules are written for, river gauges with their usual flow for each month,
 # tide stations, the Ontario and Quebec fish eating guides, what you may keep in each BC tidal area, fish lists and
 # each lake's own seasons and limits (Quebec, Ontario, and BC with scripts/build-bc-regs.py), and lake depth lines and
 # depth charts outside BC (scripts/build-lake-depth.py). The stocking
@@ -44,9 +44,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install pdftotext (Alberta's stocking reports are PDFs)
+      - name: Install pdftotext (Alberta's stocking reports and Saskatchewan's guide are PDFs)
         # without it Alberta keeps its last good stocking data, so a hiccup here doesn't stop the run
         run: (sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils) || echo "pdftotext not installed"
+      - name: Add the certificate Saskatchewan's publications site leaves out (its Stocked Waters Guide)
+        # publications.saskatchewan.ca sends its certificate without the DigiCert intermediate, which Node can't fetch on
+        # its own. The intermediate is still checked against Node's own root certificates. Failing here only means
+        # Saskatchewan keeps its last good stocking data.
+        run: |
+          curl -fsS --max-time 30 http://cacerts.digicert.com/DigiCertGlobalG2TLSRSASHA2562020CA1-1.crt | openssl x509 -inform der -out "$RUNNER_TEMP/sk-ca.pem" \
+            && echo "NODE_EXTRA_CA_CERTS=$RUNNER_TEMP/sk-ca.pem" >> "$GITHUB_ENV" || echo "certificate not added"
       - name: Collect fishing data
         run: |
           # a nightly run outside the 3rd only updates the stocking and the BC tidal areas (ONLY=stocked does both)

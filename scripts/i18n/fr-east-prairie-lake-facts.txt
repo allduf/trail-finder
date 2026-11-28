@@ -1,0 +1,23 @@
+Fishing in Saskatchewan, Manitoba, New Brunswick and Nova Scotia: stocked lakes and streams now show on the map with what each province stocked in the last 3 years, and lake size, depth and boat launch where the province lists them, each with its source. ||| Pêche en Saskatchewan, au Manitoba, au Nouveau-Brunswick et en Nouvelle-Écosse : les lacs et cours d'eau ensemencés s'affichent maintenant sur la carte avec ce que chaque province y a ensemencé dans les 3 dernières années, ainsi que la superficie, la profondeur et la mise à l'eau quand la province les indique, chacun avec sa source.
+(Saskatchewan Fish Hatchery), yearly totals. ||| (Saskatchewan Fish Hatchery), totaux annuels.
+, yearly totals. ||| , totaux annuels.
+. Contains information from the Government of Manitoba, licensed under the OpenMB Information and Data Use License. ||| . Contient de l'information du gouvernement du Manitoba, sous la licence d'utilisation des données et de l'information OpenMB.
+Manitoba Waterbody Stocking Records ||| Registres d'ensemencement des plans d'eau du Manitoba
+New Brunswick Fish Stocking App ||| Application d'ensemencement de poissons du Nouveau-Brunswick
+Nova Scotia Fish Hatchery Stocking Records ||| Registres d'ensemencement des piscicultures de la Nouvelle-Écosse
+Saskatchewan Stocked Waters Guide ||| Guide des eaux ensemencées de la Saskatchewan
+From Manitoba's ||| Selon le site
+Lake Information for Anglers ||| Lake Information for Anglers du Manitoba
+. Water levels and launches can change. Not for navigation. ||| . Le niveau de l'eau et les mises à l'eau peuvent changer. Pas pour la navigation.
+From New Brunswick's ||| Selon les données de
+Fish Stocking App ||| l'application d'ensemencement de poissons du Nouveau-Brunswick
+. Water levels can change. Not for navigation. ||| . Le niveau de l'eau peut changer. Pas pour la navigation.
+Lake size and depth from the ||| Superficie et profondeur selon le
+Nova Scotia Lake Survey ||| relevé des lacs de la Nouvelle-Écosse
+Fingerling ||| Alevin
+Catchable ||| Taille capturable
+Fry ||| Fretin
+Adult ||| Adulte
+Adult (>30 cm) ||| Adulte (>30 cm)
+Lakes and rivers within 50 km of the spot you picked, stocked in the last 3 weeks (the provinces' stocking reports). ||| Lacs et rivières à moins de 50 km de l'endroit choisi, ensemencés dans les 3 dernières semaines (rapports d'ensemencement des provinces).
+Trail Finder can send a notification when a lake or river within 50 km of where the map is now shows up in a province's stocking reports. ||| Trail Finder peut envoyer une notification quand un lac ou une rivière à moins de 50 km de l'endroit où est la carte apparaît dans les rapports d'ensemencement d'une province.

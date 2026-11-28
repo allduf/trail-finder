@@ -47,6 +47,10 @@
     [/^Average depth ([\d.]+) m$/, function (m, d) { return "Profondeur moyenne " + d.replace(".", ",") + " m"; }],
     [/^([\d.]+) cm, (All Female )?(Diploid|Triploid)$/, function (m, l, af, g) { return l.replace(".", ",") + " cm, " + (af ? "tout-femelle " : "") + (g === "Diploid" ? "diploïde" : "triploïde"); }],
     [/^(?:, average (\d+) m)?(?: \(BC lake survey, (\d{4})\))?\.$/, function (m, a, y) { return (a ? ", moyenne " + a + " m" : "") + (y ? " (relevé de lac de la C.-B., " + y + ")" : "") + "."; }],
+    // Saskatchewan stocked waters and Nova Scotia release lengths (fishing.js)
+    [/^The guide's location: (.+)\. The spot on the map is the lake or stream of that name closest to it, an estimate\.$/, "Lieu selon le guide : $1. Le point sur la carte est le lac ou le cours d'eau de ce nom le plus proche, une estimation."],
+    [/^(\d+)\.(\d) cm$/, "$1,$2 cm"],
+    [/^And (\d+) more releases?\.$/, function (m, n) { return "Et " + n + " autre" + (n > 1 ? "s ensemencements." : " ensemencement."); }],
     // Fishing trips (fishing-trip.js)
     [/^wind (\d+) km\/h (N|NE|E|SE|S|SW|W|NW)(?:, gusts (\d+))?$/, function (m, w, d, g) { return "vent " + w + " km/h " + d.replace(/W/g, "O") + (g ? ", rafales " + g : ""); }],
     [/^sun (.+) to (.+)$/, "soleil $1 à $2"],

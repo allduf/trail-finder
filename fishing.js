@@ -1955,13 +1955,26 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   function releasesHtml(w) {
     const sp = stocked.sp, st = stocked.st || [];
     const rows = w.r.slice(0, 8).map((r) => `<tr><td>${esc(/^\d{4}-\d\d-\d\d$/.test(r[0]) ? fmtDay(r[0]) : r[0])}</td><td><b>${esc(sp[r[1]] || "")}</b>${st[r[3]] ? `<br><small>${esc(st[r[3]])}</small>` : ""}</td><td class="num">${r[2] ? r[2].toLocaleString() : ""}</td></tr>`).join("");
-    const src = w.p === "bc" ? `<a href="https://www.gofishbc.com/stocked-fish/?wbid=${encodeURIComponent(w.id || "")}" target="_blank" rel="noopener">Freshwater Fisheries Society of BC stocking report</a>` : w.p === "ab" ? `<a href="https://mywildalberta.ca/fishing/fish-stocking/default.aspx" target="_blank" rel="noopener">${w.r.some((r) => / planned/.test(r[0])) ? "Alberta stocking reports and this year's planned trout stocking" : "Alberta fish stocking reports"}</a>` : `<a href="https://data.ontario.ca/dataset/fish-stocking" target="_blank" rel="noopener">Ontario fish stocking data</a>`;
-    return `${lakeFactsHtml(w)}<table class="fs-tbl"><thead><tr><th>When</th><th>What</th><th class="num">Fish</th></tr></thead><tbody>${rows}</tbody></table>${w.r.length > 8 ? `<p class="fs-note">And ${w.r.length - 8} more releases.</p>` : ""}<p class="fs-note">${src}.</p>`;
+    const a = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
+    const src = w.p === "bc" ? a(`https://www.gofishbc.com/stocked-fish/?wbid=${encodeURIComponent(w.id || "")}`, "Freshwater Fisheries Society of BC stocking report")
+      : w.p === "ab" ? a("https://mywildalberta.ca/fishing/fish-stocking/default.aspx", w.r.some((r) => / planned/.test(r[0])) ? "Alberta stocking reports and this year's planned trout stocking" : "Alberta fish stocking reports")
+      : STOCK_SRC[w.p] || a("https://data.ontario.ca/dataset/fish-stocking", "Ontario fish stocking data");
+    // Saskatchewan's guide gives a place description, not a position: the dot is the official place of that name near it.
+    const where = w.p === "sk" && w.t ? `<p class="fs-note">The guide's location: ${esc(w.t)}. The spot on the map is the lake or stream of that name closest to it, an estimate.</p>` : "";
+    return `${lakeFactsHtml(w)}<table class="fs-tbl"><thead><tr><th>When</th><th>What</th><th class="num">Fish</th></tr></thead><tbody>${rows}</tbody></table>${w.r.length > 8 ? `<p class="fs-note">And ${w.r.length - 8} more release${w.r.length > 9 ? "s" : ""}.</p>` : ""}<p class="fs-note">${src}.</p>${where}`;
   }
+  const STOCK_SRC = {
+    sk: `<a href="https://publications.saskatchewan.ca/#/categories/53" target="_blank" rel="noopener">Saskatchewan Stocked Waters Guide</a> (Saskatchewan Fish Hatchery), yearly totals`,
+    mb: `<a href="https://geoportal.gov.mb.ca/datasets/manitoba::manitoba-waterbody-stocking-records" target="_blank" rel="noopener">Manitoba Waterbody Stocking Records</a>. Contains information from the Government of Manitoba, licensed under the OpenMB Information and Data Use License`,
+    nb: `<a href="https://nbdnr.maps.arcgis.com/apps/webappviewer/index.html?id=4f860421af6443f7ae1c48770ac369a6" target="_blank" rel="noopener">New Brunswick Fish Stocking App</a>, yearly totals`,
+    ns: `<a href="https://data.novascotia.ca/d/8e4a-m6fw" target="_blank" rel="noopener">Nova Scotia Fish Hatchery Stocking Records</a>`,
+  };
   // What the province's own data lists for the lake (stocked.json f, built by scripts/build-fishing.mjs):
   // [elevation m, area ha, road 2 or 4 (WD), flags, deepest m, average depth m, thermal regime c/o/w]. BC: the Freshwater
   // Fisheries Society of BC's "where to fish" map; Alberta: the lake's size on Alberta's fisheries map (FWMIS); Ontario:
-  // size, depth and thermal regime from Ontario's Aquatic Resource Area inventory. Only what they list: a missing
+  // size, depth and thermal regime from Ontario's Aquatic Resource Area inventory; Manitoba: size, average depth and boat
+  // launch from Manitoba's Lake Information for Anglers; New Brunswick: size and deepest point from its fish stocking map;
+  // Nova Scotia: size and depth from the Nova Scotia Lake Survey. Only what they list: a missing
   // launch or dock isn't shown as "none".
   const FLAG = { b: "Boat launch", d: "Fishing dock", a: "Wheelchair access", c: "Campsite", w: "Washroom", h: "Hike-in" };
   const THERMAL = { c: "Cold-water lake", o: "Cool-water lake", w: "Warm-water lake" };
@@ -1969,6 +1982,9 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     bc: `As listed on the <a href="https://www.gofishbc.com/where-to-fish/" target="_blank" rel="noopener">Freshwater Fisheries Society of BC's Where to fish map</a>. Roads, docks and facilities can change.`,
     ab: `Lake size from Alberta's fisheries map (<a href="https://www.alberta.ca/fisheries-and-wildlife-management-information-system-overview" target="_blank" rel="noopener">FWMIS</a>). Water levels can change.`,
     on: `From Ontario's Aquatic Resource Area inventory, the lake facts in <a href="https://www.lioapplications.lrc.gov.on.ca/fishonline/Index.html?viewer=FishONLine.FishONLine&locale=en-CA" target="_blank" rel="noopener">Fish ON-Line</a>. Old surveys: water levels may have changed. Not for navigation.`,
+    mb: `From Manitoba's <a href="https://experience.arcgis.com/experience/2557cda82dcc4a348fbb71304cedcf6d" target="_blank" rel="noopener">Lake Information for Anglers</a>. Water levels and launches can change. Not for navigation.`,
+    nb: `From New Brunswick's <a href="https://nbdnr.maps.arcgis.com/apps/webappviewer/index.html?id=4f860421af6443f7ae1c48770ac369a6" target="_blank" rel="noopener">Fish Stocking App</a>. Water levels can change. Not for navigation.`,
+    ns: `Lake size and depth from the <a href="https://nse.maps.arcgis.com/apps/webappviewer/index.html?id=7ded7a30bef44f848e8a4fc8672c89bd" target="_blank" rel="noopener">Nova Scotia Lake Survey</a>. Old surveys: water levels may have changed. Not for navigation.`,
   };
   const dec = (x) => (x >= 10 ? Math.round(x) : Math.round(x * 10) / 10);
   function lakeFactsHtml(w) {

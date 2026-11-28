@@ -9,8 +9,12 @@
 //    stocking reports (PDF since 2022, read with pdftotext; the spreadsheets before that give each place's position) and
 //    this year's planned trout stocking until the year's final report (open.alberta.ca), with each lake's size from
 //    Alberta's fisheries map (FWMIS). Ontario: Fish Stocking Data for Recreational Purposes (Ontario GeoHub), with each
-//    lake's size, depth and thermal regime from Ontario's Aquatic Resource Area inventory (LIO). Quebec doesn't publish
-//    its stocking as open data.
+//    lake's size, depth and thermal regime from Ontario's Aquatic Resource Area inventory (LIO). Saskatchewan: the
+//    yearly Stocked Waters Guide (PDF), each water placed on the official place name near the guide's location (CGNDB).
+//    Manitoba: Manitoba Waterbody Stocking Records, with size, average depth and boat launch from Manitoba's Lake
+//    Information for Anglers. New Brunswick: the province's fish stocking map (yearly totals, lake size and deepest
+//    point). Nova Scotia: Nova Scotia Fish Hatchery Stocking Records, with size and depth from the Nova Scotia Lake
+//    Survey. Quebec, PEI and Newfoundland and Labrador publish no list of stocked waters with numbers.
 //  - zones.json: the areas fishing rules are written for, as simplified outlines: BC's fishing regions (DataBC
 //    EADM_WLAP_REGION_BND_AREA_SVW), BC's tidal Pacific Fishery Management Areas (DFO_PFMA_STAT_AREA_BDRY_SP),
 //    Alberta's Fish Management Zones (fisheries/fisheries_regulations), Ontario's Fisheries Management Zones (LIO) and
@@ -32,7 +36,9 @@
 //    population: children under 15 and people who are or may become pregnant or are breastfeeding) and Quebec's Guide
 //    de consommation du poisson de pêche sportive en eau douce (donneesquebec.ca, CC-BY 4.0).
 // DataBC: Open Government Licence - British Columbia. Alberta: Open Government Licence - Alberta. Ontario: Open
-// Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. FFSBC stocking report: public
+// Government Licence - Ontario. Quebec and DFO: Open Government Licence - Canada / Quebec. Saskatchewan: the guide is a public
+// document; CGNDB: Open Government Licence - Canada. Manitoba: OpenMB Information and Data Use Licence. Nova Scotia: Open
+// Government Licence - Nova Scotia. New Brunswick: the province's public stocking map, credited in the app. FFSBC stocking report: public
 // report, credited in the app. A source that fails keeps its last good data.
 //
 // Run: node scripts/build-fishing.mjs   (Node 18 or newer, no packages needed; ONLY=stocked|zones|tides|gauges|eat|spots|walkin|boating|tidal|fishlist|qcrules|onrules for one file; the nightly ONLY=stocked also does tidal)
@@ -524,10 +530,248 @@ async function stockON() {
   return out;
 }
 
+// Manitoba Waterbody Stocking Records (Manitoba's GeoPortal, OpenMB licence): each release with its date, species,
+// size and number, placed where the hatchery put the fish in (else the lake's own point). Lake facts from the same
+// government's Lake Information for Anglers (Manitoba_Waterbody_Data, by WATERBODY_ID): surface area (km² there),
+// average depth and whether it lists a boat launch. f = [0, ha, 0, "b" or "", 0, average m, ""]
+const MB_AGOL = "https://services.arcgis.com/mMUesHYPkXjaFGfS/arcgis/rest/services";
+async function agolAll(layer, where, fields, geom = false) {
+  const rows = [];
+  for (let start = 0; ; start += 1000) {
+    const p = new URLSearchParams({ where, outFields: fields, f: "json", resultOffset: String(start), resultRecordCount: "1000", returnGeometry: String(geom), orderByFields: "OBJECTID", outSR: "4326" });
+    const j = await get(`${layer}/query?${p}`);
+    rows.push(...(j.features || []).map((f) => (geom ? { ...f.attributes, geometry: f.geometry } : f.attributes)));
+    if (!j.features || !j.features.length || (!j.exceededTransferLimit && j.features.length < 1000)) break;
+  }
+  return rows;
+}
+const factsOk = { mb: false, nb: false, ns: false };   // these provinces' lake facts came back this run
+async function stockMB() {
+  const rows = await agolAll(`${MB_AGOL}/Manitoba_Waterbody_Stocking_Records/FeatureServer/0`, `YEAR>=${since.getFullYear()}`, "WATERBODY_ID,WATERBODY_NAME,DATE,YEAR,SPECIES,SIZE,QUANTITY,LAT_DD,LONG_DD,WATERBODY_LAT,WATERBODY_LONG");
+  log(`  Manitoba releases: ${rows.length}`);
+  const by = new Map();
+  for (const a of rows) {
+    const lat = a.LAT_DD || a.WATERBODY_LAT, lon = a.LONG_DD || a.WATERBODY_LONG;
+    if (!lat || !lon || !a.WATERBODY_NAME) continue;
+    const day = a.DATE ? iso(new Date(a.DATE)) : "";
+    if (day ? day < iso(since) : a.YEAR < since.getFullYear()) continue;
+    const k = String(a.WATERBODY_ID || a.WATERBODY_NAME);
+    const w = by.get(k) || by.set(k, { n: title(a.WATERBODY_NAME), p: "mb", c: [r4(+lat), r4(+lon)], id: a.WATERBODY_ID ? String(a.WATERBODY_ID) : undefined, r: [] }).get(k);
+    w.r.push([day || String(a.YEAR), spCode(a.SPECIES), Math.round(a.QUANTITY || 0), String(a.SIZE || "").trim()]);
+  }
+  const out = [...by.values()];
+  try {
+    const ids = [...new Set(out.map((w) => w.id).filter((x) => /^\d+$/.test(x || "")))];
+    const facts = new Map();
+    for (let i = 0; i < ids.length; i += 200) {
+      for (const a of await agolAll(`${MB_AGOL}/Manitoba_Waterbody_Data/FeatureServer/0`, `WATERBODY_ID IN (${ids.slice(i, i + 200).join(",")})`, "WATERBODY_ID,SURFACE_AREA,AVERAGE_DEPTH_M,BOAT_LAUNCH")) {
+        const ha = a.SURFACE_AREA > 0 ? a.SURFACE_AREA * 100 : 0, mean = a.AVERAGE_DEPTH_M > 0 ? a.AVERAGE_DEPTH_M : 0, b = /^yes$/i.test(a.BOAT_LAUNCH || "") ? "b" : "";
+        if (ha || mean || b) facts.set(String(a.WATERBODY_ID), [0, ha >= 10 ? Math.round(ha) : Math.round(ha * 10) / 10, 0, b, 0, Math.round(mean * 10) / 10, ""]);
+      }
+    }
+    for (const w of out) if (facts.has(w.id)) w.f = facts.get(w.id);
+    factsOk.mb = facts.size > 30;
+  } catch (e) { log(`    Manitoba lake facts: ${e.message}`); }
+  log(`  Manitoba: ${out.length} waters, ${out.filter((w) => w.f).length} with lake facts`);
+  return out;
+}
+
+// New Brunswick's fish stocking map (Department of Natural Resources and Energy Development, gis-erd-der.gnb.ca
+// Fish_Stocking/Stocking_Lakes): the lakes it stocks with its yearly brook trout and landlocked salmon numbers (table 13),
+// each lake's outline (layer 3) for its spot, surface area and deepest point. f = [0, ha, 0, "", deepest m, 0, ""]
+const NB_STOCK = "https://gis-erd-der.gnb.ca/gisserver/rest/services/Fish_Stocking/Stocking_Lakes/MapServer";
+async function stockNB() {
+  const lakes = await arcgis(`${NB_STOCK}/3`, ["WATERID", "NAME1", "SHAPE.AREA", "MAXIMUMWATERDEPTH"], "1=1", 0.0005);
+  const ev = (await get(`${NB_STOCK}/13/query?${new URLSearchParams({ where: `YEAR>=${since.getFullYear()}`, outFields: "WATERID,BROOK_TROUT_NUM,LL_SALMON_NUM,YEAR", f: "json", resultRecordCount: "5000" })}`)).features || [];
+  log(`  New Brunswick: ${lakes.length} lakes, ${ev.length} yearly totals`);
+  const byId = new Map();
+  for (const f of lakes) {
+    const a = f.properties, c = f.geometry && centre(f.geometry);
+    if (!c || a.WATERID == null || byId.has(a.WATERID)) continue;
+    const ha = a["SHAPE.AREA"] > 0 ? a["SHAPE.AREA"] / 1e4 : 0, mx = a.MAXIMUMWATERDEPTH > 0 ? a.MAXIMUMWATERDEPTH : 0;
+    byId.set(a.WATERID, { n: a.NAME1 ? String(a.NAME1).trim() : "Unnamed lake", p: "nb", c, id: String(a.WATERID), r: [],
+      ...(ha || mx ? { f: [0, ha >= 10 ? Math.round(ha) : Math.round(ha * 10) / 10, 0, "", Math.round(mx * 10) / 10, 0, ""] } : {}) });
+  }
+  for (const { attributes: a } of ev) {
+    const w = byId.get(a.WATERID);
+    if (!w) continue;
+    if (a.BROOK_TROUT_NUM > 0) w.r.push([String(a.YEAR), spCode("Brook Trout"), a.BROOK_TROUT_NUM, ""]);
+    if (a.LL_SALMON_NUM > 0) w.r.push([String(a.YEAR), spCode("Landlocked Salmon"), a.LL_SALMON_NUM, ""]);
+  }
+  const out = [...byId.values()].filter((w) => w.r.length);
+  factsOk.nb = out.some((w) => w.f);
+  return out;
+}
+
+// Nova Scotia Fish Hatchery Stocking Records (data.novascotia.ca 8e4a-m6fw, Open Government Licence - Nova Scotia):
+// each release with its date, species, number and average length, placed by its UTM zone 20 position. Lakes get their
+// size, deepest and average depth from the Nova Scotia Lake Survey (Nova Scotia Environment and Fisheries), the survey
+// station of the same name within 3 km, its latest survey. f = [0, ha, 0, "", deepest m, average m, ""]
+const NS_TYPE = { Lake: "Lake", Pond: "Pond", Flowage: "Flowage", River: "River", Brook: "Brook" };
+function nsName(name, type) {
+  const n = title(name).replace(/\s*\(/, " (").replace(/\s+/g, " ").trim();
+  const t = NS_TYPE[type] || "";
+  if (!t || /\b(lake|lakes|pond|ponds|loch|flowage|river|brook|stream|reservoir|dam|pool|lac)\b/i.test(n)) return n;
+  return n.includes("(") ? n.replace(" (", ` ${t} (`) : `${n} ${t}`;
+}
+const plainName = (s) => String(s || "").toLowerCase().replace(/\(.*?\)/g, "").replace(/\b(lake|pond|the)\b/g, "").replace(/[^a-z0-9]/g, "");
+async function stockNS() {
+  const rows = await get(`https://data.novascotia.ca/resource/8e4a-m6fw.json?${new URLSearchParams({ $limit: "50000", $where: `stocking_date >= '${iso(since)}'` })}`);
+  log(`  Nova Scotia releases: ${rows.length}`);
+  const by = new Map();
+  for (const a of rows) {
+    const e = +a.easting, nn = +a.northing;
+    if (!e || !nn || !a.name) continue;
+    const c = utm20(e, nn);
+    if (!(c[0] > 43 && c[0] < 47.2 && c[1] > -66.6 && c[1] < -59.5)) continue;
+    const k = `${a.name}|${a.easting}|${a.northing}`;
+    const w = by.get(k) || by.set(k, { n: nsName(a.name, a.type), p: "ns", c, t: a.county || "", r: [], e, nn, ty: a.type }).get(k);
+    const len = +a.fish_length_cm;
+    w.r.push([String(a.stocking_date || "").slice(0, 10), spCode(a.stock || "Fish"), +a.number_released || 0, len > 0 ? `${Math.round(len * 10) / 10} cm` : ""]);
+  }
+  const out = [...by.values()];
+  try {
+    const LS = "https://services1.arcgis.com/qpxtVXh93G601MmT/arcgis/rest/services/Nova_Scotia_Environment_Lake_Survey/FeatureServer/1";
+    const sv = await agolAll(LS, "1=1", "OBJECTID,LAKE_NAME,EASTING,NORTHING,AREA_SURFA,MAXIMUM_DE,MEAN_DEPTH,ASSESSMENT");
+    for (const w of out) {
+      if (!/^(Lake|Pond|Flowage)$/.test(w.ty)) continue;
+      const nm = plainName(w.n);
+      const hit = sv.filter((s) => s.EASTING && Math.hypot(s.EASTING - w.e, s.NORTHING - w.nn) < 3000 && plainName(s.LAKE_NAME) === nm)
+        .sort((a, b) => (b.ASSESSMENT || 0) - (a.ASSESSMENT || 0))[0];
+      if (!hit) continue;
+      const ha = hit.AREA_SURFA > 0 ? hit.AREA_SURFA : 0, mx = hit.MAXIMUM_DE > 0 ? hit.MAXIMUM_DE : 0, mean = hit.MEAN_DEPTH > 0 && (!mx || hit.MEAN_DEPTH <= mx) ? hit.MEAN_DEPTH : 0;
+      if (ha || mx) w.f = [0, ha >= 10 ? Math.round(ha) : Math.round(ha * 10) / 10, 0, "", Math.round(mx * 10) / 10, Math.round(mean * 10) / 10, ""];
+    }
+    factsOk.ns = sv.length > 1000;
+  } catch (e) { log(`    Nova Scotia lake survey: ${e.message}`); }
+  for (const w of out) { delete w.e; delete w.nn; delete w.ty; }
+  log(`  Nova Scotia: ${out.length} waters, ${out.filter((w) => w.f).length} with lake survey facts`);
+  return out;
+}
+
+// Saskatchewan's Stocked Waters Guide (the Saskatchewan Fish Hatchery's yearly list, publications.saskatchewan.ca
+// "Stocked Waters" category 53): each water, the fish, their size and how many, with a short location such as
+// "12 km NE of Leoville", and no position. Each water is put on the official place of the same name in Canada's
+// Geographical Names Database (CGNDB, geogratis.gc.ca) closest to that location; a name with no such place near it is
+// looked up on OpenStreetMap (Nominatim) near that location, else left out. The spot is an estimate, and the card says
+// so. Positions found once are kept for next time.
+// (publications.saskatchewan.ca leaves an intermediate certificate out: fishing-data.yml adds it for Node.)
+const SK_PUB = "https://publications.saskatchewan.ca/api/v1";
+const SK_NAME = { "South Sask River": "South Saskatchewan River", "Jade Lake (Little)": "Little Jade Lake" };
+const SK_SP = { "Splake Trout": "Splake" };
+const SK_SIZE = { catchables: "Catchable", fingerlings: "Fingerling", adults: "Adult", fry: "Fry", yearlings: "Yearling", eggs: "Eggs" };
+function parseSkGuide(txt) {
+  const rows = [];
+  let sp = "", size = "";
+  for (const raw of txt.split("\n")) {
+    const line = raw.replace(/\s+$/, "");
+    const h = /^\s*([A-Z][A-Za-z ]+?)\s+(Catchables|Fingerlings|Adults|Fry|Yearlings|Eggs)\s*$/.exec(line);
+    if (h) { sp = SK_SP[h[1]] || h[1]; size = SK_SIZE[h[2].toLowerCase()]; continue; }
+    const m = /^(\S.*?)\s{2,}(\S.*?)\s{2,}([\d,]+)$/.exec(line);
+    if (!m || !sp || /^stocked water/i.test(m[1])) continue;
+    rows.push({ name: m[1].trim(), loc: m[2].replace(/\s*\(town\)\s*$/i, "").replace(/\.$/, "").trim(), sp, size, n: +m[3].replace(/,/g, "") });
+  }
+  return rows;
+}
+const CG_WATER = /^(LAKE|RIV|RESV|CRK|POND|BAY|CHAN|RAP|FALL|LAKES)$/;
+const cgPlain = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+async function cgndb(q) {
+  const j = await get(`https://geogratis.gc.ca/services/geoname/en/geonames.json?${new URLSearchParams({ q, province: "47", num: "50" })}`, { tries: 2 });
+  return (j.items || []).filter((i) => cgPlain(i.name) === cgPlain(q)).map((i) => ({ c: [r4(i.latitude), r4(i.longitude)], k: i.concise && i.concise.code }));
+}
+const kmBetween = (a, b) => { const R = 6371, dLat = ((b[0] - a[0]) * Math.PI) / 180, dLon = ((b[1] - a[1]) * Math.PI) / 180, s = Math.sin(dLat / 2) ** 2 + Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLon / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); };
+const DIRS = { n: [1, 0], s: [-1, 0], e: [0, 1], w: [0, -1], ne: [0.71, 0.71], nw: [0.71, -0.71], se: [-0.71, 0.71], sw: [-0.71, -0.71], nne: [0.92, 0.38], ene: [0.38, 0.92], ese: [-0.38, 0.92], sse: [-0.92, 0.38], ssw: [-0.92, -0.38], wsw: [-0.38, -0.92], wnw: [0.38, -0.92], nnw: [0.92, -0.38] };
+// "12 km NE of Leoville" -> where that is, with how far off a water of that name may be; null when it names no place.
+async function skWhere(loc, anchors) {
+  let km = 0, dir = null, place = loc;
+  const m = /^(\d+(?:\.\d+)?)\s*km\s+([NSEW]{1,3})\s+of\s+(.+)$/i.exec(loc);
+  if (m) { km = +m[1]; dir = DIRS[m[2].toLowerCase()]; place = m[3]; }
+  else if (/^tailwater @ /i.test(loc)) place = loc.replace(/^tailwater @ /i, "");
+  else if (/^(?:\d+\s*m\s+\w+\s+of\s+)/i.test(loc)) place = loc.replace(/^\d+\s*m\s+\w+\s+of\s+/i, "");
+  else if (/^[NSEW]{1,3} of /i.test(loc)) place = loc.replace(/^[NSEW]{1,3} of /i, "").split(",")[0];
+  place = place.split(",")[0].replace(/\bInterprov\.?\s/i, "Interprovincial ").replace(/\bProv\.?\s/i, "Provincial ").replace(/\bHill Provincial\b/, "Hills Provincial").replace(/\s+/g, " ").trim();
+  if (/^(km|hwy|jct)\b/i.test(place)) return null;
+  const tries = [place, place.replace(/\s+(Interprovincial|Provincial|Regional)\s+Park$/i, ""), place.replace(/\s+Regional Park$/i, " Provincial Park")];
+  let hit = null;
+  for (const t of [...new Set(tries)]) {
+    if (!anchors.has(t)) { try { anchors.set(t, await cgndb(t)); } catch { anchors.set(t, []); } await sleep(150); }
+    const list = anchors.get(t);
+    hit = list.find((x) => !CG_WATER.test(x.k || "")) || list[0];
+    if (hit) break;
+  }
+  if (!hit) return null;
+  const k = Math.cos((hit.c[0] * Math.PI) / 180);
+  const c = dir ? [hit.c[0] + (dir[0] * km) / 111, hit.c[1] + (dir[1] * km) / (111 * k)] : hit.c;
+  const park = /park/i.test(place) || /^[NSEW]{1,3} of /i.test(loc);
+  return { c, tol: park ? 40 : Math.max(12, km * 0.5 + 8), exact: /^tailwater @ /i.test(loc) };
+}
+async function osmWater(name, where) {
+  const dLat = where.tol / 111, dLon = where.tol / (111 * Math.cos((where.c[0] * Math.PI) / 180));
+  const q = new URLSearchParams({ q: name, format: "jsonv2", limit: "5", countrycodes: "ca", bounded: "1", viewbox: [where.c[1] - dLon, where.c[0] + dLat, where.c[1] + dLon, where.c[0] - dLat].map((x) => x.toFixed(4)).join(",") });
+  await sleep(1100);   // Nominatim: one request a second
+  try {
+    const list = await get(`https://nominatim.openstreetmap.org/search?${q}`, { tries: 2 });
+    return list.filter((x) => /^(natural|water|waterway|landuse|leisure)$/.test(x.category) && cgPlain(x.name) === cgPlain(name)).map((x) => ({ c: [r4(+x.lat), r4(+x.lon)] }));
+  } catch { return []; }
+}
+async function stockSK() {
+  const { execFileSync } = await import("node:child_process");
+  const { tmpdir } = await import("node:os");
+  const guides = (process.env.SK_PDFS ? [] : (await get(`${SK_PUB}/products?categoryId=53`)) || []).map((p) => ({ id: p.productId, y: +(String(p.name).match(/^(20\d\d) Stocked Waters Guide/i) || [0, 0])[1] }))
+    .filter((p) => p.y >= since.getFullYear() && p.y <= now.getFullYear());
+  const tmp = `${tmpdir()}/sk-stocking.pdf`, rows = [];
+  // SK_PDFS=2026:/path/guide.pdf,2025:/path/other.pdf reads guides already downloaded (a test where the site can't be reached)
+  for (const [y, f] of (process.env.SK_PDFS || "").split(",").filter(Boolean).map((x) => x.split(":"))) {
+    const got = parseSkGuide(execFileSync("pdftotext", ["-layout", f, "-"], { maxBuffer: 64 << 20 }).toString());
+    log(`  Saskatchewan ${y} guide (file): ${got.length} releases`);
+    rows.push(...got.map((r) => ({ ...r, y: +y })));
+  }
+  for (const g of process.env.SK_PDFS ? [] : guides) {
+    try {
+      const prod = await get(`${SK_PUB}/products/${g.id}`);
+      const fmt = (prod.productFormats || [])[0];
+      if (!fmt) throw new Error("no file");
+      writeFileSync(tmp, await get(`${SK_PUB}/products/${g.id}/formats/${fmt.productFormatId}/download`, { json: false }));
+      const got = parseSkGuide(execFileSync("pdftotext", ["-layout", tmp, "-"], { maxBuffer: 64 << 20 }).toString());
+      log(`  Saskatchewan ${g.y} guide: ${got.length} releases`);
+      rows.push(...got.map((r) => ({ ...r, y: g.y })));
+    } catch (e) { log(`  Saskatchewan ${g.y} guide: ${e.message}`); }
+  }
+  if (!rows.length) throw new Error("no Stocked Waters Guide could be read");
+  const old = new Map(((readOld("stocked.json") || {}).waters || []).filter((w) => w.p === "sk").map((w) => [`${w.n}|${w.t}`, w.c]));
+  const anchors = new Map(), by = new Map();
+  let placed = 0, missed = 0;
+  for (const r of rows) {
+    const n = SK_NAME[r.name] || r.name, key = `${n}|${r.loc}`;
+    if (!by.has(key)) {
+      let c = old.get(key) || null;
+      if (!c) {
+        const where = await skWhere(r.loc, anchors);
+        if (where && where.exact) c = where.c.map(r4);
+        else {
+          let list = [];
+          try { list = (await cgndb(n)).filter((x) => CG_WATER.test(x.k || "")); } catch { /* left out */ }
+          await sleep(150);
+          const pick = (l) => { const best = l.map((x) => [x, kmBetween(x.c, where.c)]).sort((a, b) => a[1] - b[1])[0]; return best && best[1] <= where.tol ? best[0].c : null; };
+          if (where) c = pick(list);   // no place named ("Km 100, Hwy #106"): left out, a lone match can be anywhere in the province
+          // Not in the names database (most town ponds and reservoirs): the water of that name on OpenStreetMap, near the guide's location.
+          if (!c && where) c = pick(await osmWater(n, where));
+        }
+      }
+      if (c) placed++; else { missed++; log(`    not placed: ${n} (${r.loc})`); }
+      by.set(key, c ? { n, p: "sk", c, t: r.loc, r: [] } : null);
+    }
+    const w = by.get(key);
+    if (w) w.r.push([String(r.y), spCode(r.sp), r.n, r.size]);
+  }
+  log(`  Saskatchewan: ${placed} waters placed, ${missed} left out (no official place of that name near the guide's location)`);
+  return [...by.values()].filter(Boolean);
+}
+
 async function buildStocked() {
   log("Stocked waters");
   const old = readOld("stocked.json");
-  const parts = { bc: stockBC, ab: stockAB, on: stockON };
+  const parts = { bc: stockBC, ab: stockAB, on: stockON, sk: stockSK, mb: stockMB, nb: stockNB, ns: stockNS };
   const waters = [];
   for (const [p, fn] of Object.entries(parts)) {
     try {
@@ -542,10 +786,11 @@ async function buildStocked() {
   // The FFSBC lake facts: when the map pins did not come back, the ones from last time.
   const oldF = new Map((old?.waters || []).filter((x) => x.p === "bc" && x.f).map((x) => [x.id, x.f]));
   if (!bcPinsOk) for (const w of waters) if (w.p === "bc" && !w.f && oldF.has(w.id)) w.f = oldF.get(w.id);
-  // The same for Alberta's lake sizes and Ontario's lake facts.
+  // The same for the other provinces' lake facts.
+  const ok = { ab: abFacts, on: onFacts, ...factsOk };
   const oldKey = (w) => `${w.p}|${w.id || w.n}|${w.c[0].toFixed(2)}|${w.c[1].toFixed(2)}`;
-  const oldPF = new Map((old?.waters || []).filter((x) => (x.p === "ab" || x.p === "on") && x.f).map((x) => [oldKey(x), x.f]));
-  for (const w of waters) if (((w.p === "ab" && !abFacts) || (w.p === "on" && !onFacts)) && !w.f && oldPF.has(oldKey(w))) w.f = oldPF.get(oldKey(w));
+  const oldPF = new Map((old?.waters || []).filter((x) => x.p in ok && x.f).map((x) => [oldKey(x), x.f]));
+  for (const w of waters) if (w.p in ok && !ok[w.p] && !w.f && oldPF.has(oldKey(w))) w.f = oldPF.get(oldKey(w));
   // Newest first, the last 15 releases of each water, the size text by its place in "st".
   for (const w of waters) w.r = w.r.sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 15).map((r) => [r[0], r[1], r[2], typeof r[3] === "number" ? r[3] : stCode(r[3])]);
   save("stocked.json", { updated: iso(now), sp: SPN, st: STN, waters });
