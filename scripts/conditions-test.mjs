@@ -545,7 +545,15 @@ const CONDS = {
 // Text on screen whose colour is too close to the colour behind it (contrast under 2.5 to 1; 4.5 is the usual goal
 // for small text, so only what can hardly be read at all fails). Maps, pictures and coloured chips' own colours aside.
 function faint() {
-  const parse = (c) => { const m = String(c).match(/[\d.]+/g); if (!m) return null; const [r, g, b, a = 1] = m.map(Number); return { r, g, b, a }; };
+  // Any colour the browser gives (rgb(), color(srgb 0-1), color-mix...): drawn on a 1-pixel canvas and read back.
+  const cx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  const parse = (c) => {
+    if (!c || c === "transparent") return null;
+    cx.fillStyle = "rgba(1, 2, 3, 0)"; cx.fillStyle = String(c);
+    if (cx.fillStyle === "rgba(1, 2, 3, 0)") return null;   // a colour the canvas doesn't know
+    cx.clearRect(0, 0, 1, 1); cx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = cx.getImageData(0, 0, 1, 1).data; return { r, g, b, a: a / 255 };
+  };
   const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
   const behind = (el) => { for (let e = el; e; e = e.parentElement) { const s = getComputedStyle(e); if (s.backgroundImage && s.backgroundImage !== "none") return null; const c = parse(s.backgroundColor); if (c && c.a >= 0.6) return c; } return parse(getComputedStyle(document.body).backgroundColor); };
   const out = [];

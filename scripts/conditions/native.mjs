@@ -239,7 +239,15 @@ async function drawn(what) {
 }
 // Text too faint on its background, and bottom-bar words cut (as scripts/conditions-test.mjs, run in the page).
 const FAINT = `(() => {
-  const parse = (c) => { const m = String(c).match(/[\\d.]+/g); if (!m) return null; const [r, g, b, a = 1] = m.map(Number); return { r, g, b, a }; };
+  // Any colour the browser gives (rgb(), color(srgb 0-1), color-mix...): drawn on a 1-pixel canvas and read back.
+  const cx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  const parse = (c) => {
+    if (!c || c === "transparent") return null;
+    cx.fillStyle = "rgba(1, 2, 3, 0)"; cx.fillStyle = String(c);
+    if (cx.fillStyle === "rgba(1, 2, 3, 0)") return null;   // a colour the canvas doesn't know
+    cx.clearRect(0, 0, 1, 1); cx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = cx.getImageData(0, 0, 1, 1).data; return { r, g, b, a: a / 255 };
+  };
   const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
   const behind = (el) => { for (let e = el; e; e = e.parentElement) { const s = getComputedStyle(e); if (s.backgroundImage && s.backgroundImage !== "none") return null; const c = parse(s.backgroundColor); if (c && c.a >= 0.6) return c; } return parse(getComputedStyle(document.body).backgroundColor); };
   const out = [];
@@ -360,8 +368,9 @@ async function restart() {
     for (const sp of ["ski", "hike"]) {
       await step(`${NAMES[sp]}: Today card says no signal`, async () => {
         const r = await pick(sp); if (r) return r;
-        await jsq("window.tfTodayOpen && window.tfTodayOpen()"); await sleep(25000);
-        const t = await jsq(`(document.querySelector(".tdy.open") || {}).innerText || ""`, "");
+        // Read again now (numbers read in the last 20 minutes are otherwise kept, which is fine), with no signal.
+        await jsq(`(window.tfTodayOpen && window.tfTodayOpen(), window.tfTodaySport && window.tfTodaySport.fill("${sp}"))`); await sleep(25000);
+        const t = await jsq(`(document.querySelector(".tdy.open[data-sp=${sp}]") || {}).innerText || ""`, "");
         if (/Checking today's weather…|Loading…/.test(t)) return "still waiting after 25 s";
         return /No signal/.test(t) ? "" : `no word of the missing signal: "${t.slice(0, 100)}"`;
       });
@@ -391,7 +400,8 @@ async function restart() {
 
   // Location off.
   cond = "Location off";
-  ios ? tryp(`xcrun simctl privacy booted revoke location ${APP}`) : ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"].forEach((p) => tryp(`adb shell pm revoke ${APP} android.permission.${p}`));
+  // Android: "Don't allow" kept (user-fixed), as after a person said no twice: no system question over the app.
+  ios ? tryp(`xcrun simctl privacy booted revoke location ${APP}`) : ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"].forEach((p) => { tryp(`adb shell pm revoke ${APP} android.permission.${p}`); tryp(`adb shell pm set-permission-flags ${APP} android.permission.${p} user-fixed`); });
   await restart();
   await step("My location says so", async () => {
     await pick("mtb"); await click("#locate"); await sleep(8000);
@@ -399,7 +409,7 @@ async function restart() {
     const t = await jsq("document.body.innerText", "");
     return /Location wasn't shared|Allow location|location is off|Couldn't get your location/i.test(t) ? "" : "no words saying location is off";
   });
-  ios ? tryp(`xcrun simctl privacy booted grant location-always ${APP}`) : ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"].forEach((p) => tryp(`adb shell pm grant ${APP} android.permission.${p}`));
+  ios ? tryp(`xcrun simctl privacy booted grant location-always ${APP}`) : ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"].forEach((p) => { tryp(`adb shell pm clear-permission-flags ${APP} android.permission.${p} user-fixed`); tryp(`adb shell pm grant ${APP} android.permission.${p}`); });
 
   // First open with no connection: the app's own page, then the app by itself once the connection is back.
   cond = "First open, no connection";
