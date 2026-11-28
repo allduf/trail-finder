@@ -4820,6 +4820,7 @@ out body;`;
   }
   // alex: anything we find about a trail beyond OpenStreetMap goes on the trail. data/trail-info.json holds what
   // resort and club pages say (map number, part of the mountain, trail type, length, a short description in our words).
+  // A source's "rating" names who gave the level ("Club rating"); without it the level reads "Park rating".
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   // Entries of list whose names include this trail's name, within r metres of c (the entry's or its source's).
@@ -4846,7 +4847,7 @@ out body;`;
   async function officialAbout(t) {
     const j = await loadTrailInfo(); if (!j) return [];
     return infoFor(t, j, j.trails).map((e) => {
-      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `Park rating: ${e.level}`,
+      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `${s.rating || "Park rating"}: ${e.level}`,
         e.kind && `${e.kind} trail`, e.km && `${e.km} km`].filter(Boolean).join(" · ");
       const kind = j.kinds && j.kinds[e.s] && j.kinds[e.s][e.kind];
       return { text: [facts && facts + ".", e.text, kind].filter(Boolean).join(" "), src: s.name, url: s.url, licence: "summarised" };
