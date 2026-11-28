@@ -1,4 +1,5 @@
-// Winter data job (see .github/workflows/winter-data.yml), for the site's "Winter" mode.
+// Winter data jobs, for the site's "Winter" mode: .github/workflows/winter-data.yml every night (ONLY=ski,canada) and
+// .github/workflows/avalanche-data.yml every 2 hours (ONLY=avy,groom).
 //
 // Writes two files:
 //  - data/ski.json: backcountry ski routes and huts in the whole region, from every open source found:

@@ -41,6 +41,7 @@
     [/^wind (\d+) km\/h (N|NE|E|SE|S|SW|W|NW)(?:, gusts (\d+))?$/, function (m, w, d, g) { return "vent " + w + " km/h " + d.replace(/W/g, "O") + (g ? ", rafales " + g : ""); }],
     [/^sun (.+) to (.+)$/, "soleil $1 à $2"],
     [/^(\d+) mm of rain \((\d+)% chance\)$/, "$1 mm de pluie ($2 % de risque)"],
+    [/^The profile, climb and descent cover the longest joined stretch, (.+) of (.+): the trail's mapped pieces don't all join\.$/, "Le profil, la montée et la descente couvrent le plus long tronçon relié, $1 sur $2 : les morceaux cartographiés du sentier ne se rejoignent pas tous."],
     [/^(high|low) tide (.+), (-?[\d.]+) m$/, function (m, k, t, h) { return "marée " + (k === "high" ? "haute" : "basse") + " " + t + ", " + h.replace(".", ",") + " m"; }],
     [/^Fish here on (.+)$/, "Pêcher ici pendant $1"],
     [/^The water of your trip: (.+)$/, "Le plan d'eau de votre voyage : $1"],

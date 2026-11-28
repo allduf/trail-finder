@@ -1,0 +1,1 @@
+3D map on phones: each terrain and snow layer shows its colour key once, at the top of the map. ||| Carte 3D sur téléphone : chaque couche de terrain et de neige montre sa légende une seule fois, en haut de la carte.
