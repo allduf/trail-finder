@@ -1,0 +1,16 @@
+Fishing in BC: stocked lakes now show their elevation, size, road type, boat launch, dock and campsite as listed by the Freshwater Fisheries Society of BC, and the Depth section shows the deepest point from BC's lake surveys. ||| Pêche en C.-B. : les lacs ensemencés montrent maintenant leur altitude, leur superficie, le type de route, la mise à l'eau, le quai et le camping indiqués par la Freshwater Fisheries Society of BC, et la section Profondeur montre le point le plus profond selon les relevés de lacs de la C.-B.
+Boat launch ||| Mise à l'eau
+Fishing dock ||| Quai de pêche
+Wheelchair access ||| Accès en fauteuil roulant
+Campsite ||| Camping
+Washroom ||| Toilettes
+Hike-in ||| Accès à pied
+2WD road ||| Route 2RM
+4WD road ||| Route 4RM
+As listed on the ||| Selon la
+Freshwater Fisheries Society of BC's Where to fish map ||| carte Where to fish de la Freshwater Fisheries Society of BC
+. Roads, docks and facilities can change. ||| . Les routes, quais et installations peuvent changer.
+Freshwater Fisheries Society of BC stocking report ||| Rapport d'ensemencement de la Freshwater Fisheries Society of BC
+Deepest point surveyed: ||| Point le plus profond relevé :
+From BC's lake surveys and bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn. ||| Selon les relevés de lacs et les cartes bathymétriques de la C.-B. (ministère de l'Environnement, Pêches). Relevés anciens : le niveau de l'eau et les rives peuvent avoir changé. Pas pour la navigation. Les lignes de profondeur sur la carte ne couvrent que les quelques lacs de la C.-B. que la province a tracés.
+: depth map scanned by BC Fisheries ||| : carte bathymétrique numérisée par BC Fisheries

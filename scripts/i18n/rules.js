@@ -37,6 +37,11 @@
     [/^No closures, gates, washouts or fire closures found on it in the sources the app reads \(couldn't load (.+)\)\.$/, "Aucune fermeture, barrière, route emportée ou fermeture pour feu trouvée sur le trajet dans les sources que lit l'app (impossible de charger $1)."],
     [/^Via (.+) and (.+)$/, "Par $1 et $2"],
     [/^Via (.+)$/, "Par $1"],
+    // BC lake facts and survey depth (fishing.js)
+    [/^Elevation ([\d,]+) m$/, function (m, h) { return "Altitude " + h.replace(/,/g, " ") + " m"; }],
+    [/^up to (\d+) m( · depth map \(PDF\)| · depth map)?$/, function (m, d, x) { return "jusqu'à " + d + " m" + (x ? (/PDF/.test(x) ? " · carte bathymétrique (PDF)" : " · carte bathymétrique") : ""); }],
+    [/^depth map \(PDF\)$/, "carte bathymétrique (PDF)"],
+    [/^(?:, average (\d+) m)?(?: \(BC lake survey, (\d{4})\))?\.$/, function (m, a, y) { return (a ? ", moyenne " + a + " m" : "") + (y ? " (relevé de lac de la C.-B., " + y + ")" : "") + "."; }],
     // Fishing trips (fishing-trip.js)
     [/^wind (\d+) km\/h (N|NE|E|SE|S|SW|W|NW)(?:, gusts (\d+))?$/, function (m, w, d, g) { return "vent " + w + " km/h " + d.replace(/W/g, "O") + (g ? ", rafales " + g : ""); }],
     [/^sun (.+) to (.+)$/, "soleil $1 à $2"],

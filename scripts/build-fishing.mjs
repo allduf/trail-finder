@@ -4,7 +4,8 @@
 //  - stocked.json: lakes, ponds and rivers stocked with fish in the last 3 years, with each release (date or year,
 //    species, number, size). BC: the Freshwater Fisheries Society of BC's stocking report (gofishbc.com), placed on the
 //    BC Freshwater Atlas lake with the same waterbody id (DataBC FWA_LAKES_POLY) or the fish records for that id
-//    (FISS_FISH_OBSRVTN_PNT_SP). Alberta: the fish stocking reports and this year's planned trout stocking
+//    (FISS_FISH_OBSRVTN_PNT_SP); each BC water also gets FFSBC's lake facts (f: elevation, size, road, launch,
+//    dock, wheelchair access, campsite, washroom, hike-in) from their "where to fish" map pins. Alberta: the fish stocking reports and this year's planned trout stocking
 //    (open.alberta.ca). Ontario: Fish Stocking Data for Recreational Purposes (Ontario GeoHub). Quebec doesn't publish
 //    its stocking as open data.
 //  - zones.json: the areas fishing rules are written for, as simplified outlines: BC's fishing regions (DataBC
@@ -214,21 +215,35 @@ async function stockBC() {
       for (const [k, cs] of g) { cs.sort((a, b) => a[0] - b[0]); const x = cs[cs.length >> 1][0]; cs.sort((a, b) => a[1] - b[1]); const y = cs[cs.length >> 1][1]; at.set(k, { c: [r4(y), r4(x)] }); }
     } catch (e) { log(`    fish records: ${e.message}`); }
   }
-  // Last resort: the FFSBC "where to fish" map pins, by name.
-  const still = ids.filter((k) => !at.has(k));
-  if (still.length) {
-    try {
-      const pins = await get("https://www.gofishbc.com/wp-json/wpgmza/v1/markers");
-      const byName = new Map(); for (const p of pins) byName.set(String(p.title).toUpperCase().replace(/ (LAKE|POND)$/, ""), [r4(+p.lat), r4(+p.lng)]);
-      for (const k of still) { const n = by.get(k).name.toUpperCase().replace(/ (LAKE|POND)$/, ""); if (byName.has(n)) at.set(k, { c: byName.get(n) }); }
-    } catch (e) { log(`    map pins: ${e.message}`); }
+  // The FFSBC "where to fish" map pins: lake facts (elevation, size, road, launch, dock...) by the stocking report id
+  // each pin links to, else by name; and, last resort, where a water is.
+  let pins = [];
+  try { pins = await get("https://www.gofishbc.com/wp-json/wpgmza/v1/markers"); } catch (e) { log(`    map pins: ${e.message}`); }
+  const key = (n) => String(n).toUpperCase().replace(/ (LAKE|POND)$/, "").trim();
+  const factsById = new Map(), pinsByName = new Map();
+  for (const p of Array.isArray(pins) ? pins : []) {
+    const cf = Object.fromEntries((p.custom_field_data || []).map((f) => [f.name, String(f.value || "").trim()]));
+    const wbid = (/wbid=([A-Z0-9]+)/.exec(cf["Stocking Report Link"] || "") || [])[1];
+    const num = (v) => { const n = parseFloat(String(v || "").replace(/,/g, "")); return Number.isFinite(n) && n > 0 ? n : 0; };
+    const yes = (n) => /^yes/i.test(cf[n] || "");
+    // [elevation m, area ha, road 2 or 4 (WD), flags: b boat launch, d fishing dock, a wheelchair access, c campsite, w washroom, h hike-in]
+    const f = [Math.round(num(cf.Elevation)), num(cf["Surface Area"]), /4WD/i.test(cf["Road Access"]) ? 4 : /2WD/i.test(cf["Road Access"]) ? 2 : 0,
+      [["Boat Launch", "b"], ["Fishing Dock", "d"], ["Wheelchair Access", "a"], ["Campsite", "c"], ["Washroom", "w"], ["Hike-in Required", "h"]].filter(([n]) => yes(n)).map(([, k]) => k).join("")];
+    const ll = [r4(+p.lat), r4(+p.lng)];
+    if (wbid && !factsById.has(wbid)) factsById.set(wbid, f);
+    (pinsByName.get(key(p.title)) || pinsByName.set(key(p.title), []).get(key(p.title))).push({ ll, f });
   }
+  log(`    map pins: ${pins.length || 0}, with a stocking id: ${factsById.size}`);
+  const pinNear = (name, c) => (pinsByName.get(key(name)) || []).find((x) => !c || Math.abs(x.ll[0] - c[0]) < 0.03 && Math.abs(x.ll[1] - c[1]) < 0.045);
+  for (const k of ids.filter((x) => !at.has(x))) { const pn = pinsByName.get(key(by.get(k).name)); if (pn && pn.length === 1) at.set(k, { c: pn[0].ll }); }
   const out = [];
   for (const [k, w] of by) {
     const p = at.get(k); if (!p) continue;
-    const name = /\b(lake|pond|river|creek|reservoir|slough|marsh)\b/i.test(w.name) ? w.name : `${w.name} Lake`;
-    out.push({ n: name, p: "bc", c: p.c, id: k, t: w.town, r: w.rel });
+    const name = /\b(lake|pond|river|creek|reservoir|slough|marsh)\b|^lac\b/i.test(w.name) ? w.name : `${w.name} Lake`;
+    const f = factsById.get(k) || pinNear(w.name, p.c)?.f;
+    out.push({ n: name, p: "bc", c: p.c, id: k, t: w.town, r: w.rel, ...(f && (f[0] || f[1] || f[2] || f[3]) ? { f } : {}) });
   }
+  log(`  BC lake facts: ${out.filter((w) => w.f).length}`);
   log(`  BC waters: ${out.length} of ${by.size} placed`);
   return out;
 }
@@ -359,6 +374,9 @@ async function buildStocked() {
       for (const w of (old?.waters || []).filter((x) => x.p === p)) waters.push({ ...w, r: w.r.map((r) => [r[0], spCode(old.sp[r[1]] || "Fish"), r[2], (old.st || [])[r[3]] || ""]) });
     }
   }
+  // The FFSBC lake facts: when the map pins did not come back, the ones from last time.
+  const oldF = new Map((old?.waters || []).filter((x) => x.p === "bc" && x.f).map((x) => [x.id, x.f]));
+  for (const w of waters) if (w.p === "bc" && !w.f && oldF.has(w.id)) w.f = oldF.get(w.id);
   // Newest first, the last 15 releases of each water, the size text by its place in "st".
   for (const w of waters) w.r = w.r.sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 15).map((r) => [r[0], r[1], r[2], typeof r[3] === "number" ? r[3] : stCode(r[3])]);
   save("stocked.json", { updated: iso(now), sp: SPN, st: STN, waters });
