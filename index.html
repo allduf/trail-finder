@@ -6339,10 +6339,12 @@ out body;`;
     // or the line stayed off the map's sheet until another sport was picked and back (sport switch test 2026-11-22).
     if (!el && sp !== "mtb" && window.tfLoadSport && !nowWait.has(sp)) { nowWait.add(sp); window.tfLoadSport(sp).then(() => setTimeout(syncPeekToday, 0), () => nowWait.delete(sp)); }   // once per sport (again after a failed load)
     const html = sp === "mtb" ? mtbNowHtml : el && !el.hidden ? el.innerHTML : "", was = pt.hidden;
-    if (pt.innerHTML !== html) pt.innerHTML = html;
+    // Compared with what was written last, not read back: the browser writes a drawing (svg) or a French line back
+    // differently, and the line was rewritten on every map move.
+    if (pt.tfHtml !== html) { pt.innerHTML = html; pt.tfHtml = html; }
     pt.hidden = !html;
     if (phoneMQ.matches && sheet.snap === "peek" && !navStack.length && (was !== pt.hidden || Math.abs(snapHeights().peek - sheet.h) > 2)) setSheetH(snapHeights().peek);   // the peek fits it
-    const m = $("mtbNow"); if (m && m.innerHTML !== mtbNowHtml) { m.innerHTML = mtbNowHtml; m.hidden = !mtbNowHtml; }
+    const m = $("mtbNow"); if (m && m.tfHtml !== mtbNowHtml) { m.innerHTML = mtbNowHtml; m.tfHtml = mtbNowHtml; m.hidden = !mtbNowHtml; }
   }
   let mtbNowHtml = "", mtbNowT = 0;
   async function mtbNow() {
@@ -6354,11 +6356,13 @@ out body;`;
     if (v == null) mtbNowHtml = "";
     else {
       const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
+      // The sun as its line drawing here: #mtbNow is data-no-line, and Android's web view draws a bare ☀ in colour.
+      const go = `<span>${window.tfLine ? window.tfLine("☀", 15) + " " : ""}Where to ride today ›</span>`;
       mtbNowHtml = isSnowy(cell.snow) ? `<span>${snowIc(15)} <b>Snow likely on the trails</b></span><span>About ${Math.round(cell.snow)} cm here (estimate)</span>`
-        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
-        : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v}, estimate)</span><span>☀ Where to ride today ›</span>`;
+        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span>${go}`
+        : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v}, estimate)</span>${go}`;
       // The freeze line (middle of 3 models) when the ground freezes somewhere below 3,000 m around here.
-      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace("<span>☀ Where", `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span><span>☀ Where`);
+      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace(go, () => `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span>${go}`);
     }
     syncPeekToday();
   }
