@@ -410,7 +410,9 @@ async function bounds() { return jsq(`(() => { const m = window.tfLeaflet, c = m
   mark("p2map"); await snap(); await snap();
   await ptap('#tabbar [data-nav="ride"]', 2500, "ride"); mark("ride");
   await ptap('[data-hub="plan"]', 4000, "plan"); mark("plan");
-  await jsq(`(window.tfLeaflet.setView([50.1207, -122.9455], 15, { animate: false }), 1)`); await sleep(5000); await snap(); mark("planmap"); await snap();
+  // Film only: the map stays put while trails are tapped (Plan a route fits the map to each new build, which moved
+  // the next trail off screen), framed so all three sit above the panel.
+  await jsq(`(() => { const m = window.tfLeaflet; m.fitBounds = function () { return this; }; m.flyToBounds = function () { return this; }; m.setView([50.1225, -122.946], 15, { animate: false }); return 1; })()`); await sleep(5000); await snap(); mark("planmap"); await snap();
   for (const [i, [n, ll]] of PICKS.entries()) { await mapTap(ll, "pick" + (i + 1)); mark("pick" + (i + 1)); }
   log("own: " + (await waitBuilt())); await snap(); mark("built"); await snap();
   await ttap("#planTrails button, #planStats button, .plan-bar button", /Best order/, 9000, "best"); mark("best");
