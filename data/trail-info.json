@@ -300,7 +300,9 @@
     "ms-2510": {"name": "Mont SUTTON news, new features on the mountain bike network (October 2025)", "url": "https://montsutton.com/en/mountain-bike-disc-golf-still-offered-7-days-a-week/", "c": [45.105, -72.56], "r": 4000},
     "ms-2604": {"name": "Mont SUTTON news, summer 2026 mountain biking", "url": "https://montsutton.com/en/memberships-and-events-setting-the-pace-for-a-summer-of-mtb/", "c": [45.105, -72.56], "r": 4000},
     "ms-2609": {"name": "Mont SUTTON news, fall 2026 changes", "url": "https://montsutton.com/6-nouveautes-a-ne-pas-manquer-cet-automne-au-mont-sutton/", "c": [45.105, -72.56], "r": 4000},
-    "mh-basler": {"name": "Parc Basler and Sommet Morin Heights, bike trail map (Morin-Heights)", "url": "https://www.sommets.com/media/5ajd2z2w/sommets-morin-heights-carte-sentier-velo.pdf", "c": [45.894, -74.255], "r": 2500}
+    "mh-basler": {"name": "Parc Basler and Sommet Morin Heights, bike trail map (Morin-Heights)", "url": "https://www.sommets.com/media/5ajd2z2w/sommets-morin-heights-carte-sentier-velo.pdf", "c": [45.894, -74.255], "r": 2500},
+    "trca-ah": {"name": "TRCA, Albion Hills Conservation Park trail map (2024)", "url": "https://trcaca.s3.ca-central-1.amazonaws.com/app/uploads/2016/02/11091107/3131-AH-SummerTrailheadsign-2024-p7.pdf", "c": [43.93, -79.83], "r": 2500},
+    "not-tbay": {"name": "Northern Ontario Travel, the all-season guide to biking in Thunder Bay (2026)", "url": "https://northernontario.travel/cycling/bike-thunder-bay", "c": [48.48, -89.205], "r": 2500}
   },
   "trails": [
     { "s": "tf-mtf", "n": ["Project 9"], "c": [49.5031, -115.1226], "r": 1000, "text": "One of the area's best-known trails (P9). Tourism Fernie says the P9 descent is designated downhill only because of its steep, technical build. Part of the Mount Fernie and Mount Fernie Provincial Park riding area, managed by the Fernie Trails Alliance (trail pass). Tourism Fernie notes the area's mostly north-facing trails can clear of snow later in spring." },
@@ -1362,7 +1364,33 @@
     {"s": "mh-basler", "n": ["Les Pruches"], "c": [45.8956, -74.253], "r": 1000, "kind": "Two-way", "level": "Intermediate (blue)", "km": 0.2},
     {"s": "mh-basler", "n": ["Lollipop", "Lollypop"], "c": [45.8887, -74.2552], "r": 1100, "kind": "Two-way", "level": "Intermediate (blue)", "km": 2.2},
     {"s": "mh-basler", "n": ["Rockliff", "Rockcliff"], "c": [45.895, -74.2543], "r": 1200, "kind": "Two-way", "level": "Intermediate (blue)", "km": 2.7},
-    {"s": "mh-basler", "n": ["Sizzle Haut", "Sizzler Bas", "Sizzler"], "c": [45.8973, -74.2509], "r": 1000, "kind": "Two-way", "level": "Intermediate (blue)", "km": 1.5}
+    {"s": "mh-basler", "n": ["Sizzle Haut", "Sizzler Bas", "Sizzler"], "c": [45.8973, -74.2509], "r": 1000, "kind": "Two-way", "level": "Intermediate (blue)", "km": 1.5},
+    {"s": "trca-ah", "n": ["IMBA Alley"], "c": [43.92508, -79.82315], "r": 600, "where": "Map letter A", "level": "Very Difficult", "kind": "Single-track", "km": 0.85},
+    {"s": "trca-ah", "n": ["Gnarly Berms"], "c": [43.92094, -79.82362], "r": 600, "where": "Map letter B", "level": "More Difficult", "kind": "Single-track", "km": 0.87},
+    {"s": "trca-ah", "n": ["Goat Path"], "c": [43.92219, -79.82671], "r": 600, "where": "Map letter C", "level": "Very Difficult", "kind": "Single-track", "km": 0.71},
+    {"s": "trca-ah", "n": ["Woo Wu"], "c": [43.92306, -79.83055], "r": 600, "where": "Map letter D", "level": "More Difficult", "kind": "Single-track", "km": 0.79},
+    {"s": "trca-ah", "n": ["Sugar Shack Shuffle"], "c": [43.92041, -79.83073], "r": 600, "where": "Map letter E", "level": "Very Difficult", "kind": "Single-track", "km": 1.09},
+    {"s": "trca-ah", "n": ["Sugar Rush"], "c": [43.92393, -79.8335], "r": 600, "where": "Map letter F", "level": "Very Difficult", "kind": "Single-track", "km": 0.51},
+    {"s": "trca-ah", "n": ["Get Groen"], "c": [43.92803, -79.83753], "r": 600, "where": "Map letter G", "level": "Very Difficult", "kind": "Single-track", "km": 0.45},
+    {"s": "trca-ah", "n": ["Moraine Momentum"], "c": [43.9295, -79.83592], "r": 600, "where": "Map letter H", "level": "More Difficult", "kind": "Single-track", "km": 0.33},
+    {"s": "trca-ah", "n": ["Pining for More"], "c": [43.92793, -79.83872], "r": 600, "where": "Map letter I", "level": "Very Difficult", "kind": "Single-track", "km": 0.38},
+    {"s": "trca-ah", "n": ["Pinecone Express"], "c": [43.93347, -79.84328], "r": 600, "where": "Map letter J", "level": "Very Difficult", "kind": "Single-track", "km": 0.8},
+    {"s": "trca-ah", "n": ["BMBC Twister"], "c": [43.93198, -79.83703], "r": 600, "where": "Map letter K", "level": "More Difficult", "kind": "Single-track", "km": 0.58},
+    {"s": "trca-ah", "n": ["Albion Witch"], "c": [43.93105, -79.83488], "r": 600, "where": "Map letter L", "level": "More Difficult", "kind": "Single-track", "km": 0.47},
+    {"s": "trca-ah", "n": ["Rough Ride"], "c": [43.93297, -79.83594], "r": 600, "where": "Map letter M", "level": "Extremely Difficult", "kind": "Single-track", "text": "TRCA lists it as 76 m long."},
+    {"s": "trca-ah", "n": ["Live and Learn"], "c": [43.93381, -79.83373], "r": 600, "where": "Map letter N", "level": "More Difficult", "kind": "Single-track", "km": 0.57},
+    {"s": "trca-ah", "n": ["Epic Ride"], "c": [43.93783, -79.83363], "r": 600, "where": "Map letter O", "level": "Very Difficult", "kind": "Single-track", "km": 0.65},
+    {"s": "trca-ah", "n": ["Handle with Care"], "c": [43.93629, -79.83242], "r": 600, "where": "Map letter P", "level": "Very Difficult", "kind": "Single-track", "km": 1.05},
+    {"s": "trca-ah", "n": ["High Roller"], "c": [43.93877, -79.82679], "r": 600, "where": "Map letter Q", "level": "Very Difficult", "kind": "Single-track", "km": 0.91},
+    {"s": "trca-ah", "n": ["Hot August Nights"], "c": [43.93828, -79.83017], "r": 600, "where": "Map letter R", "level": "Very Difficult", "kind": "Single-track", "km": 0.28},
+    {"s": "trca-ah", "n": ["Ridge Run"], "c": [43.92781, -79.82671], "r": 600, "where": "Map letter S", "level": "Very Difficult", "kind": "Single-track", "km": 0.29},
+    {"s": "trca-ah", "n": ["In Speed we Trust"], "c": [43.92712, -79.82752], "r": 600, "where": "Map letter T", "level": "More Difficult", "kind": "Single-track", "km": 0.37},
+    {"s": "trca-ah", "n": ["Speed-o-Rama"], "c": [43.92681, -79.83054], "r": 600, "where": "Map letter U", "level": "Very Difficult", "kind": "Single-track", "km": 0.53},
+    {"s": "trca-ah", "n": ["Summer Solstice"], "c": [43.92581, -79.82969], "r": 600, "where": "Map letter V", "level": "Very Difficult", "kind": "Single-track", "km": 0.84},
+    {"s": "not-tbay", "n": ["Crossover"], "c": [48.48124, -89.20342], "r": 800, "text": "Leads from the Hydro Field, the hub of the Trowbridge Forest single-track, into the classic Shuniah Mines trails. The Blacksheep Mountain Bike Club's volunteers build and maintain the network."},
+    {"s": "not-tbay", "n": ["Doctor's"], "c": [48.47705, -89.21001], "r": 800, "text": "Named in the guide as one of the local favourites among the classic Shuniah Mines trails, reached from the Hydro Field by Crossover. The Blacksheep Mountain Bike Club's volunteers build and maintain the network."},
+    {"s": "not-tbay", "n": ["Hill Top Trail"], "c": [48.48367, -89.207], "r": 800, "text": "The guide describes it as a fast trail with plenty of airtime, ridden down from the top of the Hydro Field. The Blacksheep Mountain Bike Club's volunteers build and maintain the network."},
+    {"s": "not-tbay", "n": ["The Other Side"], "c": [48.47594, -89.21138], "r": 800, "text": "Deeper in the Shuniah Mines area; the guide describes raw, challenging lines over Canadian Shield rock. The Blacksheep Mountain Bike Club's volunteers build and maintain the network."}
   ],
   "hikes": [
     { "s": "tf-heiko", "n": ["Heiko's Trail"], "c": [49.5632, -115.1313], "r": 5400, "level": "Difficult", "km": "20", "text": "Tourism Fernie's figures: 8 to 11 hours one way to Island Lake Lodge, 1,450 m up and 1,585 m down, over Three Sisters Pass and Windy Pass. Built by Heiko Socher (finished 2003, once the Mountain Lakes Trail). Hiking only, no bikes. Backcountry with no cell coverage; the trailhead road needs high clearance. Island Lake Lodge access only on some days." },
@@ -1779,6 +1807,9 @@
     },
     "mh-basler": {
       "Two-way": "The map says every trail in the network is two-way, so riders may meet others coming the other way."
+    },
+    "trca-ah": {
+      "Single-track": "On TRCA's Albion Hills map, single-track trails are for mountain biking only; the wider park trails are shared with hikers. TRCA calls its difficulty ratings a guideline only: trail conditions can change at any time."
     }
   }
 }

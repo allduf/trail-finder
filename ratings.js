@@ -536,6 +536,10 @@
     { name: "Schacher", c: [51.2745, -116.8949], r: 3000, d: "blue", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "B12", c: [51.294, -116.9258], r: 2500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "Bris", c: [51.2784, -116.9022], r: 1500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
+    // Albion Hills (Caledon, Ontario): TRCA's 2024 trail map rates each single-track bike trail; these three differ from OpenStreetMap.
+    { name: "Gnarly Berms", c: [43.92094, -79.82362], r: 600, d: "blue", src: "TRCA, Albion Hills Conservation Park trail map (2024)", url: "https://trcaca.s3.ca-central-1.amazonaws.com/app/uploads/2016/02/11091107/3131-AH-SummerTrailheadsign-2024-p7.pdf" },
+    { name: "Live and Learn", c: [43.93381, -79.83373], r: 600, d: "blue", src: "TRCA, Albion Hills Conservation Park trail map (2024)", url: "https://trcaca.s3.ca-central-1.amazonaws.com/app/uploads/2016/02/11091107/3131-AH-SummerTrailheadsign-2024-p7.pdf" },
+    { name: "Rough Ride", c: [43.93297, -79.83594], r: 600, d: "dbl", src: "TRCA, Albion Hills Conservation Park trail map (2024)", url: "https://trcaca.s3.ca-central-1.amazonaws.com/app/uploads/2016/02/11091107/3131-AH-SummerTrailheadsign-2024-p7.pdf" },
     // Quebec: the Sépaq Mont-Sainte-Anne map, XC trails only (green Facile, blue Difficile, black Très difficile, double Extrême), and the
     // Parc Basler map in Morin-Heights (Facile, Intermédiaire): levels OpenStreetMap lacks or gives differently (checked 2026-11-28).
     { name: "11 La Faux Plats", c: [47.1204, -70.8776], r: 1000, d: "blue", src: "Sépaq, Mont-Sainte-Anne mountain bike map (park XC and resort DH trails)", url: "https://www.sepaq.com/resources/docs/ct/msa/msa_carte_velo_montagne.pdf" },
