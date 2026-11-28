@@ -304,7 +304,7 @@ async function camSeq(name, n, at, settle = SET, from = 0, to = n) {
 const AREA = "Lost Lake";
 const PICKS = [["Peaches en Regalia", [50.12132, -122.94739]], ["Donkey Puncher", [50.13038, -122.9443]], ["Soap and Old Clothes", [50.13197, -122.94571]]];
 // The middle of the Easy loop (Cut Yer Bars, Tin Pants, Lorimer Road) for the native 3D camera.
-const LOOP_C = { lat: Number(process.env.FLAT || 50.1291), lon: Number(process.env.FLON || -122.9513) }, LOOP_Z = Number(process.env.FZ || 14.6);
+const LOOP_C = { lat: Number(process.env.FLAT || 50.1291), lon: Number(process.env.FLON || -122.9513) }, LOOP_Z = Number(process.env.FZ || 13.9);
 // With Plan a route's panel over the lower half, the camera aims ~350 m short of the loop's middle so the loop shows above it.
 const near = (b, m = 350) => ({ lat: LOOP_C.lat - (m / 111320) * Math.cos(b * Math.PI / 180), lon: LOOP_C.lon - (m / (111320 * Math.cos(LOOP_C.lat * Math.PI / 180))) * Math.sin(b * Math.PI / 180) });
 const lostLi = `[...document.querySelectorAll("#tdAreas .td-area")].find((l) => /${AREA}/.test(l.querySelector("header").innerText))`;
@@ -387,7 +387,7 @@ async function bounds() { return jsq(`(() => { const m = window.tfLeaflet, c = m
     await jsq(`(() => { const s = document.createElement("style"); s.id = "__clean"; s.textContent = "body > *:not(#map) { visibility: hidden !important; } #map .leaflet-control-container { visibility: hidden !important; }"; document.head.append(s); return 1; })()`);
     await sleep(6000);
     const C = LOOP_C, NF = Number(process.env.NF || 360), FZ = LOOP_Z;
-    await camSeq("fly", NF, (u) => ({ ...C, zoom: FZ, bearing: 200 + 70 * ease(u) }), Number(process.env.FSET || 1100), Number(process.env.FROM || 0), Number(process.env.TO || NF));
+    await camSeq("fly", NF, (u) => ({ ...C, zoom: FZ, bearing: 210 + 110 * ease(u) }), Number(process.env.FSET || 1100), Number(process.env.FROM || 0), Number(process.env.TO || NF));
     mark("END"); log("done, frames " + fi); process.exit(0);
   }
   // ---- Part 1: a suggested loop.
@@ -399,7 +399,7 @@ async function bounds() { return jsq(`(() => { const m = window.tfLeaflet, c = m
   log("native open: " + (await jsq(`!!(window.tfNative && window.tfNative.isOpen())`, false)));
   mark("in3d");
   const NT = Number(process.env.NT || 200);
-  await camSeq("turn3d", NT, (u) => { const b = 200 + 40 * ease(u); return { ...near(b), zoom: Number(process.env.TZ || 14.3), bearing: b }; });
+  await camSeq("turn3d", NT, (u) => { const b = 230 + 40 * ease(u); return { ...near(b, 600), zoom: Number(process.env.TZ || 13.7), bearing: b }; });
   // "2D map" needs a real finger (native-map.js): the tap is logged and the native map closed the same way.
   { const r = await rect("#btn3d"); L.taps.push({ f: fi, x: r && r.x, y: r && r.y, name: "2d" }); await snap(); log("2D: " + (await closeNative())); await sleep(6000); await snap(); }
   log("native still open: " + (await jsq(`!!(window.tfNative && window.tfNative.isOpen())`, false)));
