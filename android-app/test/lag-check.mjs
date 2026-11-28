@@ -65,24 +65,27 @@ async function js(expr) {
 const shot = (f) => { try { execSync(`adb exec-out screencap -p > shots/${f}`, { shell: "/bin/bash", timeout: 20000 }); } catch {} };
 const nativeShows = () => { try { return /maplibre[\w.]*MapView|TrailMapScreen/.test(adb("shell dumpsys activity top")); } catch { return false; } };
 
-// A real finger tap on an element: where the web view's top is on the screen, measured once with a see-through cover.
+// A real finger tap on an element: where the web view's top is on the screen, measured with a see-through cover in a
+// web run (with alex's native map under the page, a tap on a see-through spot goes to the native map instead).
 let topPx = null;
+async function measureTop() {
+  try {
+    const r = await js(`({ dpr: devicePixelRatio, ih: innerHeight })`);
+    await js(`(() => { window.__tapY = null; const d = document.createElement("div"); d.id = "__probe"; d.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:#fff;opacity:.01";
+      d.addEventListener("touchstart", (e) => { window.__tapY = e.touches[0].clientY; e.preventDefault(); e.stopPropagation(); }, { passive: false });
+      d.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }); document.body.append(d); })()`);
+    const y = Math.round(r.ih * r.dpr * 0.45);
+    adb(`shell input tap 20 ${y}`);
+    await sleep(800);
+    const cy = await js("window.__tapY");
+    await js(`document.getElementById("__probe")?.remove()`);
+    if (cy != null) topPx = Math.round(y - cy * r.dpr);   // measured again next time when this one missed
+  } catch {}
+  console.log(`    web view top: ${topPx == null ? "not measured" : topPx + " px"}`);
+}
 async function fingerTap(sel) {
-  const r = await js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, dpr: devicePixelRatio, ih: innerHeight }; })()`);
+  const r = await js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, dpr: devicePixelRatio }; })()`);
   if (!r) return false;
-  if (topPx == null) {
-    try {
-      await js(`(() => { window.__tapY = null; const d = document.createElement("div"); d.id = "__probe"; d.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:transparent";
-        d.addEventListener("touchstart", (e) => { window.__tapY = e.touches[0].clientY; e.preventDefault(); e.stopPropagation(); }, { passive: false });
-        d.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }); document.body.append(d); })()`);
-      const y = Math.round(r.ih * r.dpr * 0.45);
-      adb(`shell input tap 20 ${y}`);
-      await sleep(800);
-      const cy = await js("window.__tapY");
-      await js(`document.getElementById("__probe")?.remove()`);
-      if (cy != null) topPx = Math.round(y - cy * r.dpr);   // measured again next time when this one missed
-    } catch {}
-  }
   adb(`shell input tap ${Math.round(r.x * r.dpr)} ${Math.round(r.y * r.dpr + (topPx || 0))}`);
   return true;
 }
@@ -141,6 +144,7 @@ async function run(sport, native) {
     await js(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); document.querySelectorAll("dialog[open]").forEach((d) => d.close()); })()`).catch(() => {});
     await js(`window.tfLeaflet && window.tfLeaflet.setView([50.09, -122.95], 13)`).catch(() => {});
     await sleep(4000);
+    if (!native && topPx == null) await measureTop();
     // Into 3D (Skiing opens on 3D already, and alex's one map can show seen from above: the button says 3D then).
     const in3d = () => js(`({ web: !!document.querySelector("#map.is3d") && !!(window.tf3dGl && window.tf3dGl()), native: !!(window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen()), b: (document.getElementById("btn3d") || {}).textContent || "" })`).catch(() => ({}));
     let s = await in3d();
