@@ -19,10 +19,13 @@
   const reg = () => window.tfGround || {};
   const isOn = (g) => { try { return !!g.on(); } catch { return false; } };
 
-  // The colour keys: the same bars the page shows on its map (Skiing's, translated there), plus a layer's own.
+  // The colour keys: the same bars the page shows on its map (Skiing's, translated there) when the page's own are hidden
+  // behind the native map, plus a layer's own.
   function keys() {
     const out = [];
-    for (const b of document.querySelectorAll("#skBars .sk-bar")) {
+    // Under the page (the one map), the page's own bars already show over the native map: not sent twice.
+    const pageShows = N.pageKeys ? N.pageKeys() : false;
+    if (!pageShows) for (const b of document.querySelectorAll("#skBars .sk-bar")) {
       const c = [...b.querySelectorAll(".bc i")].map((i) => i.style.backgroundColor || i.style.background);
       if (!c.length || c.some((x) => !/^(#|rgb)/.test(x))) continue;   // only plain colours (never the avalanche bar)
       out.push({ t: [...b.querySelectorAll(".bt")].map((e) => e.textContent.trim()).join(" · "), c, l: [...b.querySelectorAll(".bl span")].map((s) => s.textContent.trim()) });
