@@ -23,6 +23,7 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
+<script src="clean-names.js?v=__V__"></script>
 <script src="i18n.js?v=__V__"></script>
 <script>
 // A web viewer too old for the map (no Object.hasOwn: Chrome before 93, Safari before 15.4). Google Play's review
@@ -2354,6 +2355,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     setBasemap(isSat(cur) ? (PICKS.includes(prev) && !ownOnly(prev) ? prev : savedBase()) : satPick(), true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
+  window.tfSavedBase = savedBase;     // ...and the sport's own style again once the signal is back
 
   const trailLayer = L.layerGroup().addTo(map);
   // New-trail results go on one canvas: a big search drew thousands of SVG paths, which made panning and zooming lag.
@@ -3125,6 +3127,7 @@ out body;`;
   function packTrail(t) { const o = {}; TRAIL_FIELDS.forEach((k) => { o[k] = t[k] instanceof Date ? t[k].toISOString() : t[k]; }); return o; }
   function unpackTrail(o) {
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
+    if (window.tfCleanTags) { window.tfCleanTags(t.tags); (t.routes || []).forEach((r) => { r.name = window.tfCleanName(r.name); }); }   // saved before clean-names.js
     t.bounds = L.latLngBounds(t.geom);
     const c = classify(withOfficial(rateTags(t.tags, t.geom, t.id), t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
     if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official });
@@ -4081,7 +4084,7 @@ out body;`;
       paintFacts(t);
       if (t.wx && state.selected === t.id && $("wx")) renderWeather($("wx"), t.wx.json, cellOf(t), t);   // the freeze line against the trail's heights
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
       if (dirOpen === t && $("fDown")) { $("fDown").textContent = "–"; $("fUp").textContent = "–"; }
     }
     if (box()) { setGoLink(t); renderAccess(t); }
@@ -4588,7 +4591,7 @@ out body;`;
       const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t), t);
       paintFacts(t);
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the weather (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
     }
   }
   function renderWeather(el, w, key, t) {
@@ -5627,7 +5630,7 @@ out body;`;
       el.classList.remove("muted");
       el.innerHTML = `<ol class="history">${t.history.slice().reverse().map((h) => `<li><strong>v${h.v}</strong> · ${fmtDate(h.ts)} · ${userLink(h.user)} ${csLink(h.cs)}${h.comment ? `<div class="muted">“${esc(h.comment)}”</div>` : ""}</li>`).join("")}</ol>`;
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the history (${e.message}). Use the “Full history” link instead.`;
+      const el = box(); if (el) el.textContent = `Couldn't load the history (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Use the “Full history” link instead.`;
     }
   }
 
@@ -8530,7 +8533,7 @@ out tags center qt;`;
       const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e])), w = els.find((e) => e.type === "way");
       if (!w || token !== foundToken) return;
       await presentTrail({ main: w, segs: [wayLine(w, nodes)], segIds: [w.id], type: "way", kind: kindOf(w.tags || {}), token, view: ll });
-    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   };
   window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
 
@@ -8625,7 +8628,7 @@ out tags center qt;`;
       if (!segs.length) throw new Error("the trail's shape didn't load");
       await presentTrail({ main, segs, segIds, pieceTags, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit", loamAt: g.center });   // same Loam reading as its list row
     } catch (e) {
-      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
+      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Try again in a moment.`, true);
     }
   }
 
@@ -8795,7 +8798,7 @@ out tags center qt;`;
     const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
       .map((r) => ({ id: r.id, name: r.tags.name || r.tags.ref || "unnamed" }));
     try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, routeTypes, token, view: ll }); }
-    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   }
 
   // ---- draw a square: list every MTB trail inside it, old or new (from the daily all-trails lists) ----
