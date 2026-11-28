@@ -412,7 +412,20 @@ async function bounds() { return jsq(`(() => { const m = window.tfLeaflet, c = m
   await ptap('[data-hub="plan"]', 4000, "plan"); mark("plan");
   // Film only: the map stays put while trails are tapped (Plan a route fits the map to each new build, which moved
   // the next trail off screen), framed so all three sit above the panel.
-  await jsq(`(() => { const m = window.tfLeaflet; m.fitBounds = function () { return this; }; m.flyToBounds = function () { return this; }; m.setView([50.1225, -122.946], 15, { animate: false }); return 1; })()`); await sleep(5000); await snap(); mark("planmap"); await snap();
+  await jsq(`(() => { const m = window.tfLeaflet; m.fitBounds = function () { return this; }; m.flyToBounds = function () { return this; }; m.setView([50.1225, -122.946], 15, { animate: false }); return 1; })()`); await sleep(3000);
+  // Frame the three trails above the panel, measured on screen: zoom out while they don't fit, then pan their middle
+  // to (220, 300).
+  for (let k = 0; k < 4; k++) {
+    const f = await jsq(`(() => { const m = window.tfLeaflet, b = m.getContainer().getBoundingClientRect();
+      const p = ${JSON.stringify(PICKS.map((x) => x[1]))}.map((ll) => { const q = m.latLngToContainerPoint(ll); return [b.left + q.x, b.top + q.y]; });
+      const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]), w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+      if (w > 300 || h > 300) { m.setZoom(m.getZoom() - 1, { animate: false }); return { out: 1, w, h, z: m.getZoom() }; }
+      const dx = (Math.max(...xs) + Math.min(...xs)) / 2 - 220, dy = (Math.max(...ys) + Math.min(...ys)) / 2 - 300;
+      m.panBy([dx, dy], { animate: false }); return { dx, dy, w, h, z: m.getZoom() }; })()`, null);
+    log("frame trails: " + JSON.stringify(f)); await sleep(2500);
+    if (f && !f.out && Math.abs(f.dx) < 10 && Math.abs(f.dy) < 10) break;
+  }
+  await sleep(3000); await snap(); mark("planmap"); await snap();
   for (const [i, [n, ll]] of PICKS.entries()) { await mapTap(ll, "pick" + (i + 1)); mark("pick" + (i + 1)); }
   log("own: " + (await waitBuilt())); await snap(); mark("built"); await snap();
   await ttap("#planTrails button, #planStats button, .plan-bar button", /Best order/, 9000, "best"); mark("best");
