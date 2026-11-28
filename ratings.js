@@ -565,6 +565,9 @@
     { name: "Split Rail", c: [45.87179, -66.90866], r: 800, d: "green", src: "River Valley Cycling, Woolastook trailhead map (January 2025)", url: "https://rivervalleycycling.com/2025/01/18/multi-year-woolastook-refresh-in-the-home-stretch/" },   // one piece is still blue on OpenStreetMap; the club graded its whole length green in 2024
     // McIntosh Run (Halifax): the McIntosh Run Watershed Association's trail maps page rates it green; one piece has no level on OpenStreetMap.
     { name: "Clark Kent", c: [44.61321, -63.60897], r: 800, d: "green", src: "McIntosh Run Watershed Association, trail maps page (2026)", url: "https://mcintoshrun.ca/trailmaps/" },
+    // Cypress Hills Provincial Park (Elkwater, Alberta): Alberta Parks' trail pages call these black; OpenStreetMap has them green and blue.
+    { name: "Great White", c: [49.65015, -110.26663], r: 500, d: "black", src: "Alberta Parks, Cypress Hills Provincial Park trails", url: "https://www.albertaparks.ca/parks/south/cypress-hills-pp/information-facilities/trails/cypress-hills/great-white/" },
+    { name: "Last Grizzly", c: [49.65561, -110.27753], r: 500, d: "black", src: "Alberta Parks, Cypress Hills Provincial Park trails", url: "https://www.albertaparks.ca/parks/south/cypress-hills-pp/information-facilities/trails/cypress-hills/the-last-grizzly/" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { nh: "12f5pps", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
