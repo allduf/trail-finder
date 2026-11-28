@@ -1880,7 +1880,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const a = j.features && j.features[0] && j.features[0].attributes;
     if (!a) return null;
     const sp = String(a.FISH_SPECIES_SUMMARY || "").split(",").map((s) => s.trim()).filter(Boolean);
-    const facts = [a.SURFACE_AREA ? `${Math.round(a.SURFACE_AREA)} ha` : "", a.MAXIMUM_DEPTH ? `up to ${a.MAXIMUM_DEPTH} m deep (average ${a.MEAN_DEPTH || "?"} m)` : "", a.THERMAL_REGIME ? `${a.THERMAL_REGIME.toLowerCase()} water` : ""].filter(Boolean);
+    // The Stocked section shows the same inventory's facts for a stocked lake with this name close by: once is enough.
+    const nm = String(a.OFFICIAL_WATERBODY_NAME || "").toLowerCase();
+    const inStock = !!nm && !!stocked && near(stocked.waters, lat, lon, 3, (x) => x.c).slice(0, 2).some(([x]) => x.p === "on" && Array.isArray(x.f) && x.n.toLowerCase() === nm);
+    const facts = inStock ? [] : [a.SURFACE_AREA ? `${Math.round(a.SURFACE_AREA)} ha` : "", a.MAXIMUM_DEPTH ? `up to ${a.MAXIMUM_DEPTH} m deep${a.MEAN_DEPTH ? ` (average ${a.MEAN_DEPTH} m)` : ""}` : "", a.THERMAL_REGIME && a.THERMAL_REGIME !== "Unknown" ? `${a.THERMAL_REGIME.toLowerCase()} water` : ""].filter(Boolean);
     return { name: a.OFFICIAL_WATERBODY_NAME || "", kind: "Lake", sp, html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From Ontario's aquatic resource inventory.")}` };
   }
   async function waterQC(lat, lon) {
@@ -1952,21 +1955,31 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   function releasesHtml(w) {
     const sp = stocked.sp, st = stocked.st || [];
     const rows = w.r.slice(0, 8).map((r) => `<tr><td>${esc(/^\d{4}-\d\d-\d\d$/.test(r[0]) ? fmtDay(r[0]) : r[0])}</td><td><b>${esc(sp[r[1]] || "")}</b>${st[r[3]] ? `<br><small>${esc(st[r[3]])}</small>` : ""}</td><td class="num">${r[2] ? r[2].toLocaleString() : ""}</td></tr>`).join("");
-    const src = w.p === "bc" ? `<a href="https://www.gofishbc.com/stocked-fish/?wbid=${encodeURIComponent(w.id || "")}" target="_blank" rel="noopener">Freshwater Fisheries Society of BC stocking report</a>` : w.p === "ab" ? "Alberta stocking reports and this year's planned trout stocking" : "Ontario fish stocking data";
+    const src = w.p === "bc" ? `<a href="https://www.gofishbc.com/stocked-fish/?wbid=${encodeURIComponent(w.id || "")}" target="_blank" rel="noopener">Freshwater Fisheries Society of BC stocking report</a>` : w.p === "ab" ? `<a href="https://mywildalberta.ca/fishing/fish-stocking/default.aspx" target="_blank" rel="noopener">${w.r.some((r) => / planned/.test(r[0])) ? "Alberta stocking reports and this year's planned trout stocking" : "Alberta fish stocking reports"}</a>` : `<a href="https://data.ontario.ca/dataset/fish-stocking" target="_blank" rel="noopener">Ontario fish stocking data</a>`;
     return `${lakeFactsHtml(w)}<table class="fs-tbl"><thead><tr><th>When</th><th>What</th><th class="num">Fish</th></tr></thead><tbody>${rows}</tbody></table>${w.r.length > 8 ? `<p class="fs-note">And ${w.r.length - 8} more releases.</p>` : ""}<p class="fs-note">${src}.</p>`;
   }
-  // BC: what the Freshwater Fisheries Society of BC's "where to fish" map lists for the lake (stocked.json f, built
-  // by scripts/build-fishing.mjs): [elevation m, area ha, road 2 or 4 (WD), flags]. Only what they list: a missing
+  // What the province's own data lists for the lake (stocked.json f, built by scripts/build-fishing.mjs):
+  // [elevation m, area ha, road 2 or 4 (WD), flags, deepest m, average depth m, thermal regime c/o/w]. BC: the Freshwater
+  // Fisheries Society of BC's "where to fish" map; Alberta: the lake's size on Alberta's fisheries map (FWMIS); Ontario:
+  // size, depth and thermal regime from Ontario's Aquatic Resource Area inventory. Only what they list: a missing
   // launch or dock isn't shown as "none".
   const FLAG = { b: "Boat launch", d: "Fishing dock", a: "Wheelchair access", c: "Campsite", w: "Washroom", h: "Hike-in" };
+  const THERMAL = { c: "Cold-water lake", o: "Cool-water lake", w: "Warm-water lake" };
+  const LAKE_SRC = {
+    bc: `As listed on the <a href="https://www.gofishbc.com/where-to-fish/" target="_blank" rel="noopener">Freshwater Fisheries Society of BC's Where to fish map</a>. Roads, docks and facilities can change.`,
+    ab: `Lake size from Alberta's fisheries map (<a href="https://www.alberta.ca/fisheries-and-wildlife-management-information-system-overview" target="_blank" rel="noopener">FWMIS</a>). Water levels can change.`,
+    on: `From Ontario's Aquatic Resource Area inventory, the lake facts in <a href="https://www.lioapplications.lrc.gov.on.ca/fishonline/Index.html?viewer=FishONLine.FishONLine&locale=en-CA" target="_blank" rel="noopener">Fish ON-Line</a>. Old surveys: water levels may have changed. Not for navigation.`,
+  };
+  const dec = (x) => (x >= 10 ? Math.round(x) : Math.round(x * 10) / 10);
   function lakeFactsHtml(w) {
-    const f = w.p === "bc" && Array.isArray(w.f) ? w.f : null;
+    const f = Array.isArray(w.f) && LAKE_SRC[w.p] ? w.f : null;
     if (!f) return "";
-    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString("en")} m` : "", f[1] > 0 ? `${f[1] >= 10 ? Math.round(f[1]) : Math.round(f[1] * 10) / 10} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "", ...[...String(f[3] || "")].map((k) => FLAG[k]).filter(Boolean)].filter(Boolean);
-    if (!list.length) return "";
+    const flags = [...String(f[3] || "")].map((k) => FLAG[k]).filter(Boolean);
+    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString("en")} m` : "", f[1] > 0 ? `${dec(f[1])} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "",
+      f[4] > 0 ? `Deepest ${dec(f[4])} m` : "", f[5] > 0 ? `Average depth ${dec(f[5])} m` : "", THERMAL[f[6]] || ""].filter(Boolean);
+    if (!list.length && !flags.length) return "";
     const line = (a) => (a.length ? `<p>${a.map((x) => `<span>${esc(x)}</span>`).join(" · ")}</p>` : "");
-    const n = list.length - [...String(f[3] || "")].filter((k) => FLAG[k]).length;
-    return `${line(list.slice(0, n))}${line(list.slice(n))}<p class="fs-note">As listed on the <a href="https://www.gofishbc.com/where-to-fish/" target="_blank" rel="noopener">Freshwater Fisheries Society of BC's Where to fish map</a>. Roads, docks and facilities can change.</p>`;
+    return `${line(list)}${line(flags)}<p class="fs-note">${LAKE_SRC[w.p]}</p>`;
   }
   const fmtDay = (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   async function flowHtml(lat, lon, only) {

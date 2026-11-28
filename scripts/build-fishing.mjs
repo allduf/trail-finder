@@ -5,8 +5,11 @@
 //    species, number, size). BC: the Freshwater Fisheries Society of BC's stocking report (gofishbc.com), placed on the
 //    BC Freshwater Atlas lake with the same waterbody id (DataBC FWA_LAKES_POLY) or the fish records for that id
 //    (FISS_FISH_OBSRVTN_PNT_SP); each BC water also gets FFSBC's lake facts (f: elevation, size, road, launch,
-//    dock, wheelchair access, campsite, washroom, hike-in) from their "where to fish" map pins. Alberta: the fish stocking reports and this year's planned trout stocking
-//    (open.alberta.ca). Ontario: Fish Stocking Data for Recreational Purposes (Ontario GeoHub). Quebec doesn't publish
+//    dock, wheelchair access, campsite, washroom, hike-in) from their "where to fish" map pins. Alberta: the yearly fish
+//    stocking reports (PDF since 2022, read with pdftotext; the spreadsheets before that give each place's position) and
+//    this year's planned trout stocking until the year's final report (open.alberta.ca), with each lake's size from
+//    Alberta's fisheries map (FWMIS). Ontario: Fish Stocking Data for Recreational Purposes (Ontario GeoHub), with each
+//    lake's size, depth and thermal regime from Ontario's Aquatic Resource Area inventory (LIO). Quebec doesn't publish
 //    its stocking as open data.
 //  - zones.json: the areas fishing rules are written for, as simplified outlines: BC's fishing regions (DataBC
 //    EADM_WLAP_REGION_BND_AREA_SVW), BC's tidal Pacific Fishery Management Areas (DFO_PFMA_STAT_AREA_BDRY_SP),
@@ -168,7 +171,7 @@ function centre(geom) {
 
 const now = new Date(), since = new Date(now.getFullYear() - 3, now.getMonth(), 1);
 const iso = (d) => d.toISOString().slice(0, 10);
-const title = (s) => String(s || "").toLowerCase().replace(/(^|[\s\-'(/])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Of|The|And|De|Du|La|Le|Des)\b/g, (w) => w.toLowerCase()).replace(/^./, (c) => c.toUpperCase());
+const title = (s) => String(s || "").toLowerCase().replace(/(^|[\s\-'(/])([a-zà-ÿ])/g, (m, a, b) => a + b.toUpperCase()).replace(/\b(Of|The|And|De|Du|La|Le|Des)\b/g, (w) => w.toLowerCase()).replace(/^./, (c) => c.toUpperCase()).replace(/'S\b/g, "'s");
 
 // ---------- stocking ----------
 const SPN = [], STN = [];   // species and size names; each release names them by their place in these lists
@@ -289,18 +292,88 @@ async function xlsxRows(buf) {
 }
 const excelDay = (n) => (typeof n === "number" ? iso(new Date(Date.UTC(1899, 11, 30) + n * 864e5)) : String(n || "").slice(0, 10));
 
+// Alberta's fish stocking report for each year (open.alberta.ca "fish-stocking-list"): a PDF only since 2022, one row
+// per release: waterbody (official name, and from 2025 back a common name), its legal land location (ATS quarter
+// section), species, strain, genotype, average length, number and date. Read with pdftotext -layout (poppler-utils): a
+// long name wraps onto the next lines in its own column, an ATS can wrap its meridian ("SW15-106-12-" then "W5").
+const AB_MON = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+const AB_GENO = { "2N": "Diploid", "3N": "Triploid", AF2N: "All Female Diploid", AF3N: "All Female Triploid" };
+function parseAbReport(txt) {
+  const segs = (s) => [...s.matchAll(/\S+(?: \S+)*/g)].map((m) => ({ at: m.index, t: m[0] }));
+  const ROW = /^(\s+\S.*?)\s{2,}((?:[NS][EW]|L\d{1,2}-)?\d{1,2}-\d{1,3}-\d{1,2}-(?:W[4-6])?)\s+([A-Z]{4})\s+(.*?)\s+((?:AF)?[23]N)\s+([\d.]+)\s+([\d,]+)\s+(\d{1,2})-([A-Z][a-z]{2})-(\d{2})\s*$/;
+  const rows = [];
+  let bad = 0, last = null;
+  for (const line of txt.split(/\r?\n/)) {
+    const m = ROW.exec(line);
+    if (m) {
+      last = { names: segs(m[1]), atsAt: line.indexOf(m[2], m[1].length), ats: m[2], sp: m[3], geno: m[5], len: +m[6], n: +m[7].replace(/,/g, ""), date: `20${m[10]}-${String(AB_MON[m[9]] || 0).padStart(2, "0")}-${m[8].padStart(2, "0")}` };
+      rows.push(last);
+      continue;
+    }
+    if (/\d{1,2}-[A-Z][a-z]{2}-\d{2}\s*$/.test(line)) { bad++; last = null; continue; }   // a release line the pattern missed
+    if (/for more information|©|classification:|fish stocking report|^\s*total\b.*\bstocked\b|stocked to date/i.test(line)) { last = null; continue; }   // the page's footer, the report's totals
+    if (!last) continue;
+    const ss = segs(line);
+    if (!ss.length) { last = null; continue; }
+    for (const x of ss) {
+      const nm = last.names.find((y) => Math.abs(y.at - x.at) <= 2);
+      if (nm) nm.t += " " + x.t;
+      else if (/^W[4-6]$/.test(x.t) && /-$/.test(last.ats) && Math.abs(x.at - last.atsAt) < 12) last.ats += x.t;
+    }
+  }
+  return {
+    bad,
+    rows: rows.filter((r) => /W[4-6]$/.test(r.ats) && !/-00-/.test(r.date)).map(({ names, atsAt, ...r }) => {
+      const [off, com] = names.map((x) => x.t.replace(/\s+/g, " ").trim());
+      return { ...r, name: com && !/^unnamed$/i.test(com) ? com : off };
+    }),
+  };
+}
+const AB_SP = { RNTR: "Rainbow Trout", WSCT: "Westslope Cutthroat Trout", BKTR: "Brook Trout", BNTR: "Brown Trout", TGTR: "Tiger Trout", CTTR: "Cutthroat Trout", LKTR: "Lake Trout", ARGR: "Arctic Grayling", GOLD: "Golden Trout", BLTR: "Bull Trout", WALL: "Walleye", GDTR: "Golden Trout", BRTR: "Brook Trout" };
+// The middle of an ATS quarter section ("NE29-8-4-W4"), from Alberta's township system map (base/alberta_township_system).
+async function atsCentres(list) {
+  const ATS = "https://geospatial.alberta.ca/titan/rest/services/base/alberta_township_system/MapServer/4/query";
+  const out = new Map();
+  const parts = list.map((a) => [a, /^([NS][EW])(\d+)-(\d+)-(\d+)-W(\d)$/.exec(a)]).filter(([, m]) => m);
+  for (let i = 0; i < parts.length; i += 25) {
+    const where = parts.slice(i, i + 25).map(([, m]) => `(M=${+m[5]} AND RGE=${+m[4]} AND TWP=${+m[3]} AND SEC=${+m[2]} AND QS='${m[1]}')`).join(" OR ");
+    try {
+      const j = await get(`${ATS}?${new URLSearchParams({ where, outFields: "M,RGE,TWP,SEC,QS,DESCRIPTOR", returnGeometry: "true", outSR: "4326", maxAllowableOffset: "0.0005", f: "json" })}`);
+      for (const f of j.features || []) {
+        const a = f.attributes; if (/^RA\b/.test(a.DESCRIPTOR || "")) continue;   // the road allowance strip, not the quarter
+        const xs = (f.geometry?.rings || []).flat(); if (!xs.length) continue;
+        const lat = (Math.min(...xs.map((p) => p[1])) + Math.max(...xs.map((p) => p[1]))) / 2, lon = (Math.min(...xs.map((p) => p[0])) + Math.max(...xs.map((p) => p[0]))) / 2;
+        out.set(`${a.QS}${a.SEC}-${a.TWP}-${a.RGE}-W${a.M}`, [r4(lat), r4(lon)]);
+      }
+    } catch (e) { log(`    ATS map: ${e.message}`); }
+  }
+  return out;
+}
+const abKey = (n) => String(n || "").toLowerCase().replace(/\(.*?\)/g, "").replace(/\b(lake|pond|reservoir|the)\b/g, "").replace(/[^a-z0-9]+/g, "");
+let abFacts = false;   // Alberta lake sizes came back this run
 async function stockAB() {
   const ckan = (id) => get(`https://open.alberta.ca/api/3/action/package_show?id=${id}`).then((j) => j.result.resources);
-  const by = new Map();
-  const add = (name, lat, lon, rel) => {
-    if (!isFinite(lat) || !isFinite(lon) || !name) return;
-    const k = `${title(name)}|${lat.toFixed(2)}|${lon.toFixed(2)}`;
-    (by.get(k) || by.set(k, { n: title(name), p: "ab", c: [r4(lat), r4(lon)], r: [] }).get(k)).r.push(rel);
+  const waters = [];
+  const km2 = (a, b) => Math.hypot(a[0] - b[0], (a[1] - b[1]) * Math.cos((a[0] * Math.PI) / 180)) * 111;
+  // The same water: the same legal land location ("Slawuta Lake" is "Bonnyville Town Pond (Slawuta Lake)" another year)
+  // unless the names tell two lakes apart (Lower and Upper Champion Lake, Md Peace Pond #1 and #2 share a quarter
+  // section), or the same name within 3 km.
+  const side = (n) => (String(n || "").replace(/^.*\((.+)\).*$/, "$1").toLowerCase().match(/\b(lower|upper|middle|north|south|east|west|\d+)\b/g) || []).sort().join(",");
+  const find = (name, c, ats) => waters.find((w) => side(w.n) === side(name) && ((ats && w.ats === ats) || (abKey(w.n) === abKey(name) && km2(w.c, c) < 3)));
+  const add = (name, c, rel, ats, wb) => {
+    if (!c || !isFinite(c[0]) || !isFinite(c[1]) || !name) return;
+    let w = find(name, c, ats);
+    if (!w) waters.push(w = { n: /[a-z]/.test(name) ? String(name).trim().replace(/(?!^)\b(Of|The|And)\b/g, (x) => x.toLowerCase()) : title(name), p: "ab", c: [r4(c[0]), r4(c[1])], r: [] });   // the PDFs' names are already written in capitals and small letters
+    if (ats && !w.ats) w.ats = ats;
+    if (wb && !w.wb) w.wb = wb;
+    w.r.push(rel);
   };
-  // Actual releases: the newest report files (XLSX or CSV).
+  // Where each legal land location is, from the spreadsheet reports (they have latitude and longitude, the PDFs don't).
+  const atsAt = new Map();
+  const old = [];
   try {
     const res = (await ckan("fish-stocking-report")).filter((r) => /xlsx|csv/i.test(r.format)).sort((a, b) => String(b.name).localeCompare(String(a.name)));
-    const recent = res.filter((r) => { const y = +(String(r.name).match(/20\d\d/) || [0])[0]; return y >= now.getFullYear() - 5; }).slice(0, 3);
+    const recent = res.filter((r) => { const y = +(String(r.name).match(/20\d\d/) || [0])[0]; return y >= now.getFullYear() - 6; }).slice(0, 2);
     for (const r of recent) {
       const buf = await get(r.url, { json: false });
       let rows;
@@ -310,44 +383,101 @@ async function stockAB() {
       if (head < 0) continue;
       const h = rows[head].map((c) => String(c || "").toLowerCase());
       const ix = (re) => h.findIndex((c) => re.test(c));
-      const iD = ix(/stocking date|^date/), iN = ix(/official name/), iC = ix(/common name/), iLa = ix(/latitude/), iLo = ix(/longitude/), iS = ix(/species common/), iQ = ix(/^number/), iL = ix(/average length/), iG = ix(/genotype/);
+      const iD = ix(/stocking date|^date/), iN = ix(/official name/), iC = ix(/common name/), iLa = ix(/latitude/), iLo = ix(/longitude/), iS = ix(/species common/), iQ = ix(/^number/), iL = ix(/average length/), iG = ix(/genotype/), iA = ix(/ats/), iW = ix(/waterbody id/);
       let n = 0;
       for (const row of rows.slice(head + 1)) {
         if (!row || row[iLa] == null) continue;
+        const c = [+row[iLa], +row[iLo]];
+        if (iA >= 0 && row[iA] && isFinite(c[0])) atsAt.set(String(row[iA]).trim(), c);
         const sp = row[iS]; if (!sp) continue;
-        add(row[iC] || row[iN], +row[iLa], +row[iLo], [excelDay(row[iD]), spCode(sp), +row[iQ] || 0, [row[iL] ? `${row[iL]} cm` : "", row[iG] || ""].filter(Boolean).join(", ")]);
+        old.push([row[iC] || row[iN], c, [excelDay(row[iD]), spCode(sp), +row[iQ] || 0, [row[iL] ? `${row[iL]} cm` : "", AB_GENO[String(row[iG] || "").trim()] || row[iG] || ""].filter(Boolean).join(", ")], iA >= 0 ? String(row[iA] || "").trim() : "", iW >= 0 ? +row[iW] || 0 : 0]);
         n++;
       }
       log(`  Alberta ${r.name}: ${n} releases`);
     }
   } catch (e) { log(`  Alberta report: ${e.message}`); }
-  // This year's planned trout stocking (lake, species, size, number and the planned week).
+  // The PDF reports: every release since the start of the 3-year window.
+  const final = new Set();
+  let pdfRows = 0;
+  try {
+    const { execFileSync } = await import("node:child_process");
+    const { tmpdir } = await import("node:os");
+    const res = (await ckan("fish-stocking-list")).filter((r) => /pdf/i.test(r.format)).map((r) => ({ ...r, y: +(String(r.name).match(/20\d\d/) || [0])[0] })).filter((r) => r.y >= since.getFullYear());
+    const tmp = `${tmpdir()}/ab-stocking.pdf`;
+    const rel = [];
+    for (const r of res) {
+      try {   // one year's report failing keeps the other years
+        writeFileSync(tmp, await get(r.url, { json: false }));
+        const txt = execFileSync("pdftotext", ["-layout", tmp, "-"], { maxBuffer: 64 << 20 }).toString();
+        if (/stocking report\s*-\s*final/i.test(txt.slice(0, 600))) final.add(String(r.y));
+        const { rows, bad } = parseAbReport(txt);
+        log(`  Alberta ${r.y} report (PDF): ${rows.length} releases${bad ? `, ${bad} lines not read` : ""}${final.has(String(r.y)) ? ", final" : ""}`);
+        rel.push(...rows.filter((x) => x.date >= iso(since)));
+      } catch (e) { log(`  Alberta ${r.y} report (PDF): ${e.message}`); }
+    }
+    const need = [...new Set(rel.map((x) => x.ats))].filter((a) => !atsAt.has(a));
+    const qs = await atsCentres(need);
+    log(`  Alberta places from the ATS map: ${qs.size} of ${need.length}`);
+    for (const x of rel) {
+      const c = atsAt.get(x.ats) || qs.get(x.ats); if (!c) continue;
+      add(x.name, c, [x.date, spCode(AB_SP[x.sp] || x.sp), x.n, [x.len ? `${Math.round(x.len * 10) / 10} cm` : "", AB_GENO[x.geno] || ""].filter(Boolean).join(", ")], x.ats);
+      pdfRows++;
+    }
+  } catch (e) { log(`  Alberta PDF reports: ${e.message}`); }
+  // No PDF read (pdftotext missing, every report failing): last time's Alberta data stays (buildStocked).
+  if (!pdfRows) throw new Error("no stocking report PDF could be read");
+  // The spreadsheet releases inside the 3-year window (none once the window passes 2021).
+  for (const [name, c, rel, ats, wb] of old) if (rel[0] >= iso(since)) add(name, c, rel, ats, wb);
+  // This year's planned trout stocking (lake, species, size, number and the planned week), until that year's final report.
   try {
     const res = (await ckan("planned-trout-stocking")).filter((r) => /xlsx/i.test(r.format)).sort((a, b) => String(b.name).localeCompare(String(a.name)));
     const r = res[0];
     if (r) {
       const year = (String(r.name).match(/20\d\d/) || [now.getFullYear()])[0];
-      const rows = await xlsxRows(await get(r.url, { json: false }));
-      const head = rows.findIndex((x) => x && x.some((c) => /latitude/i.test(String(c))));
-      let n = 0;
-      const AB_SP = { RNTR: "Rainbow Trout", WSCT: "Westslope Cutthroat Trout", BKTR: "Brook Trout", BNTR: "Brown Trout", TGTR: "Tiger Trout", CTTR: "Cutthroat Trout", LKTR: "Lake Trout", ARGR: "Arctic Grayling", GOLD: "Golden Trout", BLTR: "Bull Trout", WALL: "Walleye" };
-      for (const row of rows.slice(head + 1)) {
-        if (!row || row[2] == null || !row[1]) continue;
-        const sp = AB_SP[String(row[4]).trim()] || String(row[4] || "").trim();
-        add(row[1], +row[2], +row[3], [`${year} planned${row[7] ? ": " + String(row[7]).trim() : ""}`, spCode(sp), +row[6] || 0, String(row[5] || "").trim()]);
-        n++;
+      if (final.has(String(year))) log(`  Alberta planned ${year}: the final report is out, planned dates left out`);
+      else {
+        const rows = await xlsxRows(await get(r.url, { json: false }));
+        const head = rows.findIndex((x) => x && x.some((c) => /latitude/i.test(String(c))));
+        let n = 0;
+        for (const row of rows.slice(head + 1)) {
+          if (!row || row[2] == null || !row[1]) continue;
+          const sp = AB_SP[String(row[4]).trim()] || String(row[4] || "").trim();
+          add(row[1], [+row[2], +row[3]], [`${year} planned${row[7] ? ": " + String(row[7]).trim() : ""}`, spCode(sp), +row[6] || 0, String(row[5] || "").trim()]);
+          n++;
+        }
+        log(`  Alberta planned ${year}: ${n}`);
       }
-      log(`  Alberta planned ${year}: ${n}`);
     }
   } catch (e) { log(`  Alberta planned: ${e.message}`); }
-  return [...by.values()];
+  // Lake size from Alberta's fisheries map (FWMIS hydrography, fisheries/fwmis_hydrography): the waterbody with the
+  // report's waterbody id, else the one at the spot whose name matches.
+  const FW = "https://geospatial.alberta.ca/titan/rest/services/fisheries/fwmis_hydrography/MapServer/1/query";
+  // A big lake or reservoir can be drawn in a few parts with the same WB_ID (McGregor Lake): its size is all of them.
+  let nf = 0, fwFailed = 0;
+  const fwQuery = (p) => get(`${FW}?${new URLSearchParams({ ...p, outFields: "WB_ID,OFFICIAL_NM,COMMON_NM,Feature_Type,Shape.STArea()", returnGeometry: "false", f: "json" })}`, { tries: 2 })
+    .then((j) => (j.features || []).map((f) => f.attributes).filter((a) => /^(LAKE|RESERVOIR|POND)/i.test(a.Feature_Type || "LAKE") && a["Shape.STArea()"] > 0));
+  await pool(waters, 6, async (w) => {
+    try {
+      const fs = await fwQuery(w.wb ? { where: `WB_ID=${w.wb}` } : { where: "1=1", geometry: `${w.c[1]},${w.c[0]}`, geometryType: "esriGeometryPoint", inSR: "4326", spatialRel: "esriSpatialRelIntersects", distance: "500", units: "esriSRUnit_Meter" });
+      const same = (a) => [a.OFFICIAL_NM, a.COMMON_NM].some((n) => n && abKey(n) && abKey(n) === abKey(w.n));
+      const ids = [...new Set((w.wb ? fs : fs.filter(same)).map((a) => a.WB_ID))];
+      if (ids.length !== 1) return;
+      const parts = w.wb ? fs : await fwQuery({ where: `WB_ID=${+ids[0]}` });
+      const ha = parts.filter((a) => a.WB_ID === ids[0]).reduce((s, a) => s + a["Shape.STArea()"], 0) / 1e4;
+      if (ha > 0) { w.f = [0, ha >= 10 ? Math.round(ha) : Math.round(ha * 10) / 10, 0, ""]; nf++; }
+    } catch { fwFailed++; }
+  });
+  abFacts = nf > 20 && !fwFailed;   // any lookup that failed: those lakes keep last time's size
+  log(`  Alberta lake sizes: ${nf} of ${waters.length}`);
+  return waters.map(({ ats, wb, ...w }) => w);
 }
 
+let onFacts = false;   // Ontario lake facts came back this run
 async function stockON() {
   const S = "https://services1.arcgis.com/TJH5KDher0W13Kgo/arcgis/rest/services/FishStockingDataForRecreationalPurposes/FeatureServer/0";
   const rows = [];
   for (let start = 0; ; start += 1000) {
-    const p = new URLSearchParams({ where: `Stocking_Year>=${since.getFullYear()}`, outFields: "Stocking_Year,Species,Official_Waterbody_Name,Unoffcial_Waterbody_Name,Developmental_Stage,Number_of_Fish_Stocked,Latitude,Longitude,Geographic_Township", f: "json", resultOffset: String(start), resultRecordCount: "1000", returnGeometry: "false", orderByFields: "ObjectId" });
+    const p = new URLSearchParams({ where: `Stocking_Year>=${since.getFullYear()}`, outFields: "Stocking_Year,Species,Official_Waterbody_Name,Unoffcial_Waterbody_Name,Waterbody_Location_Identifier,Developmental_Stage,Number_of_Fish_Stocked,Latitude,Longitude,Geographic_Township", f: "json", resultOffset: String(start), resultRecordCount: "1000", returnGeometry: "false", orderByFields: "ObjectId" });
     const j = await get(`${S}/query?${p}`);
     rows.push(...(j.features || []).map((f) => f.attributes));
     if (!j.features || !j.features.length || (!j.exceededTransferLimit && j.features.length < 1000)) break;
@@ -359,9 +489,39 @@ async function stockON() {
     const name = a.Official_Waterbody_Name || a.Unoffcial_Waterbody_Name || "Unnamed water";
     const k = `${name}|${(+a.Latitude).toFixed(3)}|${(+a.Longitude).toFixed(3)}`;
     const w = by.get(k) || by.set(k, { n: name, p: "on", c: [r4(+a.Latitude), r4(+a.Longitude)], t: title(a.Geographic_Township || ""), r: [] }).get(k);
+    if (!w.id && a.Waterbody_Location_Identifier) w.id = String(a.Waterbody_Location_Identifier).trim();
     w.r.push([String(a.Stocking_Year), spCode(a.Species), a.Number_of_Fish_Stocked || 0, a.Developmental_Stage || ""]);
   }
-  return [...by.values()];
+  const out = [...by.values()];
+  // Lake facts from Ontario's Aquatic Resource Area inventory (LIO Open07/2, the lake facts Fish ON-Line shows), by the
+  // waterbody id the stocking data gives: surface area, deepest and average depth, and thermal regime (cold, cool or
+  // warm water). A lake split into parts with different numbers gets none: better nothing than the wrong part's.
+  // f = [0, ha, 0, "", deepest m, average m, thermal c/o/w]
+  const ARA = "https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open07/MapServer/2/query";
+  const ids = [...new Set(out.map((w) => w.id).filter((x) => /^[\w-]+$/.test(x || "")))];
+  const facts = new Map();
+  let asked = 0;
+  for (let i = 0; i < ids.length; i += 100) {
+    const where = `WATERBODY_TYPE='Lake or Pond' AND WATERBODY_LID IN (${ids.slice(i, i + 100).map((x) => `'${x}'`).join(",")})`;
+    try {
+      const j = await get(ARA, { tries: 3, body: new URLSearchParams({ where, outFields: "WATERBODY_LID,SURFACE_AREA,MAXIMUM_DEPTH,MEAN_DEPTH,THERMAL_REGIME", returnGeometry: "false", f: "json" }) });   // POST: a long id list
+      asked++;
+      const seg = new Map();
+      for (const f of j.features || []) { const a = f.attributes; (seg.get(a.WATERBODY_LID) || seg.set(a.WATERBODY_LID, []).get(a.WATERBODY_LID)).push(a); }
+      for (const [id, list] of seg) {
+        const kinds = new Set(list.map((a) => [a.SURFACE_AREA || 0, a.MAXIMUM_DEPTH || 0, a.MEAN_DEPTH || 0, a.THERMAL_REGIME || ""].join("|")));
+        if (kinds.size !== 1) continue;
+        const a = list[0], ha = a.SURFACE_AREA > 0 ? a.SURFACE_AREA : 0, mx = a.MAXIMUM_DEPTH > 0 ? a.MAXIMUM_DEPTH : 0;
+        const mean = a.MEAN_DEPTH > 0 && a.MEAN_DEPTH <= mx ? a.MEAN_DEPTH : 0;
+        const th = { Cold: "c", Cool: "o", Warm: "w" }[a.THERMAL_REGIME] || "";
+        if (ha || mx || th) facts.set(id, [0, ha >= 10 ? Math.round(ha) : Math.round(ha * 10) / 10, 0, "", Math.round(mx * 10) / 10, Math.round(mean * 10) / 10, th]);
+      }
+    } catch (e) { log(`    lake facts: ${e.message}`); }
+  }
+  onFacts = asked === Math.ceil(ids.length / 100) && facts.size > 50;   // a batch that failed: those lakes keep last time's facts
+  for (const w of out) if (facts.has(w.id)) w.f = facts.get(w.id);
+  log(`  Ontario lake facts: ${out.filter((w) => w.f).length} of ${out.length} waters`);
+  return out;
 }
 
 async function buildStocked() {
@@ -382,6 +542,10 @@ async function buildStocked() {
   // The FFSBC lake facts: when the map pins did not come back, the ones from last time.
   const oldF = new Map((old?.waters || []).filter((x) => x.p === "bc" && x.f).map((x) => [x.id, x.f]));
   if (!bcPinsOk) for (const w of waters) if (w.p === "bc" && !w.f && oldF.has(w.id)) w.f = oldF.get(w.id);
+  // The same for Alberta's lake sizes and Ontario's lake facts.
+  const oldKey = (w) => `${w.p}|${w.id || w.n}|${w.c[0].toFixed(2)}|${w.c[1].toFixed(2)}`;
+  const oldPF = new Map((old?.waters || []).filter((x) => (x.p === "ab" || x.p === "on") && x.f).map((x) => [oldKey(x), x.f]));
+  for (const w of waters) if (((w.p === "ab" && !abFacts) || (w.p === "on" && !onFacts)) && !w.f && oldPF.has(oldKey(w))) w.f = oldPF.get(oldKey(w));
   // Newest first, the last 15 releases of each water, the size text by its place in "st".
   for (const w of waters) w.r = w.r.sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 15).map((r) => [r[0], r[1], r[2], typeof r[3] === "number" ? r[3] : stCode(r[3])]);
   save("stocked.json", { updated: iso(now), sp: SPN, st: STN, waters });
@@ -741,7 +905,8 @@ async function buildSpots() {
       for (const f of j.features || []) {
         const a = f.attributes, g = f.geometry; if (!g) continue;
         const k = /launch/i.test(a.FISHING_ACCESS_POINT_TYPE || "") ? 2 : 0;
-        const fx = [a.FISHING_ACCESS_POINT_TYPE && !/launch/i.test(a.FISHING_ACCESS_POINT_TYPE) ? a.FISHING_ACCESS_POINT_TYPE.toLowerCase() : "", a.PARKING_PRESENCE_FLG === "Y" ? "parking" : "", a.ACCESSIBILITY_FLG === "Y" ? "accessible" : "", a.USER_FEE_FLG === "Y" ? "fee" : a.USER_FEE_FLG === "N" ? "free" : ""].filter(Boolean).join(", ");
+        const fx = [a.FISHING_ACCESS_POINT_TYPE && !/launch/i.test(a.FISHING_ACCESS_POINT_TYPE) ? a.FISHING_ACCESS_POINT_TYPE.toLowerCase() : "", /^y/i.test(a.PARKING_PRESENCE_FLG) ? "parking" : "", /^y/i.test(a.ACCESSIBILITY_FLG) ? "wheelchair access" : "", /^y/i.test(a.USER_FEE_FLG) ? "fee" : /^no?$/i.test(a.USER_FEE_FLG) ? "no fee listed" : ""].filter(Boolean).join(", ");
+        // (the flags say "Yes", "No" or "Unknown"; unknown says nothing)
         // the same place in both: Ontario's says more
         for (const [key, x] of out) if (x[2] === k && Math.abs(x[0] - g.y) < 0.0008 && Math.abs(x[1] - g.x) < 0.0011) out.delete(key);
         out.set(`on${a.SITE_NAME}|${g.y.toFixed(4)}`, [r4(g.y), r4(g.x), k, String(a.SITE_NAME || "").slice(0, 60), fx, "on"]);
