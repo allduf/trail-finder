@@ -987,9 +987,35 @@ async function fontsCheck() {
   console.log(`${problems.length ? "✗" : "✓"} App builds: fonts come from the site${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
 }
 
+// Trail and place names show without emoji or grade marks (alex 2026-11-25, no emoji in the app): clean-names.js cleans
+// every text the app reads from its data files and from OpenStreetMap ("Pettifogger 🟢" shows as "Pettifogger"), in the
+// browser engine the iPhone app uses. A data file is answered here with names as some mappers write them;
+// a file without map names (What's new) stays as it is.
+async function namesCheck() {
+  const p = await phone(), { page } = p;
+  let note = "";
+  try {
+    await page.route("**/data/names-tfcheck.json", (r) => r.fulfill({ contentType: "application/json",
+      body: JSON.stringify({ items: [["Octane \u25C6", 42.7, -80.3, "M"], ["Howie Down \u25C6\u25C6", 42.7, -80.3, "M"]], tags: { name: "Pettifogger \u{1F7E2}", ref: "13\u{1F7E2}" }, other: "Johnny \u2764\uFE0F Harlow", note: "More \u2192 Settings" }) }));
+    await page.goto(SITE + "ride.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
+    // What's new keeps its line-drawing marks: only files with map names are cleaned.
+    await page.route("**/data/changelog-tfcheck.json", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ text: "Hold \u2630 and drag" }) }));
+    const kept = await page.evaluate(() => fetch("data/changelog-tfcheck.json").then((r) => r.json()));
+    if (kept.text !== "Hold \u2630 and drag") throw new Error(`a file without map names was changed: ${kept.text}`);
+    const got = await page.evaluate(() => fetch("data/names-tfcheck.json").then((r) => r.json()));
+    const want = { items: [["Octane", 42.7, -80.3, "M"], ["Howie Down", 42.7, -80.3, "M"]], tags: { name: "Pettifogger", ref: "13" }, other: "Johnny Harlow", note: "More \u2192 Settings" };
+    if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`read as ${JSON.stringify(got).slice(0, 160)}`);
+  } catch (e) { note = String(e.message || e).split("\n")[0].slice(0, 200); }
+  note = [note, ...p.errors].filter(Boolean).join(" · ");
+  await p.ctx.close().catch(() => {});
+  results.push({ sport: "app", step: "Names show without emoji", ok: !note, note, shot: "" });
+  console.log(`${note ? "✗" : "✓"} App builds: names show without emoji${note ? "\n    " + note : ""}`);
+}
+
 async function appBuilds() {
 await seasonCheck().catch((e) => results.push({ sport: "app", step: "Season sport", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fontsCheck().catch((e) => results.push({ sport: "app", step: "Fonts come from the site", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
+await namesCheck().catch((e) => results.push({ sport: "app", step: "Names show without emoji", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await usagePrivateCheck().catch((e) => results.push({ sport: "app", step: "Usage holds nothing personal", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
