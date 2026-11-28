@@ -5823,19 +5823,32 @@ out body;`;
     else if (!first) keepOnYou(ll, !document.hidden);
     syncLocate(); tellYou();
   }
+  // A Me tap's answer, in words on the screen: the status line is down in the sheet, out of sight on a phone's map.
+  function locSay(msg) {
+    setStatus(msg, true);
+    if (window.tfToast) window.tfToast(window.tfLang && window.tfLang.t ? window.tfLang.t(msg) : msg);
+  }
   function startTracking(onFirst) {
     you.onFirst = onFirst;
+    // A Me tap with no fix and no answer after 12 s (an app whose location question went unanswered): say so.
+    clearTimeout(you.slow);
+    if (onFirst && onFirst.asked) you.slow = setTimeout(() => { if (!you.ll && you.onFirst === onFirst) locSay(document.documentElement.classList.contains("in-app")
+      ? "Still finding your location. If location is off, turn it on for Trail Finder in your phone's Settings."
+      : "Still finding your location. If location is off, allow it for this site in your browser settings."); }, 12000);
     if (you.watch == null) {
       you.watch = navigator.geolocation.watchPosition(showYou, (err) => {
         if (err.code !== 1) return;                  // no fix yet: keep trying
         const asked = !!you.onFirst && you.onFirst.asked;
         stopTracking();
-        if (asked) setStatus("Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.", true);
+        if (asked) locSay(document.documentElement.classList.contains("in-app")
+          ? "Location wasn't shared. Allow location for Trail Finder in your phone's Settings, or search a place instead."
+          : "Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.");
       }, { enableHighAccuracy: true, maximumAge: 0 });   // always a fresh fix: an old one left the dot behind you
     } else if (you.ll && onFirst) { you.onFirst = null; onFirst(you.ll); }
     syncLocate();
   }
   function stopTracking() {
+    clearTimeout(you.slow);
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
     cancelAnimationFrame(you.anim);
     Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, t: 0 });

@@ -404,7 +404,8 @@ async function restart() {
   ios ? tryp(`xcrun simctl privacy booted revoke location ${APP}`) : ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"].forEach((p) => { tryp(`adb shell pm revoke ${APP} android.permission.${p}`); tryp(`adb shell pm set-permission-flags ${APP} android.permission.${p} user-fixed`); });
   await restart();
   await step("My location says so", async () => {
-    await pick("mtb"); await click("#locate"); await sleep(8000);
+    // 14 s: the app says "Still finding your location..." after 12 s when the phone never answers.
+    await pick("mtb"); await click("#locate"); await sleep(14000);
     // The phone's own question may show first: answered "Don't allow" is the same as off; its words are checked after.
     const t = await jsq("document.body.innerText", "");
     return /Location wasn't shared|Allow location|location is off|Couldn't get your location/i.test(t) ? "" : "no words saying location is off";
