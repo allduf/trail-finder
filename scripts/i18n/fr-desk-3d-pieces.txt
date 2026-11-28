@@ -1,0 +1,1 @@
+3D map on a computer: less work each frame to pick the map pieces in view, so turning runs smoother. ||| Carte 3D sur ordinateur : moins de travail à chaque image pour choisir les morceaux de carte visibles, donc tourner est plus fluide.
