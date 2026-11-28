@@ -17,6 +17,7 @@ window.tfErrText = window.tfErrText || function (e) {
   var m = String((e && (e.message || e.error_description)) || e || "");
   if (navigator.onLine === false) return "no signal";
   if (/too many|\b429\b/i.test(m)) return "too many requests just now";
+  if (/^(NotAllowedError|SecurityError|DOMException)$/.test((e && e.name) || "") || /permission denied|not allowed by the user agent/i.test(m)) return "something went wrong";
   var code = /\b(?:HTTP|error|status|said)\s*:?\s*([45]\d\d)\b/i.exec(m);   // "HTTP 503", "error 503", "The server said 404"
   if (code && code[1] === "404") return "not found";
   if (code && code[1][0] === "4") return "the server turned the request down";
