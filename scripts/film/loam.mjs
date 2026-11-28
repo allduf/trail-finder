@@ -361,8 +361,12 @@ const SPOTS = { Squamish: [49.705, -123.135], "Squamish Alice Lake": [49.775, -1
   }
   await jsq(`window.tfLeaflet.setView([${SPOT[0]}, ${SPOT[1]}], ${Z}, { animate: false })`); await sleep(12000);
   // The Loam readings come from Open-Meteo: wait for the Today line (the loam at the middle of the map) before filming.
-  for (let i = 0; i < 60 && !((await TEXT("#peekToday")) || "").trim(); i++) { await sleep(3000); if (i % 10 === 9) await jsq(`window.tfLeaflet.panBy([1, 0], { animate: false })`); }
+  // What's new opens a few seconds after load and covers the map: tap Got it whenever it shows.
+  const wnOk = () => jsq(`(() => { const b = document.querySelector("dialog[open] .wn-ok"); if (b) { b.click(); return 1; } return 0; })()`, 0);
+  for (let i = 0; i < 8; i++) { if (await wnOk()) break; await sleep(1500); }
+  for (let i = 0; i < 60 && !((await TEXT("#peekToday")) || "").trim(); i++) { await wnOk(); await sleep(3000); if (i % 10 === 9) await jsq(`window.tfLeaflet.panBy([1, 0], { animate: false })`); }
   log("today line ready: " + (await TEXT("#peekToday")));
+  await wnOk(); log("what's new still open: " + (await jsq(`!!document.querySelector("dialog[open] .wn-ok")`, false)));
   await jsq(`(() => { const s = document.createElement("style"); s.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; caret-color: transparent !important; }"; document.head.append(s); return 1; })()`);
   if (PART === "fly") {
     await click("details.legend:has(.lg-mode) summary"); await sleep(800); await click(".legend .lg-mode button[data-c=loam]"); await sleep(8000); await click("details.legend:has(.lg-mode) summary"); await sleep(800);
