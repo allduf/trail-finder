@@ -182,6 +182,7 @@ function spCode(name) {
   return i;
 }
 
+let bcPinsOk = false;   // the FFSBC map pins came back this run (stockBC)
 async function stockBC() {
   const url = `https://www.gofishbc.com/wp-json/ffsbc-stocking/v1/releases?start=${iso(since)}&end=${iso(now)}&sort=date&dir=desc&page=1&per_page=all`;
   const j = await get(url);
@@ -219,6 +220,7 @@ async function stockBC() {
   // each pin links to, else by name; and, last resort, where a water is.
   let pins = [];
   try { pins = await get("https://www.gofishbc.com/wp-json/wpgmza/v1/markers"); } catch (e) { log(`    map pins: ${e.message}`); }
+  bcPinsOk = Array.isArray(pins) && pins.length > 100;
   const key = (n) => String(n).toUpperCase().replace(/ (LAKE|POND)$/, "").trim();
   const factsById = new Map(), pinsByName = new Map();
   for (const p of Array.isArray(pins) ? pins : []) {
@@ -235,7 +237,10 @@ async function stockBC() {
   }
   log(`    map pins: ${pins.length || 0}, with a stocking id: ${factsById.size}`);
   const pinNear = (name, c) => (pinsByName.get(key(name)) || []).find((x) => !c || Math.abs(x.ll[0] - c[0]) < 0.03 && Math.abs(x.ll[1] - c[1]) < 0.045);
-  for (const k of ids.filter((x) => !at.has(x))) { const pn = pinsByName.get(key(by.get(k).name)); if (pn && pn.length === 1) at.set(k, { c: pn[0].ll }); }
+  // By name only when one pin has that name: two "Twin" lakes can't tell where this one is.
+  const unplaced = ids.filter((x) => !at.has(x));
+  for (const k of unplaced) { const pn = pinsByName.get(key(by.get(k).name)); if (pn && pn.length === 1) at.set(k, { c: pn[0].ll }); }
+  if (unplaced.length) log(`    placed by a map pin's name: ${unplaced.filter((k) => at.has(k)).length} of ${unplaced.length}`);
   const out = [];
   for (const [k, w] of by) {
     const p = at.get(k); if (!p) continue;
@@ -376,7 +381,7 @@ async function buildStocked() {
   }
   // The FFSBC lake facts: when the map pins did not come back, the ones from last time.
   const oldF = new Map((old?.waters || []).filter((x) => x.p === "bc" && x.f).map((x) => [x.id, x.f]));
-  for (const w of waters) if (w.p === "bc" && !w.f && oldF.has(w.id)) w.f = oldF.get(w.id);
+  if (!bcPinsOk) for (const w of waters) if (w.p === "bc" && !w.f && oldF.has(w.id)) w.f = oldF.get(w.id);
   // Newest first, the last 15 releases of each water, the size text by its place in "st".
   for (const w of waters) w.r = w.r.sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 15).map((r) => [r[0], r[1], r[2], typeof r[3] === "number" ? r[3] : stCode(r[3])]);
   save("stocked.json", { updated: iso(now), sp: SPN, st: STN, waters });

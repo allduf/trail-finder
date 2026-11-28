@@ -1241,7 +1241,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   // surveyed area is closest to the lake's mapped area (within half to double), the newest if they tie.
   async function bcSurveyDepth(lat, lon) {
     const rows = await wfs("WHSE_FISH.FISS_LAKE_SURVEYS_SVW", "WATERBODY_IDENTIFIER,GAZETTED_NAME,SURVEY_DATE,AGENCY_NAME,SURFACE_AREA,MAXIMUM_DEPTH,MEAN_DEPTH,FEATURE_AREA_SQM",
-      `DWITHIN(GEOMETRY, SRID=4326;POINT(${lon} ${lat}), 30, meters)`, 40).catch(() => []);
+      `DWITHIN(GEOMETRY, SRID=4326;POINT(${lon} ${lat}), 30, meters) AND MAXIMUM_DEPTH > 0 AND SURFACE_AREA > 0`, 40).catch(() => []);
     const id = rows[0] && rows[0].WATERBODY_IDENTIFIER;
     const ha = rows[0] && rows[0].FEATURE_AREA_SQM / 1e4;
     const ok = rows.filter((r) => r.WATERBODY_IDENTIFIER === id && r.MAXIMUM_DEPTH > 0 && r.SURFACE_AREA > 0 && (!ha || (r.SURFACE_AREA / ha > 0.5 && r.SURFACE_AREA / ha < 2)));
@@ -1256,8 +1256,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const lake = idx && idx.lakes.map((x) => [x, km(lat, lon, x[0], x[1])]).filter(([x, d]) => d < x[2] + 0.2).sort((a, b) => a[1] - b[1])[0];
     const lines = shown.has("depth") ? "" : `<p><button type="button" class="fs-depthon" data-ll="${lat},${lon}">${svg(IC.layers, 14)}Show depth lines on the map</button></p>`;
     const isBC = !lake && pv === "bc" && (!w || /lake/i.test(w.kind || "lake"));
-    const [bc, sv] = isBC ? await Promise.all([bcDepthMaps(lat, lon), bcSurveyDepth(lat, lon)]) : [null, null];
-    if (bc || sv) return fold("depth", IC.depth, "Depth", [sv ? `up to ${Math.round(sv.max)} m` : "", bc ? "depth map (PDF)" : ""].filter(Boolean).join(" · "),
+    let [bc, sv] = isBC ? await Promise.all([bcDepthMaps(lat, lon), bcSurveyDepth(lat, lon)]) : [null, null];
+    if (bc && sv && bc.name && sv.name && bc.name.toLowerCase() !== sv.name.toLowerCase()) sv = null;   // two lakes close by: only one lake's facts under its name
+    const bsum = [sv ? `up to ${Math.round(sv.max)} m` : "", bc ? "depth map (PDF)" : ""].filter(Boolean).join(" · ");
+    if (bc || sv) return fold("depth", IC.depth, "Depth", bsum.charAt(0).toUpperCase() + bsum.slice(1),
       `<p><b>${esc((bc && bc.name) || (sv && sv.name) || "This lake")}</b>${bc ? ": depth map scanned by BC Fisheries" : ""}</p>${sv ? surveyLine(sv) : ""}${bc ? `<p>${bc.links.map(([u, t]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} (PDF)</a>`).join(" · ")}</p>` : ""}${lines}<p class="fs-note">From BC's lake surveys and bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn.</p>`);
     if (!lake) return lines && w && /lake/i.test(w.kind || "lake") && !w.listOnly ? fold("depth", IC.depth, "Depth", "Depth lines", `${lines}<p class="fs-note">Lines show where a province surveyed the lake (BC, Alberta, Ontario, Quebec, Manitoba; New Brunswick soundings).</p>`) : "";
     const [[, , , name, deep, links, prov]] = lake;
@@ -1960,7 +1962,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   function lakeFactsHtml(w) {
     const f = w.p === "bc" && Array.isArray(w.f) ? w.f : null;
     if (!f) return "";
-    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString()} m` : "", f[1] > 0 ? `${f[1]} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "", ...[...String(f[3] || "")].map((k) => FLAG[k]).filter(Boolean)].filter(Boolean);
+    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString("en")} m` : "", f[1] > 0 ? `${f[1] >= 10 ? Math.round(f[1]) : Math.round(f[1] * 10) / 10} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "", ...[...String(f[3] || "")].map((k) => FLAG[k]).filter(Boolean)].filter(Boolean);
     if (!list.length) return "";
     const line = (a) => (a.length ? `<p>${a.map((x) => `<span>${esc(x)}</span>`).join(" · ")}</p>` : "");
     const n = list.length - [...String(f[3] || "")].filter((k) => FLAG[k]).length;
