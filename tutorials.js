@@ -15,6 +15,8 @@
   // empty, nothing shows: no More › Tutorials, no button in How it works, no Watch how in a feature.
   // cabin-trip: alex 2026-11-11 ("you can add that in the tutorial video for skiing mode").
   const LIST = [
+    // new-trails: alex 2026-11-28 ("i like it", "put it in the app"). Filmed in the iPhone app in Squamish, real loam that day.
+    { id: "new-trails", sport: "mtb", title: "New trails near you", sub: "Near me, a trail card with its grade, length and loam, what the Loam index means, and marking a trail Ridden, in Squamish", src: "videos/new-trails.mp4", poster: "videos/new-trails.jpg", secs: 78 },
     // avalanche-map: alex 2026-11-27 ("perfect add it to the app"). Filmed in the iPhone app with an example forecast.
     { id: "avalanche-map", sport: "ski", title: "The avalanche map", sub: "Avalanche Canada's ratings on the slopes, stripes for today's problems, why a slope is striped, and hiding the card (an example forecast)", src: "videos/avalanche-map.mp4", poster: "videos/avalanche-map.jpg", secs: 83 },
     // snow-rain: alex 2026-11-14 ("add those two video in the tutorial section").
