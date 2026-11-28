@@ -1,0 +1,2 @@
+# Sea to Sky and North Shore hiking trail info: BC Parks, Metro Vancouver and RMOW (data/trail-info.json hikes), 2026-11-28
+Sea to Sky and North Shore hikes: cards show lengths, climbing and notes from BC Parks, Metro Vancouver and Whistler, each linked to its source. ||| Randonnées de Sea to Sky et de la North Shore : les fiches indiquent longueurs, dénivelés et notes de BC Parks, de Metro Vancouver et de Whistler, chacune liée à sa source.

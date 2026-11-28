@@ -1,0 +1,6 @@
+No mud signal ||| Aucun signe de boue
+Little rain in the last 24 h and no wet soil in the weather model ||| Peu de pluie dans les dernières 24 h et pas de sol mouillé selon le modèle météo
+Little rain and very low soil moisture in the weather model: may be dusty ||| Peu de pluie et sol très peu humide selon le modèle météo : peut être poussiéreux
+you're not signed in ||| vous n’êtes pas connecté
+there's no activities folder in it, so it may not be the archive from Strava ||| il n’y a pas de dossier activities dedans, ce n’est donc peut-être pas l’archive de Strava
+When something doesn't load, the message now says why in plain words. Adventure moto's dirt line says No mud signal instead of Dry. ||| Quand quelque chose ne charge pas, le message dit maintenant pourquoi en mots simples. La ligne de terre de la moto d’aventure dit Aucun signe de boue au lieu de Sec.

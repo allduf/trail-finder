@@ -23,6 +23,7 @@ addEventListener("error", (e) => {
   setTimeout(() => { const s = document.createElement("script"); s.src = el.src; s.async = false; s.dataset.retried = "1"; el.after(s); }, 1500);
 }, true);
 </script>
+<script src="clean-names.js?v=__V__"></script>
 <script src="i18n.js?v=__V__"></script>
 <script>
 // A web viewer too old for the map (no Object.hasOwn: Chrome before 93, Safari before 15.4). Google Play's review
@@ -2354,6 +2355,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     setBasemap(isSat(cur) ? (PICKS.includes(prev) && !ownOnly(prev) ? prev : savedBase()) : satPick(), true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
+  window.tfSavedBase = savedBase;     // ...and the sport's own style again once the signal is back
 
   const trailLayer = L.layerGroup().addTo(map);
   // New-trail results go on one canvas: a big search drew thousands of SVG paths, which made panning and zooming lag.
@@ -3125,6 +3127,7 @@ out body;`;
   function packTrail(t) { const o = {}; TRAIL_FIELDS.forEach((k) => { o[k] = t[k] instanceof Date ? t[k].toISOString() : t[k]; }); return o; }
   function unpackTrail(o) {
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
+    if (window.tfCleanTags) { window.tfCleanTags(t.tags); (t.routes || []).forEach((r) => { r.name = window.tfCleanName(r.name); }); }   // saved before clean-names.js
     t.bounds = L.latLngBounds(t.geom);
     const c = classify(withOfficial(rateTags(t.tags, t.geom, t.id), t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
     if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official });
@@ -4081,7 +4084,7 @@ out body;`;
       paintFacts(t);
       if (t.wx && state.selected === t.id && $("wx")) renderWeather($("wx"), t.wx.json, cellOf(t), t);   // the freeze line against the trail's heights
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
       if (dirOpen === t && $("fDown")) { $("fDown").textContent = "–"; $("fUp").textContent = "–"; }
     }
     if (box()) { setGoLink(t); renderAccess(t); }
@@ -4588,7 +4591,7 @@ out body;`;
       const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t), t);
       paintFacts(t);
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the weather (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
     }
   }
   function renderWeather(el, w, key, t) {
@@ -4817,6 +4820,7 @@ out body;`;
   }
   // alex: anything we find about a trail beyond OpenStreetMap goes on the trail. data/trail-info.json holds what
   // resort and club pages say (map number, part of the mountain, trail type, length, a short description in our words).
+  // A source's "rating" names who gave the level ("Club rating"); without it the level reads "Park rating".
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   // Entries of list whose names include this trail's name, within r metres of c (the entry's or its source's).
@@ -4843,7 +4847,7 @@ out body;`;
   async function officialAbout(t) {
     const j = await loadTrailInfo(); if (!j) return [];
     return infoFor(t, j, j.trails).map((e) => {
-      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `Park rating: ${e.level}`,
+      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `${s.rating || "Park rating"}: ${e.level}`,
         e.kind && `${e.kind} trail`, e.km && `${e.km} km`].filter(Boolean).join(" · ");
       const kind = j.kinds && j.kinds[e.s] && j.kinds[e.s][e.kind];
       return { text: [facts && facts + ".", e.text, kind].filter(Boolean).join(" "), src: s.name, url: s.url, licence: "summarised" };
@@ -5627,7 +5631,7 @@ out body;`;
       el.classList.remove("muted");
       el.innerHTML = `<ol class="history">${t.history.slice().reverse().map((h) => `<li><strong>v${h.v}</strong> · ${fmtDate(h.ts)} · ${userLink(h.user)} ${csLink(h.cs)}${h.comment ? `<div class="muted">“${esc(h.comment)}”</div>` : ""}</li>`).join("")}</ol>`;
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the history (${e.message}). Use the “Full history” link instead.`;
+      const el = box(); if (el) el.textContent = `Couldn't load the history (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Use the “Full history” link instead.`;
     }
   }
 
@@ -5823,19 +5827,32 @@ out body;`;
     else if (!first) keepOnYou(ll, !document.hidden);
     syncLocate(); tellYou();
   }
+  // A Me tap's answer, in words on the screen: the status line is down in the sheet, out of sight on a phone's map.
+  function locSay(msg) {
+    setStatus(msg, true);
+    if (window.tfToast) window.tfToast(window.tfLang && window.tfLang.t ? window.tfLang.t(msg) : msg);
+  }
   function startTracking(onFirst) {
     you.onFirst = onFirst;
+    // A Me tap with no fix and no answer after 12 s (an app whose location question went unanswered): say so.
+    clearTimeout(you.slow);
+    if (onFirst && onFirst.asked) you.slow = setTimeout(() => { if (!you.ll && you.onFirst === onFirst) locSay(document.documentElement.classList.contains("in-app")
+      ? "Still finding your location. If location is off, turn it on for Trail Finder in your phone's Settings."
+      : "Still finding your location. If location is off, allow it for this site in your browser settings."); }, 12000);
     if (you.watch == null) {
       you.watch = navigator.geolocation.watchPosition(showYou, (err) => {
         if (err.code !== 1) return;                  // no fix yet: keep trying
         const asked = !!you.onFirst && you.onFirst.asked;
         stopTracking();
-        if (asked) setStatus("Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.", true);
+        if (asked) locSay(document.documentElement.classList.contains("in-app")
+          ? "Location wasn't shared. Allow location for Trail Finder in your phone's Settings, or search a place instead."
+          : "Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.");
       }, { enableHighAccuracy: true, maximumAge: 0 });   // always a fresh fix: an old one left the dot behind you
     } else if (you.ll && onFirst) { you.onFirst = null; onFirst(you.ll); }
     syncLocate();
   }
   function stopTracking() {
+    clearTimeout(you.slow);
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
     cancelAnimationFrame(you.anim);
     Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, t: 0 });
@@ -6336,10 +6353,12 @@ out body;`;
     // or the line stayed off the map's sheet until another sport was picked and back (sport switch test 2026-11-22).
     if (!el && sp !== "mtb" && window.tfLoadSport && !nowWait.has(sp)) { nowWait.add(sp); window.tfLoadSport(sp).then(() => setTimeout(syncPeekToday, 0), () => nowWait.delete(sp)); }   // once per sport (again after a failed load)
     const html = sp === "mtb" ? mtbNowHtml : el && !el.hidden ? el.innerHTML : "", was = pt.hidden;
-    if (pt.innerHTML !== html) pt.innerHTML = html;
+    // Compared with what was written last, not read back: the browser writes a drawing (svg) or a French line back
+    // differently, and the line was rewritten on every map move.
+    if (pt.tfHtml !== html) { pt.innerHTML = html; pt.tfHtml = html; }
     pt.hidden = !html;
     if (phoneMQ.matches && sheet.snap === "peek" && !navStack.length && (was !== pt.hidden || Math.abs(snapHeights().peek - sheet.h) > 2)) setSheetH(snapHeights().peek);   // the peek fits it
-    const m = $("mtbNow"); if (m && m.innerHTML !== mtbNowHtml) { m.innerHTML = mtbNowHtml; m.hidden = !mtbNowHtml; }
+    const m = $("mtbNow"); if (m && m.tfHtml !== mtbNowHtml) { m.innerHTML = mtbNowHtml; m.tfHtml = mtbNowHtml; m.hidden = !mtbNowHtml; }
   }
   let mtbNowHtml = "", mtbNowT = 0;
   async function mtbNow() {
@@ -6351,11 +6370,13 @@ out body;`;
     if (v == null) mtbNowHtml = "";
     else {
       const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
+      // The sun as its line drawing here: #mtbNow is data-no-line, and Android's web view draws a bare ☀ in colour.
+      const go = `<span>${window.tfLine ? window.tfLine("☀", 15) + " " : ""}Where to ride today ›</span>`;
       mtbNowHtml = isSnowy(cell.snow) ? `<span>${snowIc(15)} <b>Snow likely on the trails</b></span><span>About ${Math.round(cell.snow)} cm here (estimate)</span>`
-        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
-        : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v}, estimate)</span><span>☀ Where to ride today ›</span>`;
+        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span>${go}`
+        : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v}, estimate)</span>${go}`;
       // The freeze line (middle of 3 models) when the ground freezes somewhere below 3,000 m around here.
-      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace("<span>☀ Where", `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span><span>☀ Where`);
+      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace(go, () => `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span>${go}`);
     }
     syncPeekToday();
   }
@@ -8530,7 +8551,7 @@ out tags center qt;`;
       const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e])), w = els.find((e) => e.type === "way");
       if (!w || token !== foundToken) return;
       await presentTrail({ main: w, segs: [wayLine(w, nodes)], segIds: [w.id], type: "way", kind: kindOf(w.tags || {}), token, view: ll });
-    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   };
   window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
 
@@ -8625,7 +8646,7 @@ out tags center qt;`;
       if (!segs.length) throw new Error("the trail's shape didn't load");
       await presentTrail({ main, segs, segIds, pieceTags, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit", loamAt: g.center });   // same Loam reading as its list row
     } catch (e) {
-      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
+      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Try again in a moment.`, true);
     }
   }
 
@@ -8795,7 +8816,7 @@ out tags center qt;`;
     const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
       .map((r) => ({ id: r.id, name: r.tags.name || r.tags.ref || "unnamed" }));
     try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, routeTypes, token, view: ll }); }
-    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   }
 
   // ---- draw a square: list every MTB trail inside it, old or new (from the daily all-trails lists) ----

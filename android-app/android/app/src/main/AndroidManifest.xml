@@ -11,9 +11,11 @@
         <!-- Phone notifications from Firebase while the app is closed: a one-colour status bar icon (as the ride notice). -->
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_ride" />
 
+        <!-- Upright only, like the iPhone app (alex 2026-11-27: a phone turned sideways got the website's computer layout). -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"

@@ -610,6 +610,11 @@
    "date": "2026-11-21",
    "who": "Claude (weekly audit)",
    "note": "Kenna Cartwright Park: the City of Kamloops says the park's trails are for hiking or cycling, but this one is a wide compacted path (Saskatoon Braid settled the same way), and no open source calls it a mountain bike trail."
+  },
+  "area-thin:Stake Lake": {
+   "date": "2026-11-28",
+   "who": "Claude (weekly audit)",
+   "note": "The left-out paths (Cowpoke, Drifter, Lasso, Tumbleweed...) are the Overlander Ski Club's nordic trails. Tourism Kamloops and Hello BC say the area is used for mountain biking in summer, and KBRA holds a Stake Lake Stomp ride there, but no open source says which ski trails are bike trails. Only the 3 mapped MTB trails stay listed."
   }
  }
 }
