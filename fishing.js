@@ -761,6 +761,17 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
             icon: L.divIcon({ className: "fs-zlabel", html: `<span style="--c:${c}">${esc(z.n)}</span>`, iconSize: null }) }).addTo(boatLabels);
         }
       }
+      // Zoomed out, a lake's names can land on each other ("No wake" over "Float planes"): the later one is left out
+      // (drawn again from the data at the next move or zoom).
+      const kept = [], drop = [];
+      boatLabels.eachLayer((m) => {
+        const el = m.getElement && m.getElement(), sp = el && el.firstElementChild;
+        if (!sp) return;
+        const r = sp.getBoundingClientRect();
+        if (!r.width) return;   // the map isn't on screen: nothing to compare
+        if (kept.some((k) => r.left < k.right + 2 && r.right > k.left - 2 && r.top < k.bottom + 1 && r.bottom > k.top - 1)) drop.push(m); else kept.push(r);
+      });
+      drop.forEach((m) => boatLabels.removeLayer(m));   // removed, not hidden: the 3D map's names come from this group too
       sync3d();
     });
   }
@@ -1144,7 +1155,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   async function showSpot(lat, lon, title) {
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "fish", name: title }) : ""}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
+    el.innerHTML = `<header>${svg(IC.pin)}<h3 id="fsSpotName">${esc(title || "This spot")}</h3>${routeBtn(lat, lon)}${window.tfShareBtn ? window.tfShareBtn(lat, lon, { sport: "fish", name: title }) : ""}<button type="button" class="fs-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div>
       <div id="fsHidden"></div><div id="fsWater"><p class="fs-note fs-look">Looking up this spot…</p></div><div id="fsDepth"></div><div id="fsBait"></div>
       <div id="fsSea"></div><div id="fsSeason"></div><div id="fsRules"></div><div id="fsLic"></div><div id="fsBoat"></div><div id="fsStock"></div><div id="fsEat"></div><div id="fsFlow"></div><div id="fsTide"></div><div id="fsLand"></div><div id="fsAcc"></div><div id="fsFire"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
@@ -1985,7 +1996,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     setSpot(g[2], g[3], "tap");
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.gauge)}<h3>${esc(g[1])}</h3>${routeBtn(g[2], g[3])}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsFlow"><p class="fs-note">Getting the last 7 days…</p></div><div id="fsRules"></div><div id="fsAcc"></div>`;
+    el.innerHTML = `<header>${svg(IC.gauge)}<h3>${esc(g[1])}</h3>${routeBtn(g[2], g[3])}<button type="button" class="fs-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsFlow"><p class="fs-note">Getting the last 7 days…</p></div><div id="fsRules"></div><div id="fsAcc"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     flowHtml(g[2], g[3], g).then((h) => { if (seq === spotSeq) { $("fsFlow").innerHTML = h; drawPoints(); } });
@@ -1995,7 +2006,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     setSpot(t[2], t[3], "tap");
     const el = $("fsSpot"), seq = ++spotSeq;
     el.hidden = false;
-    el.innerHTML = `<header>${svg(IC.wave)}<h3>Tides: ${esc(t[1])}</h3>${routeBtn(t[2], t[3])}<button type="button" class="fs-x" aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsTide"><p class="fs-note">Getting the tides…</p></div><div id="fsSea"></div><div id="fsRules"></div>`;
+    el.innerHTML = `<header>${svg(IC.wave)}<h3>Tides: ${esc(t[1])}</h3>${routeBtn(t[2], t[3])}<button type="button" class="fs-x" data-back-close aria-label="Close">${svg(IC.x, 16)}</button></header><div id="fsRoute"></div><div id="fsTide"><p class="fs-note">Getting the tides…</p></div><div id="fsSea"></div><div id="fsRules"></div>`;
     el.querySelector(".fs-x").addEventListener("click", () => { el.hidden = true; spotSeq++; });
     cardInView(el);
     tideHtml(t[2], t[3], t).then((h) => { if (seq === spotSeq) $("fsTide").innerHTML = h; });

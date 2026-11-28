@@ -1,0 +1,3 @@
+Terrain layers ||| Couches du terrain
+Slope angle, slope direction, elevation bands and flats, turned on from Layers, over the Wedge Mountain backcountry ||| Angle de pente, orientation des pentes, étages d'altitude et plats, activés depuis Couches, au-dessus de l'arrière-pays du mont Wedge
+New tutorial video for Skiing: the terrain layers, slope angle, slope direction, elevation bands and flats (More, Tutorials). ||| Nouvelle vidéo tutoriel pour le ski : les couches du terrain, angle de pente, orientation des pentes, étages d'altitude et plats (Plus, Tutoriels).

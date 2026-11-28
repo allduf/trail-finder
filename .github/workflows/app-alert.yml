@@ -1,10 +1,14 @@
 name: Crash and error alert
 
-# Every 15 minutes: a new crash restart, or a kind of error not seen in the 14 days before, from a real phone (test and
+# Every 5 minutes: a new crash restart, or a kind of error not seen in the 14 days before, from a real phone (test and
 # review devices left out, as on usage.html) sends a notification to alex's own phone through the app's notifications
 # (alex 2026-11-27, after crashes were only found by looking at the usage page; no email). See scripts/app-alert.mjs
 # and supabase/alert-phones.sql. On a pull request that changes it: a dry run over the last 3 days, nothing sent.
 # A problem shows as a warning, never a failed run (GitHub emails failed scheduled runs).
+# GitHub runs this repository's schedules hours late or not at all (27 Nov 2026: the 15-minute schedule never ran in
+# 5 hours; the loam alerts ran 2 of 5 times; 10:30 UTC jobs started at 19:35). So one run keeps watching: it checks
+# every 5 minutes for about 5 h 40 min, then starts the next run itself. The schedule only restarts that chain if it
+# ever breaks; a second watcher waits in the queue rather than running beside it.
 on:
   schedule:
     - cron: "4,19,34,49 * * * *"
@@ -19,21 +23,24 @@ on:
 
 permissions:
   contents: read
+  actions: write   # the watcher starts the next one
 
 concurrency:
-  group: app-alert
+  # One watcher at a time; a test notification and a pull request's dry run don't wait for it.
+  group: app-alert-${{ github.event_name == 'pull_request' && github.ref || (inputs.test && 'test' || 'watch') }}
   cancel-in-progress: false
 
 jobs:
   alert:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Check for new crashes and errors
+        timeout-minutes: 350
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
@@ -42,9 +49,24 @@ jobs:
           FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
           DRY: ${{ github.event_name == 'pull_request' && '1' || '' }}
           HOURS: ${{ github.event_name == 'pull_request' && '72' || '' }}
+          WATCH: ${{ github.event_name != 'pull_request' && !inputs.test && '1' || '' }}
         run: |
           if [ "${{ inputs.test }}" = "true" ]; then
             node scripts/admin-push.mjs "Trail Finder: test alert" "Crash and error alerts reach this phone. Nothing is wrong." "https://trailfinderapp.ca/usage.html" tf-alert-test
-          else
-            node scripts/app-alert.mjs || echo "::warning::The crash and error alert stopped early; the next check tries again."
+            exit 0
           fi
+          end=$(( $(date +%s) + 340 * 60 ))
+          while :; do
+            git pull -q --ff-only 2>/dev/null || true   # a change merged while watching is used from the next check
+            node scripts/app-alert.mjs || echo "::warning::The crash and error alert stopped early; the next check tries again."
+            [ -n "$WATCH" ] && [ $(date +%s) -lt $end ] || break
+            sleep 300
+          done
+      # Its own step, so a watcher that crashed or ran out of time still starts the next one.
+      - name: Start the next watcher
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && !inputs.test }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run app-alert.yml --ref "${{ github.event.repository.default_branch }}" -R "${{ github.repository }}" \
+            || echo "::warning::Couldn't start the next watcher; the schedule restarts it."

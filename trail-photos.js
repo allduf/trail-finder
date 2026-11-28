@@ -108,7 +108,7 @@ dialog.tp-view footer button { font: inherit; font-weight: 600; padding: 6px 12p
       const mid = t.geom[Math.floor(t.geom.length / 2)], at = Array.isArray(mid) ? mid : [mid.lat, mid.lng];
       const name = t.tags && (t.tags.name || t.tags["mtb:name"]);
       const { error: e } = await acct.client.from("trail_photos").insert({ osm_type: type, osm_id: t.id, trail_name: name ? String(name).slice(0, 120) : null, lat: at[0], lon: at[1], path, caption: caption || null });
-      if (e) { await acct.client.storage.from(BUCKET).remove([path]); msg.textContent = "Couldn't save: " + e.message; return; }
+      if (e) { await acct.client.storage.from(BUCKET).remove([path]); msg.textContent = "Couldn't save: " + (window.tfErrText ? window.tfErrText(e) : e.message) + "."; return; }
       show(t);
     });
   }

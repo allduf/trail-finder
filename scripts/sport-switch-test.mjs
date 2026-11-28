@@ -23,7 +23,7 @@ const OUT = process.env.OUT || "switch-test-shots";
 const MODES = (process.env.MODES || "2d,3d,styles,ios,android").split(",").map((s) => s.trim()).filter(Boolean);
 const SPORTS = ["mtb", "ski", "hunt", "fish", "moto", "hike"];
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
-const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
+const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);
 const PHONE = {
   viewport: { width: 430, height: 932 }, deviceScaleFactor: 1, hasTouch: true, ...(BROWSER === "chromium" ? { isMobile: true } : {}),
@@ -35,7 +35,7 @@ const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|
 
 // ---------- the site, on localhost (as the phone test) ----------
 const root = fileURLToPath(new URL("../", import.meta.url));
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
+const TYPES = { ".woff2": "font/woff2", ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".pbf": "application/x-protobuf" };
 const server = createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";

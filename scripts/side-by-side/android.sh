@@ -18,6 +18,9 @@ adb reverse tcp:8080 tcp:8080
 adb emu geo fix -122.95 50.11 700
 adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
 adb logcat -c -b crash || true
-PLATFORM=android node scripts/side-by-side/run.mjs || true
+RC=0
+PLATFORM=android node scripts/side-by-side/run.mjs || RC=$?
 timeout 30 adb logcat -d -v time | grep -E "AndroidRuntime|$APP|chromium|Capacitor|TrailMap|MapLibre|Mbgl|Fatal|ANR" | tail -800 > "out/android-$TF_LANG/logcat.txt" || true
+# The Low power 3D test (WALK=lowpower) fails on a problem; the side-by-side walk only reports.
+if [ "$WALK" = lowpower ]; then exit $RC; fi
 exit 0

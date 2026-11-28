@@ -68,6 +68,9 @@
   const skipped = (l) => skips.some((s) => { try { return draws(s.key) && s.fn(l); } catch { return false; } });
   // A sport whose data lives inside its own file registers from there instead (hunting.js: "hunt").
   let open3d = false;
+  // The native map is (or is being opened) under the page: the page's own colour keys (Skiing's #skBars) show over it,
+  // so native-ground.js doesn't send them as the native map's own keys too (two keys for one layer, 2026-11-27).
+  let underAsk = false;
   const featureData = (threeD) => {
     const out = {};
     if (!threeD) return out;
@@ -95,6 +98,8 @@
     onDetails(fn) { if (typeof fn === "function") detailFns.push(fn); },
     // has(key): this app build draws that feature itself (TrailMap.features; older builds have no such call).
     has: (key) => !!nativeKeys && nativeKeys.has(String(key)),
+    // pageKeys(): the page's own map keys show over the native map (it's under the page), so it needs none of its own.
+    pageKeys: () => underAsk,
     // draws(key): whether to send this feature's data at all (see draws above); a feature's page side checks it before
     // work done only for the native screen.
     draws,
@@ -383,6 +388,7 @@
     for (const [e, bg] of saved) e.style.background = bg;
     saved = [];
     document.documentElement.classList.remove("tf-under");
+    underAsk = false;
     if (b3 && b3Was) {
       b3.innerHTML = b3Was.h; b3.title = b3Was.ti; b3.setAttribute("aria-pressed", b3Was.p || "false"); b3.classList.toggle("on", b3Was.on);
       b3Was = null;
@@ -445,7 +451,7 @@
     // Under the page on a build that can (above); older builds don't know "under" and open over the page. alex only for
     // its first build (no iPhone to try it on before): everyone once alex has checked it on the phone.
     const und = threeD && isAdmin() && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
-    tipped = !flat; flatOpening = flat;
+    tipped = !flat; flatOpening = flat; underAsk = !!und;
     const askedAt = Date.now();
     // How the native map opened, in alex's own usage log only (isAdmin: the admin phone; 2026-11-27 a fully black native
     // 3D map on that iPhone that no simulator shows): an answer before 2.5 s means it had drawn the spot.
@@ -461,11 +467,13 @@
           return true;
         }
         tipOnOpen = false;
+        // Opened over the page (an older build): the page's keys are hidden behind it, so the native map gets them.
+        if (underAsk) { underAsk = false; window.tfNative.send("ground"); }
         // The one map must be under the page (never a native screen over it): anything else closes again, and after
         // twice the page's own flat map stays for this visit.
         if (flat && open) { flatFails++; TrailMap.close().catch(() => {}); return false; }
         return true;
-      }, () => { note(false); open = false; sent = ""; flatOpening = false; tipOnOpen = false; if (flat) flatFails++; return false; });
+      }, () => { note(false); open = false; sent = ""; flatOpening = false; underAsk = false; tipOnOpen = false; if (flat) flatFails++; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
@@ -543,6 +551,9 @@
       if (open && flatOpening) { tipOnOpen = true; return true; }
       if (open && under && canFlat()) { if (!tipped) tip(true); return true; }
       if (auto && !open && oneMap()) { tipOnOpen = true; return true; }
+      // The phone's own map drew nothing this visit ("notDrawn" below): the 3D a sport opens on by itself stays on the
+      // flat map (a tap on 3D tries native 3D again), never the web 3D map (Android's Skiing opened it, Low power 3D test).
+      if (auto && notDrawn) return true;
       if (!ios) return false;
       if (!nativeKeys) { if (typeof retry === "function") keysWait.push(retry); return true; }
       if (!fullNative() || webOnly()) return false;
@@ -637,7 +648,7 @@
   // native map's own gesture), and the button follows. Picking another style or sport, the page's own flat map comes
   // back as before (in 3D, other styles stay on native 3D, as today). alex only first (as the page over native 3D was).
   // If the native map can't open under the page, the page's own flat map stays.
-  let flatFails = 0, syncT = 0, cardUp = false;
+  let flatFails = 0, syncT = 0, cardUp = false, notDrawn = false;
   function canFlat() { return !!nativeKeys && nativeKeys.has("under") && nativeKeys.has("flat"); }
   // Also Hiking, Fishing and Hunting on their summer photos (alex 2026-11-22: "it should be by default a satelite map like
   // skiing using the 3d map for the 2d too", Summer, "but not mtb, leave mtb like it is now").
@@ -681,7 +692,7 @@
   // lowPower: the phone's Low Power Mode (iPhone) or Battery Saver (Android) was on, the cause on alex's iPhone 2026-11-27.
   TrailMap.addListener("notDrawn", (e) => {
     if (!open) return;
-    flatFails = 2;
+    flatFails = 2; notDrawn = true;
     const low = !!(e && e.lowPower);
     if (isAdmin() && window.tfUse) window.tfUse("view", `Native map drew nothing${low ? " · power saving on" : ""}`, 0);
     TrailMap.close().catch(() => {});

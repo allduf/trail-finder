@@ -85,6 +85,56 @@ for (const f of files) {
     }
   });
 }
+// Hidden trail names (CLAUDE.md "This repository is public"): alex's unofficial trails are listed by nh, a hash of the
+// lower-case name (ratings.js, scripts/build-mtb.mjs), never by name. Fails when any text file in git holds a name that
+// hashes to one of them: a quoted string, or a run of 1 to 6 words. The log names only the file, line, place and hash,
+// never the name (the log is public too); open the file there to see the words. A 32-bit hash can match an ordinary
+// phrase by chance: if the words at that place aren't a trail name, mark the line hidden-name-ok.
+const fnv = (h, s) => { for (let i = 0; i < s.length; i++) { const c = s.codePointAt(i); if (c > 0xffff) i++; h = Math.imul(h ^ c, 0x01000193) >>> 0; } return h; };
+const HIDDEN = new Set(["ratings.js", "scripts/build-mtb.mjs"].flatMap((f) => (existsSync(new URL(f, root)) ? [...readFileSync(new URL(f, root), "utf8").matchAll(/\bnh:\s*"([0-9a-z]+)"/g)].map((m) => m[1]) : [])));
+const HIDDEN_N = new Set([...HIDDEN].map((h) => parseInt(h, 36)));
+const TEXT_FILE = /\.(js|mjs|cjs|json|geojson|html|css|md|txt|yml|yaml|sql|swift|java|kt|xml|plist|py|sh|webmanifest|csv|gpx)$|^_headers$|^CLAUDE\.md$/;
+const QUOTED = [/"([^"\n]{2,60})"/g, /'([^'\n]{2,60})'/g, /`([^`\n]{2,60})`/g];
+// The hashes found in one piece of text, each with where it starts ("character n").
+function hiddenIn(text, at) {
+  const found = new Map(), low = text.toLowerCase(), hit = (h, pos) => { if (HIDDEN_N.has(h) && !found.has(h)) found.set(h, at + pos); };
+  for (const re of QUOTED) for (const m of low.matchAll(re)) hit(fnv(0x811c9dc5, m[1].trim()), m.index);
+  // Words lose the marks before them ('name') and are tried with and without the marks after them (Mr. Name, Name!).
+  // FNV-1a goes letter by letter, so each run of words carries on from the hash of the run before it.
+  const words = [...low.matchAll(/[\p{L}\p{N}'’.&!?-]+/gu)].map((m) => ({ pos: m.index, w: m[0].replace(/^[.'’&!?-]+/, "") })).filter((x) => x.w);
+  for (let a = 0; a < words.length; a++) {
+    let h = 0x811c9dc5;
+    for (let k = 0; k < 6 && a + k < words.length; k++) {
+      const { w } = words[a + k], bare = w.replace(/[.'’&!?-]+$/, "");
+      if (k) h = fnv(h, " ");
+      const end = fnv(h, bare);
+      hit(end, words[a].pos);
+      h = bare === w ? end : fnv(h, w);
+      if (h !== end) hit(h, words[a].pos);
+    }
+  }
+  return found;
+}
+let hidden = 0;
+if (HIDDEN.size) for (const f of tracked.filter((f) => f && TEXT_FILE.test(f) && !f.startsWith("vendor/") && existsSync(new URL(f, root)))) {
+  readFileSync(new URL(f, root), "utf8").split("\n").forEach((raw, i) => {
+    if (/hidden-name-ok/.test(raw)) return;
+    // A whole data file on one line (data/ski.json, 4 MB) is read in pieces, cut between JSON values.
+    const pieces = [];
+    if (raw.length <= 20000) pieces.push([raw, 0]);
+    else for (let at = 0; at < raw.length;) {
+      let end = Math.min(raw.length, at + 20000);
+      if (end < raw.length) { const cut = raw.lastIndexOf(",", end); if (cut > at + 1000) end = cut + 1; }
+      pieces.push([raw.slice(at, end), at]); at = end;
+    }
+    for (const [text, at] of pieces) for (const [h, pos] of hiddenIn(text, at)) {
+      console.log(`${f}:${i + 1}: character ${pos + 1}: holds the name of a hidden trail (nh "${h.toString(36)}") in plain text: take it out, or use its nh`);
+      hidden++;
+    }
+  });
+}
+if (hidden) { console.log(`\n${hidden} line(s) name a hidden trail in plain text. This repository is public (CLAUDE.md).`); process.exit(1); }
+
 if (bad) {
   console.log(`\n${bad} line(s) word things in a way that could promise safety or conditions, or show an emoji. Fix them (see the top of scripts/wording-check.mjs).`);
   process.exit(1);

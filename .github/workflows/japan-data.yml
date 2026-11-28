@@ -5,7 +5,7 @@ name: Japan ski data
 # lifts, huts and tour parking (out/jp/w/) and the camper van stops and winter road closures (out/jp/c/), with
 # scripts/build-japan.mjs. They are kept on the japan-data branch (one commit, replaced each run, so the repo doesn't
 # grow) and published with the website under jp/ by pages.yml. The Japan Avalanche Network's bulletins are read with
-# the avalanche forecasts every 2 hours (winter-data.yml, scripts/japan-avalanche.mjs).
+# the avalanche forecasts every 2 hours (avalanche-data.yml, scripts/japan-avalanche.mjs).
 on:
   schedule:
     - cron: "37 9 * * 1"    # Mondays 09:37 UTC

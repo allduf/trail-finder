@@ -642,7 +642,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
         $("pfReadBox").hidden = false;
       } catch (e) {
         if (my !== job) return;
-        say(`Couldn't read the words in it (${e.message}).`);
+        say(`Couldn't read the words in it (${(window.tfErrText ? window.tfErrText(e) : e.message)}).`);
       }
       if (aiP && my === job) await firstLook(my, aiP);
     }
@@ -694,7 +694,7 @@ const AI_SIDE = 1024;       // the copy sent to the AI and saved with a confirme
     say("Matching the words with the trail names…", 0.95);
     let res;
     try { res = await match(text, my, seen, core(words([own, rev, aiSaw].join("\n"))).length, core(words(own + "\n" + rev)).length, rev.trim() ? core(words(own)).length : Infinity,
-      words($("pfCaption").value).filter((w) => !STOP.has(w)).length); } catch (e) { if (my === job) say(`Couldn't load the trail names (${e.message}).`); return; }
+      words($("pfCaption").value).filter((w) => !STOP.has(w)).length); } catch (e) { if (my === job) say(`Couldn't load the trail names (${(window.tfErrText ? window.tfErrText(e) : e.message)}).`); return; }
     if (!res || my !== job) return;
     const n = res.rows.length;
     const sure = n && res.rows[0].conf !== "Possible";
