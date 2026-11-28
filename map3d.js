@@ -2471,6 +2471,54 @@
       return out;
     };
   }
+  // Choosing which map pieces to show, every frame (alex 2026-11-27, ?lagcheck recording at Whistler on a computer: 3 to 14
+  // frames a second while turning, the graphics card done in 2 to 17 ms a frame, and 90 to 250 ms in MapLibre's own frame
+  // step on the processor). Half of that step went to MapLibre working out, for each of its ~15 map sources, which
+  // pieces are in view: (1) it looked up the ground height of each candidate piece once per source, ~3,000 lookups a
+  // frame for ~250 different pieces; now each piece's height is looked up once a frame and reused (the heights only change
+  // between frames, when a height tile arrives). (2) Each piece starting or stopping loading told the map whether its
+  // whole source was loaded, which checks all that source's pieces, dozens of times a frame while turning; nothing
+  // in the app listens for those two events, so the check is made only when something does.
+  // MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
+  let frameNo = 0, heightsQuick = false;
+  function quickPieces() {
+    const T = gl && gl.terrain;
+    if (T && T.tfQuick !== T.getMinMaxElevation && typeof T.getMinMaxElevation === "function") {
+      const mm = T.getMinMaxElevation;
+      let memo = new Map(), at = -1;
+      T.getMinMaxElevation = function (id) {
+        const k = id && id.key;
+        if (k === undefined) return mm.apply(this, arguments);
+        if (at !== frameNo) { memo = new Map(); at = frameNo; }
+        let r = memo.get(k);
+        if (!r) { r = mm.apply(this, arguments); memo.set(k, r); }
+        return { minElevation: r.minElevation, maxElevation: r.maxElevation };
+      };
+      T.tfQuick = T.getMinMaxElevation;
+    }
+    if (!heightsQuick && gl && typeof gl._render === "function") {
+      heightsQuick = true;
+      const render = gl._render;
+      gl._render = function () { frameNo++; return render.apply(this, arguments); };
+    }
+    const tms = gl && gl.style && gl.style.tileManagers;
+    if (!tms) return;
+    for (const id in tms) {
+      const tm = tms[id];
+      if (!tm || tm.tfQuietEv || typeof tm.fire !== "function") continue;
+      tm.tfQuietEv = true;
+      const fire = tm.fire;
+      tm.fire = function (ev) {
+        const ty = ev && ev.type, d = this._eventedParentData;
+        if ((ty === "dataloading" || ty === "dataabort") && typeof d === "function" && !gl.listens("source" + ty)) {
+          const self = this;
+          this._eventedParentData = () => ({ isSourceLoaded: false, source: self.serialize(), sourceId: self.id });
+          try { return fire.apply(this, arguments); } finally { this._eventedParentData = d; }
+        }
+        return fire.apply(this, arguments);
+      };
+    }
+  }
   // And a piece of ground is only painted again when what arrived can change its picture. MapLibre did it for every
   // tile of every source, also the ones only written over the ground (the trail names, ~37 tiles a frame while
   // turning, as the names are placed again after each move) and the ones of a hidden layer: they are not in the
@@ -3380,7 +3428,7 @@
     }
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
-    gl.on("render", () => { spreadPaints(); quietSources(); skipEmpty(); });   // once its paint buffers exist (and again if the terrain is set up anew)
+    gl.on("render", () => { spreadPaints(); quietSources(); skipEmpty(); try { quickPieces(); } catch {} });   // once its paint buffers exist (and again if the terrain is set up anew)
     lagCheck();   // only with ?lagcheck in the address
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)
