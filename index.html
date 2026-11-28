@@ -3126,7 +3126,7 @@ out body;`;
   function packTrail(t) { const o = {}; TRAIL_FIELDS.forEach((k) => { o[k] = t[k] instanceof Date ? t[k].toISOString() : t[k]; }); return o; }
   function unpackTrail(o) {
     const t = { ...o, created: new Date(o.created), lastEdit: new Date(o.lastEdit) };
-    if (window.tfCleanTags) window.tfCleanTags(t.tags);   // saved by a version before clean-names.js
+    if (window.tfCleanTags) { window.tfCleanTags(t.tags); (t.routes || []).forEach((r) => { r.name = window.tfCleanName(r.name); }); }   // saved before clean-names.js
     t.bounds = L.latLngBounds(t.geom);
     const c = classify(withOfficial(rateTags(t.tags, t.geom, t.id), t.geom), (t.routes || []).map((r) => r.name), t.routeTypes || []);   // saved by an older version of the app
     if (c) Object.assign(t, { cat: c.cat, why: c.why, unoff: c.unoff, net: c.net, official: c.official });
