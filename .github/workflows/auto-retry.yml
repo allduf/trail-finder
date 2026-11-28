@@ -15,7 +15,7 @@ name: Auto re-run
 on:
   workflow_run:
     workflows: ["Phone test", "Android app", "iPhone app", "Low power 3D", "Opening speed", "Route check", "Side by side",
-      "Slope card", "Soak test", "Coverage check"]
+      "Slope card", "Soak test", "Coverage check", "Tough conditions (phone apps)"]
     types: [completed]
 
 permissions:

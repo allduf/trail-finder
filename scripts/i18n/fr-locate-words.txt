@@ -1,0 +1,5 @@
+Location wasn't shared. Allow location for Trail Finder in your phone's Settings, or search a place instead. ||| Position non partagée. Autorisez la position pour Trail Finder dans les Réglages du téléphone, ou cherchez plutôt un lieu.
+Location wasn't shared. Allow location for this site in your browser settings, or search a place instead. ||| Position non partagée. Autorisez la position pour ce site dans les réglages du navigateur, ou cherchez plutôt un lieu.
+Still finding your location. If location is off, turn it on for Trail Finder in your phone's Settings. ||| Recherche de votre position. Si la position est désactivée, activez-la pour Trail Finder dans les Réglages du téléphone.
+Still finding your location. If location is off, allow it for this site in your browser settings. ||| Recherche de votre position. Si la position est désactivée, autorisez-la pour ce site dans les réglages du navigateur.
+Me button: when location is off, the map now says so on screen, and the apps point to the phone's Settings. ||| Bouton Moi : quand la position est désactivée, la carte le dit maintenant à l'écran, et les apps renvoient aux Réglages du téléphone.
