@@ -1948,7 +1948,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const list = near(stocked.waters, lat, lon, 3, (w) => w.c).slice(0, 2);
     if (!list.length) return "";
     return list.map(([w, d]) => {
-      const r = w.r[0], when = /^\d{4}-\d\d-\d\d$/.test(r[0]) ? new Date(r[0] + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) : r[0].replace(/ planned.*/, " (planned)");
+      const r = w.r[0], when = /^\d{4}-\d\d-\d\d$/.test(r[0]) ? new Date(r[0] + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", ...(+r[0].slice(0, 4) !== new Date().getFullYear() ? { year: "numeric" } : {}) }) : r[0].replace(/ planned.*/, " (planned)");
       return fold("stock", IC.fish, list.length > 1 || d > 0.3 ? `Stocked: ${w.n}` : "Stocked", `${esc(when)}${stocked.sp[r[1]] ? `, ${esc(stocked.sp[r[1]].toLowerCase())}` : ""}`, `${d > 0.3 ? `<p class="fs-note">${esc(w.n)}, ${fmtKm(d)} away.</p>` : ""}${releasesHtml(w)}`);
     }).join("");
   }
@@ -1991,7 +1991,7 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const f = Array.isArray(w.f) && LAKE_SRC[w.p] ? w.f : null;
     if (!f) return "";
     const flags = [...String(f[3] || "")].map((k) => FLAG[k]).filter(Boolean);
-    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString("en")} m` : "", f[1] > 0 ? `${dec(f[1])} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "",
+    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString("en")} m` : "", f[1] > 0 ? `${dec(f[1]).toLocaleString("en")} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "",
       f[4] > 0 ? `Deepest ${dec(f[4])} m` : "", f[5] > 0 ? `Average depth ${dec(f[5])} m` : "", THERMAL[f[6]] || ""].filter(Boolean);
     if (!list.length && !flags.length) return "";
     const line = (a) => (a.length ? `<p>${a.map((x) => `<span>${esc(x)}</span>`).join(" · ")}</p>` : "");

@@ -42,6 +42,7 @@
     [/^[Uu]p to (\d+) m( · depth map \(PDF\)| · depth map)?$/, function (m, d, x) { return (m[0] === "U" ? "J" : "j") + "usqu'à " + d + " m" + (x ? (/PDF/.test(x) ? " · carte bathymétrique (PDF)" : " · carte bathymétrique") : ""); }],
     [/^depth map \(PDF\)$/, "carte bathymétrique (PDF)"],
     [/^(\d+)\.(\d) ha$/, "$1,$2 ha"],
+    [/^(\d{1,3}(?:,\d{3})+) ha$/, function (m, n) { return n.replace(/,/g, " ") + " ha"; }],
     // Alberta and Ontario lake facts and Alberta release sizes (fishing.js)
     [/^Deepest ([\d.]+) m$/, function (m, d) { return "Profondeur max. " + d.replace(".", ",") + " m"; }],
     [/^Average depth ([\d.]+) m$/, function (m, d) { return "Profondeur moyenne " + d.replace(".", ",") + " m"; }],
