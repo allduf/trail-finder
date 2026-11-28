@@ -1236,12 +1236,31 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const name = String(lake[0].GAZETTED_NAME || "").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
     return { name, links: lake.slice(0, 6).map((x) => [x.PDF_FILE_URL.replace(/^http:/, "https:"), `${x.DRAFT_DATE ? x.DRAFT_DATE.slice(0, 4) + " " : ""}map${lake.length > 1 ? ` ${x.SHEET_NO}` : ""}`]) };
   }
+  // BC's lake surveys (Fisheries Information Summary System, WHSE_FISH.FISS_LAKE_SURVEYS_SVW, asked live): the deepest
+  // point surveyed for the lake at the spot. A lake often has several surveys, some of one basin only: the one whose
+  // surveyed area is closest to the lake's mapped area (within half to double), the newest if they tie.
+  async function bcSurveyDepth(lat, lon) {
+    const rows = await wfs("WHSE_FISH.FISS_LAKE_SURVEYS_SVW", "WATERBODY_IDENTIFIER,GAZETTED_NAME,SURVEY_DATE,AGENCY_NAME,SURFACE_AREA,MAXIMUM_DEPTH,MEAN_DEPTH,FEATURE_AREA_SQM",
+      `DWITHIN(GEOMETRY, SRID=4326;POINT(${lon} ${lat}), 30, meters) AND MAXIMUM_DEPTH > 0 AND SURFACE_AREA > 0`, 40).catch(() => []);
+    const id = rows[0] && rows[0].WATERBODY_IDENTIFIER;
+    const ha = rows[0] && rows[0].FEATURE_AREA_SQM / 1e4;
+    const ok = rows.filter((r) => r.WATERBODY_IDENTIFIER === id && r.MAXIMUM_DEPTH > 0 && r.SURFACE_AREA > 0 && (!ha || (r.SURFACE_AREA / ha > 0.5 && r.SURFACE_AREA / ha < 2)));
+    if (!ok.length) return null;
+    const off = (r) => (ha ? Math.abs(Math.log(r.SURFACE_AREA / ha)) : 0);
+    const best = ok.sort((a, b) => off(a) - off(b) || String(b.SURVEY_DATE || "").localeCompare(String(a.SURVEY_DATE || "")))[0];
+    return { name: titleCase(best.GAZETTED_NAME || ""), max: best.MAXIMUM_DEPTH, mean: best.MEAN_DEPTH > 0 ? best.MEAN_DEPTH : null, year: String(best.SURVEY_DATE || "").slice(0, 4) };
+  }
+  const surveyLine = (sv) => `<p>Deepest point surveyed: <b>${esc(Math.round(sv.max))} m</b>${sv.mean ? `, average ${esc(Math.round(sv.mean))} m` : ""}${sv.year ? ` (BC lake survey, ${esc(sv.year)})` : ""}.</p>`;
   async function depthHtml(lat, lon, w, pv) {
     const idx = await loadDepthIdx().catch(() => null);
     const lake = idx && idx.lakes.map((x) => [x, km(lat, lon, x[0], x[1])]).filter(([x, d]) => d < x[2] + 0.2).sort((a, b) => a[1] - b[1])[0];
     const lines = shown.has("depth") ? "" : `<p><button type="button" class="fs-depthon" data-ll="${lat},${lon}">${svg(IC.layers, 14)}Show depth lines on the map</button></p>`;
-    const bc = !lake && pv === "bc" && (!w || /lake/i.test(w.kind || "lake")) ? await bcDepthMaps(lat, lon) : null;
-    if (bc) return fold("depth", IC.depth, "Depth", "Depth map (PDF)", `<p><b>${esc(bc.name || "This lake")}</b>: depth map scanned by BC Fisheries</p><p>${bc.links.map(([u, t]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} (PDF)</a>`).join(" · ")}</p>${lines}<p class="fs-note">From BC's lake bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn.</p>`);
+    const isBC = !lake && pv === "bc" && (!w || /lake/i.test(w.kind || "lake"));
+    let [bc, sv] = isBC ? await Promise.all([bcDepthMaps(lat, lon), bcSurveyDepth(lat, lon)]) : [null, null];
+    if (bc && sv && bc.name && sv.name && bc.name.toLowerCase() !== sv.name.toLowerCase()) sv = null;   // two lakes close by: only one lake's facts under its name
+    const bsum = [sv ? `up to ${Math.round(sv.max)} m` : "", bc ? "depth map (PDF)" : ""].filter(Boolean).join(" · ");
+    if (bc || sv) return fold("depth", IC.depth, "Depth", bsum.charAt(0).toUpperCase() + bsum.slice(1),
+      `<p><b>${esc((bc && bc.name) || (sv && sv.name) || "This lake")}</b>${bc ? ": depth map scanned by BC Fisheries" : ""}</p>${sv ? surveyLine(sv) : ""}${bc ? `<p>${bc.links.map(([u, t]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} (PDF)</a>`).join(" · ")}</p>` : ""}${lines}<p class="fs-note">From BC's lake surveys and bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn.</p>`);
     if (!lake) return lines && w && /lake/i.test(w.kind || "lake") && !w.listOnly ? fold("depth", IC.depth, "Depth", "Depth lines", `${lines}<p class="fs-note">Lines show where a province surveyed the lake (BC, Alberta, Ontario, Quebec, Manitoba; New Brunswick soundings).</p>`) : "";
     const [[, , , name, deep, links, prov]] = lake;
     const a = links.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">${/\.pdf$/i.test(u) ? "Depth map (PDF)" : `Depth chart${links.length > 1 ? ` ${i + 1}` : ""} (scan)`}</a>`).join(" · ");
@@ -1933,8 +1952,21 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
   function releasesHtml(w) {
     const sp = stocked.sp, st = stocked.st || [];
     const rows = w.r.slice(0, 8).map((r) => `<tr><td>${esc(/^\d{4}-\d\d-\d\d$/.test(r[0]) ? fmtDay(r[0]) : r[0])}</td><td><b>${esc(sp[r[1]] || "")}</b>${st[r[3]] ? `<br><small>${esc(st[r[3]])}</small>` : ""}</td><td class="num">${r[2] ? r[2].toLocaleString() : ""}</td></tr>`).join("");
-    const src = w.p === "bc" ? "Freshwater Fisheries Society of BC stocking report" : w.p === "ab" ? "Alberta stocking reports and this year's planned trout stocking" : "Ontario fish stocking data";
-    return `<table class="fs-tbl"><thead><tr><th>When</th><th>What</th><th class="num">Fish</th></tr></thead><tbody>${rows}</tbody></table>${w.r.length > 8 ? `<p class="fs-note">And ${w.r.length - 8} more releases.</p>` : ""}<p class="fs-note">${src}.</p>`;
+    const src = w.p === "bc" ? `<a href="https://www.gofishbc.com/stocked-fish/?wbid=${encodeURIComponent(w.id || "")}" target="_blank" rel="noopener">Freshwater Fisheries Society of BC stocking report</a>` : w.p === "ab" ? "Alberta stocking reports and this year's planned trout stocking" : "Ontario fish stocking data";
+    return `${lakeFactsHtml(w)}<table class="fs-tbl"><thead><tr><th>When</th><th>What</th><th class="num">Fish</th></tr></thead><tbody>${rows}</tbody></table>${w.r.length > 8 ? `<p class="fs-note">And ${w.r.length - 8} more releases.</p>` : ""}<p class="fs-note">${src}.</p>`;
+  }
+  // BC: what the Freshwater Fisheries Society of BC's "where to fish" map lists for the lake (stocked.json f, built
+  // by scripts/build-fishing.mjs): [elevation m, area ha, road 2 or 4 (WD), flags]. Only what they list: a missing
+  // launch or dock isn't shown as "none".
+  const FLAG = { b: "Boat launch", d: "Fishing dock", a: "Wheelchair access", c: "Campsite", w: "Washroom", h: "Hike-in" };
+  function lakeFactsHtml(w) {
+    const f = w.p === "bc" && Array.isArray(w.f) ? w.f : null;
+    if (!f) return "";
+    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString("en")} m` : "", f[1] > 0 ? `${f[1] >= 10 ? Math.round(f[1]) : Math.round(f[1] * 10) / 10} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "", ...[...String(f[3] || "")].map((k) => FLAG[k]).filter(Boolean)].filter(Boolean);
+    if (!list.length) return "";
+    const line = (a) => (a.length ? `<p>${a.map((x) => `<span>${esc(x)}</span>`).join(" · ")}</p>` : "");
+    const n = list.length - [...String(f[3] || "")].filter((k) => FLAG[k]).length;
+    return `${line(list.slice(0, n))}${line(list.slice(n))}<p class="fs-note">As listed on the <a href="https://www.gofishbc.com/where-to-fish/" target="_blank" rel="noopener">Freshwater Fisheries Society of BC's Where to fish map</a>. Roads, docks and facilities can change.</p>`;
   }
   const fmtDay = (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   async function flowHtml(lat, lon, only) {
