@@ -568,7 +568,8 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   html body :is(#huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill, #hikePane .hk-pill) svg { color: var(--accent); }
   .hub-chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }
   html body :is(#huntPane .hn-view, #fishPane .fs-view, #motoPane .mt-view) { border-radius: 12px; background: var(--bg); }
-  html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }   /* dark mode: dark words on the light green */
+  html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) :is(svg, small, .ic) { color: var(--accent-fg, #fff); }
   html body :is(#huntPane .hn-card, #fishPane .fs-card, #motoPane .mt-card, #hikePane .hk-card) header svg { color: var(--accent); }
   /* the list: rows like Find's, with › */
   html body :is(#motoPane #mtSafeRow .mt-pill) {

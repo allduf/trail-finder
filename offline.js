@@ -148,7 +148,7 @@
 .offline-card .linkish { font: inherit; border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
 .off-area-name span { position: absolute; left: 0; bottom: 4px; transform: translateX(-50%); white-space: nowrap; font: 700 13px var(--font-body, system-ui); color: #14804a;
   text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff; pointer-events: none; }
-.map-tools #offlineBtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }`;
+.map-tools #offlineBtn.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }`;
   document.head.append(css);
   const card = document.createElement("div");
   card.className = "offline-card";
