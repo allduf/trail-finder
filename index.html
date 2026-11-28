@@ -2355,6 +2355,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     setBasemap(isSat(cur) ? (PICKS.includes(prev) && !ownOnly(prev) ? prev : savedBase()) : satPick(), true);
   });
   window.tfSetBasemap = setBasemap;   // offline.js opens the saved vector map when there's no signal
+  window.tfSavedBase = savedBase;     // ...and the sport's own style again once the signal is back
 
   const trailLayer = L.layerGroup().addTo(map);
   // New-trail results go on one canvas: a big search drew thousands of SVG paths, which made panning and zooming lag.

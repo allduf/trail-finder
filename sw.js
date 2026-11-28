@@ -139,11 +139,40 @@ async function cacheFirst(req) {
 // that fails or takes over 4 s. Nothing is saved here: offline.js decides what's kept.
 async function openFreeMap(req) {
   const hit = await offMatch(req.url);
-  if (!hit) return fetch(req);
+  if (!hit) { try { return await fetch(req); } catch (err) { const alt = await ofmElsewhere(req.url); if (alt) return alt; throw err; } }
   if (/\.(pbf|png|json)$/.test(new URL(req.url).pathname) && !/\/styles\//.test(req.url)) return hit;
   try {
     return await Promise.race([fetch(req), new Promise((_, no) => setTimeout(() => no(new Error("slow")), 4000))]);
   } catch { return hit; }
+}
+
+// OpenFreeMap's map has a new address every week (planet/<build>/{z}/{x}/{y}.pbf), and its style can point to another copy
+// (backup_planet, since 2026-11) than the one the 3D map and the sports ask for (planet). A saved area keeps the tiles of
+// the address it was saved with, so with no signal a tile, or the list of addresses (TileJSON), that isn't saved under the
+// address asked for is looked for under each address an area was saved with (offline.js keeps that list, OFM_SAVED).
+// Before 2026-11-27 the 3D map's ground was blank with no signal, and an area saved in an earlier week than the last
+// save showed no map.
+const OFM_SAVED = "https://tiles.openfreemap.org/tf-saved";
+let ofmSaved = null, ofmAt = 0;
+const ofmLists = () => {
+  if (!ofmSaved || Date.now() - ofmAt > 30000) { ofmAt = Date.now(); ofmSaved = offMatch(OFM_SAVED).then((r) => (r ? r.json() : {})).catch(() => ({})); }
+  return ofmSaved;
+};
+async function ofmElsewhere(url) {
+  const u = new URL(url), saved = (await ofmLists()) || {};
+  const t = u.pathname.match(/\/(\d+)\/(\d+)\/(\d+)\.pbf$/);
+  if (t) {
+    for (const tm of saved.tiles || []) {
+      const alt = tm.replace("{z}", t[1]).replace("{x}", t[2]).replace("{y}", t[3]);
+      if (alt !== url) { const h = await offMatch(alt); if (h) return h; }
+    }
+    return null;
+  }
+  if (!/^\/[\w-]+\/?$/.test(u.pathname)) return null;   // a TileJSON (planet, backup_planet), not a style, font or sprite
+  for (const alt of new Set([...(saved.tj || []), "https://tiles.openfreemap.org/backup_planet", "https://tiles.openfreemap.org/planet"])) {
+    if (alt !== url) { const h = await offMatch(alt); if (h) return h; }
+  }
+  return null;
 }
 
 // Hunting layers (DataBC and Alberta map images, terrain tiles) and the 3D map's heights (Mapterhorn) and Winter photos
