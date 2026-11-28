@@ -22,6 +22,7 @@
   const level = (v) => LEVELS.find((l) => v < l[0]);
   const dot = (v) => `<i class="td-dot" style="background:${v == null ? "#8a8f98" : level(v)[2]}"></i>`;
   const ago = (t) => { const d = Math.floor((Date.now() - t) / 864e5); return d < 1 ? "today" : d === 1 ? "yesterday" : d < 30 ? `${d} days ago` : d < 60 ? "a month ago" : `${Math.round(d / 30)} months ago`; };
+  // Mid-sentence ("latest: Dry") the word is shown without its emoji: only an emoji that starts a text becomes a line drawing.
   const REPORT = { dry: "☀️ Dry", tacky: "🤎 Tacky, loamy", muddy: "💧 Muddy", trees_down: "🌲 Trees down", snow: "❄️ Snow", closed: "🚧 Closed" };
 
   const css = document.createElement("style");
@@ -239,7 +240,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       const mine = rows.filter((r) => { let best = null, d = AREA_KM; shown.forEach((b) => { const k = kmTo([r.lat, r.lon], b.c); if (k < d) { d = k; best = b; } }); return best === a; });
       if (!mine.length) { say(a, `<small>No rider reports this week.</small>`); return; }
       const trees = mine.filter((r) => r.condition === "trees_down").length, last = mine[0];
-      say(a, `${mine.length} report${mine.length > 1 ? "s" : ""} this week · latest: ${esc(REPORT[last.condition] || last.condition)}${last.trail_name ? ` on ${esc(last.trail_name)}` : ""} (${ago(Date.parse(last.created_at))})${trees ? ` · <span class="td-warn">🌲 ${trees} tree${trees > 1 ? "s" : ""} down</span>` : ""}`);
+      say(a, `${mine.length} report${mine.length > 1 ? "s" : ""} this week · latest: ${esc((REPORT[last.condition] || last.condition).replace(/^\S+\s/, ""))}${last.trail_name ? ` on ${esc(last.trail_name)}` : ""} (${ago(Date.parse(last.created_at))})${trees ? ` · <span class="td-warn">🌲 ${trees} tree${trees > 1 ? "s" : ""} down</span>` : ""}`);
     });
   }
 
@@ -253,7 +254,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       const p = a.el.querySelector(".td-close");
       if (!p || !list.length) continue;
       const bad = list.filter((x) => x.bad);
-      p.innerHTML = `<span class="${bad.length ? "td-warn" : ""}">🚧 ${list.length} closure${list.length > 1 ? "s" : ""} or warning${list.length > 1 ? "s" : ""}:</span> ${list.slice(0, 3).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.text)}</a>`).join(" · ")}${list.length > 3 ? ` <small>and ${list.length - 3} more (🚧 layer)</small>` : ""}`;
+      p.innerHTML = `<span class="${bad.length ? "td-warn" : ""}">🚧 ${list.length} closure${list.length > 1 ? "s" : ""} or warning${list.length > 1 ? "s" : ""}:</span> ${list.slice(0, 3).map((x) => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.text)}</a>`).join(" · ")}${list.length > 3 ? ` <small>and ${list.length - 3} more (Closures and warnings layer)</small>` : ""}`;
     }
   }
 
@@ -268,7 +269,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       const parts = [];
       if (near.length) parts.push(`🔥 ${near.length > 1 ? `${near.length} wildfires, nearest` : "Wildfire"} ${Math.round(near[0].km)} km away (${esc(near[0].st || "active")})`);
       if (evac.length) parts.push(`⚠ Evacuation ${evac.some((e) => e.kind !== "alert") ? "order" : "alert"} nearby: ${esc(evac[0].n || evac[0].st || "")}`);
-      p.innerHTML = parts.length ? `<span class="td-warn">${parts.join(" · ")}</span>` : "";
+      p.innerHTML = parts.length ? `<span class="td-warn">${parts.map((x) => `<span>${x}</span>`).join(" · ")}</span>` : "";
       p.hidden = !parts.length;
     });
   }
