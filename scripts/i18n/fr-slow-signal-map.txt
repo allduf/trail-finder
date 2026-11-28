@@ -1,0 +1,1 @@
+Phone apps: on a slow connection, the map you see stays on screen until the 3D map has loaded, instead of a blank screen. ||| Applis mobiles : avec une connexion lente, la carte affichée reste à l'écran jusqu'à ce que la carte 3D soit chargée, au lieu d'un écran vide.

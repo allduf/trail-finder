@@ -496,6 +496,8 @@ function appStandIn({ platform, keys, admin, photos }) {
       if (tm.fail) return Promise.reject(new Error("No screen to show the map on"));
       if (tm.screen) return ok(undefined);
       tm.screen = true;
+      // tm.answer: what the app answers instead (a build from 2026-11-28 whose map hadn't drawn the spot: drawn false).
+      if (tm.answer && o.under && keys.includes("under")) return ok(tm.answer);
       return ok(o.under && keys.includes("under") ? { under: true } : undefined);
     },
     update: () => ok(), offline: () => ok({ areas: {} }),
@@ -904,6 +906,32 @@ async function appBuild(kind, desk = false) {
         await sport("hike"); await check1("Hiking from Skiing's 3D", null);
         await sport("ski"); await wait(1500);
         if (await isUnder() && /2D/.test(await b3Text())) { await tap3d(); await wait(400); }
+      });
+      // alex's iPhone on LTE (2026-11-28): the page hid its flat map before the native map had drawn anything, and the map
+      // stayed blank white under the buttons. A native map that hasn't drawn the spot (drawn: false) leaves the page's
+      // own flat map on screen, tried once more, then the flat map stays; 3D tapped then never leaves a blank map either.
+      // Last before the reload below: the one map stays off for the rest of this visit.
+      await check("a native map that hasn't drawn yet leaves the page's own flat map, never a blank map", async () => {
+        if (!(await isUnder())) throw new Error("the one map wasn't open to start with");
+        const n0 = await opens();
+        try {
+        await ev(() => { window.__tm.answer = { under: true, drawn: false }; window.Capacitor.Plugins.TrailMap.close(); });
+        await wait(4000);
+        const r = await ev(() => {
+          const out = [], tile = window.tfLeaflet.getPane("tilePane");
+          if (document.documentElement.classList.contains("tf-under")) out.push("the page hid its flat map");
+          if (tile && getComputedStyle(tile).visibility === "hidden") out.push("the flat map's pictures are hidden");
+          if (window.__tm.screen) out.push("the native map that drew nothing stayed open");
+          if (getComputedStyle(document.getElementById("map")).backgroundColor === "rgba(0, 0, 0, 0)") out.push("the flat map's own ground is see-through");
+          return out.join(" · ");
+        });
+        if (r) throw new Error(r);
+        const tries = (await opens()) - n0;
+        if (tries < 1 || tries > 2) throw new Error(`the one map was tried ${tries} times (once more at most)`);
+        await tap3d(); await wait(1500);
+        if (await isUnder()) throw new Error("3D hid the flat map under a native map that drew nothing");
+        await noWeb3d("3D with a native map that drew nothing");
+        } finally { await ev(() => { window.__tm.answer = null; }); }
       });
       await check("after a reload with the native map left open, it opens under the page again", async () => {
         await ev(() => sessionStorage.setItem("tmLeft", "1"));

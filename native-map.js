@@ -478,7 +478,7 @@
     document.head.append(css);
   }
   // This page's map moved by itself (a search, a card, My location): the native map goes there too.
-  map.on("moveend", () => {
+  function pageMoved() {
     if (!under || !open || following || Date.now() < quietUntil) return;
     const c = map.getCenter();
     // Only a real move: the flat map follows the native one at whole zooms (up to its own deepest), and a resize nudges it.
@@ -487,7 +487,8 @@
     nativeAt = { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, fz: map.getZoom() };
     camAt = Date.now();
     TrailMap.layer({ key: "under", data: JSON.stringify({ cam: { lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1 } }) }).catch(() => {});
-  });
+  }
+  map.on("moveend", pageMoved);
   // The map style: Layers' pick, or a new sport's own (Skiing's Winter), goes to the native map.
   const baseFor = (sel) => {
     const winter = document.body.classList.contains("sport-ski");
@@ -510,6 +511,7 @@
   // switch, and a tap then tipped the map down or closed it (sport switch test 2026-11-22).
   if (b3) new MutationObserver(() => { if (under && open && b3Was && tipped !== /2D/.test(b3.textContent)) b3Label(); }).observe(b3, { childList: true, characterData: true, subtree: true });
 
+  let openSeq = 0;
   function openNative(threeD, flat = false) {
     const close = document.getElementById("lmClose");
     if (close && !flat) close.click();
@@ -530,16 +532,31 @@
     // its first build (no iPhone to try it on before): everyone once alex has checked it on the phone.
     const und = threeD && isAdmin() && !!nativeKeys && nativeKeys.has("under") ? JSON.stringify(underGrid()) : undefined;
     tipped = !flat; flatOpening = flat; underAsk = !!und;
-    const askedAt = Date.now();
+    const askedAt = Date.now(), seq = ++openSeq;
     // How the native map opened, in alex's own usage log only (isAdmin: the admin phone; 2026-11-27 a fully black native
     // 3D map on that iPhone that no simulator shows): an answer before 2.5 s means it had drawn the spot.
     const note = (r) => { if (isAdmin() && window.tfUse) window.tfUse("view", `Native map ${threeD ? "3D" : "2D"}${flat ? " from above" : ""} · ${base} · ${r && r.under ? "under the page" : r === false ? "not opened" : "over the page"} · ${navigator.onLine ? "online" : "offline"}`, Date.now() - askedAt); };
     return TrailMap.open({ lat: c.lat, lon: c.lng, zoom: map.getZoom() - 1, bearing: map.getBearing ? -map.getBearing() : 0, base, threeD, winter, layers: featureData(threeD), esri, lang, ...(und ? { under: und } : {}), ...(flat ? { flat: true } : {}), ...snap })
       .then((r) => {
+        // An answer for a map closed since (it waited for its drawing, below) or replaced by a newer one: nothing opened.
+        if (seq !== openSeq) return false;
         note(r);
         flatOpening = false;
+        if (!open) { underAsk = false; tipOnOpen = false; return false; }
+        // Under the page, the native map must have drawn the spot before the page's flat map hides (alex's iPhone on LTE,
+        // 2026-11-28: a blank white map under the buttons while its tiles came). Builds from 2026-11-28 wait for that
+        // drawing (up to 15 s) and say drawn: false if it didn't come; older builds answer after 2.5 s whatever it drew,
+        // so an answer that slow leaves the page's own flat map, which already shows the spot (a second try finds the
+        // tiles loaded: seen from above, by itself below; 3D, a tap with "Try again"). Never a blank map.
+        if (und && r && r.under && (r.drawn === false || (r.drawn === undefined && Date.now() - askedAt >= 2500))) {
+          open = false; underAsk = false; tipOnOpen = false; if (flat) flatFails++;
+          if (isAdmin() && window.tfUse) window.tfUse("view", "Native map not drawn in time · the 2D map stays", Date.now() - askedAt);
+          TrailMap.close().catch(() => {});
+          return false;
+        }
         if (und && open && r && r.under) {
           enterUnder();
+          pageMoved();   // the page's map moved while the native one loaded
           shown = true; rest();
           if (flat) { flatFails = 0; if (tipOnOpen) tip(true); syncSoon(); }   // a sport or style picked while it opened
           tipOnOpen = false;
@@ -553,7 +570,7 @@
         if (flat && open) { flatFails++; TrailMap.close().catch(() => {}); return false; }
         shown = true; rest();
         return true;
-      }, () => { note(false); open = false; shown = false; rest(); sent = ""; flatOpening = false; underAsk = false; tipOnOpen = false; if (flat) flatFails++; return false; });
+      }, () => { if (seq !== openSeq) return false; note(false); open = false; shown = false; rest(); sent = ""; flatOpening = false; underAsk = false; tipOnOpen = false; if (flat) flatFails++; return false; });
   }
   btn.addEventListener("click", () => openNative(false));
   btn3d.addEventListener("click", () => openNative(true));
