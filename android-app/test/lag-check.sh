@@ -8,6 +8,7 @@ sleep 10
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 for p in ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION POST_NOTIFICATIONS; do adb shell pm grant $APP android.permission.$p || true; done
 adb emu geo fix -122.95 50.11 700
+adb shell settings put global hide_error_dialogs 1 || true   # an "isn't responding" box never blocks the next run
 adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
 adb shell am start -W -n $APP/.MainActivity
 sleep 25

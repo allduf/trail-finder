@@ -2,19 +2,22 @@
 // alex's native 3D map, the same place and the same finger moves, in a few sports. Coordinator ask 2026-11-27: is
 // native 3D smooth enough for every Android tester? The simulator draws in software (no graphics card), so its numbers
 // are far slower than a phone's: compare web with native, and runs with each other, never with a real phone.
-// For each sport (LAG_SPORTS, default ski,mtb,moto,hike), each way (web, native):
+// For each sport (LAG_SPORTS, default ski,mtb,hike,fish,hunt,moto: Moto last, its web 3D is the heaviest), each way (web, native):
 //   - opens the app at Whistler, picks the sport, taps 3D like a finger (native 3D opens only for a real tap);
-//   - waits for the map to settle, then 8 one-finger drags (pan) with a pause after each;
-//   - frames: how often the screen showed a new picture while the fingers moved (SurfaceFlinger's own frame times for
+//   - starts from a fresh app each time (one that stopped answering never spoils the next run);
+//   - waits for the map to settle, then 8 one-finger drags (pan) back to back;
+//   - frames: how often the screen showed a new picture while the fingers moved (SurfaceFlinger's frame statistics for
 //     the layer that draws the map: the native map's own surface, or the app's window for the web 3D map), and for the
-//     web 3D map also the page's own frame gaps (requestAnimationFrame) and long tasks;
+//     web 3D map also the page's own frame gaps (requestAnimationFrame) and long tasks; for native, how often the map
+//     said it moved (proof the fingers reached it);
+//   - whether Android said the app stopped answering ("isn't responding") during the run;
 //   - memory: the app's total (dumpsys meminfo) after the moves.
 // Writes shots/lag.md and shots/lag.json (and a screenshot per sport and way). Never fails the job.
 import { execSync } from "node:child_process";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 const APP = "com.allduf.trailfinder";
-const SPORTS = (process.env.LAG_SPORTS || "ski,mtb,moto,hike").split(",").map((s) => s.trim()).filter(Boolean);
+const SPORTS = (process.env.LAG_SPORTS || "ski,mtb,hike,fish,hunt,moto").split(",").map((s) => s.trim()).filter(Boolean);
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking" };
 const sh = (c, t = 60000) => execSync(c, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 << 20, timeout: t });
 const adb = (c, t) => sh(`adb ${c}`, t);
@@ -86,21 +89,25 @@ async function fingerTap(sel) {
 const agree = () => js(`(() => { const b = document.querySelector("#tfRisk [data-rk=ok], #tfRisk .rk-ok"); if (b && b.offsetParent) { b.click(); return true; } return false; })()`).catch(() => false);
 
 // ---------- frames from SurfaceFlinger ----------
-// The layer that shows the map: the native map's own surface (SurfaceView) or the app's window (web 3D).
-function layerName(native) {
-  try {
-    const list = adb("shell dumpsys SurfaceFlinger --list").split("\n").map((l) => l.trim()).filter((l) => l.includes(APP));
-    const pick = native ? list.filter((l) => /^SurfaceView/.test(l) && !/Background/.test(l)) : list.filter((l) => !/^SurfaceView|Background|Splash/.test(l) && /MainActivity/.test(l));
-    return pick.pop() || null;
-  } catch { return null; }
-}
-// Present times (ns) of the last frames of a layer: the second column of --latency, 0 and INT64_MAX lines dropped.
-function presents(layer) {
-  if (!layer) return [];
-  try {
-    const out = adb(`shell "dumpsys SurfaceFlinger --latency '${layer.replace(/'/g, "")}'"`).trim().split("\n").slice(1);
-    return out.map((l) => l.trim().split(/\s+/).map(Number)).filter((c) => c.length >= 3 && c[1] > 0 && c[1] < 9e18).map((c) => c[1]);
-  } catch { return []; }
+// SurfaceFlinger's frame statistics (--timestats): for every layer, how many pictures it showed and the time between
+// one shown picture and the next (present2present, a histogram in ms). --latency gave nothing for the native map's
+// SurfaceView on Android 14, so both ways read this. The native map is the app's SurfaceView layer; web 3D is the
+// app's window (MainActivity, not a SurfaceView).
+const sf = (a) => adb(`shell dumpsys SurfaceFlinger --timestats ${a}`);
+function frameGaps(native) {
+  let dump = "";
+  try { dump = sf("-dump"); } catch { return { gaps: [], layers: [] }; }
+  const gaps = [], layers = [];
+  for (const blk of dump.split(/\n(?=layerName\s*=)/)) {
+    const name = (blk.match(/^layerName\s*=\s*(.+)$/m) || [])[1];
+    if (!name || !name.includes(APP) || /Background|Splash/.test(name)) continue;
+    if (native ? !/SurfaceView/.test(name) : /SurfaceView/.test(name) || !/MainActivity/.test(name)) continue;
+    const h = (blk.match(/present2present histogram[^\n]*\n([^\n]+)/) || [])[1] || "";
+    let n = 0;
+    for (const [, ms, c] of h.matchAll(/(\d+)ms=(\d+)/g)) for (let i = 0; i < +c && i < 5000; i++) { gaps.push(+ms); n++; }
+    layers.push(`${name.trim()} (${n})`);
+  }
+  return { gaps, layers, dump };
 }
 const stats = (gaps) => {
   const g = gaps.filter((x) => x > 0).sort((a, b) => a - b);
@@ -110,16 +117,27 @@ const stats = (gaps) => {
 };
 
 const report = [];
+// How many times Android has said the app stopped answering ("isn't responding") since the simulator started.
+const anrs = () => { try { return (adb("logcat -d -s ActivityManager:E").match(/ANR in com\.allduf\.trailfinder/g) || []).length; } catch { return 0; } };
+// A fresh app for every run: one that stopped answering (web 3D on a busy simulator can) never spoils the next run.
+async function freshApp(sport, native) {
+  try { adb(`shell am force-stop ${APP}`); } catch {}
+  try { adb("shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS"); } catch {}
+  await sleep(8000);   // let the simulator calm down
+  try { adb(`shell am start -W -n ${APP}/.MainActivity`, 90000); } catch {}
+  await sleep(15000);
+  await connect();
+  await js(`(() => { ${native ? `localStorage.setItem("tf-admin", "1")` : `localStorage.removeItem("tf-admin")`}; localStorage.setItem("tf:sport", JSON.stringify(${JSON.stringify(sport)}));
+    localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tfLagCheck", "1"); location.reload(); })()`).catch(() => {});
+  await sleep(12000);
+  await connect();
+}
 async function run(sport, native) {
   const way = native ? "native" : "web";
-  const r = { sport, way };
+  const r = { sport, way }, anrBefore = anrs();
   console.log(`--- ${NAMES[sport]}, ${native ? "native 3D (alex)" : "web 3D (testers)"}`);
   try {
-    // A fresh page: the sport, Whistler, alex's switch on or off.
-    await js(`(() => { ${native ? `localStorage.setItem("tf-admin", "1")` : `localStorage.removeItem("tf-admin")`}; localStorage.setItem("tf:sport", JSON.stringify(${JSON.stringify(sport)}));
-      localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tfLagCheck", "1"); location.reload(); })()`).catch(() => {});
-    await sleep(12000);
-    await connect();
+    try { await freshApp(sport, native); } catch { await freshApp(sport, native); }   // one more try
     await js(`(() => { const b = document.querySelector("dialog.tf-terms [data-terms=ok]"); if (b) b.click(); document.querySelectorAll("dialog[open]").forEach((d) => d.close()); })()`).catch(() => {});
     await js(`window.tfLeaflet && window.tfLeaflet.setView([50.09, -122.95], 13)`).catch(() => {});
     await sleep(4000);
@@ -142,33 +160,31 @@ async function run(sport, native) {
     if (!native) await js(`(() => { const s = (window.__lag = { gaps: [], lt: 0, on: true }); let last = performance.now();
       const loop = (t) => { if (!s.on) return; s.gaps.push(t - last); last = t; requestAnimationFrame(loop); }; requestAnimationFrame((t) => { last = t; requestAnimationFrame(loop); });
       try { new PerformanceObserver((l) => { for (const e of l.getEntries()) s.lt += e.duration; }).observe({ type: "longtask" }); } catch {} })()`);
-    const layer = layerName(native);
-    r.layer = layer || "(not found)";
-    try { adb(`shell "dumpsys SurfaceFlinger --latency-clear '${(layer || "").replace(/'/g, "")}'"`); } catch {}
-    // 8 drags, each 700 ms, read after each (SurfaceFlinger keeps only the last 128 frames).
-    const W = 1080, H = 2400, all = new Set();
+    // The native map tells the page each time it moved: proof the fingers reached it.
+    else await js(`(() => { window.__moves = 0; const T = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.TrailMap; if (T) T.addListener("moved", () => window.__moves++); })()`).catch(() => {});
+    try { sf("-disable"); sf("-clear"); sf("-enable"); } catch {}
+    // 8 drags back to back, 1 s each: the map keeps moving the whole time, so every gap is a moving frame.
+    const W = 1080, H = 2400;
     for (let k = 0; k < 8; k++) {
       const dx = (k % 2 ? -1 : 1) * 350, dy = (k % 4 < 2 ? 1 : -1) * 220;
-      adb(`shell input swipe ${W / 2 - dx / 2} ${H * 0.42 - dy / 2} ${W / 2 + dx / 2} ${H * 0.42 + dy / 2} 700`, 30000);
-      await sleep(900);
-      for (const t of presents(layer)) all.add(t);
+      adb(`shell input swipe ${W / 2 - dx / 2} ${H * 0.42 - dy / 2} ${W / 2 + dx / 2} ${H * 0.42 + dy / 2} 1000`, 30000);
     }
-    const ts = [...all].sort((a, b) => a - b);
-    // Gaps between frames while moving: a pause between drags (over 1.5 s) isn't a slow frame.
-    const gaps = []; for (let i = 1; i < ts.length; i++) { const g = (ts[i] - ts[i - 1]) / 1e6; if (g < 1500) gaps.push(g); }
-    r.screen = stats(gaps);
+    await sleep(1500);
+    const fg = frameGaps(native);
+    try { sf("-disable"); } catch {}
+    r.layers = fg.layers;
+    r.screen = stats(fg.gaps.filter((g) => g < 1500));
+    if (!r.screen && fg.dump) writeFileSync(`shots/lag-${sport}-${way}-timestats.txt`, fg.dump.slice(0, 200000));
     if (!native) {
       const p = await js(`(() => { const s = window.__lag; s.on = false; return { gaps: s.gaps.slice(2), lt: Math.round(s.lt) }; })()`).catch(() => null);
       if (p) { r.page = stats(p.gaps.filter((g) => g < 1500)); r.longTaskMs = p.lt; }
       r.readout = await js(`(() => { const d = [...document.querySelectorAll("div")].find((e) => /^lag check/.test(e.textContent || "")); return d ? d.textContent : null; })()`).catch(() => null);
-    }
+    } else r.moves = await js("window.__moves").catch(() => null);
     try { const m = adb(`shell dumpsys meminfo ${APP}`).match(/TOTAL PSS:\s*(\d+)|TOTAL\s+(\d+)/); r.memMB = m ? Math.round(+(m[1] || m[2]) / 1024) : null; } catch {}
     shot(`lag-${sport}-${way}.png`);
     r.native = nativeShows();
   } catch (e) { r.error = String(e.message || e).split("\n")[0].slice(0, 200); shot(`lag-${sport}-${way}-error.png`); }
-  // Back to the flat map, alex's switch off, for the next run.
-  try { if (await js(`!!(window.tfNative && window.tfNative.isOpen && window.tfNative.isOpen())`)) { adb("shell input keyevent KEYCODE_BACK"); await sleep(2500); adb("shell input keyevent KEYCODE_BACK"); await sleep(2500); } } catch {}
-  try { adb(`shell am start -n ${APP}/.MainActivity`); } catch {}
+  r.anr = anrs() > anrBefore;
   console.log("    " + JSON.stringify(r));
   report.push(r);
 }
@@ -182,8 +198,8 @@ async function run(sport, native) {
   const f = (s) => (s ? `${s.frames} frames · median ${s.median} ms · 95% under ${s.p95} ms · worst ${s.worst} ms · ${s.over100} over 100 ms` : "-");
   const md = [`## 3D lag on an Android simulator (${cpu}; page ${info.w}x${info.h} at ${info.dpr}x)`, "",
     "Software drawing (no graphics card): compare web with native, not with a phone.", "",
-    "| Sport | Way | Opened | Screen frames while moving | Page frames (web) | Page work | Memory |", "|---|---|---|---|---|---|---|",
-    ...report.map((r) => `| ${NAMES[r.sport]} | ${r.way} | ${r.error ? "✗ " + r.error : r.opened} | ${f(r.screen)} | ${f(r.page)} | ${r.longTaskMs != null ? r.longTaskMs + " ms" : "-"} | ${r.memMB != null ? r.memMB + " MB" : "-"} |`)];
+    "| Sport | Way | Opened | Screen frames while moving | Page frames (web) | Page work | Memory | Not responding |", "|---|---|---|---|---|---|---|---|",
+    ...report.map((r) => `| ${NAMES[r.sport]} | ${r.way} | ${r.error ? "✗ " + r.error : r.opened + (r.moves != null ? ` (moved ${r.moves}x)` : "")} | ${f(r.screen)} | ${f(r.page)} | ${r.longTaskMs != null ? r.longTaskMs + " ms" : "-"} | ${r.memMB != null ? r.memMB + " MB" : "-"} | ${r.anr ? "yes" : "no"} |`)];
   writeFileSync("shots/lag.md", md.join("\n") + "\n");
   console.log(md.join("\n"));
   try { writeFileSync(process.env.GITHUB_STEP_SUMMARY || "/dev/null", md.join("\n") + "\n", { flag: "a" }); } catch {}

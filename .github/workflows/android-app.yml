@@ -35,7 +35,7 @@ on:
       lag_sports:
         description: "Sports for the lag check, comma separated"
         type: string
-        default: "ski,mtb,moto,hike"
+        default: "ski,mtb,hike,fish,hunt,moto"
 
 permissions:
   contents: read
