@@ -111,7 +111,7 @@ jobs:
           xcrun simctl bootstatus "$DEV" -b
           xcrun simctl install booted "$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
           xcrun simctl privacy booted grant location-always com.allduf.trailfinder || true
-          xcrun simctl location booted set 49.3536,-123.0889 || true
+          xcrun simctl location booted set 49.7016,-123.1408 || true
           xcrun simctl status_bar booted override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           system_profiler SPDisplaysDataType | head -20 || true
       - name: Film

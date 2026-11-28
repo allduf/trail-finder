@@ -1,4 +1,4 @@
 [
-  { "os": "ios", "name": "ui", "env": "PART=ui TRAIL=Ramble_On,Upper_Dreamweaver,auto SPOT=49.371,-123.080 GEO=49.3536,-123.0889 Z=14" },
-  { "os": "ios", "name": "fly", "env": "PART=fly SPOT=49.375,-123.078 Z=13.6 GEO=49.3536,-123.0889 FC=49.372,-123.078 FZ=13.9 NF=300 B0=-25 B1=55 FSET=1000" }
+  { "os": "ios", "name": "ui", "env": "PART=ui TRAIL=Pipe_Trail,auto SPOT=49.705,-123.135 GEO=49.7016,-123.1408 Z=14" },
+  { "os": "ios", "name": "fly", "env": "PART=fly SPOT=49.706,-123.135 Z=13.7 GEO=49.7016,-123.1408 FC=49.7065,-123.1345 FZ=14.3 NF=300 B0=-20 B1=60 FSET=1000" }
 ]
