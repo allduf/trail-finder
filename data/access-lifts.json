@@ -1,0 +1,51 @@
+{
+ "note": "Gondolas that are a way up to the backcountry, not ski resorts (alex 2026-11-03: the Sea to Sky Gondola for Sky Pilot). Hand-kept from the operator's own pages; checked is when. lifts.js shows this in the gondola's box; the live part (open today, hours, skis up today, trail notes) comes from the lift-status function. hours: the operator's season dates (from, to inclusive, yyyy-mm-dd); routes: ski route ids (data/ski-hand/); lines: names of the lines in the bowls (OpenStreetMap ski routes); cams: data/webcams.json ids.",
+ "lifts": {
+  "s2sg": {
+   "name": "Sea to Sky Gondola",
+   "checked": "2026-11-03",
+   "what": "A sightseeing gondola in Squamish: Summit Lodge, suspension bridge, viewing decks, walking and hiking trails. In winter it is also the quick way up to the Sky Pilot backcountry. It is not a ski resort: no ski runs, no ski patrol and no avalanche control.",
+   "top": { "name": "Summit Lodge", "ele": 885 },
+   "hours": [
+    { "from": "2026-10-24", "to": "2026-11-15", "t": "9 am to 5 pm, last ride down 6 pm" },
+    { "from": "2026-11-16", "to": "2026-11-26", "closed": true, "t": "Closed for maintenance" },
+    { "from": "2026-11-27", "to": "2026-12-31", "t": "9 am to 5 pm, last ride down 6 pm" }
+   ],
+   "tickets": [
+    ["Adult (19 to 64)", "$73.95 online, $81.95 at the window"],
+    ["Senior (65+)", "$68.95 online, $76.95"],
+    ["Youth (13 to 18)", "$43.95 online, $51.95"],
+    ["Child (6 to 12)", "$29.95 online, $37.95"],
+    ["5 and under", "Free"],
+    ["Ride down only", "$19 online, $25"]
+   ],
+   "ticketNote": "Round trip. An annual membership costs about the same as a few tickets and includes free parking.",
+   "ski": [
+    "Skis and snowboards go up in winter, conditions permitting, only with your backcountry gear: transceiver, probe and shovel for everyone.",
+    "No skis or boards go up when Avalanche Canada's South Coast forecast is High or Extreme.",
+    "Know the last ride down and be back well before it. If weather stops the gondola early, you ski down the service road."
+   ],
+   "road": "From the Summit Lodge, the Backcountry Access Road (Shannon Creek Road) runs 2.2 km into the upper Shannon Creek watershed, where the Sky Pilot Valley and Skyline Ridge approaches start. In winter the gondola grooms it every day for Nordic skiing, with fresh corduroy for the Friday and Saturday evening Nordic nights. Watch for snowcats on it.",
+   "terrain": "More than 1,300 ha in the upper Shannon Creek watershed, around Sky Pilot, Co-Pilot, Skyline Ridge, Goat Ridge and Mount Habrich: four alpine bowls with up to 1,100 m of vertical. Complex, uncontrolled avalanche terrain: steep alpine slopes, gullies, couloirs, cornices and the Stadium Glacier. Not for beginners.",
+   "uphill": "No uphill skiing to the top: the Sea to Summit trail (6.5 km, about 900 m, ropes and chains) is a summer hike.",
+   "routes": ["hand-s2s-skypilot-valley", "hand-s2s-skyline"],
+   "lines": ["Stadium Gully", "Co-Pilot Gully", "CMA", "Hot Dog", "Exit Gully", "Exit Gully Trees", "Brain South Gully", "Home Run", "Cleavage Bowl", "Cleavage Couloir", "Ledge Basin", "Ledge Trees", "Gunsight Couloir", "Nai Couloir", "Cool Lars Couloir", "Marmot Couloir", "McMurtrees", "Co-Face", "Saddle", "Goat Approach", "Goat Couloir", "Great Gully", "Chamois Chute", "Skinny Tree"],
+   "parking": "Gondola base lot on Highway 99: $10 a day (Pay By Phone app or Guest Services), free for annual members. Overnight: ask Guest Services (none on Friday and Saturday nights in summer). The Squamish Connector shuttle runs from downtown Vancouver.",
+   "cams": ["s2sg-summit", "s2sg-exitgully"],
+   "weather": [
+    { "t": "Exit Gully weather station (1,550 m), last 24 h", "u": "https://www.licor.cloud/dashboards/public/1cbe7853-62cd-4bf0-b844-11c12d633446/true" },
+    { "t": "Summit weather station", "u": "https://www.wunderground.com/dashboard/pws/ISQUAM29" }
+   ],
+   "emergency": "Emergency: call 911 first, then the gondola's emergency line 604-892-2555.",
+   "phone": "604-892-2555",
+   "links": [
+    { "t": "Daily Conditions: skis up today, trails, access road", "u": "https://www.seatoskygondola.com/daily-conditions/" },
+    { "t": "Ski touring: access and rules", "u": "https://www.seatoskygondola.com/winter-activities/ski-touring/" },
+    { "t": "Hours and prices", "u": "https://www.seatoskygondola.com/hours-and-prices/" },
+    { "t": "Backcountry access map (PDF)", "u": "https://www.seatoskygondola.com/site/assets/files/7879/ssg_backcountry_trail_map.pdf" },
+    { "t": "Avalanche Canada forecast here", "u": "https://avalanche.ca/map?lat=49.6755&lng=-123.157" },
+    { "t": "Zenith Mountain Guides: Sea to Sky conditions", "u": "https://snow.zenithguides.ca/" }
+   ]
+  }
+ }
+}
