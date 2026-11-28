@@ -365,7 +365,10 @@ const CONDS = {
     const inside = (r, lat, lon) => { let o = false; for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) { const [ay, ax, by, bx] = [r[i], r[i + 1], r[j], r[j + 1]]; if ((ay > lat) !== (by > lat) && lon < ((bx - ax) * (lat - ay)) / (by - ay) + ax) o = !o; } return o; };
     for (const a of avy.areas || []) {
       if (!a.forecast || !(a.rings || []).some((r) => inside(r, 50.1163, -122.9574))) continue;
-      const d0 = { ...((a.forecast.days || [])[0] || {}), date: day, alp: 3, tln: 3, btl: 2 };
+      // Its weekday named for today too: in the evening the saved day 0 is tomorrow's ("Saturday"), and the app files a day
+      // under its named weekday (winter.js acDay), as Avalanche Canada's own dates can be a day off.
+      const label = new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+      const d0 = { ...((a.forecast.days || [])[0] || {}), date: day, label, alp: 3, tln: 3, btl: 2 };
       Object.assign(a.forecast, { issued: new Date(now - 3600e3).toISOString(), validUntil: new Date(now + 3 * 3600e3).toISOString(), days: [d0], early: false });
       found++;
     }
