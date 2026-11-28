@@ -110,6 +110,9 @@
     { name: "Swine Flu", c: [49.535, -115.069], r: 3000, dir: "climb", who: "the Fernie trail map", where: "wiki.ubc.ca", note: "a technical ascent up Mount Proctor (Fernie)" },
     { name: "Dairy Run", c: [49.526, -115.054], r: 3000, dir: "climb", who: "the Fernie trail map", where: "wiki.ubc.ca", note: "the climb to the base of Swine Flu (Fernie)" },
     { name: "Bottoms Up", c: [49.485, -117.359], r: 3000, dir: "climb", who: "Singletracks", where: "singletracks.com", note: "the easy way to climb Morning Mountain (Nelson)" },
+    // Canmore: Alberta Parks says the preferred use of these two is downhill mountain biking (checked 2026-11-28).
+    { name: "Reclaimer Trail", c: [51.0812, -115.4013], r: 1500, dir: "down", who: "Alberta Parks' Canmore and Area trail report", where: "albertaparks.ca", note: "a downhill trail ending at the Grassi Lakes parking lot (Canmore)" },
+    { name: "Riders of Rohan", c: [51.0724, -115.3978], r: 1500, dir: "down", who: "Alberta Parks' Canmore and Area trail report", where: "albertaparks.ca", note: "a downhill trail from Whiteman's Pond to the Quarry Lake parking lot (Canmore)" },
   ];
   const WHY = {
     none: "No map tag, local trail data or rider report says which way it's ridden, so it's shown as both ways.",

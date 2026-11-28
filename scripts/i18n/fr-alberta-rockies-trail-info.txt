@@ -1,0 +1,4 @@
+# Alberta Rockies trail info: Alberta Parks trail reports and Parks Canada Banff (data/trail-info.json, ratings.js, directions.js), 2026-11-28
+Canmore, Kananaskis, Bragg Creek, Glenbow Ranch and Banff trails: notes from Alberta Parks' trail reports and Parks Canada on 72 bike trails and 125 hikes (length, climbing, what the trail is like, seasonal closures). 7 Banff trails now show Parks Canada's level, and 2 Canmore trails say they are mostly ridden down. ||| Sentiers de Canmore, Kananaskis, Bragg Creek, Glenbow Ranch et Banff : des notes tirées des rapports de sentiers d'Alberta Parks et de Parcs Canada pour 72 sentiers de vélo et 125 randonnées (longueur, dénivelé, type de sentier, fermetures saisonnières). 7 sentiers de Banff affichent maintenant le niveau de Parcs Canada, et 2 sentiers de Canmore indiquent qu'ils se roulent surtout en descente.
+Family friendly ||| Pour les familles
+Easy, then moderate ||| Facile, puis modéré
