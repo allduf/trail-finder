@@ -154,7 +154,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
     const el = $("tdGo");
     if (!pick.length) {
       const read = trails.some((t) => t.v != null);
-      el.innerHTML = `<li class="td-wait">${read ? `No trail you haven't ridden within ${lastKm} km is likely in prime loam now or in the next 3 days.` : "Couldn't read the loam right now. Try again in a few minutes."}</li>`;
+      el.innerHTML = `<li class="td-wait">${read ? `No trail you haven't ridden within ${lastKm} km is likely in prime loam now or in the next 3 days.` : navigator.onLine ? "Couldn't read the loam right now. Try again in a few minutes." : "No signal: the loam estimate needs a connection."}</li>`;
       return;
     }
     el.innerHTML = pick.map((t, i) => `<li><button type="button" data-i="${i}"><b>${esc(t.name)}${t.isNew ? `<span class="td-new">New</span>` : ""}</b>
@@ -234,7 +234,7 @@ button.btn.today-btn { width: 100%; margin: 4px 0 8px; }`;
       }
     } catch {}
     if (my !== token) return;
-    if (!rows) { shown.forEach((a) => say(a, `<small>Rider reports aren't available right now.</small>`)); return; }
+    if (!rows) { shown.forEach((a) => say(a, `<small>${navigator.onLine ? "Rider reports aren't available right now." : "No signal: rider reports need a connection."}</small>`)); return; }
     shown.forEach((a) => {
       const mine = rows.filter((r) => { let best = null, d = AREA_KM; shown.forEach((b) => { const k = kmTo([r.lat, r.lon], b.c); if (k < d) { d = k; best = b; } }); return best === a; });
       if (!mine.length) { say(a, `<small>No rider reports this week.</small>`); return; }

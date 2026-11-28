@@ -241,8 +241,8 @@
   // so text symbols such as ★ rating stars, ◎, ⚠ or ▶ stay as they are outside the panels.
   const COLOUR = Object.keys(E).filter((e) => /\p{Emoji_Presentation}/u.test(e) || e.codePointAt(0) >= 0x1f000).map((e) => e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   // Symbols that are text by default turn colour on phones when written with VS16 (⚙️ Settings, ☀️ Dry, ❄️ Snow), and
-  // ☁ shows in colour on iPhones as it is, ☀ on Android (the Today line's "☀ Where to ride today", tough conditions
-  // test 2026-11-28) (⛰ stays out: the 3D button draws its own mountain).
+  // ☁ shows in colour on iPhones as it is, and ☀ on Android (the MTB Today line, 2026-11-27) (⛰ stays out: the 3D
+  // button draws its own mountain).
   const VS16 = Object.keys(E).filter((e) => !COLOUR.includes(e) && !/^[★◎▭▶➚⤓⤢]$/u.test(e)).map((e) => e + "\uFE0F");
   const ALT = ["🚵", "🚴", "🚲", "⛷", "🎿", "🛷", "🚡", "🦌", "🎣", "🐟", "🏍", "🥾", "☁", "☀", ...VS16, ...COLOUR].filter((e, i, a) => a.indexOf(e) === i).join("|");
   const SPORT_E = new RegExp(`^\\s*(${ALT})`, "u"), HAS = new RegExp(ALT, "u");

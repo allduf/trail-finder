@@ -28,6 +28,14 @@ on:
         description: "Deep check of every sport on Android simulators (test/deep-check.mjs) instead of a Google Play build"
         type: boolean
         default: false
+      lag:
+        description: "3D lag check: testers' web 3D vs alex's native 3D on one Android simulator (test/lag-check.mjs) instead of a Google Play build"
+        type: boolean
+        default: false
+      lag_sports:
+        description: "Sports for the lag check, comma separated"
+        type: string
+        default: "ski,mtb,hike,fish,hunt,moto"
 
 permissions:
   contents: read
@@ -38,7 +46,7 @@ env:
   GRADLE_RETRY: -Dorg.gradle.internal.repository.max.retries=6 -Dorg.gradle.internal.repository.initial.backoff=2000
 
 concurrency:
-  group: android-app-${{ github.event_name == 'pull_request' && github.ref || inputs.deep && format('deep-{0}', github.ref) || 'release' }}
+  group: android-app-${{ github.event_name == 'pull_request' && github.ref || inputs.deep && format('deep-{0}', github.ref) || inputs.lag && format('lag-{0}', github.ref) || 'release' }}
   cancel-in-progress: false
 
 jobs:
@@ -206,9 +214,71 @@ jobs:
           path: android-app/shots/
           if-no-files-found: ignore
 
+  # Run workflow with "lag" ticked: 3D lag, the testers' web 3D map against alex's native 3D map, the same moves in a few
+  # sports on one Android 14 simulator sized like a mid-range phone (4 cores, 4 GB). Software drawing: compare the two,
+  # never with a real phone. Never fails: the run's summary and the "android-lag" artifact (lag.md, lag.json, shots).
+  lag-check:
+    needs: slot
+    if: github.event_name == 'workflow_dispatch' && inputs.lag
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: android-app
+    env:
+      LAG_SPORTS: ${{ inputs.lag_sports }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+          cache-dependency-path: |
+            android-app/android/**/*.gradle*
+            android-app/android/gradle/wrapper/gradle-wrapper.properties
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test build (opens the website served from this runner)
+        run: |
+          npm ci
+          node -e '
+            const fs = require("fs"), c = JSON.parse(fs.readFileSync("capacitor.config.json"));
+            c.server.url = "http://10.0.2.2:8080/"; c.server.cleartext = true; c.server.allowNavigation.push("10.0.2.2");
+            fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));'
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon -q $GRADLE_RETRY
+      - name: Serve this branch's website (with the live site's data files)
+        run: nohup node test/serve.mjs > /tmp/web.log 2>&1 &
+      - name: Turn on the simulator's speed-up (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Lag check on an Android 14 simulator (mid-range size)
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d   # v2.38.0, pinned to one exact version
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          cores: 4
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swangle_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: android-app
+          script: bash test/lag-check.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-lag
+          path: android-app/shots/
+          if-no-files-found: ignore
+
   play-build:
     needs: slot
-    if: github.event_name != 'pull_request' && !inputs.deep
+    if: github.event_name != 'pull_request' && !inputs.deep && !inputs.lag
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
