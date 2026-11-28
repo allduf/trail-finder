@@ -303,7 +303,7 @@ if (saved) {
   const age = (Date.now() - Date.parse(saved.builtAt || 0)) / 3600e3;
   const ids = new Set((saved.areas || []).map((a) => a.id)), off = av.products.filter((p) => !ids.has(p.areaId)).length;
   const line = `Saved copy: built ${saved.builtAt || "?"} (${age.toFixed(1)} h ago)${off ? `, ${off} of Avalanche Canada's areas not in it yet` : ", same areas as Avalanche Canada"}.`;
-  if (inSeason && age > 12) wrong.push(line + " Over 12 hours old: the hourly rebuild (Winter data) may have stopped, and phones with no signal show it.");
+  if (inSeason && age > 12) wrong.push(line + " Over 12 hours old: the 2-hourly rebuild (Avalanche and snow data) may have stopped, and phones with no signal show it.");
   else notes.push(line);
 }
 if (app.errors.length) notes.push(`Page errors: ${[...new Set(app.errors)].slice(0, 5).join(" | ")}`);
