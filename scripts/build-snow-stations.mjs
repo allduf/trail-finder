@@ -1,4 +1,4 @@
-// Snow stations job (run by .github/workflows/winter-data.yml with the avalanche forecasts, every 2 hours), for
+// Snow stations job (run by .github/workflows/avalanche-data.yml with the avalanche forecasts, every 2 hours), for
 // "Snow stations" in the site's Skiing mode: what the snow is really doing, measured, not modelled.
 //
 // Writes data/snow-stations.json: every active BC Automated Snow Weather Station (the BC River Forecast Centre's snow

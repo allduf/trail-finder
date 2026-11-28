@@ -2,6 +2,9 @@ name: Loam alerts to phones
 
 # A few times a day, check the Loam index at the trails each phone watches and send a phone notification for the
 # ones that just turned prime (40-59). See scripts/push-loam.mjs and supabase/push.sql.
+# GitHub runs this repository's schedules hours late or not at all (2 of these 5 ran on 27 Nov 2026), so the avalanche
+# and snow data job, which keeps itself going (avalanche-data.yml), also starts this one at these times. A second run
+# sends nothing new: each phone's alerts already sent are kept (push_subs.sent).
 # Needs the repository secret SUPABASE_SECRET_KEY (Supabase: Project Settings → API Keys → secret key).
 on:
   schedule:
