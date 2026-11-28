@@ -154,7 +154,10 @@
   // webcams), and the numbers sent last may not be the ones the native screen showed. Once the flat map has settled
   // where the native one was. The searched place's pin has no Details (nd): a tap on it here takes it away.
   const tappable = (l) => l instanceof L.Marker && l.options.icon && !l.options.tfYou && l.options.interactive !== false && !l.options.draggable && (l.listens("click") || l.getPopup());
-  N.addLayer("pins", pins, (n, latlng) => setTimeout(() => {
+  // Sent again only when they changed: most moves leave the same pins around the view, and the native map reads and
+  // lays out every pin again for each send (page test, 2026-11-27: the same pins went with every move).
+  let sentPins = null, nextPins = null;
+  N.addLayer("pins", () => { const d = nextPins != null ? nextPins : pins(); nextPins = null; sentPins = d; return d; }, (n, latlng) => setTimeout(() => {
     let best = null, bd = 3e-5;
     map.eachLayer((l) => {
       if (!tappable(l)) return;
@@ -167,7 +170,16 @@
 
   // Sent again as pins come and go (each move redraws some) and as the map follows the native one, once it settles.
   let later = 0;
-  const resend = (ms) => { if (!N.isOpen || !N.isOpen()) return; clearTimeout(later); later = setTimeout(() => N.send("pins"), ms); };
+  const resend = (ms) => {
+    if (!N.isOpen || !N.isOpen()) return;
+    clearTimeout(later);
+    later = setTimeout(() => {
+      if (!N.isOpen() || (N.draws && !N.draws("pins"))) return;   // nothing would be sent: not worked out either
+      const d = pins();
+      if (d === sentPins) return;
+      nextPins = d; N.send("pins"); nextPins = null;
+    }, ms);
+  };
   map.on("layeradd layerremove", (e) => { if (e.layer instanceof L.Marker) resend(400); });
   map.on("moveend", () => resend(600));
 })();
