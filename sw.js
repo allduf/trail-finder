@@ -19,9 +19,13 @@ const SHELL = [
   "vendor/leaflet-1.9.4.js",
   "vendor/leaflet-1.9.4.css",
   "vendor/leaflet-rotate-0.2.8.js",
+  "vendor/fonts-5.3.0/app-fonts.css", "vendor/fonts-5.3.0/archivo-latin-wdth-normal.woff2", "vendor/fonts-5.3.0/inter-latin-wght-normal.woff2",
+  "vendor/fonts-5.3.0/ride-fonts.css", "vendor/fonts-5.3.0/barlow-condensed-latin-600-normal.woff2", "vendor/fonts-5.3.0/barlow-condensed-latin-700-normal.woff2",
+  "vendor/fonts-5.3.0/barlow-latin-400-normal.woff2", "vendor/fonts-5.3.0/barlow-latin-500-normal.woff2", "vendor/fonts-5.3.0/barlow-latin-600-normal.woff2",
+  "vendor/fonts-5.3.0/jetbrains-mono-latin-400-normal.woff2",
 ];
-// Versioned libraries and fonts: they never change at the same URL, so the cached copy is served first.
-const STATIC_HOSTS = ["cdnjs.cloudflare.com", "unpkg.com", "fonts.googleapis.com", "fonts.gstatic.com"];
+// Versioned libraries: they never change at the same URL, so the cached copy is served first.
+const STATIC_HOSTS = ["cdnjs.cloudflare.com", "unpkg.com"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => Promise.all(SHELL.map((u) => c.add(u).catch(() => null)))).then(() => self.skipWaiting()));

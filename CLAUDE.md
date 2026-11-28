@@ -15,7 +15,8 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - Never commit secrets, API keys, key IDs, passwords, email addresses, or private business information.
 - Never write the name of an unofficial (informal, unsanctioned) trail in plain text anywhere in the repo,
   including the changelog, French lines, commit messages and pull request text. Hand entries for those use
-  hashed names (`nh`), and need no changelog line.
+  hashed names (`nh`), and need no changelog line. `scripts/wording-check.mjs` fails when a file in git names one of them.
+- Fonts come from the site itself (`vendor/fonts-5.3.0`), never Google Fonts, so opening a page sends nothing to Google.
 
 ## Do not go public
 - Prepare for launch, but never do anything that makes the app officially public: no App Store or Google Play
@@ -107,6 +108,14 @@ These are alex's standing rules. Follow them in every session, every sport, ever
   style picked in Skiing lasts until another sport is picked or the app is closed (in 3D, Satellite and Sat + names
   show Winter, as Skiing's 3D always has; Satellite tapped in Layers while native 3D is open shows Satellite there).
 - The phone test's "App builds" checks (`scripts/phone-test.mjs`) fail if either rule above breaks. Keep them passing.
+- Native 3D must work with Low Power Mode (iPhone) and Battery Saver (Android) on (alex 2026-11-27, after alex's iPhone
+  showed a black 3D map in every sport). A native map that draws nothing goes back to the page's own flat map with a
+  note, never a black screen and never the web 3D map. Two guards: the phone test's "App builds" checks it in every
+  sport, and the "Low power 3D" workflow (`.github/workflows/low-power.yml`, `scripts/side-by-side/low-power.mjs`) opens
+  native 3D in every sport on an iPhone simulator and an Android simulator with power saving on, and fails on a black
+  map or a missing fallback. It runs on pull requests touching the apps or `native-map.js`, on main, and weekly: wait
+  for it to pass before merging those (it is not a required check: turn on auto-merge for them only once it is green).
+  Its test switches (`TF_TEST_LOW_POWER`, `TF_TEST_NO_DRAW`, `tf_test_nodraw`) stay in simulator and debug builds only.
 - Native 3D must never be slower than the build before (`/check-lag`), draws nothing while switched off, and shows
   avalanche only exactly as Avalanche Canada gives it.
 - Never leave a feature on one device only without telling alex and writing down the plan to bring it to the others.
@@ -151,6 +160,18 @@ These are alex's standing rules. Follow them in every session, every sport, ever
 - The "Fix PR conflicts" workflow (`.github/workflows/pr-fix.yml`) merges main into open pull requests, and moves
   older ones over to `__V__`, `changelog.d` and French files. Pull before pushing to a pull request branch.
 - If a phone check was cancelled after a merge update, run it again.
+- Failed checks fix themselves when the cause is a hiccup (alex 2026-11-27): "Auto re-run" (`.github/workflows/auto-retry.yml`,
+  `scripts/ci/auto-retry.mjs`) re-runs a failed check once when its log shows a server or runner hiccup (429, 502/503/504,
+  dropped connection, simulator that didn't start), and writes a grey "Auto re-run: <check>" line on the pull request. Its
+  "Real failure: not re-run" means the failure is yours: the thread that owns the pull request fixes it, without waiting for alex.
+  Never add a test failure or a wording or avalanche check to its hiccup list to get a pull request through.
+- Real failures are fixed by AI too (alex 2026-11-27 "yes", uses Claude usage): an hourly scheduled Claude task looks for pull
+  requests on `claude/` branches with a real failure over 60 min old that their thread hasn't fixed, fixes one per hour and
+  pushes an "Auto-fix: <check>: <cause>" commit (at most 2 per pull request). It never loosens a test, wording or avalanche
+  check, never merges, and never comments or emails. Label a pull request `no-auto-fix` to keep it out.
+- At most 2 heavy test runs at once (app builds and simulator tests): each heavy job `needs: slot`, a small job that runs
+  `scripts/ci/heavy-slot.sh`. A new workflow with a simulator or an app build gets the same slot job, and its name goes in
+  `HEAVY` there and in the `workflows:` list of `auto-retry.yml`.
 
 ## Where things are
 - Data files built by workflows live on the `site-data` branch, not main: see `README.md`.

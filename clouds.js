@@ -75,6 +75,8 @@
   const pts = new Map();   // "step:i:j" -> { at, t0, e, v: [[72 values] x VARS] }
   let field = null;        // the grid on the map now: { step, i0, j0, nI, nJ, cells: [point or null], ver }
   let ver = 0, loading = null, note = "";
+  // Why a download failed, in words (never a browser's "Failed to fetch" or an HTTP code).
+  const why = (e) => (window.tfErrText ? window.tfErrText(e) : navigator.onLine ? "no answer from the server" : "no signal");
   const keyOf = (step, i, j) => `${step}:${i}:${j}`;
   function pickGrid(b) {
     const s = b.getSouth(), n = b.getNorth(), w = b.getWest(), e = b.getEast();
@@ -141,7 +143,7 @@
       draw();
     };
     if (!want.length) { if (!field || field.step !== g.step || field.i0 !== g.i0 || field.j0 !== g.j0 || field.nI !== g.nI || field.nJ !== g.nJ) build(); return; }
-    const mine = (loading = getPoints(want, () => { if (loading === mine && on) build(); }).then(() => { note = ""; }, (e) => { note = `Couldn't load all the clouds (${e.message}).`; }));
+    const mine = (loading = getPoints(want, () => { if (loading === mine && on) build(); }).then(() => { note = ""; }, (e) => { note = `Couldn't load all the clouds (${why(e)}).`; }));
     setNote();
     mine.then(() => { if (loading !== mine) return; loading = null; if (on) build(); setNote(); });
   }
@@ -419,8 +421,10 @@
     const sat = useSat();
     const lead = sat ? `Satellite ${satLabel()}` : hour === 0 ? "Forecast now" : "Forecast";
     const H = gridAt(hour), c = map.getCenter(), at = H && sampler(c.lat, c.lng);
-    if (!at) { el.textContent = note || (loading ? `${lead} · loading…` : lead); return; }
-    const cc = at(H.g[V.cc]), pr = at(H.g[V.pr]), sn = at(H.g[V.sn]);
+    const cc = at ? at(H.g[V.cc]) : NaN;
+    // No forecast here yet (still loading, or the weather didn't answer): never "NaN% cloud".
+    if (!at || Number.isNaN(cc)) { el.textContent = note ? `${lead}. ${note}` : loading ? `${lead} · loading…` : lead; return; }
+    const pr = at(H.g[V.pr]), sn = at(H.g[V.sn]);
     const levs = LEVELS.map((_, k) => at(H.g[V.lev + k]));
     const base = LEVELS.find((_, k) => levs[k] >= IN_CLOUD);
     const bits = [lead, `${Math.round(cc)}% cloud`];

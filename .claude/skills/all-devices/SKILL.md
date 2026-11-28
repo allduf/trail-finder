@@ -21,6 +21,8 @@ get every feature. The end goal is every web feature working the same on phones,
 - iPhone builds 150 and later (they draw every 3D feature natively) never show the web 3D map: never add a key to
   `FULL` in `native-map.js` and never take one out of `NativeLayers.all`. Skiing always opens on the Winter map, flat
   and in 3D, on every device. The phone test's "App builds" checks fail if either breaks (alex 2026-11-21).
+- Native 3D must still draw with Low Power Mode / Battery Saver on, and a map that draws nothing goes back to the flat
+  map with a note (alex 2026-11-27). Native or `native-map.js` changes wait for the "Low power 3D" workflow to pass.
 - New native 3D features use the split from PR #847: `ios-app/plugins/TrailMap/ios/Sources/TrailMap/NativeXxx.swift`
   (a `NativeLayer`, one line in `NativeLayers.all`, alphabetical) plus a page side `native-xxx.js` that calls
   `window.tfNative.addLayer(key, get)` and `window.tfNative.send(key)`, guarded

@@ -242,6 +242,7 @@
     if (!list.length) { busy = 0; msg = `No hot springs, viewpoints or scenic roads mapped in the right places for a ${hours} h loop from here. Try another riding time, or plan your own in Plan a route.`; render(); return; }
     // Up to 8 asks to the route server, for 3 loops that head different ways and fit the time.
     const tried = [], got = [], speeds = [];
+    let fails = 0;   // asks the route server didn't answer
     const tryList = async (L2) => {
       for (const idea of L2) {
         if (got.length >= 3 || tried.length >= 8) return;
@@ -251,7 +252,7 @@
         msg = `Checking loop ideas on the roads (${tried.length})…`; outOnly();
         const locs = [S, ...idea.vias, S];
         let r = null;
-        try { r = await H.routeStyled(locs, st); } catch { r = null; }
+        try { r = await H.routeStyled(locs, st); } catch (e) { r = null; if (!/^HTTP 4/.test(e && e.message)) fails++; }   // a 4xx is "no road there", not "no answer"
         if (my !== seq) return;
         if (!r || !r.line || r.line.length < 2 || !r.time) continue;
         speeds.push(r.km / (r.time / 3600));
@@ -273,7 +274,7 @@
         if (my !== seq) return;
       }
     }
-    if (!got.length) { busy = 0; msg = navigator.onLine ? `None of the loop ideas came close to ${hours} h on the roads. Try another riding time or other roads.` : "No signal: Day ride needs the route server."; render(); return; }
+    if (!got.length) { busy = 0; msg = !navigator.onLine ? "No signal: Day ride needs the route server." : fails && !speeds.length ? "The route server didn't answer. Try again in a minute." : `None of the loop ideas came close to ${hours} h on the roads. Try another riding time or other roads.`; render(); return; }
     loops = got.sort((a, b) => Math.abs(1 - a.f) - Math.abs(1 - b.f));
     loops.forEach((x, i) => (x.col = COLS[i]));
     msg = ""; draw(); render();

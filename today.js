@@ -37,10 +37,20 @@
   const hm = (d) => (d ? new Date(d).toLocaleTimeString(window.tfLang && window.tfLang.lang === "fr" ? "fr-CA" : "en-CA", { hour: "numeric", minute: "2-digit" }) : "–");
   const localDay = () => new Date().toLocaleDateString("en-CA");
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  // Asks again every half second until it answers (a sport's data loads after its file), up to ms.
+  // fn's answer, asked again every half second until it gives one (a sport's data loads after its file), up to ms. A
+  // call that hangs (a download that never answers on a weak signal: Hiking's nearby hikes read heights and weather)
+  // is given up then too, so the card never waits longer than ms here (2026-11-27 tough conditions test: over a
+  // minute before).
   async function until(fn, ms = 8000) {
-    for (let t = 0; t <= ms; t += 500) { const v = await Promise.resolve().then(fn).catch(() => null); if (v) return v; await wait(500); }
-    return null;
+    const end = Date.now() + ms, late = wait(ms).then(() => undefined);
+    let pending = null;   // a call still out is waited for, never asked again on top of it
+    for (;;) {
+      if (!pending) pending = Promise.resolve().then(fn).catch(() => null).then((v) => { pending = null; return v || null; });
+      const v = await Promise.race([pending, late]);
+      if (v) return v;
+      if (Date.now() >= end) return null;
+      if (v === null) await wait(Math.min(500, Math.max(0, end - Date.now())));
+    }
   }
 
   const WORDS = {
@@ -203,6 +213,8 @@
     const snow = (s) => (s ? `New snow ${cm(s.snowPast)} in the last 24 h, ${cm(s.snowNext)} forecast in the next 24 h` : "");
     return {
       near, saved, fish: false,
+      // The first bulletin on the card to run out: its ratings come off then (refreshIfOld).
+      until: Math.min(Infinity, ...avys.filter((a) => a && a.bands && a.until).map((a) => a.until)),
       brief: (s) => [["New snow, last 24 h", cm(s.snowPast)], ["Snow forecast, next 24 h", cm(s.snowNext)], ["High and low", `${deg(s.hi)} / ${deg(s.lo)}`]],
       here: (s) => `${s ? kv("New snow, last 24 h", cm(s.snowPast)) + kv("Snow forecast, next 24 h", cm(s.snowNext)) + kv("High and low", `${deg(s.hi)} / ${deg(s.lo)}`) : ""}${avyLine(avys[0])}`,
       why: (x, s, k) => snow(s),
@@ -219,7 +231,7 @@
   }
 
   async function fish(from) {
-    if (window.tfLoadSport) await window.tfLoadSport("fish").catch(() => {});
+    if (window.tfLoadSport) await Promise.race([window.tfLoadSport("fish").catch(() => {}), wait(8000)]);   // a weak signal: on with what came
     const FT = () => (window.tfFish && window.tfFish.trip) || null;   // fishing.js: todayTop and dayScore
     const top = await until(() => (FT() && FT().todayTop ? FT().todayTop(3) : null), 9000);
     const near = top ? top.list.map((x) => ({ ll: [x.lat, x.lon], name: x.name, d: x.d, why0: x.why, open: x.open })) : [];
@@ -244,10 +256,10 @@
   }
 
   async function hunt(from) {
-    if (window.tfLoadSport) await window.tfLoadSport("hunt").catch(() => {});
+    if (window.tfLoadSport) await Promise.race([window.tfLoadSport("hunt").catch(() => {}), wait(8000)]);   // a weak signal: on with what came
     const H = await until(() => (window.tfHunt && window.tfHunt.trip ? window.tfHunt.trip : null), 6000);
     let zones = [];
-    if (H && H.seasonsAt) try { zones = await H.seasonsAt(from.ll[0], from.ll[1]); } catch {}
+    if (H && H.seasonsAt) try { zones = (await Promise.race([H.seasonsAt(from.ll[0], from.ll[1]), wait(8000).then(() => null)])) || []; } catch {}
     const KEEP = ["truck", "harvest", "camp", "other"];
     const pts = window.tfPoints && window.tfPoints.list ? window.tfPoints.list("hunt").filter((p) => !KEEP.includes(p.kind)) : [];
     const saved = pts.map((p) => ({ p, d: kmTo(from.ll, [p.lat, p.lon]) })).sort((a, b) => a.d - b.d).slice(0, 5)
@@ -272,7 +284,7 @@
   }
 
   async function hike(from) {
-    if (window.tfLoadSport) await window.tfLoadSport("hike").catch(() => {});
+    if (window.tfLoadSport) await Promise.race([window.tfLoadSport("hike").catch(() => {}), wait(8000)]);   // a weak signal: on with what came
     const H = await until(() => (window.tfHike && window.tfHike.todayPicks ? window.tfHike : null), 6000);
     let picks = null;
     if (H) picks = await until(async () => { const p = await H.todayPicks(3); return p && p.length ? p : null; }, 8000);
@@ -321,7 +333,8 @@
     const W = WORDS[sp], c = card(sp);
     if (!W || !c) return;
     const from = whereFrom(), full = c.el.classList.contains("open");
-    if (!force && c.at && (c.full || !full) && Date.now() - c.at < 20 * 60000 && c.from && c.how === from.how && kmTo(c.from, from.ll) < 5) return;
+    if (!force && c.at && (c.full || !full) && Date.now() - c.at < 20 * 60000 && Date.now() < c.until && c.day === localDay() && c.from && c.how === from.how && kmTo(c.from, from.ll) < 5) return;
+    c.until = Infinity; c.day = localDay();   // refreshIfOld leaves a read in progress alone
     c.at = Date.now(); c.from = from.ll; c.how = from.how; c.full = full; c.acts = [];
     const my = ++c.seq, el = c.el, q = (s) => el.querySelector(s);
     const go = (f) => { c.acts.push(f); return c.acts.length - 1; };
@@ -335,6 +348,7 @@
     // Didn't load, or the weather service busy (it limits calls a minute): read again once, a little later, if this
     // sport is still the one picked.
     const retry = () => { if (!c.retried) { c.retried = true; setTimeout(() => { if (my === c.seq && sportNow() === sp) fill(sp, true); }, 45000); } };
+    c.until = (S && S.until) || Infinity;
     if (!S) { retry(); c.at = 0; q(".tdy-sum").innerHTML = q(".tdy-here").innerHTML = `<span class="tdy-wait">Today couldn't load. Try again in a minute.</span>`; q(".tdy-near").innerHTML = q(".tdy-saved").innerHTML = ""; return; }
     const places = full ? [from.ll, ...S.near.filter((x) => x.ll).map((x) => x.ll), ...S.saved.map((x) => x.ll)] : [from.ll];
     let wx = [], err = "";
@@ -349,8 +363,9 @@
     let k = 1;
     const nearS = S.near.map((x) => (x.ll ? wx[k++] : null)), savedS = S.saved.map(() => wx[k++]);
     const here = S.here(wx[0]) || "";
-    q(".tdy-here").innerHTML = (err ? `<span class="tdy-wait">${esc(err)}</span>` : "") + here;
-    q(".tdy-here").hidden = !err && !here;
+    // A weather error already shows in the line under the title: not a second time just below it.
+    q(".tdy-here").innerHTML = here;
+    q(".tdy-here").hidden = !here;
     // The avalanche line's index: 0 is here, then the near places, then the saved ones (ski only uses it).
     let ai = 1;
     const nearAi = S.near.map((x) => (x.ll ? ai++ : -1)), savedAi = S.saved.map(() => ai++);
@@ -391,10 +406,28 @@
     setTimeout(() => { if (window.tfPanelScrollTo) window.tfPanelScrollTo(c.el); }, 300);
   }
 
+  // Numbers that are no longer today's (2026-11-27 test: Skiing left open, the phone put away overnight and taken out
+  // with no signal still showed yesterday's avalanche ratings and weather as today's): read again when the app comes
+  // back to the front and the numbers are over 20 minutes old or the last read failed, when the signal comes back after
+  // a failed read, and,
+  // checked each minute while on screen, as soon as an avalanche bulletin on the card runs out or the day changes.
+  // With no signal the read says so, and an expired bulletin shows no rating (winter.js avyToday).
+  function refreshIfOld(e) {
+    if (document.hidden) return;
+    const sp = sportNow(), c = cards[sp];
+    if (!c || !c.seq || !c.el.isConnected) return;
+    const now = Date.now();
+    if (now >= c.until || c.day !== localDay() || (e && e.type === "visibilitychange" && (!c.at || now - c.at > 20 * 60000))
+      || (e && e.type === "online" && !c.at)) fill(sp, true);
+  }
+  document.addEventListener("visibilitychange", refreshIfOld);
+  window.addEventListener("online", refreshIfOld);
+  setInterval(refreshIfOld, 60000);
+
   // The More page's Today and the map sheet (index.html) call tfTodayOpen: MTB keeps status.js's card.
   window.tfTodayOpen0 = window.tfTodayOpen0 || window.tfTodayOpen;
   window.tfTodayOpen = () => open(sportNow());
-  window.tfTodaySport = { open, fill: (sp) => fill(sp || sportNow(), true) };
+  window.tfTodaySport = { open, fill: (sp) => fill(sp || sportNow(), true), mount };   // mount: a sport's scripts came late (winter.js)
 
   // When the app opens: the card in the sport's panel fills in once the map has settled (no pop-up, in any sport).
   const start = () => setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(() => mount(), { timeout: 3000 }) : mount()), 3000);

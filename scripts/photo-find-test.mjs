@@ -27,6 +27,7 @@ import { readFile, writeFile, mkdtemp, appendFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, extname, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchRetry } from "./ci/fetch-retry.mjs";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://fohdmserpbkurcvcrbbb.supabase.co";
 const KEY = process.env.SUPABASE_SECRET_KEY;
@@ -87,7 +88,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }).end(body);
   } catch {
     try {
-      const r = await fetch(LIVE + path);
+      const r = await fetchRetry(LIVE + path);
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   }

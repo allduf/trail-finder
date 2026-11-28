@@ -26,6 +26,7 @@ import { createServer } from "node:http";
 import { readFile, readdir, mkdir, appendFile } from "node:fs/promises";
 import { join, extname, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchRetry } from "./ci/fetch-retry.mjs";
 
 const LIVE = "https://allduf.github.io/trail-finder/";
 const BROWSER = process.env.BROWSER || "webkit";
@@ -38,8 +39,8 @@ const SPORTS = (process.env.SPORTS || "mtb,ski,hunt,fish,moto,hike").split(",").
 // The devices this run goes through: "phone" (iPhone size, touch) and "desk" (a computer: 1440 x 900, mouse).
 const DEVICES = [PHONE_PART && "phone", COMPUTER_PART && "desk"].filter(Boolean);
 const NAMES = { mtb: "MTB", ski: "Skiing", hunt: "Hunting", fish: "Fishing", moto: "Adventure moto", hike: "Hiking", app: "App builds", signin: "Sign-in check", desk: "Computer", site: "Website" };
-// Code libraries (the 3D map's MapLibre), fonts, and the map pictures and heights: everything else outside is cut off.
-const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
+// Code libraries (the 3D map's MapLibre) and the map pictures and heights: everything else outside is cut off.
+const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com", "allduf.github.io"]);   // the last: Winter 3D photos
 // alex's iPhone: 430 x 932 points (iPhone 15/16 Pro Max size).
 const PHONE = {
@@ -57,7 +58,7 @@ const NETWORK = /Load failed|Failed to fetch|NetworkError|network error|aborted|
 
 // ---------- the site, on localhost ----------
 const root = fileURLToPath(new URL("../", import.meta.url));
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
+const TYPES = { ".woff2": "font/woff2", ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".pbf": "application/x-protobuf" };
 const server = createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
@@ -69,7 +70,7 @@ const server = createServer(async (req, res) => {
   } catch {
     try {
       // Last winter's photos (Skiing 3D) are their own site, next to this one.
-      const r = await fetch(/^trail-finder-winter2?\//.test(path) ? new URL("../" + path, LIVE) : LIVE + path);
+      const r = await fetchRetry(/^trail-finder-winter2?\//.test(path) ? new URL("../" + path, LIVE) : LIVE + path);
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   }
@@ -503,10 +504,15 @@ function appStandIn({ platform, keys, admin, photos }) {
     close: () => { if (!tm.screen) return ok(); tm.closes++; setTimeout(() => { const c = window.tfLeaflet.getCenter(); tm.fire("closed", { lat: c.lat, lon: c.lng, zoom: 12, bearing: 0, details: false, layers: false, open: -1 }); }, 0); return ok(); },
     addListener: (name, fn) => { (tm.on[name] = tm.on[name] || []).push(fn); return ok({ remove() {} }); },
   };
-  // The app's other plugins: every call answers with nothing.
+  // The app's other plugins: every call answers with nothing. App keeps the page's Back button listener (Android's
+  // Back, native.js): window.__app.back(), and counts the times the page put the app away (minimizeApp).
   const other = () => new Proxy({}, { get: (_, k) => (k === "then" ? undefined : () => ok(k === "addListener" ? { remove() {} } : {})) });
+  const app = (window.__app = { fns: [], minimized: 0, back: () => app.fns.forEach((f) => f({ canGoBack: history.length > 1 })) });
+  const App = new Proxy({}, { get: (_, k) => (k === "then" ? undefined
+    : k === "addListener" ? (name, fn) => { if (name === "backButton" && typeof fn === "function") app.fns.push(fn); return ok({ remove() {} }); }
+    : k === "minimizeApp" ? () => { app.minimized++; return ok(); } : () => ok({})) });
   window.Capacitor = { isNativePlatform: () => true, getPlatform: () => platform, isPluginAvailable: (n) => n === "TrailMap",
-    registerPlugin: (n) => (n === "TrailMap" ? TrailMap : other()), Plugins: { TrailMap } };
+    registerPlugin: (n) => (n === "TrailMap" ? TrailMap : n === "App" ? App : other()), Plugins: { TrailMap } };
 }
 // desk: the website (kind "web") at computer size, in the computer's run.
 async function appBuild(kind, desk = false) {
@@ -561,6 +567,54 @@ async function appBuild(kind, desk = false) {
       await until(() => [...document.querySelectorAll(".maplibregl-ctrl-group button[data-on]")].length > 0, null, 30_000).catch(() => {});
       return ev(() => [...document.querySelectorAll(".maplibregl-ctrl-group button[data-on]")].map((b) => b.textContent).join(", ") || "none");
     };
+    // Low Power Mode (alex 2026-11-27, "How can we make sure that things like yesterday never happen again?"): on
+    // 2026-11-26 alex's iPhone showed the page's buttons over a black native 3D map in every sport. When the native map
+    // has drawn nothing 8 s after opening, the app says "notDrawn" (builds 204 / 141 on) and the page must go back to its
+    // own flat map (shown, not hidden under the page), with a note naming Low Power Mode / Battery Saver, never the web
+    // 3D map on the iPhone, not open native 3D again by itself, and a tap on 3D must try again. In every sport given.
+    // The simulators' own run of this (a real map, power saving on) is .github/workflows/low-power.yml.
+    const notDrawn = async (sports, admin = false) => {
+      const out = [];
+      const NOTE = kind === "android" ? /Battery Saver/ : /Low Power Mode/;
+      for (const s of sports) {
+        try {
+          if (await ev(() => window.__tm.screen)) { await back(); await wait(600); }
+          await sport(s);
+          await until((s) => document.body.classList.contains("sport-" + s), s, 10_000).catch(() => {});
+          await wait(1500);
+          if (admin) await ev(() => localStorage.setItem("tf-admin", "1"));
+          if (!(await ev(() => window.__tm.screen))) {
+            const n0 = await opens();
+            await tap3d();
+            await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+          }
+          if (!(await ev(() => window.__tm.screen))) { out.push(`${s}: 3D didn't open native 3D`); continue; }
+          const c0 = await ev(() => window.__tm.closes);
+          await ev(() => { const t = document.getElementById("tfToast"); if (t) t.textContent = ""; window.__tm.fire("notDrawn", { lowPower: true }); });
+          await until((c) => window.__tm.closes > c && !window.__tm.screen && !document.documentElement.classList.contains("tf-under"), c0, 5000).catch(() => {});
+          const st = await ev(() => {
+            const m = document.getElementById("map"), tile = window.tfLeaflet && window.tfLeaflet.getPane("tilePane");
+            return { screen: window.__tm.screen, under: document.documentElement.classList.contains("tf-under"),
+              mapShown: !!m && m.getClientRects().length > 0 && getComputedStyle(m).visibility !== "hidden" && !!tile && getComputedStyle(tile).visibility !== "hidden",
+              note: ((document.getElementById("tfToast") || {}).textContent || "").trim() };
+          });
+          if (st.screen || st.under) { out.push(`${s}: the native map that drew nothing stayed up`); continue; }
+          if (!st.mapShown) out.push(`${s}: the page's own flat map isn't shown`);
+          if (!NOTE.test(st.note)) out.push(`${s}: no note naming ${kind === "android" ? "Battery Saver" : "Low Power Mode"} (note: "${st.note || "none"}")`);
+          if (await web3d()) out.push(`${s}: the web 3D map opened`);
+          const n1 = await opens();
+          await wait(2500);
+          if (await opens() !== n1) out.push(`${s}: native 3D opened again by itself`);
+          await tap3d();
+          await until((c) => window.__tm.opens.length > c, n1, 5000).catch(() => {});
+          if (await opens() === n1) out.push(`${s}: a tap on 3D didn't try native 3D again`);
+          if (await ev(() => window.__tm.screen)) await back();
+          await wait(600);
+        } catch (e) { out.push(`${s}: ${String(e.message || e).split("\n")[0].slice(0, 160)}`); }
+      }
+      if (out.length) throw new Error(out.join(" · "));
+    };
+    const ALL = ["mtb", "ski", "hike", "fish", "hunt", "moto"];
 
     await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
@@ -599,6 +653,20 @@ async function appBuild(kind, desk = false) {
         await sport("mtb"); await wait(2500); await sport("ski");
         await flatWinter("back in Skiing");
         await nativeOpen("the 3D button back in Skiing", tap3d);
+      });
+      await check("native map draws nothing (Low Power Mode), every sport: flat map back with a note", () => notDrawn(ALL));
+      await check("native map draws nothing, power saving off: plain note", async () => {
+        if (await ev(() => window.__tm.screen)) await back();
+        await sport("mtb"); await wait(1500);
+        const n0 = await opens();
+        await tap3d();
+        await until((c) => window.__tm.opens.length > c, n0, 5000).catch(() => {});
+        if (!(await ev(() => window.__tm.screen))) throw new Error("3D didn't open native 3D");
+        await ev(() => { const t = document.getElementById("tfToast"); if (t) t.textContent = ""; window.__tm.fire("notDrawn", { lowPower: false }); });
+        await until(() => !window.__tm.screen, null, 5000).catch(() => {});
+        const note = await ev(() => ((document.getElementById("tfToast") || {}).textContent || "").trim());
+        if (!/couldn't draw on this phone/.test(note)) throw new Error(`note: "${note || "none"}"`);
+        await sport("ski"); await wait(1500);
       });
     } else if (kind === "iosu") {
       // alex 2026-11-22: "i want to keep the same interface for both i never want the map to switch from web to native
@@ -794,6 +862,7 @@ async function appBuild(kind, desk = false) {
           else await back();
         }
       });
+      await check("the one map draws nothing (Low Power Mode): flat map back with a note", () => notDrawn(["ski", "hike"]));
     } else if (kind === "android") {
       // Testers: the web 3D map (Android's native 3D is alex's only for now). friends.js keeps "tf-admin" for alex's
       // account only, so it's set again just before alex's tap.
@@ -817,6 +886,26 @@ async function appBuild(kind, desk = false) {
         await ev(() => { localStorage.setItem("tf-admin", "1"); localStorage.removeItem("tf-native-ground"); localStorage.removeItem("tf-native-avy"); localStorage.setItem("tf:avy", "true"); });
         await tap3d();
       }).finally(() => ev(() => localStorage.removeItem("tf:avy")).catch(() => {})));
+      await check("native map draws nothing (Battery Saver), every sport: flat map back with a note", () => notDrawn(ALL, true));
+      // The phone's Back button closes a spot card that shows (Fishing: a tapped spot, a river gauge, a tide station)
+      // before it puts the app away (native.js data-back-close; side-by-side test 2026-11-27: Back left the app with
+      // Fishing's and Hunting's spot cards open, over the flat map and native 3D).
+      await check("Back closes Fishing's spot card first", async () => {
+        await ev(() => localStorage.removeItem("tf-admin"));   // a tester: the page's own flat map
+        if (await ev(() => window.__tm.screen)) { await back(); await wait(1200); }
+        await sport("fish");
+        await until(() => document.body.classList.contains("sport-fish") && !!window.tfLeaflet, null, 10_000);
+        await wait(1500);
+        await ev(() => { const m = window.tfLeaflet, c = m.getCenter(); m.fire("click", { latlng: L.latLng(c.lat + 0.004, c.lng + 0.004), originalEvent: new MouseEvent("click") }); });
+        await until(() => { const e = document.getElementById("fsSpot"); return !!e && !e.hidden; }, null, 8000).catch(() => {});
+        await wait(800);
+        if (!(await ev(() => { const e = document.getElementById("fsSpot"); return !!e && !e.hidden; }))) throw new Error("a tap on the map showed no spot card");
+        const m0 = await ev(() => window.__app.minimized);
+        await ev(() => window.__app.back());
+        await wait(600);
+        if (await ev((m) => window.__app.minimized > m, m0)) throw new Error("Back put the app away with the spot card open");
+        if (await ev(() => { const e = document.getElementById("fsSpot"); return !!e && !e.hidden; })) throw new Error("Back left the spot card open");
+      });
     } else {
       await check("3D photos are Winter (Live picked there before)", async () => {
         await until(() => !!document.querySelector(".is3d"), null, 15_000).catch(() => {});
@@ -831,7 +920,76 @@ async function appBuild(kind, desk = false) {
     console.log(`✗ ${line}: ${label}: the page\n    ${note}`);
   } finally { await p.ctx.close().catch(() => {}); }
 }
+// ---------- A new device opens in the season's sport (alex 2026-11-27) ----------
+// Skiing from Nov 15 to Apr 30, MTB the rest of the year, only on a device that never used the app (the welcome shows):
+// Skiing on Winter and first in the welcome; a device that used the app keeps its last sport. (The other runs never
+// get the season default: phone()'s tf:todayAuto makes them a device that used the app before.)
+async function seasonCheck() {
+  const cases = [
+    ["New phone on Jan 15 opens Skiing on Winter", "2027-01-15", null, "ski"],
+    ["New phone on Nov 15 opens Skiing", "2026-11-15", null, "ski"],
+    ["New phone on Jul 1 opens MTB", "2026-07-01", null, "mtb"],
+    ["New phone on Apr 30 opens Skiing", "2027-04-30", null, "ski"],
+    ["New phone on May 1 opens MTB", "2027-05-01", null, "mtb"],
+    ["New phone on Nov 14 opens MTB", "2026-11-14", null, "mtb"],
+    ["Phone that used MTB stays in MTB on Jan 15", "2027-01-15", "mtb", "mtb"],
+  ];
+  for (const [name, day, before, want] of cases) {
+    const p = await phone(), { page } = p;
+    let note = "";
+    try {
+      await p.ctx.addInitScript(([d, b]) => {
+        window.tfSeasonDate = d;
+        if (!b && !localStorage.getItem("tf:welcomed")) localStorage.removeItem("tf:todayAuto");   // phone()'s own key would make it a used device
+        if (b && !localStorage.getItem("tf:welcomed")) { localStorage.setItem("tf:sport", JSON.stringify(b)); localStorage.setItem("tf:welcomed", "true"); }
+      }, [day, before]);
+      await page.goto(SITE + "index.html", { waitUntil: "domcontentloaded", timeout: 60_000 });
+      await page.waitForSelector("#sportMapBtn", { timeout: 30_000 });
+      if (await page.locator("dialog.tf-terms [data-terms=ok]").click({ timeout: 6000 }).then(() => true, () => false) && !before) {
+        await page.waitForSelector("dialog.welc[open]", { timeout: 6000 });
+        const first = await page.evaluate(() => (document.querySelector("dialog.welc .welc-sports button") || {}).dataset?.sport);
+        if (first !== want) throw new Error(`the welcome lists "${first}" first, not "${want}"`);
+        await page.locator("dialog.welc [data-skip]").first().click({ timeout: 4000 });
+      }
+      await wait(1500);
+      const got = await page.evaluate(() => ({ sport: (document.getElementById("sport") || {}).value, body: document.body.classList.contains("sport-" + (document.getElementById("sport") || {}).value) }));
+      if (got.sport !== want || !got.body) throw new Error(`opened in "${got.sport}", not "${want}"`);
+      if (want === "ski") {
+        await page.waitForFunction(() => (document.getElementById("basemap") || {}).value === "winter", null, { timeout: 10_000 }).catch(() => {});
+        const b = await page.evaluate(() => (document.getElementById("basemap") || {}).value);
+        if (b !== "winter") throw new Error(`Skiing opened on "${b}", not Winter`);
+      }
+    } catch (e) { note = String(e.message || e).split("\n")[0].slice(0, 200); }
+    note = [note, ...p.errors].filter(Boolean).join(" · ");
+    const shot = `app-season-${day}-${want}.png`;
+    await page.screenshot({ path: join(OUT, shot) }).catch(() => {});
+    await p.ctx.close().catch(() => {});
+    results.push({ sport: "app", step: `Season: ${name}`, ok: !note, note, shot });
+    console.log(`${note ? "✗" : "✓"} App builds: Season: ${name}${note ? "\n    " + note : ""}`);
+  }
+}
+// Fonts come from the site itself (vendor/fonts-<version>), never from Google Fonts or another font host: opening a page
+// must send nothing to Google (security and privacy check 2026-11-27). Reads the pages, scripts and stylesheets at the
+// site's root for a font host, and each font stylesheet a page links from vendor/ for its font files.
+async function fontsCheck() {
+  const problems = [], HOSTS = /fonts\.(googleapis|gstatic)\.com|use\.typekit\.net|fonts\.bunny\.net/i;
+  for (const f of (await readdir(root)).filter((n) => /\.(html|js|css)$/.test(n) && n !== "i18n-fr.js")) {
+    const text = await readFile(join(root, f), "utf8");
+    if (HOSTS.test(text)) problems.push(`${f} loads fonts from another site`);
+    for (const m of text.matchAll(/href="\/?(vendor\/fonts[\w.-]*\/[\w.-]+\.css)"/g)) {
+      const css = await readFile(join(root, m[1]), "utf8").catch(() => null);
+      if (css == null) { problems.push(`${f}: ${m[1]} is missing`); continue; }
+      for (const u of css.matchAll(/url\(\s*["']?([^"')]+?)["']?\s*\)/g))
+        if (!(await readFile(join(root, m[1], "..", u[1])).catch(() => null))) problems.push(`${m[1]}: ${u[1]} is missing`);
+    }
+  }
+  results.push({ sport: "app", step: "Fonts come from the site", ok: !problems.length, note: problems.join(" · "), shot: "" });
+  console.log(`${problems.length ? "✗" : "✓"} App builds: fonts come from the site${problems.length ? "\n    " + problems.join("\n    ") : ""}`);
+}
+
 async function appBuilds() {
+await seasonCheck().catch((e) => results.push({ sport: "app", step: "Season sport", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
+await fontsCheck().catch((e) => results.push({ sport: "app", step: "Fonts come from the site", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await fullKeysCheck().catch((e) => results.push({ sport: "app", step: `iPhone builds ${FIRST_FULL.build}+ keep native 3D only`, ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await testPhonesCheck().catch((e) => results.push({ sport: "app", step: "Test phones send no usage", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));
 await usagePrivateCheck().catch((e) => results.push({ sport: "app", step: "Usage holds nothing personal", ok: false, note: String(e.message || e).slice(0, 200), shot: "" }));

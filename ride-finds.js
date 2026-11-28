@@ -230,7 +230,7 @@
     try { secs = await check(ride, fresh); }
     catch (e) {
       if (seq !== mountSeq) return;
-      box.innerHTML = `<p>Couldn't check this ride for new trails (${esc(e.message)}).</p><div class="row"><button class="btn" type="button">Try again</button></div>`;
+      box.innerHTML = `<p>Couldn't check this ride for new trails (${esc((window.tfErrText ? window.tfErrText(e) : e.message))}).</p><div class="row"><button class="btn" type="button">Try again</button></div>`;
       box.querySelector("button").addEventListener("click", () => mount(box, ride, map, true));
       return;
     }

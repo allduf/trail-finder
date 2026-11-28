@@ -55,8 +55,6 @@ if (typeof Object.hasOwn !== "function") addEventListener("DOMContentLoaded", ()
 </head>
 <body>
 <title>Trail Finder</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- The map pictures' servers: connect while the page is still loading, so the first pictures don't wait for it. -->
 <link rel="preconnect" href="https://tile.openstreetmap.org">
 <link rel="preconnect" href="https://ibasemaps-api.arcgis.com">
@@ -1160,6 +1158,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .estats div { display: flex; flex-direction: column; min-width: 0; }
 .estats span { font-size: .75rem; color: var(--muted); }
 .estats strong { font-variant-numeric: tabular-nums; font-size: .92rem; white-space: nowrap; }
+.epart { margin: -6px 0 10px; font-size: .85rem; }
 .echart { position: relative; touch-action: pan-y; }
 .echart svg { display: block; overflow: visible; }
 .echart .eg { stroke: var(--line); stroke-width: 1; }
@@ -1336,10 +1335,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
-<!-- Archivo and Inter (theme.css) and JetBrains Mono (tag tables): one request. The old Barlow fonts are only fallbacks now. -->
-<!-- Not blocking (media=print until it arrives): a stylesheet from another site holds up every script after it, ~0.3 s on
-     a phone's first open; the text shows in the fallback font for that moment instead (display=swap does the same). -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..900&family=Inter:wght@400..700&family=JetBrains+Mono:wght@400&display=swap" media="print" onload="this.media='all'">
+<!-- Archivo and Inter (theme.css) and JetBrains Mono (tag tables): one small stylesheet, and the browser fetches only the
+     font files the page's letters need. The old Barlow fonts are only fallbacks now. -->
+<!-- Served from this site (vendor/fonts-5.3.0), not Google Fonts, so opening the app sends nothing to Google. Not blocking
+     (media=print until it arrives); the text shows in the fallback font for that moment instead (display=swap). -->
+<link rel="stylesheet" href="vendor/fonts-5.3.0/app-fonts.css" media="print" onload="this.media='all'">
 <style>
 /* the phone tab bar is styled in theme.css; hidden here so it never shows unstyled (e.g. with an older cached theme.css) */
 .tabbar { display: none; }
@@ -1354,6 +1354,11 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .lm-offline { display: none; }
 /* Computers: theme.css's Layers button style showed it anyway, squashed ("offlineUse", alex 2026-11-14). */
 @media (min-width: 761px) { body .map-tools .layers-menu .lm-offline { display: none; } }
+/* A short screen at computer width (a phone turned sideways on the website, a small laptop window): the map's buttons
+   wrap into a second column instead of running off the bottom (2026-11-27 tough conditions test). */
+@media (min-width: 761px) and (max-height: 600px) {
+  body .map-tools { bottom: 44px; flex-flow: column wrap-reverse; align-content: flex-start; align-items: flex-start; }
+}
 @media (max-width: 760px) {
   body #layersMenu .lm-offline { display: flex; align-items: center; gap: 10px; width: 100%; margin: 2px 0 8px; padding: 10px 12px; border-radius: 12px;
     border: 1px solid var(--accent, #2f7d4f); background: color-mix(in srgb, var(--accent, #2f7d4f) 12%, transparent); color: inherit; text-align: left; font: inherit; }
@@ -1724,7 +1729,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     { id: "fv", name: "Fraser Valley (Coquitlam to Hope)", box: [49.00, -122.74, 49.42, -121.38] },
     { id: "pri", name: "Princeton", box: [49.38, -120.65, 49.56, -120.40] },
     { id: "mer", name: "Merritt", box: [50.02, -120.95, 50.22, -120.62] },
-    { id: "kam", name: "Kamloops & Sun Peaks", box: [50.55, -120.60, 50.95, -119.80] },
+    { id: "kam", name: "Kamloops & Sun Peaks", box: [50.47, -120.60, 50.95, -119.80] },   // south to 50.47 for Stake Lake (alex 2026-11-27)
     { id: "wl", name: "Williams Lake", box: [52.00, -122.35, 52.25, -121.95] },
     { id: "shu", name: "Salmon Arm & Shuswap", box: [50.62, -119.45, 50.85, -119.05] },
     { id: "ver", name: "Vernon & Silver Star", box: [50.10, -119.45, 50.42, -119.02] },
@@ -2305,7 +2310,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // like it is now"): MTB opens on Map. A style picked before stays (basemap4, shared by these four sports).
   const firstBase = () => {
     const b = document.body.classList;
-    const mtb = b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb");
+    const mtb = b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", window.tfFirstSport || "mtb") === "mtb");
     return mtb ? "osm" : "sathybrid";
   };
   const skiing = () => document.body.classList.contains("sport-ski");
@@ -3621,7 +3626,7 @@ out body;`;
   // (welcome.js tfWelcome.picked): tapping I agree pulled ~3 MB of MTB files behind the welcome screens, whatever sport
   // came next (alex 2026-11-09 app test: "first open on a new phone downloads 6.5 to 8 MB").
   const welcomeWait = () => !!(window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked);
-  const mtbSport = () => { const b = document.body.classList; return b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb"); };
+  const mtbSport = () => { const b = document.body.classList; return b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", window.tfFirstSport || "mtb") === "mtb"); };
   const mtbOff = () => welcomeWait() || !mtbSport();
   let wasMtb = mtbSport();
   // Back to MTB from another sport: its files now (mtbStart is set once the map's MTB layers are ready, below).
@@ -4663,11 +4668,12 @@ out body;`;
     el.classList.remove("muted");
     el.innerHTML = `
       <div class="estats">
-        <div><span>Length</span><strong>${fmtLen(t.chainAll === false ? s.total / 1000 : t.km)}</strong></div>
+        <div><span>Length</span><strong>${fmtLen(t.km || s.total / 1000)}</strong></div>
         <div><span>Climb</span><strong>↑ ${Math.round(s.gain)} m</strong></div>
         <div><span>Descent</span><strong>↓ ${Math.round(s.loss)} m</strong></div>
         <div><span>Low to high</span><strong>${Math.round(s.min)}–${Math.round(s.max)} m</strong></div>
       </div>
+      ${t.chainAll === false && t.km && s.total / 1000 < t.km * 0.95 ? `<p class="muted epart">The profile, climb and descent cover the longest joined stretch, ${fmtLen(s.total / 1000)} of ${fmtLen(t.km)}: the trail's mapped pieces don't all join.</p>` : ""}
       <div class="echart">
         <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Elevation profile: from ${Math.round(pts[0].e)} m to ${Math.round(pts[pts.length - 1].e)} m over ${fmtLen(s.total / 1000)}">
           ${grid}<path d="${area}" class="ea"/><path d="${line}" class="el"/>
@@ -5508,7 +5514,8 @@ out body;`;
         const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
         const ls = full && w.type === "w" && w.ids.every((id) => full.has(id)) ? w.ids.map((id) => full.get(id)) : s.g;
         ls.forEach((l) => {
-          layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          // Under the trail lines the halo has to be wider than a listed trail's white edge (9 to 12 px) to show at all.
+          layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: o.under ? 18 : 11, opacity: o.under ? 0.85 : 0.75, lineCap: "round", interactive: false }));
           if (!o.under) layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
       });
@@ -6328,7 +6335,7 @@ out body;`;
     if (el && !nowSeen.has(el)) { nowSeen.add(el); new MutationObserver(() => syncPeekToday()).observe(el, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden"] }); }
     // The app opened in this sport: its own file (which makes the Today line) isn't there yet. Once it is, look again,
     // or the line stayed off the map's sheet until another sport was picked and back (sport switch test 2026-11-22).
-    if (!el && sp !== "mtb" && window.tfLoadSport && !nowWait.has(sp)) { nowWait.add(sp); window.tfLoadSport(sp).then(() => setTimeout(syncPeekToday, 0), () => {}); }   // once per sport
+    if (!el && sp !== "mtb" && window.tfLoadSport && !nowWait.has(sp)) { nowWait.add(sp); window.tfLoadSport(sp).then(() => setTimeout(syncPeekToday, 0), () => nowWait.delete(sp)); }   // once per sport (again after a failed load)
     const html = sp === "mtb" ? mtbNowHtml : el && !el.hidden ? el.innerHTML : "", was = pt.hidden;
     if (pt.innerHTML !== html) pt.innerHTML = html;
     pt.hidden = !html;

@@ -24,7 +24,7 @@
   // the map style they closed it at"): 3D or flat, and the 3D photos, kept per sport in "map3dBy" and "3dPhotosBy".
   // Not Skiing's photos: Skiing always opens on Winter (alex 2026-11-21, see savedPhotos).
   // The sport itself is saved by winter.js; before it has set the body class, the saved one is the sport.
-  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", "mtb");
+  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", window.tfFirstSport || "mtb");
   const bySport = (k, s, v) => { const o = store.get(k, null) || {}; if (v === undefined) return o[s]; if (o[s] !== v) store.set(k, { ...o, [s]: v }); };
 
   // Phones have far less memory for the 3D map than a computer, and iPhone Safari kills the whole page when it
@@ -2540,6 +2540,77 @@
     const c = { paints: 0, made: 0, tiles: 0, reads: 0, js: 0, crisp: 0 };
     let tilesBy = {};
     try { new PerformanceObserver((l) => { for (const e of l.getEntries()) c.js += e.duration; }).observe({ type: "longtask" }); } catch {}
+    // Which script the page work was (Chrome's long animation frames: the file and function that ran longest), so a
+    // recording names it (alex 2026-11-27: 0.2 s of page work in many turning frames, with nothing else to say what).
+    // Chrome reports a long frame after it is drawn, so they are kept a few seconds and matched to the worst frame by time.
+    const loaf = [];
+    try {
+      new PerformanceObserver((l) => {
+        for (const e of l.getEntries()) for (const x of e.scripts || []) {
+          const file = String(x.sourceURL || "").split("/").pop().split("?")[0];
+          loaf.push({ t0: x.startTime, t1: x.startTime + x.duration, ms: Math.round(x.duration),
+            what: (file ? file + (x.sourceCharPosition >= 0 ? ":" + x.sourceCharPosition : "") + " " : "") + (x.sourceFunctionName || x.invoker || x.invokerType || "") });
+        }
+        const old = performance.now() - 6000;
+        while (loaf.length && loaf[0].t1 < old) loaf.shift();
+      }).observe({ type: "long-animation-frame" });
+    } catch {}
+    const slowest = (f) => { let b = null; for (const x of loaf) if (x.t1 > f.at - f.gap && x.t0 < f.at && (!b || x.ms > b.ms)) b = x; return b; };
+    // How long the graphics card took for each frame (WebGL timer queries, where the browser offers them), split into the
+    // terrain's depth and position passes (drawn again every moving frame: names hidden behind ridges, the ground under
+    // the mouse) and the rest of the frame. Shown only in this readout; with no timer queries the line says so.
+    const gpu = { ok: false, frame: 0, depth: 0, worst: 0, worstDepth: 0, name: "", got: 0 };
+    try {
+      const g2 = gl.painter.context.gl;
+      let ext = g2.getExtension("EXT_disjoint_timer_query_webgl2");
+      const dbg = g2.getExtension("WEBGL_debug_renderer_info");
+      gpu.name = dbg ? String(g2.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "").replace(/^ANGLE \(|\)$/g, "").slice(0, 60) : "";
+      if (ext && typeof g2.beginQuery === "function") {
+        gpu.ok = true;
+        let open = [], cur = null, parts = null, n = 0;
+        // A lost and restored drawing context (a phone's memory saver, a graphics card reset): the extension is asked
+        // for again and old queries are dropped; while it's lost, no timing.
+        gl.getCanvas().addEventListener("webglcontextrestored", () => { ext = g2.getExtension("EXT_disjoint_timer_query_webgl2"); open = []; cur = null; gpu.frame = gpu.depth = gpu.worst = gpu.worstDepth = 0; gpu.got = 0; });
+        const begin = (kind) => {
+          if (!ext || g2.isContextLost()) return;
+          const q = g2.createQuery();
+          if (!q) return;
+          g2.beginQuery(ext.TIME_ELAPSED_EXT, q); cur = { q, kind }; parts.push(cur);
+        };
+        const end = () => { if (cur) { g2.endQuery(ext.TIME_ELAPSED_EXT); cur = null; } };
+        const fns = gl.painter.drawFunctions;
+        if (fns && !fns.tfTimed) {
+          fns.tfTimed = true;
+          for (const k of ["terrainDepth", "terrainCoords"]) {
+            const f = fns[k];
+            if (typeof f === "function") fns[k] = function () { if (!parts) return f.apply(this, arguments); end(); begin("depth"); try { return f.apply(this, arguments); } finally { end(); begin("rest"); } };
+          }
+        }
+        const poll = () => {
+          if (!ext || g2.isContextLost()) { open = []; return; }
+          // Results come a frame or two later; read every few frames, and drop a "disjoint" frame (the card's clock reset).
+          while (open.length && open[0].every((p) => g2.getQueryParameter(p.q, g2.QUERY_RESULT_AVAILABLE))) {
+            const f = open.shift(), bad = g2.getParameter(ext.GPU_DISJOINT_EXT);
+            let rest = 0, depth = 0;
+            for (const p of f) { const ns = g2.getQueryParameter(p.q, g2.QUERY_RESULT); g2.deleteQuery(p.q); if (p.kind === "depth") depth += ns; else rest += ns; }
+            if (bad) continue;
+            const t = (rest + depth) / 1e6, now = performance.now();
+            gpu.frame = t; gpu.depth = depth / 1e6;
+            if (t >= gpu.worst || now - gpu.got > 4000) { gpu.worst = t; gpu.worstDepth = depth / 1e6; gpu.got = now; }
+            gpu.last = now;
+          }
+          while (open.length > 12) for (const p of open.shift()) g2.deleteQuery(p.q);
+        };
+        const render = gl._render;   // wrapped last: anything above failing leaves MapLibre's own
+        gl._render = function () {
+          parts = []; begin("rest");
+          try { return render.apply(this, arguments); } finally {
+            end(); if (parts.length) open.push(parts); parts = null;
+            if (++n % 4 === 0) try { poll(); } catch {}
+          }
+        };
+      }
+    } catch { gpu.ok = false; }
     gl.on("data", (e) => { if (e && e.dataType === "source" && e.tile) { c.tiles++; tilesBy[e.sourceId] = (tilesBy[e.sourceId] || 0) + 1; } });
     try {
       const g = gl.painter.context.gl, rp = g.readPixels;
@@ -2573,9 +2644,13 @@
       el.textContent = `lag check  ${fps} fps  moving: ${gl.isMoving() ? "yes" : "no"}\n` +
         `worst frame (last 4 s): ${worst.gap} ms\n` +
         `  page work ${worst.js} ms · ground repaints ${worst.paints} · new buffers ${worst.made}\n` +
+        ((sl) => sl ? `  longest script ${sl.ms} ms: ${sl.what}\n` : "")(slowest(worst)) +
         `  tiles in ${worst.tiles}${worst.top ? " (" + worst.top + ")" : ""}\n` +
         `  ground lookups ${worst.reads} · line rebuilds ${worst.crisp}\n` +
-        `paint buffers ${pool ? pool._objects.length + " (painting at " + pool._tileSize + " px) ≈ " + mb + " MB" : "-"} · pitch ${Math.round(gl.getPitch())}° · zoom ${gl.getZoom().toFixed(1)}`;
+        `paint buffers ${pool ? pool._objects.length + " (painting at " + pool._tileSize + " px) ≈ " + mb + " MB" : "-"} · pitch ${Math.round(gl.getPitch())}° · zoom ${gl.getZoom().toFixed(1)}\n` +
+        (!gpu.ok ? "graphics card time: not offered by this browser\n" : !gpu.last || now - gpu.last > 3000 ? "graphics card time: waiting\n"
+          : `graphics card: last frame ${gpu.frame.toFixed(1)} ms (depth + position passes ${gpu.depth.toFixed(1)}) · worst ${gpu.worst.toFixed(1)} ms (${gpu.worstDepth.toFixed(1)})\n`) +
+        `screen ${gl.painter.width}×${gl.painter.height} px (×${(devicePixelRatio || 1).toFixed(2)}) · smoothing ${(gl.painter.context.gl.getContextAttributes() || {}).antialias ? "on" : "off"}${gpu.name ? " · " + gpu.name : ""}`;
     });
   }
   let demFixed = false;
@@ -3387,7 +3462,21 @@
       if (e.detail === "ski" && was !== "ski" && skiPhotos !== "winter") { skiPhotos = "winter"; if (gl && gl.style) pick(); }
     });
     const savedPhotos = () => { const s = sportNow(); return s === "ski" ? skiPhotos : bySport("3dPhotosBy", s) || store.get("3dPhotos", "sharp"); };
+    // While the 3D map's style is (re)loading (a sport switch from More, the GPU giving the map back), its layers can't
+    // change yet: the latest pick waits for the style (deep phone test 2026-11-27: "Style is not done loading").
+    let photoWait = null, photoGl = null;
     const setPhotos = (mode) => {
+      if (!gl) return;
+      if (!gl.style || !gl.style._loaded) {
+        photoWait = mode == null ? "" : mode;
+        if (photoGl !== gl) {
+          const m3 = photoGl = gl;
+          const go = () => { if (m3 !== gl) return; if (!gl.style || !gl.style._loaded) { gl.once("styledata", go); return; } const m = photoWait; photoWait = null; photoGl = null; setPhotos(m); };
+          gl.once("styledata", go);
+        }
+        return;
+      }
+      photoWait = null;
       photos = ["sharp", "winter", "live", "topo", "map", "adv"].includes(mode) ? mode : "sharp";
       if (photos === "adv" && !moto()) photos = "sharp";   // ADV topo is Adventure moto's   // (an old saved "2023" choice becomes Summer)
       if (photos === "winter" && !ski()) photos = "sharp";   // last winter's snow photos are for Skiing only

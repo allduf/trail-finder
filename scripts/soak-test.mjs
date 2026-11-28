@@ -28,6 +28,7 @@ import { createServer } from "node:http";
 import { readFile, mkdir, appendFile, writeFile, readdir } from "node:fs/promises";
 import { join, extname, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchRetry } from "./ci/fetch-retry.mjs";
 
 const num = (k, d) => (process.env[k] ? Number(process.env[k]) : d);
 const MINUTES = num("MINUTES", 30), WARM = num("WARM", Math.min(5, MINUTES / 4)), MAX_MB = num("MAX_MB", 3000), HEAP_MB = num("HEAP_MB", 512);
@@ -40,8 +41,8 @@ const PLACES = [
   ["Whistler", -122.95, 50.09], ["Squamish", -123.13, 49.72], ["Pemberton", -122.80, 50.32],
   ["Revelstoke", -118.16, 50.96], ["Rossland", -117.82, 49.10], ["Kicking Horse", -117.06, 51.295],
 ];
-// Code libraries, fonts, map pictures and heights only: everything else outside is cut off (as in phone-test.mjs).
-const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com",
+// Code libraries, map pictures and heights only (fonts come from the site): everything else outside is cut off (as in phone-test.mjs).
+const ALLOWED = new Set(["unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com",
   "tile.openstreetmap.org", "tiles.openfreemap.org", "tiles.mapterhorn.com", "ibasemaps-api.arcgis.com", "server.arcgisonline.com",
   "allduf.github.io", "s3.amazonaws.com", "trailfinderapp.ca"]);
 const PHONE = {
@@ -53,7 +54,7 @@ const PHONE = {
 
 // ---------- the site, on localhost (as phone-test.mjs) ----------
 const root = fileURLToPath(new URL("../", import.meta.url));
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
+const TYPES = { ".woff2": "font/woff2", ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".webp": "image/webp", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json", ".pbf": "application/x-protobuf" };
 const server = createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, "http://x").pathname).replace(/^\/+/, "") || "index.html";
@@ -64,7 +65,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream" }).end(body);
   } catch {
     try {
-      const r = await fetch(/^trail-finder-winter2?\//.test(path) ? "https://allduf.github.io/" + path : LIVE + path);
+      const r = await fetchRetry(/^trail-finder-winter2?\//.test(path) ? "https://allduf.github.io/" + path : LIVE + path);
       res.writeHead(r.status, { "content-type": r.headers.get("content-type") || "application/octet-stream" }).end(Buffer.from(await r.arrayBuffer()));
     } catch { res.writeHead(502).end(); }
   }
