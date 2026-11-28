@@ -400,7 +400,23 @@
     "nsmba-ecc": {"name": "NSMBA, East Cypress Climb Trail announcement (September 12, 2025)", "url": "https://nsmba.ca/east-cypress-climb-trail-opening/", "c": [49.36, -123.184], "r": 1500},
     "fvmba-thorn": {"name": "FVMBA, Thornhill trails agreement with the City of Maple Ridge (November 4, 2022)", "url": "https://fvmba.com/thornhill-trails-agreement/", "c": [49.196, -122.517], "r": 1500},
     "fvmba-allan": {"name": "FVMBA, the story of Allan's Trail (February 18, 2021)", "url": "https://fvmba.com/2020-highlights-the-story-of-allans-trail/", "c": [49.078, -121.99], "r": 2500},
-    "fvmba-herit": {"name": "FVMBA, winter riding in Mission: the Heritage trails (January 31, 2025)", "url": "https://fvmba.com/winter-riding-in-mission/", "c": [49.145, -122.28], "r": 1500}
+    "fvmba-herit": {"name": "FVMBA, winter riding in Mission: the Heritage trails (January 31, 2025)", "url": "https://fvmba.com/winter-riding-in-mission/", "c": [49.145, -122.28], "r": 1500},
+    "ws26": {"name": "WinSport, summer trail map (2026)", "url": "https://www.winsport.ca/assets/PDFs/Maps/2026/2026-WinSport-Summer-Trail-Map.pdf", "c": [51.0794, -114.2161], "r": 1500},
+    "ws25": {"name": "WinSport, bike park trail map (2025)", "url": "https://www.winsport.ca/assets/PDFs/Bike-Park/WinSport-MTB-Map-Centre-2025.pdf", "c": [51.0794, -114.2161], "r": 1500},
+    "tc-yyc": {"name": "Tourism Calgary, mountain biking in and around Calgary (March 5, 2026)", "url": "https://www.visitcalgary.com/things-to-do/stories-from-calgary/best-mountain-biking-trails-in-and-around-calgary", "c": [51.095, -114.19], "r": 3000, "rating": "Tourism Calgary rating"},
+    "cg-edw": {"name": "City of Calgary, Edworthy Park", "url": "https://www.calgary.ca/parks/edworthy-park.html", "c": [51.06, -114.14], "r": 2500},
+    "coe-six": {"name": "City of Edmonton, Transforming Edmonton: Single track to my heart (July 31, 2020)", "url": "https://transforming.edmonton.ca/closer-to-home-single-track-to-my-heart/", "c": [53.5246, -113.5412], "r": 1500},
+    "emba-2212": {"name": "EMBA, November and December 2022 newsletter", "url": "https://www.edmmtnbike.ca/post/emba-november-december-2022-newsletter", "c": [53.53, -113.54], "r": 2000},
+    "emba-2303a": {"name": "EMBA, February 2023 newsletter", "url": "https://www.edmmtnbike.ca/post/emba-february-2023-newsletter", "c": [53.55, -113.43], "r": 4000},
+    "emba-2303b": {"name": "EMBA, March 2023 newsletter", "url": "https://www.edmmtnbike.ca/post/march2023", "c": [53.541, -113.543], "r": 2000},
+    "emba-2311": {"name": "EMBA, November 2023 newsletter", "url": "https://www.edmmtnbike.ca/post/emba-november-2023-newsletter", "c": [53.52, -113.55], "r": 8000},
+    "emba-2402": {"name": "EMBA, February 2024 newsletter", "url": "https://www.edmmtnbike.ca/post/february-2024-newsletter", "c": [53.51, -113.5], "r": 12000},
+    "emba-2404": {"name": "EMBA, April 2024 newsletter", "url": "https://www.edmmtnbike.ca/post/april-2024-newsletter", "c": [53.54, -113.56], "r": 2500},
+    "emba-2409": {"name": "EMBA, September 2024 newsletter", "url": "https://www.edmmtnbike.ca/post/september-2024-newsletter", "c": [53.479, -113.607], "r": 1500},
+    "emba-2503": {"name": "EMBA, E.M.P. Blast bridge announcement (March 13, 2025)", "url": "https://www.edmmtnbike.ca/post/march-announcement3", "c": [53.54, -113.49], "r": 5000},
+    "emba-2506": {"name": "EMBA, 2025 trail work update (June 6, 2025)", "url": "https://www.edmmtnbike.ca/post/trail-ninjas-unleashed", "c": [53.52, -113.48], "r": 12000},
+    "emba-2512a": {"name": "EMBA, winter trail grooming has begun (December 13, 2025)", "url": "https://www.edmmtnbike.ca/post/winter-trail-grooming-has-begun", "c": [53.488, -113.592], "r": 1500},
+    "emba-2512b": {"name": "EMBA, winter grooming update (December 18, 2025)", "url": "https://www.edmmtnbike.ca/post/winter-grooming-update-network-refresh-underway", "c": [53.476, -113.606], "r": 2000}
   },
   "trails": [
     { "s": "tf-mtf", "n": ["Project 9"], "c": [49.5031, -115.1226], "r": 1000, "text": "One of the area's best-known trails (P9). Tourism Fernie says the P9 descent is designated downhill only because of its steep, technical build. Part of the Mount Fernie and Mount Fernie Provincial Park riding area, managed by the Fernie Trails Alliance (trail pass). Tourism Fernie notes the area's mostly north-facing trails can clear of snow later in spring." },
@@ -1863,7 +1879,50 @@
     {"s": "fvmba-herit", "n": ["White Water"], "c": [49.1437, -122.2801], "r": 600, "text": "Part of Mission's Heritage trails, which FVMBA calls its lowest-elevation network. FVMBA maintains them under an agreement with the City of Mission; the land is owned by the Leq'á:mel, Matsqui and Sumas First Nations, who allow the City to use it for parkland and trails."},
     {"s": "fvmba-herit", "n": ["Corrie's Corners"], "c": [49.1476, -122.2773], "r": 600, "text": "Part of Mission's Heritage trails, which FVMBA calls its lowest-elevation network. FVMBA maintains them under an agreement with the City of Mission; the land is owned by the Leq'á:mel, Matsqui and Sumas First Nations, who allow the City to use it for parkland and trails."},
     {"s": "fvmba-herit", "n": ["Gondola"], "c": [49.1473, -122.2767], "r": 600, "text": "Part of Mission's Heritage trails, which FVMBA calls its lowest-elevation network. FVMBA maintains them under an agreement with the City of Mission; the land is owned by the Leq'á:mel, Matsqui and Sumas First Nations, who allow the City to use it for parkland and trails."},
-    {"s": "fvmba-herit", "n": ["Cub Loop Trails"], "c": [49.1418, -122.2845], "r": 600, "text": "Part of Mission's Heritage trails, which FVMBA calls its lowest-elevation network. FVMBA maintains them under an agreement with the City of Mission; the land is owned by the Leq'á:mel, Matsqui and Sumas First Nations, who allow the City to use it for parkland and trails."}
+    {"s": "fvmba-herit", "n": ["Cub Loop Trails"], "c": [49.1418, -122.2845], "r": 600, "text": "Part of Mission's Heritage trails, which FVMBA calls its lowest-elevation network. FVMBA maintains them under an agreement with the City of Mission; the land is owned by the Leq'á:mel, Matsqui and Sumas First Nations, who allow the City to use it for parkland and trails."},
+    {"s": "ws26", "n": ["Lazer Fade"], "c": [51.0792, -114.2226], "r": 500, "level": "Most Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Haircut Rabbit"], "c": [51.0804, -114.2203], "r": 500, "level": "Most Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Safari"], "c": [51.0792, -114.2224], "r": 500, "level": "More Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Double Jeopardy"], "c": [51.079, -114.2216], "r": 500, "level": "More Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Dragon Slayer"], "c": [51.0788, -114.2215], "r": 500, "level": "More Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Squirrely Dan"], "c": [51.0782, -114.2201], "r": 500, "level": "More Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Pandamonium", "Panda-Monium"], "c": [51.0797, -114.2213], "r": 500, "level": "More Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Toad's Salami"], "c": [51.0769, -114.2202], "r": 500, "level": "More Difficult", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Muscle Hamster"], "c": [51.0788, -114.2199], "r": 500, "level": "Easiest", "kind": "Freeride"},
+    {"s": "ws26", "n": ["Tender Vittles"], "c": [51.0787, -114.2205], "r": 500, "level": "More Difficult", "kind": "Technical"},
+    {"s": "ws26", "n": ["BBQ Jello"], "c": [51.0792, -114.2202], "r": 500, "level": "More Difficult", "kind": "Technical"},
+    {"s": "ws25", "n": ["Needatowie"], "c": [51.0784, -114.2217], "r": 500, "kind": "Up track"},
+    {"s": "tc-yyc", "n": ["Sideshow Bob"], "c": [51.0843, -114.1649], "r": 1500, "level": "Intermediate", "text": "In Bowmont Park, on the slope between Silver Springs and the Bow River. Tourism Calgary describes it as a technical singletrack with plenty of exposure. Tourism Calgary says the Calgary Mountain Bike Alliance and volunteers look after the trails here with the City of Calgary's permission."},
+    {"s": "coe-six", "n": ["Six Shooter"], "c": [53.5246, -113.5412], "r": 800, "text": "A City of Edmonton staff story calls it \"blue flow\": a cruisy trail with flowing turns and roller-coaster hills, a few minutes from downtown. The story says the Edmonton Mountain Bike Alliance (EMBA) and City staff work together on the river valley's singletrack."},
+    {"s": "emba-2402", "n": ["Six Shooter"], "c": [53.5246, -113.5412], "r": 800, "text": "EMBA's winter notes: it sits higher up, where days can be warmer, and its steeper grades tend to get rutted, so it can be hard to keep packed in winter."},
+    {"s": "emba-2212", "n": ["Ray Gun"], "c": [53.5287, -113.5387], "r": 800, "text": "Next to Six Shooter in the wooded area between Groat Road, Emily Murphy Park Road and Saskatchewan Drive. EMBA lists both among the well-used natural surface trails its volunteers maintain."},
+    {"s": "emba-2506", "n": ["EMP Blast", "E.M.P. Blast"], "c": [53.5319, -113.5302], "r": 800, "text": "EMBA volunteers, Do North trail runners and City staff replaced its old bridge in 2025 (new beams and grippy decking) and reshaped most of the muddy climb."},
+    {"s": "emba-2303a", "n": ["Moonraker"], "c": [53.5594, -113.4137], "r": 800, "text": "EMBA volunteers worked with the City on its 40-foot wooden bridge."},
+    {"s": "emba-2303a", "n": ["Caddytrack"], "c": [53.5521, -113.4516], "r": 800, "text": "On the east side of the river valley; an EMBA ride leader names Caddytrack to Hustler as a favourite east-side section."},
+    {"s": "emba-2402", "n": ["Caddytrack"], "c": [53.5521, -113.4516], "r": 800, "text": "EMBA's winter notes say steeper trails like this one tend to get rutted and are hard to keep groomed."},
+    {"s": "emba-2506", "n": ["Hustler"], "c": [53.5454, -113.4057], "r": 800, "text": "Near Gold Bar Park. On EMBA's list of trails its volunteers tuned up in 2025."},
+    {"s": "emba-2506", "n": ["Gold Digger"], "c": [53.5527, -113.4016], "r": 800, "text": "In the Gold Bar Park area. On EMBA's list of trails its volunteers tuned up in 2025."},
+    {"s": "emba-2506", "n": ["Risky Business"], "c": [53.5553, -113.4361], "r": 800, "text": "On EMBA's list of trails its volunteers tuned up in 2025."},
+    {"s": "emba-2506", "n": ["Sideline"], "c": [53.5585, -113.43], "r": 800, "text": "On EMBA's list of trails its volunteers tuned up in 2025."},
+    {"s": "emba-2402", "n": ["Higher Edukation"], "c": [53.5592, -113.4441], "r": 800, "text": "One of the trails added in 2024 to the roughly 11 km of extra trail EMBA maintains with the City."},
+    {"s": "emba-2402", "n": ["Low Class"], "c": [53.5591, -113.4423], "r": 800, "text": "One of the trails added in 2024 to the roughly 11 km of extra trail EMBA maintains with the City."},
+    {"s": "emba-2402", "n": ["Cloverdale Bridge Detour", "Cloverdale Bridge Detour alt"], "c": [53.538, -113.4775], "r": 800, "text": "One of the trails added in 2024 to the roughly 11 km of extra trail EMBA maintains with the City."},
+    {"s": "emba-2503", "n": ["Andre's Trail"], "c": [53.5526, -113.4477], "r": 800, "text": "Andre's Bridge on this trail is a completed EMBA project."},
+    {"s": "emba-2512b", "n": ["Upper Corkscrew"], "c": [53.4786, -113.6081], "r": 800, "text": "Terwillegar Park area. EMBA's December 18, 2025 grooming report lists it among the trails it groomed for winter riding that week (a past report, not current conditions)."},
+    {"s": "emba-2512b", "n": ["Lower Corkscrew"], "c": [53.4792, -113.6063], "r": 800, "text": "Terwillegar Park area. EMBA's December 18, 2025 grooming report lists it among the trails it groomed for winter riding that week (a past report, not current conditions)."},
+    {"s": "emba-2409", "n": ["Lower Corkscrew"], "c": [53.4792, -113.6063], "r": 800, "text": "In 2024 EMBA volunteers moved a short section slightly uphill at a corner that often held mud."},
+    {"s": "emba-2512b", "n": ["Dave's Trail"], "c": [53.4758, -113.6085], "r": 800, "text": "Terwillegar Park area. EMBA's December 18, 2025 grooming report lists it among the trails it groomed for winter riding that week (a past report, not current conditions)."},
+    {"s": "emba-2512b", "n": ["Go Trail", "GO Trail"], "c": [53.4702, -113.6032], "r": 800, "text": "Terwillegar Park area. EMBA's December 18, 2025 grooming report lists it among the trails it groomed for winter riding that week (a past report, not current conditions)."},
+    {"s": "emba-2512a", "n": ["Flat Pete"], "c": [53.4908, -113.5908], "r": 800, "text": "In Jan Reimer Park (formerly Oleskiw Park). EMBA's December 13, 2025 grooming report lists it among the trails it groomed for winter riding that day (a past report, not current conditions)."},
+    {"s": "emba-2512a", "n": ["Flatter Pete"], "c": [53.4875, -113.5904], "r": 800, "text": "In Jan Reimer Park (formerly Oleskiw Park). EMBA's December 13, 2025 grooming report lists it among the trails it groomed for winter riding that day (a past report, not current conditions)."},
+    {"s": "emba-2512a", "n": ["Logarythmic", "Logarithm"], "c": [53.4826, -113.5938], "r": 800, "text": "In Jan Reimer Park (formerly Oleskiw Park). EMBA calls it Logarithm; its December 13, 2025 grooming report lists it among the trails groomed for winter riding that day (a past report, not current conditions)."},
+    {"s": "emba-2402", "n": ["Mustang"], "c": [53.4555, -113.616], "r": 800, "text": "EMBA's winter notes say parts of it are off-camber, so volunteers shape a bench in the snow before it can be groomed."},
+    {"s": "emba-2404", "n": ["Back Breaker"], "c": [53.538, -113.5654], "r": 800, "text": "Volunteers from the Women On Wheels club have done trail maintenance on it."},
+    {"s": "emba-2404", "n": ["Root Canal"], "c": [53.5413, -113.5751], "r": 800, "text": "Volunteers from the Women On Wheels club have done trail maintenance on it."},
+    {"s": "emba-2404", "n": ["Purple Haze"], "c": [53.5418, -113.5427], "r": 800, "text": "Volunteers from the Women On Wheels club have done trail maintenance on it."},
+    {"s": "emba-2303b", "n": ["Wonder Woman"], "c": [53.541, -113.543], "r": 800, "text": "West of Groat Road on the north side of the river near MacKinnon Ravine, starting near Government House at the top of Government Hill. Built together by Cassette Collective, Women On Wheels and SheShreds."},
+    {"s": "emba-2311", "n": ["Lover's Lane"], "c": [53.5433, -113.5414], "r": 800, "text": "One of the trails where EMBA ran volunteer trail nights in 2023."},
+    {"s": "emba-2311", "n": ["Fireman's Descent"], "c": [53.4791, -113.5933], "r": 800, "text": "One of the trails where EMBA ran volunteer trail nights in 2023."}
   ],
   "hikes": [
     { "s": "tf-heiko", "n": ["Heiko's Trail"], "c": [49.5632, -115.1313], "r": 5400, "level": "Difficult", "km": "20", "text": "Tourism Fernie's figures: 8 to 11 hours one way to Island Lake Lodge, 1,450 m up and 1,585 m down, over Three Sisters Pass and Windy Pass. Built by Heiko Socher (finished 2003, once the Mountain Lakes Trail). Hiking only, no bikes. Backcountry with no cell coverage; Tourism Fernie says the trailhead road needs high clearance and access at Island Lake Lodge is only on some days." },
@@ -2670,7 +2729,8 @@
     {"s": "gault", "n": ["Sentier du Dieppe (Vert)", "Dieppe"], "c": [45.5543, -73.1689], "r": 1800, "text": "McGill's Gault Nature Reserve lists Dieppe (green trail) at 7.6 km with 238 m of climbing, about 3 h (their estimate). The reserve says a day pass (booked online, free for 17 and under) is needed to enter.", "km": "7.6"},
     {"s": "gault", "n": ["Sentier Rocky (Rouge)", "Sentier Rocky (Bleu)", "Rocky"], "c": [45.5538, -73.1607], "r": 2000, "text": "McGill's Gault Nature Reserve lists two Rocky loops: Rocky 1 (red and blue trails) at 5.5 km with 272 m of climbing, about 3 h 30 (their estimate), and Rocky 2 (red and green trails) at 8.0 km with 267 m of climbing, about 3 h (their estimate). The reserve says a day pass (booked online, free for 17 and under) is needed to enter."},
     {"s": "gault", "n": ["Sentier Lac Hertel", "Lake Hertel"], "c": [45.5408, -73.1561], "r": 1100, "text": "McGill's Gault Nature Reserve lists the Lake Hertel trail at 500 m with 41 m of climbing, about 10 min (their estimate). The reserve says a day pass (booked online, free for 17 and under) is needed to enter.", "km": "0.5"},
-    {"s": "gault", "n": ["Sentier Mauve", "Boucle mauve"], "c": [45.5489, -73.1586], "r": 1500, "text": "McGill's Gault Nature Reserve lists the Boucle mauve at 4.9 km, about 1 h 30 (their estimate). The reserve says a day pass (booked online, free for 17 and under) is needed to enter.", "km": "4.9"}
+    {"s": "gault", "n": ["Sentier Mauve", "Boucle mauve"], "c": [45.5489, -73.1586], "r": 1500, "text": "McGill's Gault Nature Reserve lists the Boucle mauve at 4.9 km, about 1 h 30 (their estimate). The reserve says a day pass (booked online, free for 17 and under) is needed to enter.", "km": "4.9"},
+    {"s": "cg-edw", "n": ["Douglas Fir Trail"], "c": [51.054, -114.136], "r": 1500, "text": "In Edworthy Park, on the south bank of the Bow River. In November 2026 the City of Calgary's park page said the gravel parking lot would be closed to public parking until the end of February 2027 for the Douglas Fir Trail project, and that some informal trails on the upper escarpment were being closed and restored."}
   ],
   "hikePhotos": [
     { "n": ["Deeks Lake Trail"], "c": [49.522, -123.231], "r": 4000, "f": ["File:Deek's Lake Hike (16518150250).jpg", "File:Deek's Lake (4502288316).jpg", "File:Deek's Lake Hike (16085599943).jpg", "File:Deek's Lake (4501653797).jpg"] },
@@ -2763,6 +2823,13 @@
     },
     "trca-ah": {
       "Single-track": "On TRCA's Albion Hills map, single-track trails are for mountain biking only; the wider park trails are shared with hikers. TRCA calls its difficulty ratings a guideline only: trail conditions can change at any time."
+    },
+    "ws26": {
+      "Freeride": "On WinSport's 2026 map, freeride trails have machine-cut and built features (dirt jumps, boxes, gaps, narrow surfaces, wall rides, berms) and marks every freeride trail, green ones included, as needing jumping skills. The map says a valid pass and waiver are needed.",
+      "Technical": "On WinSport's 2026 map, technical trails follow the hill's rugged natural shape, with rocks, roots, logs and drops, and can also have freeride features. The map says a valid pass and waiver are needed."
+    },
+    "ws25": {
+      "Up track": "The map says a valid pass and waiver are needed."
     }
   }
 }
