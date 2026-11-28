@@ -196,6 +196,9 @@
     { name: "The Convex", c: [45.46211, -65.92972], r: 500, dir: "down", who: "the Millennium Cycle Bike Park map (Quispamsis)", where: "quispamsis.ca", note: "downhill only (Millennium Cycle Bike Park, Quispamsis)" },
     { name: "Summit Trail", c: [45.87448, -66.90451], r: 500, dir: "climb", who: "River Valley Cycling's Woolastook trailhead map (2025)", where: "rivervalleycycling.com", note: "a climbing trail (Woolastook, near Fredericton)" },
     { name: "Enthusiast's Path", c: [45.30721, -66.04369], r: 500, dir: "climb", who: "Saint John Cycling", where: "saintjohncycling.com", note: "a climbing trail (Rockwood Park, Saint John)" },
+    // Cypress Hills Provincial Park (Elkwater, Alberta): Alberta Parks' trail pages.
+    { name: "Last Grizzly", c: [49.65561, -110.27753], r: 500, dir: "down", who: "Alberta Parks", where: "albertaparks.ca", note: "downhill only, bikes only (Cypress Hills Provincial Park)" },
+    { name: "Sorry", c: [49.65631, -110.26781], r: 900, dir: "climb", who: "Alberta Parks", where: "albertaparks.ca", note: "a climbing trail for bikes up to Hidden Valley (Cypress Hills Provincial Park)" },
   ];
   const WHY = {
     none: "No map tag, local trail data or rider report says which way it's ridden, so it's shown as both ways.",
