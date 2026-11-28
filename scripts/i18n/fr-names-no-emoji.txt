@@ -1,0 +1,1 @@
+Trail names show without the emoji some maps add to them (like a green circle or diamonds). The level still shows from the trail's own grade. ||| Les noms de sentiers s'affichent sans les emoji que certaines cartes y ajoutent (comme un rond vert ou des losanges). Le niveau s'affiche toujours selon la cote du sentier.
