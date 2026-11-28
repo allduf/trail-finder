@@ -406,11 +406,11 @@ async function bounds() { return jsq(`(() => { const m = window.tfLeaflet, c = m
   mark("back2d"); await snap();
   // ---- Part 2: plan your own. The loop is cleared off camera first (a person would tap Clear).
   await jsq(`(() => { const c = document.getElementById("planClear"); if (c) c.click(); const d = document.getElementById("planDone"); if (d) d.click(); return 1; })()`); await sleep(2500);
-  await jsq(`(window.tfLeaflet.setView([50.1265, -122.9455], 15, { animate: false }), 1)`); await sleep(6000);
+  await jsq(`(window.tfLeaflet.setView([50.1207, -122.9455], 15, { animate: false }), 1)`); await sleep(6000);
   mark("p2map"); await snap(); await snap();
   await ptap('#tabbar [data-nav="ride"]', 2500, "ride"); mark("ride");
   await ptap('[data-hub="plan"]', 4000, "plan"); mark("plan");
-  await jsq(`(window.tfLeaflet.setView([50.1265, -122.9455], 15, { animate: false }), 1)`); await sleep(5000); await snap(); mark("planmap"); await snap();
+  await jsq(`(window.tfLeaflet.setView([50.1207, -122.9455], 15, { animate: false }), 1)`); await sleep(5000); await snap(); mark("planmap"); await snap();
   for (const [i, [n, ll]] of PICKS.entries()) { await mapTap(ll, "pick" + (i + 1)); mark("pick" + (i + 1)); }
   log("own: " + (await waitBuilt())); await snap(); mark("built"); await snap();
   await ttap("#planTrails button, #planStats button, .plan-bar button", /Best order/, 9000, "best"); mark("best");

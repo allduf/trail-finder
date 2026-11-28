@@ -18,7 +18,6 @@ jobs:
       matrix:
         include:
           - { part: ui, env: "PART=ui" }
-          - { part: fly, env: "PART=fly" }
     runs-on: macos-15
     timeout-minutes: 120
     steps:
