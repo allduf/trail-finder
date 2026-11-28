@@ -360,6 +360,9 @@ const SPOTS = { Squamish: [49.705, -123.135], "Squamish Alice Lake": [49.775, -1
     names.forEach((n, i) => log(`${n}: loam ${Array.isArray(lmi) ? lmi[i] : lmi}, snow ${Array.isArray(snow) ? snow[i] : snow}, frozen ${Array.isArray(frz) ? frz[i] : frz}, prime soon ${Array.isArray(soon) ? JSON.stringify(soon[i]) : soon}`));
   }
   await jsq(`window.tfLeaflet.setView([${SPOT[0]}, ${SPOT[1]}], ${Z}, { animate: false })`); await sleep(12000);
+  // The Loam readings come from Open-Meteo: wait for the Today line (the loam at the middle of the map) before filming.
+  for (let i = 0; i < 60 && !((await TEXT("#peekToday")) || "").trim(); i++) { await sleep(3000); if (i % 10 === 9) await jsq(`window.tfLeaflet.panBy([1, 0], { animate: false })`); }
+  log("today line ready: " + (await TEXT("#peekToday")));
   await jsq(`(() => { const s = document.createElement("style"); s.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; caret-color: transparent !important; }"; document.head.append(s); return 1; })()`);
   if (PART === "fly") {
     await click("details.legend:has(.lg-mode) summary"); await sleep(800); await click(".legend .lg-mode button[data-c=loam]"); await sleep(8000); await click("details.legend:has(.lg-mode) summary"); await sleep(800);
@@ -378,14 +381,15 @@ const SPOTS = { Squamish: [49.705, -123.135], "Squamish Alice Lake": [49.775, -1
   log("today line: " + (await TEXT("#peekToday")));
   // 2. Key, then Loam: every trail in today's loam colour.
   await ptap("details.legend:has(.lg-mode) summary", 1500, "key"); mark("key_open");
-  await ptap(".legend .lg-mode button[data-c=loam]", 9000, "key_loam"); mark("key_loam"); await hold(4);
+  await ptap(".legend .lg-mode button[data-c=loam]", 15000, "key_loam"); mark("key_loam"); await hold(4);
   log("key: " + (await TEXT("details.legend:has(.lg-mode)")));
   await ptap("details.legend:has(.lg-mode) summary", 2500, "key_close"); mark("map_loam"); await hold(4);
   // 3. A trail: its Loam number, then its weather and loam part.
   let opened = false;
   for (const t of TRAIL.split(",").filter(Boolean)) if ((opened = await openTrail(t))) break;
   if (opened) {
-    await sleep(9000); await snap(); mark("card"); await hold(3);
+    for (let i = 0; i < 40 && /Loading weather/.test((await TEXT("#wx")) || "Loading weather"); i++) await sleep(2000);
+    await sleep(3000); await snap(); mark("card"); await hold(3);
     log("card head: " + (await TEXT(".d-facts")));
     await ptap(".d-facts button[data-to=wx]", 4000, "loam_fact"); mark("wx"); await hold(3);
     log("wx: " + (await TEXT("#wx")));
