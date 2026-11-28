@@ -28,7 +28,8 @@ mkdirSync("shots", { recursive: true });
 let ws, seq = 0;
 const waiting = new Map();
 async function connect() {
-  if (ws) try { ws.close(); } catch {}
+  // The old connection's handlers go first: its late close must not fail what the new one is waiting for.
+  if (ws) try { ws.onclose = ws.onmessage = null; ws.close(); } catch {}
   let p = null;
   for (let i = 0; i < 30 && !p; i++) {
     try {
@@ -43,10 +44,10 @@ async function connect() {
     if (!p) await sleep(2000);
   }
   if (!p) throw new Error("the app's web page never showed up");
-  ws = new WebSocket(p.webSocketDebuggerUrl);
-  await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
-  ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id); } };
-  ws.onclose = () => { for (const [, f] of waiting) f({ result: { exceptionDetails: { text: "page connection closed" } } }); waiting.clear(); };
+  const me = (ws = new WebSocket(p.webSocketDebuggerUrl));
+  await new Promise((r, j) => { me.onopen = r; me.onerror = j; });
+  me.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id); } };
+  me.onclose = () => { if (ws !== me) return; for (const [, f] of waiting) f({ result: { exceptionDetails: { text: "page connection closed" } } }); waiting.clear(); };
 }
 function cdp(method, params = {}) {
   const id = ++seq;
@@ -70,7 +71,6 @@ async function fingerTap(sel) {
   const r = await js(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, dpr: devicePixelRatio, ih: innerHeight }; })()`);
   if (!r) return false;
   if (topPx == null) {
-    topPx = 0;
     try {
       await js(`(() => { window.__tapY = null; const d = document.createElement("div"); d.id = "__probe"; d.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:transparent";
         d.addEventListener("touchstart", (e) => { window.__tapY = e.touches[0].clientY; e.preventDefault(); e.stopPropagation(); }, { passive: false });
@@ -80,10 +80,10 @@ async function fingerTap(sel) {
       await sleep(800);
       const cy = await js("window.__tapY");
       await js(`document.getElementById("__probe")?.remove()`);
-      if (cy != null) topPx = Math.round(y - cy * r.dpr);
+      if (cy != null) topPx = Math.round(y - cy * r.dpr);   // measured again next time when this one missed
     } catch {}
   }
-  adb(`shell input tap ${Math.round(r.x * r.dpr)} ${Math.round(r.y * r.dpr + topPx)}`);
+  adb(`shell input tap ${Math.round(r.x * r.dpr)} ${Math.round(r.y * r.dpr + (topPx || 0))}`);
   return true;
 }
 const agree = () => js(`(() => { const b = document.querySelector("#tfRisk [data-rk=ok], #tfRisk .rk-ok"); if (b && b.offsetParent) { b.click(); return true; } return false; })()`).catch(() => false);
@@ -128,7 +128,7 @@ async function freshApp(sport, native) {
   await sleep(15000);
   await connect();
   await js(`(() => { ${native ? `localStorage.setItem("tf-admin", "1")` : `localStorage.removeItem("tf-admin")`}; localStorage.setItem("tf:sport", JSON.stringify(${JSON.stringify(sport)}));
-    localStorage.setItem("tf:todayAuto", "false"); localStorage.setItem("tfLagCheck", "1"); location.reload(); })()`).catch(() => {});
+    localStorage.setItem("tf:todayAuto", "false"); localStorage.removeItem("tfLagCheck"); location.reload(); })()`).catch(() => {});
   await sleep(12000);
   await connect();
 }
@@ -152,9 +152,11 @@ async function run(sport, native) {
       s = await in3d();
       if (!up() && i < 2) { await sleep(4000); s = await in3d(); }
     }
-    r.opened = native ? (s.native ? (/2D/.test(s.b) ? "native 3D" : "native, seen from above") : s.web ? "web 3D (not native)" : "nothing") : s.web ? "web 3D" : s.native ? "native (not web)" : "nothing";
+    // tfNative.isOpen() is true in native 3D only: alex's one map seen from above is native too (its screen shows).
+    if (native && !s.native && nativeShows()) s.above = true;
+    r.opened = native ? (s.above ? "native, seen from above" : s.native ? (/2D/.test(s.b) ? "native 3D" : "native, seen from above") : s.web ? "web 3D (not native)" : "nothing") : s.web ? "web 3D" : s.native ? "native (not web)" : "nothing";
     console.log(`    opened: ${r.opened}`);
-    if (native && !s.native) throw new Error("native 3D didn't open");
+    if (native && !s.native && !s.above) throw new Error("native 3D didn't open");
     if (!native && !s.web) throw new Error("web 3D didn't open");
     await sleep(25000);   // the ground and photos come in
     if (!native) await js(`(() => { const s = (window.__lag = { gaps: [], lt: 0, on: true }); let last = performance.now();
@@ -178,7 +180,6 @@ async function run(sport, native) {
     if (!native) {
       const p = await js(`(() => { const s = window.__lag; s.on = false; return { gaps: s.gaps.slice(2), lt: Math.round(s.lt) }; })()`).catch(() => null);
       if (p) { r.page = stats(p.gaps.filter((g) => g < 1500)); r.longTaskMs = p.lt; }
-      r.readout = await js(`(() => { const d = [...document.querySelectorAll("div")].find((e) => /^lag check/.test(e.textContent || "")); return d ? d.textContent : null; })()`).catch(() => null);
     } else r.moves = await js("window.__moves").catch(() => null);
     try { const m = adb(`shell dumpsys meminfo ${APP}`).match(/TOTAL PSS:\s*(\d+)|TOTAL\s+(\d+)/); r.memMB = m ? Math.round(+(m[1] || m[2]) / 1024) : null; } catch {}
     shot(`lag-${sport}-${way}.png`);
