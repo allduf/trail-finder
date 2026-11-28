@@ -10,12 +10,12 @@
 // elevation band (always Avalanche Canada's own rating, never raised or lowered), with stripes of a darker shade where its aspect and elevation are named in the day's avalanche problems.
 // Also a "Ski heatmap" of winter OpenStreetMap GPS traces, "Your ski tours" from the rider's own rides, and
 // snowmobile trails with the region's snowmobile clubs and their latest grooming reports.
-// Data: data/ski.json and data/avalanche.json, made by .github/workflows/winter-data.yml; data/ski-heat.json, made
+// Data: data/ski.json (.github/workflows/winter-data.yml) and data/avalanche.json (avalanche-data.yml); data/ski-heat.json, made
 // by .github/workflows/ski-heat.yml; data/snowmobile-clubs.json (hand-kept club list) and data/grooming.json (the
-// clubs' grooming reports, read every few hours by winter-data.yml where a club's page can be read); your tours from this browser's IndexedDB "trail-finder-rides" (ride.html).
+// clubs' grooming reports, read every 2 hours by avalanche-data.yml where a club's page can be read); your tours from this browser's IndexedDB "trail-finder-rides" (ride.html).
 // A route's details: heights, profile and slopes from the terrain tiles, the avalanche forecast for the bands it goes
 // through, riders' avalanche reports near it (data/avalanche-reports.json, Avalanche Canada's Mountain Information
-// Network, made by winter-data.yml), and the weather at its top (Open-Meteo, free, no key).
+// Network, made by avalanche-data.yml), and the weather at its top (Open-Meteo, free, no key).
 // Terrain heights: AWS Terrain Tiles (Mapzen, open, no key).
 // Hold ☰ and drag a row up or down a list (alex 2026-11-11: "click and hold to drag up and down in the list with the 3
 // bar icon"): the packing list of a cabin trip and the points of a tour. One listener on root; o.list: the list a row is
@@ -753,7 +753,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
 
   // ---------- the sport menu ----------
   const SPORTS = ["mtb", "ski", "hunt", "fish", "moto", "hike"];   // Hiking (hike.js) since 2026-11-02
-  let sport = SPORTS.includes(store.get("sport", "mtb")) ? store.get("sport", "mtb") : "mtb";
+  let sport = SPORTS.includes(store.get("sport", window.tfFirstSport || "mtb")) ? store.get("sport", window.tfFirstSport || "mtb") : "mtb";   // a new device: the season's sport (welcome.js)
   let avyOn = store.get("avy", false);
 
   // ---------- panel ----------
@@ -4369,7 +4369,7 @@ body:not(.sport-ski) details.legend.sk-key { display: none !important; }
   let avy = null, avyLoading = null, avyErr = "", example = false, day = 0, avyAt = 0, pickDate = "", dayDate = "";   // the day shown: see syncDay()
   // Most accurate possible (alex 2026-11-09): the forecasts are read LIVE from Avalanche Canada's own forecast service
   // (open to any site) each time the app opens and when it comes back after 10 minutes, so a new or updated bulletin
-  // shows at once. data/avalanche.json (area outlines + a saved copy of the forecasts, rebuilt hourly in season) is
+  // shows at once. data/avalanche.json (area outlines + a saved copy of the forecasts, rebuilt every 2 hours) is
   // the backup when Avalanche Canada can't be reached. Same reading as scripts/build-winter.mjs normalizeForecast().
   const AVCAN = "https://api.avalanche.ca/forecasts/en/products";
   const acText = (v) => String(v == null ? "" : typeof v === "object" ? v.display || v.value || "" : v)

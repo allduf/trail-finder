@@ -1158,6 +1158,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .estats div { display: flex; flex-direction: column; min-width: 0; }
 .estats span { font-size: .75rem; color: var(--muted); }
 .estats strong { font-variant-numeric: tabular-nums; font-size: .92rem; white-space: nowrap; }
+.epart { margin: -6px 0 10px; font-size: .85rem; }
 .echart { position: relative; touch-action: pan-y; }
 .echart svg { display: block; overflow: visible; }
 .echart .eg { stroke: var(--line); stroke-width: 1; }
@@ -1728,7 +1729,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
     { id: "fv", name: "Fraser Valley (Coquitlam to Hope)", box: [49.00, -122.74, 49.42, -121.38] },
     { id: "pri", name: "Princeton", box: [49.38, -120.65, 49.56, -120.40] },
     { id: "mer", name: "Merritt", box: [50.02, -120.95, 50.22, -120.62] },
-    { id: "kam", name: "Kamloops & Sun Peaks", box: [50.55, -120.60, 50.95, -119.80] },
+    { id: "kam", name: "Kamloops & Sun Peaks", box: [50.47, -120.60, 50.95, -119.80] },   // south to 50.47 for Stake Lake (alex 2026-11-27)
     { id: "wl", name: "Williams Lake", box: [52.00, -122.35, 52.25, -121.95] },
     { id: "shu", name: "Salmon Arm & Shuswap", box: [50.62, -119.45, 50.85, -119.05] },
     { id: "ver", name: "Vernon & Silver Star", box: [50.10, -119.45, 50.42, -119.02] },
@@ -2309,7 +2310,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
   // like it is now"): MTB opens on Map. A style picked before stays (basemap4, shared by these four sports).
   const firstBase = () => {
     const b = document.body.classList;
-    const mtb = b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb");
+    const mtb = b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", window.tfFirstSport || "mtb") === "mtb");
     return mtb ? "osm" : "sathybrid";
   };
   const skiing = () => document.body.classList.contains("sport-ski");
@@ -3624,7 +3625,7 @@ out body;`;
   // (welcome.js tfWelcome.picked): tapping I agree pulled ~3 MB of MTB files behind the welcome screens, whatever sport
   // came next (alex 2026-11-09 app test: "first open on a new phone downloads 6.5 to 8 MB").
   const welcomeWait = () => !!(window.tfWelcome && window.tfWelcome.pending && !window.tfWelcome.picked);
-  const mtbSport = () => { const b = document.body.classList; return b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", "mtb") === "mtb"); };
+  const mtbSport = () => { const b = document.body.classList; return b.contains("sport-mtb") || (!b.contains("sport-alt") && !b.contains("sport-ski") && store.get("sport", window.tfFirstSport || "mtb") === "mtb"); };
   const mtbOff = () => welcomeWait() || !mtbSport();
   let wasMtb = mtbSport();
   // Back to MTB from another sport: its files now (mtbStart is set once the map's MTB layers are ready, below).
@@ -4080,7 +4081,7 @@ out body;`;
       paintFacts(t);
       if (t.wx && state.selected === t.id && $("wx")) renderWeather($("wx"), t.wx.json, cellOf(t), t);   // the freeze line against the trail's heights
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the elevation (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
       if (dirOpen === t && $("fDown")) { $("fDown").textContent = "–"; $("fUp").textContent = "–"; }
     }
     if (box()) { setGoLink(t); renderAccess(t); }
@@ -4587,7 +4588,7 @@ out body;`;
       const el = box(); if (el) renderWeather(el, t.wx.json, cellOf(t), t);
       paintFacts(t);
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the weather (${e.message}).`;
+      const el = box(); if (el) el.textContent = `Couldn't load the weather (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`;
     }
   }
   function renderWeather(el, w, key, t) {
@@ -4666,11 +4667,12 @@ out body;`;
     el.classList.remove("muted");
     el.innerHTML = `
       <div class="estats">
-        <div><span>Length</span><strong>${fmtLen(t.chainAll === false ? s.total / 1000 : t.km)}</strong></div>
+        <div><span>Length</span><strong>${fmtLen(t.km || s.total / 1000)}</strong></div>
         <div><span>Climb</span><strong>↑ ${Math.round(s.gain)} m</strong></div>
         <div><span>Descent</span><strong>↓ ${Math.round(s.loss)} m</strong></div>
         <div><span>Low to high</span><strong>${Math.round(s.min)}–${Math.round(s.max)} m</strong></div>
       </div>
+      ${t.chainAll === false && t.km && s.total / 1000 < t.km * 0.95 ? `<p class="muted epart">The profile, climb and descent cover the longest joined stretch, ${fmtLen(s.total / 1000)} of ${fmtLen(t.km)}: the trail's mapped pieces don't all join.</p>` : ""}
       <div class="echart">
         <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Elevation profile: from ${Math.round(pts[0].e)} m to ${Math.round(pts[pts.length - 1].e)} m over ${fmtLen(s.total / 1000)}">
           ${grid}<path d="${area}" class="ea"/><path d="${line}" class="el"/>
@@ -5511,7 +5513,8 @@ out body;`;
         const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
         const ls = full && w.type === "w" && w.ids.every((id) => full.has(id)) ? w.ids.map((id) => full.get(id)) : s.g;
         ls.forEach((l) => {
-          layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          // Under the trail lines the halo has to be wider than a listed trail's white edge (9 to 12 px) to show at all.
+          layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: o.under ? 18 : 11, opacity: o.under ? 0.85 : 0.75, lineCap: "round", interactive: false }));
           if (!o.under) layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
       });
@@ -5624,7 +5627,7 @@ out body;`;
       el.classList.remove("muted");
       el.innerHTML = `<ol class="history">${t.history.slice().reverse().map((h) => `<li><strong>v${h.v}</strong> · ${fmtDate(h.ts)} · ${userLink(h.user)} ${csLink(h.cs)}${h.comment ? `<div class="muted">“${esc(h.comment)}”</div>` : ""}</li>`).join("")}</ol>`;
     } catch (e) {
-      const el = box(); if (el) el.textContent = `Couldn't load the history (${e.message}). Use the “Full history” link instead.`;
+      const el = box(); if (el) el.textContent = `Couldn't load the history (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Use the “Full history” link instead.`;
     }
   }
 
@@ -8527,7 +8530,7 @@ out tags center qt;`;
       const nodes = new Map(els.filter((e) => e.type === "node").map((e) => [e.id, e])), w = els.find((e) => e.type === "way");
       if (!w || token !== foundToken) return;
       await presentTrail({ main: w, segs: [wayLine(w, nodes)], segIds: [w.id], type: "way", kind: kindOf(w.tags || {}), token, view: ll });
-    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    } catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   };
   window.tfShowFound = (g) => showFound(g, true);   // notify.js opens a new trail by its way ids
 
@@ -8622,7 +8625,7 @@ out tags center qt;`;
       if (!segs.length) throw new Error("the trail's shape didn't load");
       await presentTrail({ main, segs, segIds, pieceTags, type: g.type === "r" ? "relation" : "way", kind: g.kind, token, view: "fit", loamAt: g.center });   // same Loam reading as its list row
     } catch (e) {
-      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${e.message}). Try again in a moment.`, true);
+      if (token === foundToken) setStatus(`Couldn't load ${g.name} (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}). Try again in a moment.`, true);
     }
   }
 
@@ -8792,7 +8795,7 @@ out tags center qt;`;
     const routes = els.filter((r) => r.type === "relation" && r.tags && r.tags.route === "mtb" && (r.members || []).some((m) => m.type === "way" && m.ref === w.id))
       .map((r) => ({ id: r.id, name: r.tags.name || r.tags.ref || "unnamed" }));
     try { await presentTrail({ main: w, segs: [best.line], segIds: [w.id], type: "way", kind: kindOf(w.tags), routes, routeTypes, token, view: ll }); }
-    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${e.message}).`, true); }
+    catch (e) { if (token === foundToken) setStatus(`Couldn't load this trail (${(window.tfErrText ? window.tfErrText(e) : "no answer from the server")}).`, true); }
   }
 
   // ---- draw a square: list every MTB trail inside it, old or new (from the daily all-trails lists) ----
