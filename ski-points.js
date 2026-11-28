@@ -975,7 +975,7 @@ dialog.sp-dlg .sp-msg { min-height: 1.1em; font-size: .85rem; color: var(--muted
     const el = document.createElement("div");
     el.id = "tfShared"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Spot shared with you");
     const go = `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(5)},${lon.toFixed(5)}`;
-    el.innerHTML = `<b>📍 ${esc(name || "Spot shared with you")}</b><button type="button" class="tfs-x" aria-label="Close">✕</button>
+    el.innerHTML = `<b>📍 ${esc(name || "Spot shared with you")}</b><button type="button" class="tfs-x" data-back-close aria-label="Close">✕</button>
       <small>${name ? "Shared with you · " : ""}${lat.toFixed(5)}, ${lon.toFixed(5)}</small>
       <div class="tfs-row"><button type="button" class="tfs-save">★ Save to my points</button><a class="tfs-go" href="${go}" target="_blank" rel="noopener">Directions</a></div>`;
     el.querySelector(".tfs-x").addEventListener("click", closeShared);

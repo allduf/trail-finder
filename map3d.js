@@ -24,7 +24,7 @@
   // the map style they closed it at"): 3D or flat, and the 3D photos, kept per sport in "map3dBy" and "3dPhotosBy".
   // Not Skiing's photos: Skiing always opens on Winter (alex 2026-11-21, see savedPhotos).
   // The sport itself is saved by winter.js; before it has set the body class, the saved one is the sport.
-  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", "mtb");
+  const sportNow = () => ["mtb", "ski", "hunt", "fish", "moto", "hike"].find((s) => document.body.classList.contains("sport-" + s)) || store.get("sport", window.tfFirstSport || "mtb");
   const bySport = (k, s, v) => { const o = store.get(k, null) || {}; if (v === undefined) return o[s]; if (o[s] !== v) store.set(k, { ...o, [s]: v }); };
 
   // Phones have far less memory for the 3D map than a computer, and iPhone Safari kills the whole page when it
@@ -2471,6 +2471,57 @@
       return out;
     };
   }
+  // Choosing which map pieces to show, every frame (alex 2026-11-27, ?lagcheck recording at Whistler on a computer: 3 to 14
+  // frames a second while turning, the graphics card done in 2 to 17 ms a frame, and 90 to 250 ms in MapLibre's own frame
+  // step on the processor). Half of that step went to MapLibre working out, for each of its ~15 map sources, which
+  // pieces are in view: (1) it looked up the ground height of each candidate piece once per source, ~3,000 lookups a
+  // frame for ~250 different pieces; now each piece's height is looked up once while the pieces are picked, and reused.
+  // (2) Each piece starting to load told the map whether its whole source was loaded, which checks all that source's
+  // pieces, dozens of times a frame while turning; a piece just starting to load means "not loaded", so that check is
+  // skipped unless something listens for "sourcedataloading" (nothing in the app does).
+  // MapLibre internals (pinned 5.24.0): any surprise leaves MapLibre as it is.
+  // Computers only (alex 2026-11-25: computer recordings get computer fixes; phones draw 3D natively).
+  function quickPieces() {
+    if (PHONE || !gl) return;
+    const T = gl.terrain, st = gl.style;
+    // The memo lives only while MapLibre picks each source's pieces (style._updateSources), a fresh one each time: the
+    // camera's own height reads after it, and lookups between frames (a tap's search), read the heights as they are.
+    if (T && st && typeof st._updateSources === "function" && st.tfQuick !== T) {
+      const prev = st.tfQuickWrap ? st.tfQuickOrig : st._updateSources, upd = prev, mm = Object.getPrototypeOf(T).getMinMaxElevation;
+      if (typeof mm === "function") {
+        st.tfQuick = T; st.tfQuickOrig = prev; st.tfQuickWrap = true;
+        st._updateSources = function () {
+          const memo = new Map(), own = Object.prototype.hasOwnProperty.call(T, "getMinMaxElevation"), was = T.getMinMaxElevation;
+          T.getMinMaxElevation = function (id) {
+            const k = id && id.key;
+            if (k === undefined) return was.apply(this, arguments);
+            let r = memo.get(k);
+            if (!r) { r = was.apply(this, arguments); memo.set(k, r); }
+            return { minElevation: r.minElevation, maxElevation: r.maxElevation };
+          };
+          try { return upd.apply(this, arguments); } finally { if (own) T.getMinMaxElevation = was; else delete T.getMinMaxElevation; }
+        };
+      }
+    }
+    const tms = gl && gl.style && gl.style.tileManagers;
+    if (!tms) return;
+    for (const id in tms) {
+      const tm = tms[id];
+      if (!tm || tm.tfQuietEv || typeof tm.fire !== "function") continue;
+      tm.tfQuietEv = true;
+      const fire = tm.fire;
+      tm.fire = function (ev) {
+        const ty = ev && ev.type, d = this._eventedParentData;
+        // A piece starting to load: its source isn't loaded, so "false" is the right answer without checking every piece.
+        if (ty === "dataloading" && typeof d === "function" && !gl.listens("sourcedataloading")) {
+          const self = this;
+          this._eventedParentData = () => ({ isSourceLoaded: false, source: self.serialize(), sourceId: self.id });
+          try { return fire.apply(this, arguments); } finally { this._eventedParentData = d; }
+        }
+        return fire.apply(this, arguments);
+      };
+    }
+  }
   // And a piece of ground is only painted again when what arrived can change its picture. MapLibre did it for every
   // tile of every source, also the ones only written over the ground (the trail names, ~37 tiles a frame while
   // turning, as the names are placed again after each move) and the ones of a hidden layer: they are not in the
@@ -2540,6 +2591,77 @@
     const c = { paints: 0, made: 0, tiles: 0, reads: 0, js: 0, crisp: 0 };
     let tilesBy = {};
     try { new PerformanceObserver((l) => { for (const e of l.getEntries()) c.js += e.duration; }).observe({ type: "longtask" }); } catch {}
+    // Which script the page work was (Chrome's long animation frames: the file and function that ran longest), so a
+    // recording names it (alex 2026-11-27: 0.2 s of page work in many turning frames, with nothing else to say what).
+    // Chrome reports a long frame after it is drawn, so they are kept a few seconds and matched to the worst frame by time.
+    const loaf = [];
+    try {
+      new PerformanceObserver((l) => {
+        for (const e of l.getEntries()) for (const x of e.scripts || []) {
+          const file = String(x.sourceURL || "").split("/").pop().split("?")[0];
+          loaf.push({ t0: x.startTime, t1: x.startTime + x.duration, ms: Math.round(x.duration),
+            what: (file ? file + (x.sourceCharPosition >= 0 ? ":" + x.sourceCharPosition : "") + " " : "") + (x.sourceFunctionName || x.invoker || x.invokerType || "") });
+        }
+        const old = performance.now() - 6000;
+        while (loaf.length && loaf[0].t1 < old) loaf.shift();
+      }).observe({ type: "long-animation-frame" });
+    } catch {}
+    const slowest = (f) => { let b = null; for (const x of loaf) if (x.t1 > f.at - f.gap && x.t0 < f.at && (!b || x.ms > b.ms)) b = x; return b; };
+    // How long the graphics card took for each frame (WebGL timer queries, where the browser offers them), split into the
+    // terrain's depth and position passes (drawn again every moving frame: names hidden behind ridges, the ground under
+    // the mouse) and the rest of the frame. Shown only in this readout; with no timer queries the line says so.
+    const gpu = { ok: false, frame: 0, depth: 0, worst: 0, worstDepth: 0, name: "", got: 0 };
+    try {
+      const g2 = gl.painter.context.gl;
+      let ext = g2.getExtension("EXT_disjoint_timer_query_webgl2");
+      const dbg = g2.getExtension("WEBGL_debug_renderer_info");
+      gpu.name = dbg ? String(g2.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || "").replace(/^ANGLE \(|\)$/g, "").slice(0, 60) : "";
+      if (ext && typeof g2.beginQuery === "function") {
+        gpu.ok = true;
+        let open = [], cur = null, parts = null, n = 0;
+        // A lost and restored drawing context (a phone's memory saver, a graphics card reset): the extension is asked
+        // for again and old queries are dropped; while it's lost, no timing.
+        gl.getCanvas().addEventListener("webglcontextrestored", () => { ext = g2.getExtension("EXT_disjoint_timer_query_webgl2"); open = []; cur = null; gpu.frame = gpu.depth = gpu.worst = gpu.worstDepth = 0; gpu.got = 0; });
+        const begin = (kind) => {
+          if (!ext || g2.isContextLost()) return;
+          const q = g2.createQuery();
+          if (!q) return;
+          g2.beginQuery(ext.TIME_ELAPSED_EXT, q); cur = { q, kind }; parts.push(cur);
+        };
+        const end = () => { if (cur) { g2.endQuery(ext.TIME_ELAPSED_EXT); cur = null; } };
+        const fns = gl.painter.drawFunctions;
+        if (fns && !fns.tfTimed) {
+          fns.tfTimed = true;
+          for (const k of ["terrainDepth", "terrainCoords"]) {
+            const f = fns[k];
+            if (typeof f === "function") fns[k] = function () { if (!parts) return f.apply(this, arguments); end(); begin("depth"); try { return f.apply(this, arguments); } finally { end(); begin("rest"); } };
+          }
+        }
+        const poll = () => {
+          if (!ext || g2.isContextLost()) { open = []; return; }
+          // Results come a frame or two later; read every few frames, and drop a "disjoint" frame (the card's clock reset).
+          while (open.length && open[0].every((p) => g2.getQueryParameter(p.q, g2.QUERY_RESULT_AVAILABLE))) {
+            const f = open.shift(), bad = g2.getParameter(ext.GPU_DISJOINT_EXT);
+            let rest = 0, depth = 0;
+            for (const p of f) { const ns = g2.getQueryParameter(p.q, g2.QUERY_RESULT); g2.deleteQuery(p.q); if (p.kind === "depth") depth += ns; else rest += ns; }
+            if (bad) continue;
+            const t = (rest + depth) / 1e6, now = performance.now();
+            gpu.frame = t; gpu.depth = depth / 1e6;
+            if (t >= gpu.worst || now - gpu.got > 4000) { gpu.worst = t; gpu.worstDepth = depth / 1e6; gpu.got = now; }
+            gpu.last = now;
+          }
+          while (open.length > 12) for (const p of open.shift()) g2.deleteQuery(p.q);
+        };
+        const render = gl._render;   // wrapped last: anything above failing leaves MapLibre's own
+        gl._render = function () {
+          parts = []; begin("rest");
+          try { return render.apply(this, arguments); } finally {
+            end(); if (parts.length) open.push(parts); parts = null;
+            if (++n % 4 === 0) try { poll(); } catch {}
+          }
+        };
+      }
+    } catch { gpu.ok = false; }
     gl.on("data", (e) => { if (e && e.dataType === "source" && e.tile) { c.tiles++; tilesBy[e.sourceId] = (tilesBy[e.sourceId] || 0) + 1; } });
     try {
       const g = gl.painter.context.gl, rp = g.readPixels;
@@ -2573,9 +2695,13 @@
       el.textContent = `lag check  ${fps} fps  moving: ${gl.isMoving() ? "yes" : "no"}\n` +
         `worst frame (last 4 s): ${worst.gap} ms\n` +
         `  page work ${worst.js} ms · ground repaints ${worst.paints} · new buffers ${worst.made}\n` +
+        ((sl) => sl ? `  longest script ${sl.ms} ms: ${sl.what}\n` : "")(slowest(worst)) +
         `  tiles in ${worst.tiles}${worst.top ? " (" + worst.top + ")" : ""}\n` +
         `  ground lookups ${worst.reads} · line rebuilds ${worst.crisp}\n` +
-        `paint buffers ${pool ? pool._objects.length + " (painting at " + pool._tileSize + " px) ≈ " + mb + " MB" : "-"} · pitch ${Math.round(gl.getPitch())}° · zoom ${gl.getZoom().toFixed(1)}`;
+        `paint buffers ${pool ? pool._objects.length + " (painting at " + pool._tileSize + " px) ≈ " + mb + " MB" : "-"} · pitch ${Math.round(gl.getPitch())}° · zoom ${gl.getZoom().toFixed(1)}\n` +
+        (!gpu.ok ? "graphics card time: not offered by this browser\n" : !gpu.last || now - gpu.last > 3000 ? "graphics card time: waiting\n"
+          : `graphics card: last frame ${gpu.frame.toFixed(1)} ms (depth + position passes ${gpu.depth.toFixed(1)}) · worst ${gpu.worst.toFixed(1)} ms (${gpu.worstDepth.toFixed(1)})\n`) +
+        `screen ${gl.painter.width}×${gl.painter.height} px (×${(devicePixelRatio || 1).toFixed(2)}) · smoothing ${(gl.painter.context.gl.getContextAttributes() || {}).antialias ? "on" : "off"}${gpu.name ? " · " + gpu.name : ""}`;
     });
   }
   let demFixed = false;
@@ -3305,7 +3431,7 @@
     }
     const demFix = () => { fixDemLeak(); fixReloadLeak(); fastElevation(); if (demFixed && reloadFixed && elevFixed) gl.off("render", demFix); };
     gl.on("render", demFix);
-    gl.on("render", () => { spreadPaints(); quietSources(); skipEmpty(); });   // once its paint buffers exist (and again if the terrain is set up anew)
+    gl.on("render", () => { spreadPaints(); quietSources(); skipEmpty(); try { quickPieces(); } catch {} });   // once its paint buffers exist (and again if the terrain is set up anew)
     lagCheck();   // only with ?lagcheck in the address
     gl.on("moveend", keepView);
     gl.on("idle", groundCenter);   // also after opening and tilting up: aim at the ground once its heights are in (a camera under the mountains drew nothing)

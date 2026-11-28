@@ -6,7 +6,7 @@
 #   needs: GH_TOKEN (actions: read), GITHUB_REPOSITORY, GITHUB_RUN_ID
 set -uo pipefail
 MAX=${HEAVY_MAX:-2}
-HEAVY='["Film (loam tutorial, branch only)","Android app","iPhone app","Low power 3D","Side by side","Slope card"]'
+HEAVY='["Android app","iPhone app","Low power 3D","Side by side","Slope card","Tough conditions (phone apps)"]'
 for i in $(seq 1 120); do
   if ahead=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=in_progress&per_page=100" --jq "
       [.workflow_runs[] | select(.name as \$n | $HEAVY | index(\$n)) | {id, created_at}] | sort_by(.created_at, .id)

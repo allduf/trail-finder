@@ -1,0 +1,2 @@
+# Kamloops zone widened south to Stake Lake (index.html ZONES, data/riding-areas.json), alex chose 2026-11-27
+Kamloops now reaches south to Stake Lake and Lac Le Jeune, so the Stake Lake trails show with the other Kamloops riding areas after the next trail data update. ||| La région de Kamloops s'étend maintenant au sud jusqu'au lac Stake et au lac Le Jeune : les sentiers du lac Stake s'afficheront avec les autres secteurs de vélo de Kamloops après la prochaine mise à jour des données.

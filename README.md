@@ -80,9 +80,11 @@ road nearest the top and bottom of the trail, for a shuttle drop or pickup.
 The sport menu in the header switches the site between MTB and Skiing (`winter.js`). In Skiing the map shows backcountry
 ski routes and huts, and the "Avalanche risk" button shades slopes over about 25° by Avalanche Canada's danger rating for
 their elevation band, with stripes on the aspects and elevations named in the avalanche problems (2D and 3D map; terrain
-heights from AWS Terrain Tiles). `.github/workflows/winter-data.yml` runs `scripts/build-winter.mjs`: every 2 hours it
-saves the forecasts for the region to `data/avalanche.json` (public Avalanche Canada API, no key), and every night it
-saves the ski routes and huts to `data/ski.json` from OpenStreetMap and BC Recreation Sites and Trails
+heights from AWS Terrain Tiles). `scripts/build-winter.mjs` makes the data: every 2 hours
+`.github/workflows/avalanche-data.yml` saves the forecasts for the region to `data/avalanche.json` (public Avalanche
+Canada API, no key) with the riders' reports, grooming reports and snow stations (one run keeps going and starts the
+next itself, since GitHub skips most scheduled runs), and every night `.github/workflows/winter-data.yml` saves the ski
+routes and huts to `data/ski.json` from OpenStreetMap and BC Recreation Sites and Trails
 (`WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW`, Open Government Licence - British Columbia).
 In Skiing, "📍 Save point" (on the map, or a long press) saves a point with a name, a description and a photo;
 the same button shows or hides the saved pins

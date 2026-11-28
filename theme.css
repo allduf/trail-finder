@@ -557,8 +557,8 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
   }
   html body :is(.hub-tile, #huntPane .hn-act, #fishPane .fs-act, #motoPane .mt-act, #hikePane .hk-act, #skiPane .sk-view) :is(svg, .ic) { color: var(--accent); font-size: 1.3rem; line-height: 1; }
   html body :is(.hub-tile, #skiPane .sk-view) small { font-weight: 500; font-size: .68rem; color: var(--muted); }
-  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #hikePane .hk-act.on, #skiPane .sk-view[aria-pressed="true"]) { background: var(--accent); border-color: var(--accent); color: #fff; }
-  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #hikePane .hk-act.on, #skiPane .sk-view[aria-pressed="true"]) :is(svg, small, .ic) { color: #fff; }
+  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #hikePane .hk-act.on, #skiPane .sk-view[aria-pressed="true"]) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }   /* dark mode: dark words on the light green (2026-11-27 test) */
+  html body :is(#huntPane .hn-act.on, #fishPane .fs-act.on, #motoPane .mt-act.on, #hikePane .hk-act.on, #skiPane .sk-view[aria-pressed="true"]) :is(svg, small, .ic) { color: var(--accent-fg, #fff); }
   .hub .dot { margin: 3px 0; }
   /* what's on the map: chips and views, one style */
   .hub-chips { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -566,9 +566,10 @@ html body :is(#huntPane, #fishPane) .tf-phone { display: none; }
     font: inherit; font-size: .84rem; font-weight: 600; min-height: 36px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
   }
   html body :is(#huntPane .hn-pill, #fishPane .fs-pill, #motoPane .mt-pill, #hikePane .hk-pill) svg { color: var(--accent); }
-  .hub-chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .hub-chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }
   html body :is(#huntPane .hn-view, #fishPane .fs-view, #motoPane .mt-view) { border-radius: 12px; background: var(--bg); }
-  html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); }   /* dark mode: dark words on the light green */
+  html body :is(#huntPane .hn-view.on, #fishPane .fs-view.on, #motoPane .mt-view.on) :is(svg, small, .ic) { color: var(--accent-fg, #fff); }
   html body :is(#huntPane .hn-card, #fishPane .fs-card, #motoPane .mt-card, #hikePane .hk-card) header svg { color: var(--accent); }
   /* the list: rows like Find's, with › */
   html body :is(#motoPane #mtSafeRow .mt-pill) {

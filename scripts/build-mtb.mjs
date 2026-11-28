@@ -28,6 +28,9 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { keepName } from "./keep-names.mjs";
+import { createRequire } from "node:module";
+// The name as the app shows it (clean-names.js: no emoji grade marks), so the app and the data match the same hand entries.
+const shownName = createRequire(import.meta.url)("../clean-names.js").name;
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -499,7 +502,7 @@ for (const z of order) {
       const t = rec && bikeWay && !/^(no|private)$/.test(tags.access || "") ? recMatch(w.geometry, rec.index) : null;
       const park = rec && rec.parks.find((p) => inPark([mid.lat, mid.lon], p));
       const hand = HAND.find((h) => h.ids && h.ids.includes(w.id))   // unnamed trails, by way id
-        || tags.name && HAND.find((h) => (h.name ? h.name.toLowerCase() === tags.name.toLowerCase() : h.nh === nameHash(tags.name.toLowerCase())) && metres([mid.lat, mid.lon], h.c) <= h.r);
+        || tags.name && HAND.find((h) => (h.name ? h.name.toLowerCase() === shownName(tags.name).toLowerCase() : h.nh === nameHash(shownName(tags.name).toLowerCase())) && metres([mid.lat, mid.lon], h.c) <= h.r);
       if (hand) { tags["tf:hand"] = hand.who || hand.src; if (hand.named && !tags.name) tags["tf:name"] = hand.named; fromHand++; }
       else if (!ownMtb(tags) && !routeWays.has(w.id) && !t) {
         // A ski trail network that riders use in summer (summer on its label, e.g. China Ridge, Princeton): its ski trails count too.

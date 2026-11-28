@@ -6,8 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f6f4a">
 <title>Record Ride · Trail Finder</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="vendor/fonts-5.3.0/ride-fonts.css">
 <link rel="stylesheet" href="vendor/leaflet-1.9.4.css">
 <style>
 /* Same look as the trail finder page (index.html). Phone first: map on top, numbers and the big button under it. */
@@ -157,6 +156,7 @@ body.sport-other .mtb-only, body.sport-other #stravaBox, body.sport-other #share
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Trail Finder">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script src="clean-names.js?v=__V__"></script>
 <script src="i18n.js?v=__V__"></script>
 <!-- The emoji at the start of a saved title as line drawings, like on the map (CLAUDE.md: no emoji in the interface). -->
 <script src="line-icons.js?v=__V__"></script>
@@ -662,7 +662,7 @@ body.sport-other .mtb-only, body.sport-other #stravaBox, body.sport-other #share
       if (!editing && ride.sport === "hunt") { location.href = "index.html#myhunts"; return; }   // straight to My hunts on the map
       if (location.hash === "#ride/" + ride.id) openRide(ride.id); else location.hash = "#ride/" + ride.id;
     } catch (e) {
-      alert("Couldn't save the ride: " + (e && e.message ? e.message : e) + ". Your ride is still kept on this page.");
+      alert("Couldn't save the ride: " + (window.tfErrText ? window.tfErrText(e) : "something went wrong") + ". Your ride is still kept on this page.");
     } finally { btn.disabled = false; $("saveLabel").textContent = editing ? "Save changes" : saveTo($("fSport").value); }
   });
   $("resumeBtn").addEventListener("click", async () => {
@@ -895,7 +895,7 @@ ${pts}
       const csv = csvEnt ? tfRideFiles.stravaCsv(new TextDecoder().decode(await z.bytes(csvEnt))) : new Map();
       // the activity files, keyed as activities.csv names them ("activities/123.gpx.gz"), wherever the zip's root is
       const acts = z.entries.filter((e) => /(^|\/)activities\/[^/]+\.(gpx|fit|tcx)(\.gz)?$/i.test(e.name));
-      if (!acts.length) throw new Error("there's no activities folder in it. Is it the archive from Strava?");
+      if (!acts.length) throw new Error("there's no activities folder in it, so it may not be the archive from Strava");
       const infoOf = (e) => csv.get(e.name.replace(/^.*?(activities\/)/i, "$1")) || {};
       const have = await dbAll("rides");
       total = acts.length;
@@ -925,7 +925,7 @@ ${pts}
       ].filter(Boolean).join(" ");
       msg.classList.toggle("warn", !!bad && !added.length);
     } catch (e) {
-      msg.textContent = `Couldn't read the archive: ${e && e.message ? e.message : e}`;
+      msg.textContent = `Couldn't read the archive: ${window.tfErrText ? window.tfErrText(e) : "something went wrong"}.`;
       msg.classList.add("warn");
     }
     $("zipStop").hidden = true; btn.classList.remove("busy"); zipBusy = false;

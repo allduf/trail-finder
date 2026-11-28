@@ -18,6 +18,7 @@
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, readdirSync, createReadStream, rmSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 
 const root = new URL("../", import.meta.url);
 const html = readFileSync(new URL("index.html", root), "utf8");
@@ -80,8 +81,10 @@ const HAND = (() => {
   const m = readFileSync(new URL("ratings.js", root), "utf8").match(/const HAND = (\[[\s\S]*?\n  \]);/);
   try { return m ? Function(`return ${m[1]}`)() : []; } catch { return []; }
 })();
-const handOf = (id, tags, mid) => bikeOk(tags) && HAND.find((h) => (h.ids && h.ids.includes(id))
-  || (tags.name && (h.name ? h.name.toLowerCase() === tags.name.toLowerCase() : h.nh === nameHash(tags.name.toLowerCase())) && metres(mid, h.c) <= h.r));
+// The name as the app shows it (clean-names.js: no emoji grade marks), so the app and this file match the same entries.
+const shownName = createRequire(import.meta.url)("../clean-names.js").name;
+const handOf = (id, tags, mid) => { const nm = tags.name && shownName(tags.name).toLowerCase(); return bikeOk(tags) && HAND.find((h) => (h.ids && h.ids.includes(id))
+  || (nm && (h.name ? h.name.toLowerCase() === nm : h.nh === nameHash(nm)) && metres(mid, h.c) <= h.r)); };
 
 // Douglas-Peucker on a local flat projection, keeping points more than tol metres off the line (as in build-mtb.mjs).
 function simplify(pts, tol = 2) {

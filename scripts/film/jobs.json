@@ -1,7 +1,0 @@
-[
-  {
-    "os": "ios",
-    "name": "ui",
-    "env": "PART=ui TRAIL=Pipe_Trail,auto SPOT=49.705,-123.135 GEO=49.7016,-123.1408 Z=14"
-  }
-]
