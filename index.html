@@ -1158,6 +1158,7 @@ body.sport-alt #rideMapBtn { display: none !important; }
 .estats div { display: flex; flex-direction: column; min-width: 0; }
 .estats span { font-size: .75rem; color: var(--muted); }
 .estats strong { font-variant-numeric: tabular-nums; font-size: .92rem; white-space: nowrap; }
+.epart { margin: -6px 0 10px; font-size: .85rem; }
 .echart { position: relative; touch-action: pan-y; }
 .echart svg { display: block; overflow: visible; }
 .echart .eg { stroke: var(--line); stroke-width: 1; }
@@ -4666,11 +4667,12 @@ out body;`;
     el.classList.remove("muted");
     el.innerHTML = `
       <div class="estats">
-        <div><span>Length</span><strong>${fmtLen(t.chainAll === false ? s.total / 1000 : t.km)}</strong></div>
+        <div><span>Length</span><strong>${fmtLen(t.km || s.total / 1000)}</strong></div>
         <div><span>Climb</span><strong>↑ ${Math.round(s.gain)} m</strong></div>
         <div><span>Descent</span><strong>↓ ${Math.round(s.loss)} m</strong></div>
         <div><span>Low to high</span><strong>${Math.round(s.min)}–${Math.round(s.max)} m</strong></div>
       </div>
+      ${t.chainAll === false && t.km && s.total / 1000 < t.km * 0.95 ? `<p class="muted epart">The profile, climb and descent cover the longest joined stretch, ${fmtLen(s.total / 1000)} of ${fmtLen(t.km)}: the trail's mapped pieces don't all join.</p>` : ""}
       <div class="echart">
         <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Elevation profile: from ${Math.round(pts[0].e)} m to ${Math.round(pts[pts.length - 1].e)} m over ${fmtLen(s.total / 1000)}">
           ${grid}<path d="${area}" class="ea"/><path d="${line}" class="el"/>
@@ -5511,7 +5513,8 @@ out body;`;
         const open = () => showFound({ type: w.type, items: w.ids.map((id) => ({ id })), name: w.name, kind: w.kind });
         const ls = full && w.type === "w" && w.ids.every((id) => full.has(id)) ? w.ids.map((id) => full.get(id)) : s.g;
         ls.forEach((l) => {
-          layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: 11, opacity: 0.75, lineCap: "round", interactive: false }));
+          // Under the trail lines the halo has to be wider than a listed trail's white edge (9 to 12 px) to show at all.
+          layer.addLayer(L.polyline(l, { pane: linePane, renderer: lines, color: o.halo, weight: o.under ? 18 : 11, opacity: o.under ? 0.85 : 0.75, lineCap: "round", interactive: false }));
           if (!o.under) layer.addLayer(L.polyline(l, { pane: o.pane, renderer: lines, color, weight: 4, opacity: 1, lineCap: "round", bubblingMouseEvents: false }).on("click", open));
         });
       });
