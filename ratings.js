@@ -536,6 +536,10 @@
     { name: "Schacher", c: [51.2745, -116.8949], r: 3000, d: "blue", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "B12", c: [51.294, -116.9258], r: 2500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "Bris", c: [51.2784, -116.9022], r: 1500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
+    // Albion Hills (Caledon, Ontario): TRCA's 2024 trail map rates each single-track bike trail; these three differ from OpenStreetMap.
+    { name: "Gnarly Berms", c: [43.92094, -79.82362], r: 600, d: "blue", src: "TRCA, Albion Hills Conservation Park trail map (2024)", url: "https://trcaca.s3.ca-central-1.amazonaws.com/app/uploads/2016/02/11091107/3131-AH-SummerTrailheadsign-2024-p7.pdf" },
+    { name: "Live and Learn", c: [43.93381, -79.83373], r: 600, d: "blue", src: "TRCA, Albion Hills Conservation Park trail map (2024)", url: "https://trcaca.s3.ca-central-1.amazonaws.com/app/uploads/2016/02/11091107/3131-AH-SummerTrailheadsign-2024-p7.pdf" },
+    { name: "Rough Ride", c: [43.93297, -79.83594], r: 600, d: "dbl", src: "TRCA, Albion Hills Conservation Park trail map (2024)", url: "https://trcaca.s3.ca-central-1.amazonaws.com/app/uploads/2016/02/11091107/3131-AH-SummerTrailheadsign-2024-p7.pdf" },
     // Quebec: the Sépaq Mont-Sainte-Anne map, XC trails only (green Facile, blue Difficile, black Très difficile, double Extrême), and the
     // Parc Basler map in Morin-Heights (Facile, Intermédiaire): levels OpenStreetMap lacks or gives differently (checked 2026-11-28).
     { name: "11 La Faux Plats", c: [47.1204, -70.8776], r: 1000, d: "blue", src: "Sépaq, Mont-Sainte-Anne mountain bike map (park XC and resort DH trails)", url: "https://www.sepaq.com/resources/docs/ct/msa/msa_carte_velo_montagne.pdf" },
@@ -555,6 +559,15 @@
     { name: "Labirynth", c: [45.8981, -74.2496], r: 1000, d: "blue", src: "Parc Basler and Sommet Morin Heights, bike trail map (Morin-Heights)", url: "https://www.sommets.com/media/5ajd2z2w/sommets-morin-heights-carte-sentier-velo.pdf" },
     { name: "Lollipop", c: [45.8887, -74.2552], r: 1100, d: "blue", src: "Parc Basler and Sommet Morin Heights, bike trail map (Morin-Heights)", url: "https://www.sommets.com/media/5ajd2z2w/sommets-morin-heights-carte-sentier-velo.pdf" },
     { name: "Lollypop", c: [45.8887, -74.2552], r: 1100, d: "blue", src: "Parc Basler and Sommet Morin Heights, bike trail map (Morin-Heights)", url: "https://www.sommets.com/media/5ajd2z2w/sommets-morin-heights-carte-sentier-velo.pdf" },
+    // Woolastook (near Fredericton, New Brunswick): River Valley Cycling's January 2025 trailhead map grades these differently from OpenStreetMap.
+    { name: "Hallway Descent", c: [45.87515, -66.90621], r: 500, d: "blue", src: "River Valley Cycling, Woolastook trailhead map (January 2025)", url: "https://rivervalleycycling.com/2025/01/18/multi-year-woolastook-refresh-in-the-home-stretch/" },
+    { name: "The Leg Eater", c: [45.87484, -66.9037], r: 500, d: "black", src: "River Valley Cycling, Woolastook trailhead map (January 2025)", url: "https://rivervalleycycling.com/2025/01/18/multi-year-woolastook-refresh-in-the-home-stretch/" },
+    { name: "Split Rail", c: [45.87179, -66.90866], r: 800, d: "green", src: "River Valley Cycling, Woolastook trailhead map (January 2025)", url: "https://rivervalleycycling.com/2025/01/18/multi-year-woolastook-refresh-in-the-home-stretch/" },   // one piece is still blue on OpenStreetMap; the club graded its whole length green in 2024
+    // McIntosh Run (Halifax): the McIntosh Run Watershed Association's trail maps page rates it green; one piece has no level on OpenStreetMap.
+    { name: "Clark Kent", c: [44.61321, -63.60897], r: 800, d: "green", src: "McIntosh Run Watershed Association, trail maps page (2026)", url: "https://mcintoshrun.ca/trailmaps/" },
+    // Cypress Hills Provincial Park (Elkwater, Alberta): Alberta Parks' trail pages call these black; OpenStreetMap has them green and blue.
+    { name: "Great White", c: [49.65015, -110.26663], r: 500, d: "black", src: "Alberta Parks, Cypress Hills Provincial Park trails", url: "https://www.albertaparks.ca/parks/south/cypress-hills-pp/information-facilities/trails/cypress-hills/great-white/" },
+    { name: "Last Grizzly", c: [49.65561, -110.27753], r: 500, d: "black", src: "Alberta Parks, Cypress Hills Provincial Park trails", url: "https://www.albertaparks.ca/parks/south/cypress-hills-pp/information-facilities/trails/cypress-hills/the-last-grizzly/" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { nh: "12f5pps", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },

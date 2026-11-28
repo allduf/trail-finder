@@ -187,6 +187,18 @@
     { name: "Roxy Roller", c: [49.608, -119.708], r: 1000, dir: "down", who: "Summerland.com", where: "summerland.com", note: "downhill only (Cartwright Mountain, Summerland)" },
     { name: "Rollercoaster", c: [49.612, -119.711], r: 1000, dir: "down", who: "Summerland.com", where: "summerland.com", note: "a descent toward Roxy Roller (Cartwright Mountain, Summerland)" },
     { name: "Dragon's Back", c: [49.6, -119.699], r: 1000, dir: "down", who: "Summerland.com", where: "summerland.com", note: "mostly ridden downhill (Cartwright Mountain, Summerland)" },
+    // Atlantic Canada: club and town maps (2024-2026) that give a direction OpenStreetMap doesn't tag.
+    { name: "Bull", c: [46.03966, -66.53498], r: 500, dir: "down", who: "River Valley Cycling", where: "rivervalleycycling.com", note: "downhill only (Penniac, Fredericton)" },
+    { name: "Dozer", c: [46.03966, -66.53498], r: 500, dir: "down", who: "River Valley Cycling", where: "rivervalleycycling.com", note: "downhill only (Penniac, Fredericton)" },
+    { name: "Obsession", c: [45.87451, -66.90757], r: 500, dir: "down", who: "River Valley Cycling", where: "rivervalleycycling.com", note: "a downhill-only flow trail (Woolastook, near Fredericton)" },
+    { name: "The Motorway", c: [45.46247, -65.92955], r: 500, dir: "down", who: "the Millennium Cycle Bike Park map (Quispamsis)", where: "quispamsis.ca", note: "downhill only (Millennium Cycle Bike Park, Quispamsis)" },
+    { name: "Snake Bite", c: [45.46206, -65.93009], r: 500, dir: "down", who: "the Millennium Cycle Bike Park map (Quispamsis)", where: "quispamsis.ca", note: "downhill only (Millennium Cycle Bike Park, Quispamsis)" },
+    { name: "The Convex", c: [45.46211, -65.92972], r: 500, dir: "down", who: "the Millennium Cycle Bike Park map (Quispamsis)", where: "quispamsis.ca", note: "downhill only (Millennium Cycle Bike Park, Quispamsis)" },
+    { name: "Summit Trail", c: [45.87448, -66.90451], r: 500, dir: "climb", who: "River Valley Cycling's Woolastook trailhead map (2025)", where: "rivervalleycycling.com", note: "a climbing trail (Woolastook, near Fredericton)" },
+    { name: "Enthusiast's Path", c: [45.30721, -66.04369], r: 500, dir: "climb", who: "Saint John Cycling", where: "saintjohncycling.com", note: "a climbing trail (Rockwood Park, Saint John)" },
+    // Cypress Hills Provincial Park (Elkwater, Alberta): Alberta Parks' trail pages.
+    { name: "Last Grizzly", c: [49.65561, -110.27753], r: 500, dir: "down", who: "Alberta Parks", where: "albertaparks.ca", note: "downhill only, bikes only (Cypress Hills Provincial Park)" },
+    { name: "Sorry", c: [49.65631, -110.26781], r: 900, dir: "climb", who: "Alberta Parks", where: "albertaparks.ca", note: "a climbing trail for bikes up to Hidden Valley (Cypress Hills Provincial Park)" },
   ];
   const WHY = {
     none: "No map tag, local trail data or rider report says which way it's ridden, so it's shown as both ways.",

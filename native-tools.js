@@ -174,6 +174,9 @@
   const state = () => {
     const tool = N.isOpen() ? current() : null, cover = N.isOpen() && covered();
     const box = tool && !cover ? insets() : { top: 0, bottom: 0 };
+    // The page shows (the native screen steps aside for a sheet, or a tool's bars take some of the screen and the page
+    // shows there): its flat map draws meanwhile (native-map.js).
+    if (N.aside) N.aside(cover || box.top > 0 || box.bottom > 0);
     const menu = (MENU[sport()] || []).map(([name]) => t(name));
     const words = { Tools: t("Tools"), Cancel: t("Cancel") };
     const follow = tool ? (typeof tool.follow === "function" ? tool.follow() : tool.follow) : "none";

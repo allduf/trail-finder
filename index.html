@@ -4820,6 +4820,7 @@ out body;`;
   }
   // alex: anything we find about a trail beyond OpenStreetMap goes on the trail. data/trail-info.json holds what
   // resort and club pages say (map number, part of the mountain, trail type, length, a short description in our words).
+  // A source's "rating" names who gave the level ("Club rating"); without it the level reads "Park rating".
   let trailInfo = null;
   const foldName = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   // Entries of list whose names include this trail's name, within r metres of c (the entry's or its source's).
@@ -4846,7 +4847,7 @@ out body;`;
   async function officialAbout(t) {
     const j = await loadTrailInfo(); if (!j) return [];
     return infoFor(t, j, j.trails).map((e) => {
-      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `Park rating: ${e.level}`,
+      const s = j.src[e.s], facts = [e.no && `#${e.no} on the official map`, e.where, e.level && `${s.rating || "Park rating"}: ${e.level}`,
         e.kind && `${e.kind} trail`, e.km && `${e.km} km`].filter(Boolean).join(" · ");
       const kind = j.kinds && j.kinds[e.s] && j.kinds[e.s][e.kind];
       return { text: [facts && facts + ".", e.text, kind].filter(Boolean).join(" "), src: s.name, url: s.url, licence: "summarised" };
@@ -5826,19 +5827,32 @@ out body;`;
     else if (!first) keepOnYou(ll, !document.hidden);
     syncLocate(); tellYou();
   }
+  // A Me tap's answer, in words on the screen: the status line is down in the sheet, out of sight on a phone's map.
+  function locSay(msg) {
+    setStatus(msg, true);
+    if (window.tfToast) window.tfToast(window.tfLang && window.tfLang.t ? window.tfLang.t(msg) : msg);
+  }
   function startTracking(onFirst) {
     you.onFirst = onFirst;
+    // A Me tap with no fix and no answer after 12 s (an app whose location question went unanswered): say so.
+    clearTimeout(you.slow);
+    if (onFirst && onFirst.asked) you.slow = setTimeout(() => { if (!you.ll && you.onFirst === onFirst) locSay(document.documentElement.classList.contains("in-app")
+      ? "Still finding your location. If location is off, turn it on for Trail Finder in your phone's Settings."
+      : "Still finding your location. If location is off, allow it for this site in your browser settings."); }, 12000);
     if (you.watch == null) {
       you.watch = navigator.geolocation.watchPosition(showYou, (err) => {
         if (err.code !== 1) return;                  // no fix yet: keep trying
         const asked = !!you.onFirst && you.onFirst.asked;
         stopTracking();
-        if (asked) setStatus("Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.", true);
+        if (asked) locSay(document.documentElement.classList.contains("in-app")
+          ? "Location wasn't shared. Allow location for Trail Finder in your phone's Settings, or search a place instead."
+          : "Location wasn't shared. Allow location for this site in your browser settings, or search a place instead.");
       }, { enableHighAccuracy: true, maximumAge: 0 });   // always a fresh fix: an old one left the dot behind you
     } else if (you.ll && onFirst) { you.onFirst = null; onFirst(you.ll); }
     syncLocate();
   }
   function stopTracking() {
+    clearTimeout(you.slow);
     if (you.watch != null) navigator.geolocation.clearWatch(you.watch);
     cancelAnimationFrame(you.anim);
     Object.assign(you, { watch: null, ll: null, dot: null, ring: null, onFirst: null, follow: false, lost: false, shown: null, t: 0 });
@@ -6339,10 +6353,12 @@ out body;`;
     // or the line stayed off the map's sheet until another sport was picked and back (sport switch test 2026-11-22).
     if (!el && sp !== "mtb" && window.tfLoadSport && !nowWait.has(sp)) { nowWait.add(sp); window.tfLoadSport(sp).then(() => setTimeout(syncPeekToday, 0), () => nowWait.delete(sp)); }   // once per sport (again after a failed load)
     const html = sp === "mtb" ? mtbNowHtml : el && !el.hidden ? el.innerHTML : "", was = pt.hidden;
-    if (pt.innerHTML !== html) pt.innerHTML = html;
+    // Compared with what was written last, not read back: the browser writes a drawing (svg) or a French line back
+    // differently, and the line was rewritten on every map move.
+    if (pt.tfHtml !== html) { pt.innerHTML = html; pt.tfHtml = html; }
     pt.hidden = !html;
     if (phoneMQ.matches && sheet.snap === "peek" && !navStack.length && (was !== pt.hidden || Math.abs(snapHeights().peek - sheet.h) > 2)) setSheetH(snapHeights().peek);   // the peek fits it
-    const m = $("mtbNow"); if (m && m.innerHTML !== mtbNowHtml) { m.innerHTML = mtbNowHtml; m.hidden = !mtbNowHtml; }
+    const m = $("mtbNow"); if (m && m.tfHtml !== mtbNowHtml) { m.innerHTML = mtbNowHtml; m.tfHtml = mtbNowHtml; m.hidden = !mtbNowHtml; }
   }
   let mtbNowHtml = "", mtbNowT = 0;
   async function mtbNow() {
@@ -6354,11 +6370,13 @@ out body;`;
     if (v == null) mtbNowHtml = "";
     else {
       const lv = lmiLevel(v), col = LMI_RIDE[LMI_LEVELS.indexOf(lv)][0];
+      // The sun as its line drawing here: #mtbNow is data-no-line, and Android's web view draws a bare ☀ in colour.
+      const go = `<span>${window.tfLine ? window.tfLine("☀", 15) + " " : ""}Where to ride today ›</span>`;
       mtbNowHtml = isSnowy(cell.snow) ? `<span>${snowIc(15)} <b>Snow likely on the trails</b></span><span>About ${Math.round(cell.snow)} cm here (estimate)</span>`
-        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span><span>☀ Where to ride today ›</span>`
-        : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v}, estimate)</span><span>☀ Where to ride today ›</span>`;
+        : isFrozen(cell.frost) ? `<span><span class="dot" style="background:${FROZEN_COLOR}"></span><b>Ground likely frozen here</b> (estimate)</span>${go}`
+        : `<span><span class="dot" style="background:${col}"></span><b>Loam here: ${esc(lv[1])}</b> (${v}, estimate)</span>${go}`;
       // The freeze line (middle of 3 models) when the ground freezes somewhere below 3,000 m around here.
-      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace("<span>☀ Where", `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span><span>☀ Where`);
+      if (cell.fzNow != null && cell.fzNow !== Infinity && !isSnowy(cell.snow)) mtbNowHtml = mtbNowHtml.replace(go, () => `<span>${cell.fzNow === 0 ? "Ground likely frozen down to the valley" : `Ground likely frozen above ${esc(fzWord(cell.fzNow))}`}</span>${go}`);
     }
     syncPeekToday();
   }

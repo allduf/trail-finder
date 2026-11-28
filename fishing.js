@@ -1236,12 +1236,31 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const name = String(lake[0].GAZETTED_NAME || "").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
     return { name, links: lake.slice(0, 6).map((x) => [x.PDF_FILE_URL.replace(/^http:/, "https:"), `${x.DRAFT_DATE ? x.DRAFT_DATE.slice(0, 4) + " " : ""}map${lake.length > 1 ? ` ${x.SHEET_NO}` : ""}`]) };
   }
+  // BC's lake surveys (Fisheries Information Summary System, WHSE_FISH.FISS_LAKE_SURVEYS_SVW, asked live): the deepest
+  // point surveyed for the lake at the spot. A lake often has several surveys, some of one basin only: the one whose
+  // surveyed area is closest to the lake's mapped area (within half to double), the newest if they tie.
+  async function bcSurveyDepth(lat, lon) {
+    const rows = await wfs("WHSE_FISH.FISS_LAKE_SURVEYS_SVW", "WATERBODY_IDENTIFIER,GAZETTED_NAME,SURVEY_DATE,AGENCY_NAME,SURFACE_AREA,MAXIMUM_DEPTH,MEAN_DEPTH,FEATURE_AREA_SQM",
+      `DWITHIN(GEOMETRY, SRID=4326;POINT(${lon} ${lat}), 30, meters) AND MAXIMUM_DEPTH > 0 AND SURFACE_AREA > 0`, 40).catch(() => []);
+    const id = rows[0] && rows[0].WATERBODY_IDENTIFIER;
+    const ha = rows[0] && rows[0].FEATURE_AREA_SQM / 1e4;
+    const ok = rows.filter((r) => r.WATERBODY_IDENTIFIER === id && r.MAXIMUM_DEPTH > 0 && r.SURFACE_AREA > 0 && (!ha || (r.SURFACE_AREA / ha > 0.5 && r.SURFACE_AREA / ha < 2)));
+    if (!ok.length) return null;
+    const off = (r) => (ha ? Math.abs(Math.log(r.SURFACE_AREA / ha)) : 0);
+    const best = ok.sort((a, b) => off(a) - off(b) || String(b.SURVEY_DATE || "").localeCompare(String(a.SURVEY_DATE || "")))[0];
+    return { name: titleCase(best.GAZETTED_NAME || ""), max: best.MAXIMUM_DEPTH, mean: best.MEAN_DEPTH > 0 ? best.MEAN_DEPTH : null, year: String(best.SURVEY_DATE || "").slice(0, 4) };
+  }
+  const surveyLine = (sv) => `<p>Deepest point surveyed: <b>${esc(Math.round(sv.max))} m</b>${sv.mean ? `, average ${esc(Math.round(sv.mean))} m` : ""}${sv.year ? ` (BC lake survey, ${esc(sv.year)})` : ""}.</p>`;
   async function depthHtml(lat, lon, w, pv) {
     const idx = await loadDepthIdx().catch(() => null);
     const lake = idx && idx.lakes.map((x) => [x, km(lat, lon, x[0], x[1])]).filter(([x, d]) => d < x[2] + 0.2).sort((a, b) => a[1] - b[1])[0];
     const lines = shown.has("depth") ? "" : `<p><button type="button" class="fs-depthon" data-ll="${lat},${lon}">${svg(IC.layers, 14)}Show depth lines on the map</button></p>`;
-    const bc = !lake && pv === "bc" && (!w || /lake/i.test(w.kind || "lake")) ? await bcDepthMaps(lat, lon) : null;
-    if (bc) return fold("depth", IC.depth, "Depth", "Depth map (PDF)", `<p><b>${esc(bc.name || "This lake")}</b>: depth map scanned by BC Fisheries</p><p>${bc.links.map(([u, t]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} (PDF)</a>`).join(" · ")}</p>${lines}<p class="fs-note">From BC's lake bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn.</p>`);
+    const isBC = !lake && pv === "bc" && (!w || /lake/i.test(w.kind || "lake"));
+    let [bc, sv] = isBC ? await Promise.all([bcDepthMaps(lat, lon), bcSurveyDepth(lat, lon)]) : [null, null];
+    if (bc && sv && bc.name && sv.name && bc.name.toLowerCase() !== sv.name.toLowerCase()) sv = null;   // two lakes close by: only one lake's facts under its name
+    const bsum = [sv ? `up to ${Math.round(sv.max)} m` : "", bc ? "depth map (PDF)" : ""].filter(Boolean).join(" · ");
+    if (bc || sv) return fold("depth", IC.depth, "Depth", bsum.charAt(0).toUpperCase() + bsum.slice(1),
+      `<p><b>${esc((bc && bc.name) || (sv && sv.name) || "This lake")}</b>${bc ? ": depth map scanned by BC Fisheries" : ""}</p>${sv ? surveyLine(sv) : ""}${bc ? `<p>${bc.links.map(([u, t]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} (PDF)</a>`).join(" · ")}</p>` : ""}${lines}<p class="fs-note">From BC's lake surveys and bathymetric maps (Ministry of Environment, Fisheries). Old surveys: water levels and shorelines may have changed. Not for navigation. Depth lines on the map are only for the few BC lakes the province has drawn.</p>`);
     if (!lake) return lines && w && /lake/i.test(w.kind || "lake") && !w.listOnly ? fold("depth", IC.depth, "Depth", "Depth lines", `${lines}<p class="fs-note">Lines show where a province surveyed the lake (BC, Alberta, Ontario, Quebec, Manitoba; New Brunswick soundings).</p>`) : "";
     const [[, , , name, deep, links, prov]] = lake;
     const a = links.map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">${/\.pdf$/i.test(u) ? "Depth map (PDF)" : `Depth chart${links.length > 1 ? ` ${i + 1}` : ""} (scan)`}</a>`).join(" · ");
@@ -1861,7 +1880,10 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const a = j.features && j.features[0] && j.features[0].attributes;
     if (!a) return null;
     const sp = String(a.FISH_SPECIES_SUMMARY || "").split(",").map((s) => s.trim()).filter(Boolean);
-    const facts = [a.SURFACE_AREA ? `${Math.round(a.SURFACE_AREA)} ha` : "", a.MAXIMUM_DEPTH ? `up to ${a.MAXIMUM_DEPTH} m deep (average ${a.MEAN_DEPTH || "?"} m)` : "", a.THERMAL_REGIME ? `${a.THERMAL_REGIME.toLowerCase()} water` : ""].filter(Boolean);
+    // The Stocked section shows the same inventory's facts for a stocked lake with this name close by: once is enough.
+    const nm = String(a.OFFICIAL_WATERBODY_NAME || "").toLowerCase();
+    const inStock = !!nm && !!stocked && near(stocked.waters, lat, lon, 3, (x) => x.c).slice(0, 2).some(([x]) => x.p === "on" && Array.isArray(x.f) && x.n.toLowerCase() === nm);
+    const facts = inStock ? [] : [a.SURFACE_AREA ? `${Math.round(a.SURFACE_AREA)} ha` : "", a.MAXIMUM_DEPTH ? `up to ${a.MAXIMUM_DEPTH} m deep${a.MEAN_DEPTH ? ` (average ${a.MEAN_DEPTH} m)` : ""}` : "", a.THERMAL_REGIME && a.THERMAL_REGIME !== "Unknown" ? `${a.THERMAL_REGIME.toLowerCase()} water` : ""].filter(Boolean);
     return { name: a.OFFICIAL_WATERBODY_NAME || "", kind: "Lake", sp, html: `${facts.length ? `<p class="fs-note">${esc(facts.join(" · "))}</p>` : ""}${speciesHtml(sp, "From Ontario's aquatic resource inventory.")}` };
   }
   async function waterQC(lat, lon) {
@@ -1926,15 +1948,54 @@ body.sport-fish .leaflet-ridesPane-pane { display: none; }
     const list = near(stocked.waters, lat, lon, 3, (w) => w.c).slice(0, 2);
     if (!list.length) return "";
     return list.map(([w, d]) => {
-      const r = w.r[0], when = /^\d{4}-\d\d-\d\d$/.test(r[0]) ? new Date(r[0] + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) : r[0].replace(/ planned.*/, " (planned)");
+      const r = w.r[0], when = /^\d{4}-\d\d-\d\d$/.test(r[0]) ? new Date(r[0] + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", ...(+r[0].slice(0, 4) !== new Date().getFullYear() ? { year: "numeric" } : {}) }) : r[0].replace(/ planned.*/, " (planned)");
       return fold("stock", IC.fish, list.length > 1 || d > 0.3 ? `Stocked: ${w.n}` : "Stocked", `${esc(when)}${stocked.sp[r[1]] ? `, ${esc(stocked.sp[r[1]].toLowerCase())}` : ""}`, `${d > 0.3 ? `<p class="fs-note">${esc(w.n)}, ${fmtKm(d)} away.</p>` : ""}${releasesHtml(w)}`);
     }).join("");
   }
   function releasesHtml(w) {
     const sp = stocked.sp, st = stocked.st || [];
     const rows = w.r.slice(0, 8).map((r) => `<tr><td>${esc(/^\d{4}-\d\d-\d\d$/.test(r[0]) ? fmtDay(r[0]) : r[0])}</td><td><b>${esc(sp[r[1]] || "")}</b>${st[r[3]] ? `<br><small>${esc(st[r[3]])}</small>` : ""}</td><td class="num">${r[2] ? r[2].toLocaleString() : ""}</td></tr>`).join("");
-    const src = w.p === "bc" ? "Freshwater Fisheries Society of BC stocking report" : w.p === "ab" ? "Alberta stocking reports and this year's planned trout stocking" : "Ontario fish stocking data";
-    return `<table class="fs-tbl"><thead><tr><th>When</th><th>What</th><th class="num">Fish</th></tr></thead><tbody>${rows}</tbody></table>${w.r.length > 8 ? `<p class="fs-note">And ${w.r.length - 8} more releases.</p>` : ""}<p class="fs-note">${src}.</p>`;
+    const a = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
+    const src = w.p === "bc" ? a(`https://www.gofishbc.com/stocked-fish/?wbid=${encodeURIComponent(w.id || "")}`, "Freshwater Fisheries Society of BC stocking report")
+      : w.p === "ab" ? a("https://mywildalberta.ca/fishing/fish-stocking/default.aspx", w.r.some((r) => / planned/.test(r[0])) ? "Alberta stocking reports and this year's planned trout stocking" : "Alberta fish stocking reports")
+      : STOCK_SRC[w.p] || a("https://data.ontario.ca/dataset/fish-stocking", "Ontario fish stocking data");
+    // Saskatchewan's guide gives a place description, not a position: the dot is the official place of that name near it.
+    const where = w.p === "sk" && w.t ? `<p class="fs-note">The guide's location: ${esc(w.t)}. The spot on the map is the lake or stream of that name closest to it, an estimate.</p>` : "";
+    return `${lakeFactsHtml(w)}<table class="fs-tbl"><thead><tr><th>When</th><th>What</th><th class="num">Fish</th></tr></thead><tbody>${rows}</tbody></table>${w.r.length > 8 ? `<p class="fs-note">And ${w.r.length - 8} more release${w.r.length > 9 ? "s" : ""}.</p>` : ""}<p class="fs-note">${src}.</p>${where}`;
+  }
+  const STOCK_SRC = {
+    sk: `<a href="https://publications.saskatchewan.ca/#/categories/53" target="_blank" rel="noopener">Saskatchewan Stocked Waters Guide</a> (Saskatchewan Fish Hatchery), yearly totals`,
+    mb: `<a href="https://geoportal.gov.mb.ca/datasets/manitoba::manitoba-waterbody-stocking-records" target="_blank" rel="noopener">Manitoba Waterbody Stocking Records</a>. Contains information from the Government of Manitoba, licensed under the OpenMB Information and Data Use License`,
+    nb: `<a href="https://nbdnr.maps.arcgis.com/apps/webappviewer/index.html?id=4f860421af6443f7ae1c48770ac369a6" target="_blank" rel="noopener">New Brunswick Fish Stocking App</a>, yearly totals`,
+    ns: `<a href="https://data.novascotia.ca/d/8e4a-m6fw" target="_blank" rel="noopener">Nova Scotia Fish Hatchery Stocking Records</a>`,
+  };
+  // What the province's own data lists for the lake (stocked.json f, built by scripts/build-fishing.mjs):
+  // [elevation m, area ha, road 2 or 4 (WD), flags, deepest m, average depth m, thermal regime c/o/w]. BC: the Freshwater
+  // Fisheries Society of BC's "where to fish" map; Alberta: the lake's size on Alberta's fisheries map (FWMIS); Ontario:
+  // size, depth and thermal regime from Ontario's Aquatic Resource Area inventory; Manitoba: size, average depth and boat
+  // launch from Manitoba's Lake Information for Anglers; New Brunswick: size and deepest point from its fish stocking map;
+  // Nova Scotia: size and depth from the Nova Scotia Lake Survey. Only what they list: a missing
+  // launch or dock isn't shown as "none".
+  const FLAG = { b: "Boat launch", d: "Fishing dock", a: "Wheelchair access", c: "Campsite", w: "Washroom", h: "Hike-in" };
+  const THERMAL = { c: "Cold-water lake", o: "Cool-water lake", w: "Warm-water lake" };
+  const LAKE_SRC = {
+    bc: `As listed on the <a href="https://www.gofishbc.com/where-to-fish/" target="_blank" rel="noopener">Freshwater Fisheries Society of BC's Where to fish map</a>. Roads, docks and facilities can change.`,
+    ab: `Lake size from Alberta's fisheries map (<a href="https://www.alberta.ca/fisheries-and-wildlife-management-information-system-overview" target="_blank" rel="noopener">FWMIS</a>). Water levels can change.`,
+    on: `From Ontario's Aquatic Resource Area inventory, the lake facts in <a href="https://www.lioapplications.lrc.gov.on.ca/fishonline/Index.html?viewer=FishONLine.FishONLine&locale=en-CA" target="_blank" rel="noopener">Fish ON-Line</a>. Old surveys: water levels may have changed. Not for navigation.`,
+    mb: `From Manitoba's <a href="https://experience.arcgis.com/experience/2557cda82dcc4a348fbb71304cedcf6d" target="_blank" rel="noopener">Lake Information for Anglers</a>. Water levels and launches can change. Not for navigation.`,
+    nb: `From New Brunswick's <a href="https://nbdnr.maps.arcgis.com/apps/webappviewer/index.html?id=4f860421af6443f7ae1c48770ac369a6" target="_blank" rel="noopener">Fish Stocking App</a>. Water levels can change. Not for navigation.`,
+    ns: `Lake size and depth from the <a href="https://nse.maps.arcgis.com/apps/webappviewer/index.html?id=7ded7a30bef44f848e8a4fc8672c89bd" target="_blank" rel="noopener">Nova Scotia Lake Survey</a>. Old surveys: water levels may have changed. Not for navigation.`,
+  };
+  const dec = (x) => (x >= 10 ? Math.round(x) : Math.round(x * 10) / 10);
+  function lakeFactsHtml(w) {
+    const f = Array.isArray(w.f) && LAKE_SRC[w.p] ? w.f : null;
+    if (!f) return "";
+    const flags = [...String(f[3] || "")].map((k) => FLAG[k]).filter(Boolean);
+    const list = [f[0] > 0 ? `Elevation ${f[0].toLocaleString("en")} m` : "", f[1] > 0 ? `${dec(f[1]).toLocaleString("en")} ha` : "", f[2] === 2 || f[2] === 4 ? `${f[2]}WD road` : "",
+      f[4] > 0 ? `Deepest ${dec(f[4])} m` : "", f[5] > 0 ? `Average depth ${dec(f[5])} m` : "", THERMAL[f[6]] || ""].filter(Boolean);
+    if (!list.length && !flags.length) return "";
+    const line = (a) => (a.length ? `<p>${a.map((x) => `<span>${esc(x)}</span>`).join(" · ")}</p>` : "");
+    return `${line(list)}${line(flags)}<p class="fs-note">${LAKE_SRC[w.p]}</p>`;
   }
   const fmtDay = (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   async function flowHtml(lat, lon, only) {
