@@ -1,5 +1,4 @@
 [
-  { "os": "web", "name": "probe", "env": "PART=probe TRAIL=Pipe_Trail" },
-  { "os": "ios", "name": "ui", "env": "PART=ui TRAIL=Pipe_Trail" },
-  { "os": "ios", "name": "fly", "env": "PART=fly NF=300 FZ=14.2 B0=20 B1=110 FSET=1000" }
+  { "os": "ios", "name": "ui", "env": "PART=ui TRAIL=auto SPOT=49.362,-123.088 GEO=49.3536,-123.0889 Z=14" },
+  { "os": "ios", "name": "fly", "env": "PART=fly TRAIL=auto SPOT=49.362,-123.088 GEO=49.3536,-123.0889 FC=49.364,-123.085 FZ=14.1 NF=300 B0=-30 B1=60 FSET=1000" }
 ]

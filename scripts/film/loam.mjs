@@ -319,11 +319,13 @@ const hold = async (n) => { for (let i = 0; i < n; i++) { await sleep(300); awai
 const TEXT = (sel) => jsq(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); return e ? e.innerText.replace(/\\s+\\n/g, "\\n").slice(0, 3000) : null; })()`, null);
 async function openTrail(name) {
   const r = await jsq(`(() => { const m = window.tfLeaflet, mb = m.getContainer().getBoundingClientRect(); let best = null;
-    window.tfTrails().all.flat().forEach((w) => { if (!w || !w.geom || !w.tags || String(w.tags.name || "").toLowerCase() !== ${JSON.stringify(name.toLowerCase())}) return;
+    const want = ${JSON.stringify(name.toLowerCase())};
+    window.tfTrails().all.flat().forEach((w) => { if (!w || !w.geom || !w.tags || !w.tags.name || (want === "auto" ? !(w.c && w.c.cat === "mtb" && w.geom.length > 25) : String(w.tags.name).toLowerCase() !== want)) return;
       const mid = w.geom[Math.floor(w.geom.length / 2)], p = m.latLngToContainerPoint(mid);
       const score = Math.hypot(p.x - mb.width / 2, p.y - mb.height * 0.4) - w.geom.length;
       if (p.x > 30 && p.x < mb.width - 30 && p.y > 110 && p.y < mb.height - 300 && (!best || score < best.score)) best = { mid, x: p.x + mb.left, y: p.y + mb.top, score }; });
     if (!best) return null; window.__trail = best; return { x: best.x, y: best.y }; })()`, null);
+  // (the trail's name is only logged, never written in the repo)
   log("trail " + name + ": " + JSON.stringify(r));
   if (!r) return false;
   L.taps.push({ f: fi, x: r.x, y: r.y, name: "trail" }); await snap();
@@ -380,7 +382,9 @@ const SPOTS = { Squamish: [49.705, -123.135], "Squamish Alice Lake": [49.775, -1
   log("key: " + (await TEXT("details.legend:has(.lg-mode)")));
   await ptap("details.legend:has(.lg-mode) summary", 2500, "key_close"); mark("map_loam"); await hold(4);
   // 3. A trail: its Loam number, then its weather and loam part.
-  if (TRAIL && (await openTrail(TRAIL))) {
+  let opened = false;
+  for (const t of TRAIL.split(",").filter(Boolean)) if ((opened = await openTrail(t))) break;
+  if (opened) {
     await sleep(9000); await snap(); mark("card"); await hold(3);
     log("card head: " + (await TEXT(".d-facts")));
     await ptap(".d-facts button[data-to=wx]", 4000, "loam_fact"); mark("wx"); await hold(3);
@@ -391,11 +395,16 @@ const SPOTS = { Squamish: [49.705, -123.135], "Squamish Alice Lake": [49.775, -1
     await ptap("#detailBack", 2500, "back"); await closeAll("card"); await click("#tabbar [data-nav=map]"); await sleep(3000); await snap();
   }
   // 4. Prime loam now.
-  await ptap("#peekQuick [data-q=prime]", 15000, "prime"); mark("prime"); await hold(3);
-  log("prime: " + (await TEXT("#status")) + " | " + (await TEXT("#results")));
+  await ptap("#peekQuick [data-q=prime]", 3000, "prime");
+  for (let i = 0; i < 60 && /Checking|Loading/.test((await TEXT("#status")) || "Checking"); i++) await sleep(2000);
+  await sleep(2500); await snap(); mark("prime"); await hold(3);
+  log("prime: " + (await TEXT("#status")) + " | " + (await jsq(`document.body.innerText.slice(0, 2500)`, "")));
+  await scrollIn("#status", 400, 30); mark("prime_scroll"); await hold(3);
   await closeAll("prime"); await sleep(2500); await snap();
   // 5. Where to ride today.
-  await ptap("#peekToday", 20000, "today"); mark("today"); await hold(3);
+  await ptap("#peekToday", 3000, "today");
+  for (let i = 0; i < 60 && /Checking the loam/.test(await jsq(`(() => { const d = [...document.querySelectorAll("dialog[open]")].pop(); return d ? d.innerText : "Checking the loam"; })()`, "Checking the loam")); i++) await sleep(2000);
+  await sleep(2500); await snap(); mark("today"); await hold(3);
   log("today: " + (await jsq(`(() => { const d = [...document.querySelectorAll("dialog[open], #hub:not([hidden])")].pop(); return d ? d.innerText.slice(0, 2500) : document.body.innerText.slice(0, 1500); })()`, "")));
   await scrollIn("dialog[open] h2, dialog[open] h3, #hub h2", 500, 30); mark("today_scroll"); await hold(3);
   await closeAll("today"); await sleep(2000); await snap();
