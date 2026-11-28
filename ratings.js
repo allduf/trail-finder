@@ -423,6 +423,15 @@
     { ids: [550683443, 1562597864], c: [51.278, -117.078], r: 1000, named: "Pipestone", d: "blue", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [550683465], c: [51.278, -117.044], r: 1000, named: "Swamp Donkey", d: "black", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
     { ids: [1562597865], c: [51.28, -117.078], r: 1000, named: "Dragon Chaser", d: "green", src: "Golden Cycling Club, trail list and map", url: "https://goldencyclingclub.com/golden-cycling-club-trails/" },
+    // Nelson Cycling Club trail progression lists (2026 riding zones page) and the Golden Cycling Club Mount 7 trail inventory
+    // (Mount 7 Trail Plan, 2023, its own list of sanctioned trails): levels OpenStreetMap lacks or gives differently.
+    { name: "Lefty", c: [49.4846, -117.3617], r: 1500, d: "black", src: "Nelson Cycling Club, Morning Mountain trail progression list", url: "https://www.nelsoncyclingclub.org/s/MMprog.gif" },
+    { name: "Expresso", c: [49.4985, -117.259], r: 1500, d: "blue", src: "Nelson Cycling Club, Mountain Station trail progression list", url: "https://www.nelsoncyclingclub.org/s/STprog.gif" },
+    { name: "Slingshot", c: [49.4924, -117.2666], r: 1500, d: "black", src: "Nelson Cycling Club, Mountain Station trail progression list", url: "https://www.nelsoncyclingclub.org/s/STprog.gif" },
+    { name: "Boneyard Trail", c: [49.4995, -117.2665], r: 1500, d: "black", src: "Nelson Cycling Club, Mountain Station trail progression list", url: "https://www.nelsoncyclingclub.org/s/STprog.gif" },
+    { name: "Schacher", c: [51.2745, -116.8949], r: 3000, d: "blue", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
+    { name: "B12", c: [51.294, -116.9258], r: 2500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
+    { name: "Bris", c: [51.2784, -116.9022], r: 1500, d: "dbl", src: "Golden Cycling Club, Mount 7 Trail Plan (2023)", url: "https://goldencyclingclub.com/cms/wp-content/uploads/2024/10/GCC-Mt.-7-Trail-Plan-Final-compressed-compressed.pdf" },
     { name: "Trial and Error", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { name: "Trial and Error (lower)", c: [50.162, -122.938], r: 2000, d: "black", who: "alex", note: "an official trail at Emerald, Whistler", off: true },
     { nh: "12f5pps", c: [49.641, -123.170], r: 2000, d: "dbl", who: "alex", note: "an unsanctioned trail by the Upper Britannia paragliding launch, Squamish" },
@@ -532,6 +541,16 @@
     { name: "Lost Lake Loop", c: [49.806, -119.407], r: 1500, d: "blue", src: "Kelowna.com, Kelowna trails for every rider: '900 meters of blue singletrack'", url: "https://kelowna.com/articles/mountain-biking-adventures-in-kelowna-trails-for-every-rider" },
     { name: "Big Drop", c: [49.803, -119.431], r: 1500, d: "black", src: "Kelowna.com, Kelowna trails for every rider: 'short black diamond'", url: "https://kelowna.com/articles/mountain-biking-adventures-in-kelowna-trails-for-every-rider" },
     { name: "Vapour", c: [49.799, -119.418], r: 2000, d: "black", src: "KelownaNow, Biking the Okanagan guide by MTBCO", url: "https://www.kelownanow.com/watercooler/news/news/Biking_the_Okanagan/Biking_the_Okanagan_Guide_of_Where_to_Ride_1/" },
+    // Okanagan local sources (2026-11-27): Greater Vernon trail map levels for trails its shapes didn't match, Visit Penticton's
+    // Swagman ride guides and Summerland.com. Ward 1 and Sourkraut: Visit Penticton's Skaha Bluffs guide rides them as bike trails.
+    { name: "The Baconator", c: [50.262, -119.099], r: 1500, d: "black", src: "Greater Vernon trail map (Difficult)", url: "https://trails.tourismvernon.com/" },
+    { name: "Blister's Sister", c: [50.175, -119.426], r: 1500, d: "blue", src: "Greater Vernon trail map (Blisters Sisters, Moderate)", url: "https://trails.tourismvernon.com/" },
+    { name: "Home Run", c: [50.173, -119.431], r: 1500, d: "blue", src: "Greater Vernon trail map (Homerun, Moderate)", url: "https://trails.tourismvernon.com/" },
+    { name: "Dagmal", c: [50.359, -119.093], r: 1500, d: "black", src: "Greater Vernon trail map (Dagamal, Difficult)", url: "https://trails.tourismvernon.com/" },
+    { name: "Wedding Crashers", c: [49.554, -119.555], r: 1500, d: "black", src: "Swagman ride guide on Visit Penticton, Three Blind Mice part 2 (black diamond)", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-three-blind-mice-part-2-tech/" },
+    { name: "Roxy Roller", c: [49.608, -119.708], r: 1500, d: "black", src: "Summerland.com, mountain trails for experienced riders (Black Diamond)", url: "https://summerland.com/articles/biking-bliss-summerlands-best-mountain-trails-for-experienced-riders/" },
+    { name: "Ward 1", c: [49.434, -119.554], r: 1500, src: "Swagman ride guide on Visit Penticton, Skaha Bluffs (Gillies Creek bike area)", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-skaha-bluffs/" },
+    { name: "Sourkraut", c: [49.437, -119.541], r: 1500, src: "Swagman ride guide on Visit Penticton, Skaha Bluffs (Gillies Creek bike area)", url: "https://visitpenticton.com/swagmans-backyard-ride-guide-skaha-bluffs/" },
     { name: "Silver Shack", c: [50.375, -119.03], r: 2000, d: "blue", src: "SilverStar 2025 Cross Country & Hiking trail map (PDF)", url: "https://cms.skisilverstar.com/sites/default/files/2025-05/2025_CrossCountryTrailMap.pdf" },
     { name: "SW Passage", c: [49.65, -116.008], r: 2000, d: "black", src: "City of Kimberley Adventure Trail Network Map (PDF): 'SW Passage Loop - Advanced'", url: "https://www.kimberley.ca/sites/default/files/Adventure%20Trail%20Network%20Map.pdf" },
     // weekly audit, 2026-10-31: Banff levels from Parks Canada (2024 brochure; Minnewanka and Stoney left out, sources disagree), Mount Swansea levels from Columbia Valley Tourism
