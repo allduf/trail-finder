@@ -329,11 +329,17 @@
     { name: "Packard Goose", c: [50.135, -122.941], r: 1500, d: "green", src: "Resort Municipality of Whistler, Lost Lake Park summer trail map (2024)", url: "https://www.whistler.ca/wp-content/uploads/2025/LostLake_Pamphlet-Map_Dec.2024.pdf" },
     // Kamloops Bike Ranch
     { name: "Fist Full of Dollars", c: [50.668, -120.264], r: 1500, d: "pro", src: "City of Kamloops, Kamloops Bike Ranch trail map", url: "https://kamloops.ca/sites/default/files/Trail%20Map_Facility%20Overview.pdf" },
+    // #5 on the City's map, a blue (More Difficult) technical descent of about 1.4 km; OpenStreetMap has no level (checked 2026-11-27).
+    { name: "Rattlesnake", c: [50.666, -120.263], r: 1000, d: "blue", src: "City of Kamloops, Kamloops Bike Ranch trail map", url: "https://kamloops.ca/sites/default/files/Trail%20Map_Facility%20Overview.pdf" },
     // Kenna Cartwright
     { name: "Prickly Pear Cactus", c: [50.664, -120.403], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
     { name: "Sage Trail", c: [50.679, -120.39], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
     { name: "Saskatoon", c: [50.667, -120.397], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
     { name: "West Vista", c: [50.674, -120.413], r: 1500, d: "blue", src: "City of Kamloops, Kenna Cartwright Nature Park map (2025)", url: "https://www.kamloops.ca/sites/default/files/2025-11/OPS_Signage_PKS_Maps_KennaCartwrightTrails_KioskSign_92x43_Aug2025_FINAL-WEB.pdf" },
+    // Sun Peaks: Family Man is a free multi-use (hike and bike) trail by the village, not lift access, on the resort's 2026 hike
+    // map; without this it reads as a bike park trail because it lies inside the resort (checked 2026-11-27). No level given.
+    ...["Family Man", "Family Man East", "Family Man West"].map((name) => ({ name, c: [50.882, -119.898], r: 1500, src: "Sun Peaks Resort",
+      url: "https://www.sunpeaksresort.com/sites/default/files/2026-05/SPR-Hike-Map-2026-Web.pdf" })),
     // Canmore benchlands (Cougar Creek to Harvie Heights): bike trails in the Alberta Parks trail reports, tagged only
     // bicycle=yes in OpenStreetMap, so they were missing from All trails (2026-10-25). No level: the reports give none.
     { name: "Montane Traverse", c: [51.1, -115.34], r: 2500, src: "Alberta Parks trail reports, Canmore and Area", url: "https://www.albertaparks.ca/parks/kananaskis/kananaskis-country/advisories-public-safety/trail-reports/canmore-and-area/" },

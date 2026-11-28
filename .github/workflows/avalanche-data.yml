@@ -1,0 +1,134 @@
+name: Avalanche and snow data
+
+# Every 2 hours: Avalanche Canada's forecasts for the region -> data/avalanche.json (area outlines and a saved copy of
+# the forecasts, the app's backup when Avalanche Canada can't be reached; the Japan Avalanche Network's bulletins with
+# them), riders' reports of the last 14 days -> data/avalanche-reports.json, the snowmobile clubs' grooming reports ->
+# data/grooming.json (scripts/build-winter.mjs, ONLY=avy,groom), and the snow stations' snow depth, new snow and
+# temperature -> data/snow-stations.json (scripts/build-snow-stations.mjs). Twice more just after Avalanche Canada's
+# daily bulletins (issued about 23:00-00:00 UTC), when its areas are often regrouped.
+# This was the 2-hourly part of "Winter data" (winter-data.yml keeps the nightly ski routes). GitHub runs this
+# repository's schedules hours late or not at all: in the week to 27 Nov 2026 that schedule ran 3 or 4 times a day
+# instead of 14, and the loam alerts ran 2 of 5 times on the 27th. So one run keeps going, as the crash and error alert
+# (app-alert.yml) and the avalanche watch do: it refreshes at those times for about 5 hours, then starts the next run
+# itself. Where it stopped is kept in the cache, so the next run misses no time and does none twice. After each save it
+# starts "Publish website" (a publish otherwise only follows a finished run), and at the loam alert times it starts
+# "Loam alerts to phones" (loam-push.yml, whose own schedule GitHub skips too; a second run there sends nothing new).
+# The schedule here only restarts the chain if it ever breaks; a second run waits in the queue rather than running
+# beside it (and is cancelled when the next run of the chain takes its place).
+# "Run workflow" by hand: one refresh now, saved and published, without waiting for the running one.
+# A pull request that changes this file runs one refresh, without saving or starting anything.
+on:
+  schedule:
+    - cron: "23 */2 * * *"   # only restarts a broken chain
+  pull_request:
+    paths: [".github/workflows/avalanche-data.yml"]
+  workflow_dispatch:
+    inputs:
+      once:
+        description: "One refresh now, without waiting for the running one"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # save the data files (site-data branch)
+  actions: write    # start the website publish, the loam alerts and the next run (and keep where it stopped in the cache)
+
+concurrency:
+  # One chain at a time; a refresh by hand and a pull request's test don't wait for it.
+  group: avalanche-data-${{ github.event_name == 'pull_request' && github.ref || (inputs.once && 'once' || 'loop') }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      LOOP: ${{ github.event_name != 'pull_request' && !inputs.once && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Where the last run of the chain stopped.
+      - uses: actions/cache/restore@v4
+        if: env.LOOP
+        continue-on-error: true
+        with:
+          path: .avalanche-data
+          key: avalanche-data-${{ github.run_id }}
+          restore-keys: avalanche-data-
+      # Never red while it keeps going (a failed scheduled job emails alex): a part that fails keeps its last data and
+      # shows as a warning, and the next refresh tries again.
+      - name: Refresh every 2 hours
+        timeout-minutes: 345
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        env:
+          SAVE: ${{ github.event_name != 'pull_request' && github.ref_name == 'main' && '1' || '' }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Times of day (UTC), as their schedules had them: the data at :23 every 2 hours and just after the daily
+          # bulletins, the loam alerts as in loam-push.yml.
+          AVY="00:23 00:37 02:23 04:23 06:23 08:23 10:23 12:23 14:23 16:23 18:23 20:23 22:23 23:53"
+          LOAM="02:07 14:07 17:07 20:07 23:07"
+          # True when one of these times came after $last and by $now (seconds since 1970, UTC).
+          came() {
+            local t s day=$(( now - now % 86400 ))
+            for t in $1; do
+              s=$(( day + 10#${t%:*} * 3600 + 10#${t#*:} * 60 ))
+              if [ $s -gt $last ] && [ $s -le $now ]; then return 0; fi
+              s=$(( s - 86400 ))
+              if [ $s -gt $last ] && [ $s -le $now ]; then return 0; fi
+            done
+            return 1
+          }
+          refresh() {
+            # A change merged meanwhile is used from this refresh on (the data files main also has are put back first,
+            # so the pull isn't refused).
+            git checkout -q -- data 2>/dev/null || true
+            timeout 2m git pull -q --ff-only 2>/dev/null || true
+            timeout 5m bash scripts/site-data.sh get || { echo "::warning::Couldn't get the data files; the next refresh tries again."; return 0; }
+            ONLY=avy,groom timeout 20m node scripts/build-winter.mjs || echo "::warning::The avalanche data stopped early; what it couldn't read keeps its last data."
+            timeout 10m node scripts/build-snow-stations.mjs || echo "::warning::Snow stations failed; keeping the last file"
+            ls -l data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json || true
+            [ -n "$SAVE" ] || return 0
+            local out
+            out=$(timeout 10m bash scripts/site-data.sh save "Avalanche and snow data" data/avalanche.json data/avalanche-reports.json data/grooming.json data/snow-stations.json 2>&1) \
+              || echo "::warning::Couldn't save the data; the next refresh tries again."
+            echo "$out"
+            if grep -q "^Saved" <<< "$out"; then
+              timeout 2m gh workflow run pages.yml --ref main -R "$REPO" || echo "::warning::Couldn't start the website publish; the next save starts it."
+            fi
+          }
+          mkdir -p .avalanche-data
+          now=$(date +%s); end=$(( now + 290 * 60 ))
+          # Carry on from where the last run of the chain stopped; a new chain (or a refresh by hand) refreshes at once.
+          since=$(cat .avalanche-data/since 2>/dev/null || true)
+          if [ -n "$LOOP" ] && [[ "$since" =~ ^[0-9]+$ ]] && [ "$since" -le "$now" ]; then last=$since; first=; else last=$(( now - 1 )); first=1; fi
+          while :; do
+            now=$(date +%s)
+            # The loam alerts first, so a slow refresh doesn't hold them up.
+            if [ -n "$LOOP" ] && came "$LOAM"; then
+              echo "Starting the loam alerts"
+              timeout 2m gh workflow run loam-push.yml --ref main -R "$REPO" || echo "::warning::Couldn't start the loam alerts; their own schedule may still run them."
+            fi
+            if [ -n "$first" ] || came "$AVY"; then refresh; fi
+            first=; last=$now; echo "$last" > .avalanche-data/since
+            [ -n "$LOOP" ] && [ $(( $(date +%s) + 300 )) -lt $end ] || break
+            sleep $(( 300 - $(date +%s) % 300 ))   # to the next 5-minute mark
+          done
+      - uses: actions/cache/save@v4
+        if: ${{ !cancelled() && env.LOOP }}
+        continue-on-error: true
+        with:
+          path: .avalanche-data
+          key: avalanche-data-${{ github.run_id }}
+      # Its own step, so a run that crashed or ran out of time still starts the next one.
+      - name: Start the next run
+        if: ${{ !cancelled() && env.LOOP }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run avalanche-data.yml --ref main -R "${{ github.repository }}" -f once=false \
+            || echo "::warning::Couldn't start the next run; the schedule restarts it."
