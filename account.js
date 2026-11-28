@@ -545,7 +545,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       }
       setMsg(`Your data is ready (${Math.max(1, Math.round(text.length / 1024))} KB). Photo links in it work for 7 days.`);
-    } catch (e) { setMsg("Couldn't gather your data: " + ((e && e.message) || e) + ". Try again in a minute."); }
+    } catch (e) { setMsg("Couldn't gather your data: " + (window.tfErrText ? window.tfErrText(e) : "something went wrong") + ". Try again in a minute."); }
     b.disabled = false;
   });
   q("acctSetEmail").addEventListener("click", async () => {
@@ -685,7 +685,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
     yes.disabled = true; msg.className = "acct-msg"; msg.textContent = "Deleting…";
     try {
       const uid = api.user && api.user.id;
-      if (!uid) throw new Error("Not signed in");
+      if (!uid) throw new Error("you're not signed in");
       await removeMyFiles(uid);
       const key = jparse(lsGet("tf:shareKey"), null);   // share.js keeps it as JSON
       if (key) await api.client.rpc("unshare_all", { p_key: key }).then(() => {}, () => {});
@@ -703,7 +703,7 @@ dialog.acct .acct-out-row { justify-content: space-between; align-items: center;
       setTimeout(() => box.close(), 1800);
     } catch (e) {
       yes.disabled = false; msg.className = "acct-msg err";
-      msg.textContent = "Couldn't delete the account: " + ((e && e.message) || e) + ". Try again, or write to us from the Support page.";
+      msg.textContent = "Couldn't delete the account: " + (window.tfErrText ? window.tfErrText(e) : "something went wrong") + ". Try again, or write to us from the Support page.";
     }
   });
 
